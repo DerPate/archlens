@@ -33,6 +33,8 @@ public class McpServer {
     private final RenderDependencyMapTool dependencyMapTool;
     private final RenderComponentDependencyDiagramTool dependencyDiagramTool;
     private final ExportArchitectureDocsTool exportDocsTool;
+    private final ExportGraphArchitecturePocTool exportGraphPocTool;
+    private final QueryArchitectureGraphTool graphTool;
     private final PrintStream out;
 
     /** Creates a server with the default extractor, cache, and tool registry. */
@@ -57,6 +59,8 @@ public class McpServer {
         this.dependencyMapTool = new RenderDependencyMapTool(cache);
         this.dependencyDiagramTool = new RenderComponentDependencyDiagramTool(cache);
         this.exportDocsTool = new ExportArchitectureDocsTool(cache);
+        this.exportGraphPocTool = new ExportGraphArchitecturePocTool(cache);
+        this.graphTool = new QueryArchitectureGraphTool(cache);
         this.out = System.out;
     }
 
@@ -130,6 +134,8 @@ public class McpServer {
             case "render_dependency_map"     -> dependencyMapTool.execute(args);
             case "render_component_dependency_diagram" -> dependencyDiagramTool.execute(args);
             case "export_architecture_docs"  -> exportDocsTool.execute(args);
+            case "export_graph_architecture_poc" -> exportGraphPocTool.execute(args);
+            case "query_architecture_graph"  -> graphTool.execute(args);
             default -> "Unknown tool: " + name;
         };
     }
@@ -220,6 +226,26 @@ public class McpServer {
             schema()
                 .opt("outputPath", "string", "Output Markdown path (default docs/GENERATED_ARCHITECTURE.md)")
                 .opt("focusComponent", "string", "Component used for the dependency slice (default McpServer)")));
+
+        tools.add(tool("export_graph_architecture_poc",
+            "Write a graph-centric architecture POC document with graph metadata, property examples, and MCP query samples.",
+            schema()
+                .opt("outputPath", "string", "Output Markdown path (default docs/SOURCE_ARCHITECTURE_POC.md)")
+                .opt("focusComponent", "string", "Component used for the graph focus slice (default McpServer)")));
+
+        tools.add(tool("query_architecture_graph",
+            "Query the architecture as a graph: summary, node search, neighborhoods, paths, or impact slices.",
+            schema()
+                .opt("action", "string", "summary | find_nodes | find_edges | neighborhood | paths | impacted_by")
+                .opt("label", "string", "Node label for find_nodes: Application | Component | Entrypoint | Interface | Container | Deployment | RuntimeFlow")
+                .opt("query", "string", "Free-text node search")
+                .opt("filters", "object", "Property filters, with numeric comparisons such as {\"confidence\":\"<=0.6\"}")
+                .opt("nodeId", "string", "Node ID for neighborhood or impacted_by")
+                .opt("fromId", "string", "Source node ID for paths")
+                .opt("toId", "string", "Target node ID for paths")
+                .opt("direction", "string", "in | out | both for neighborhood")
+                .opt("maxDepth", "integer", "Traversal depth for paths or impacted_by")
+                .opt("limit", "integer", "Maximum returned rows")));
 
         return tools;
     }

@@ -30,6 +30,7 @@
         <jackson.version>2.17.2</jackson.version>
         <maven.model.version>3.6.0</maven.model.version>
         <slf4j.version>2.0.17</slf4j.version>
+        <tinkerpop.version>3.8.1</tinkerpop.version>
         <jreleaser.version>1.23.0</jreleaser.version>
     </properties>
 
@@ -75,6 +76,11 @@
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
             <version>2.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tinkerpop</groupId>
+            <artifactId>tinkergraph-gremlin</artifactId>
+            <version>${tinkerpop.version}</version>
         </dependency>
     </dependencies>
 

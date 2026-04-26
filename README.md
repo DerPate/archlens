@@ -45,9 +45,27 @@ The server reads JSON-RPC messages from stdin and writes responses to stdout. Co
 - `render_mermaid_flowchart`
 - `get_runtime_flow`
 - `render_mermaid_sequence`
+- `render_source_overview`
+- `render_dependency_map`
+- `render_component_dependency_diagram`
+- `export_architecture_docs`
+- `export_graph_architecture_poc`
+- `query_architecture_graph`
 - `explain_architecture`
 
 See `docs/TOOLS.md` for arguments and example payloads.
+
+## Cache Backend
+
+The default cache stores the latest architecture model as JSON under `.spoon-mcp-cache/`.
+Graph queries are available through a lazy embedded graph projection. To maintain that
+projection eagerly during cache store/load, enable the graph backend:
+
+```sh
+SPOON_MCP_CACHE_BACKEND=graph java -jar target/spoon-mcp-server-1.0.0-SNAPSHOT.jar
+```
+
+The equivalent JVM property is `-Dspoonmcp.cache.backend=graph`.
 
 ## Documentation
 

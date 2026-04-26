@@ -4,10 +4,11 @@ Spoon MCP Server is organized around a simple pipeline:
 
 1. MCP clients send JSON-RPC requests over stdio.
 2. `McpServer` dispatches tool calls to tool adapter classes.
-3. Tool adapters read from or update the shared in-memory `ModelCache`.
+3. Tool adapters read from or update the shared `ModelCache`.
 4. Extractors use Spoon to scan Java projects and populate `ArchitectureModel`.
 5. Mergers add deployment context from supporting files such as Docker Compose or Ansible.
-6. Renderers turn the model into Mermaid diagrams or text summaries.
+6. `ArchitectureGraph` projects the model into a property graph for traversal queries.
+7. Renderers turn the model into Mermaid diagrams or text summaries.
 
 ## Packages
 
@@ -30,6 +31,12 @@ Contains plain model records/classes used by extractors, mergers, renderers, and
 ### `dev.dominikbreu.spoonmcp.cache`
 
 Stores the most recently indexed `ArchitectureModel` for subsequent MCP tool calls.
+The default backend persists a JSON snapshot. Setting `SPOON_MCP_CACHE_BACKEND=graph`
+or `-Dspoonmcp.cache.backend=graph` eagerly maintains an embedded TinkerGraph
+projection. Graph tooling can also build this projection lazily from the JSON-backed
+model. The projection stores source metadata, confidence, package/module labels,
+runtime-relevance flags, cross-module dependency flags, fan-in/fan-out counts, and
+entrypoint reachability to support MCP traversal and impact-analysis tools.
 
 ### `dev.dominikbreu.spoonmcp.merger`
 
@@ -48,8 +55,10 @@ flowchart LR
     Tools --> Extractor["ArchitectureExtractor"]
     Extractor --> Model["ArchitectureModel"]
     Tools --> Cache["ModelCache"]
+    Cache --> Graph["ArchitectureGraph"]
     Cache --> Renderers["Mermaid renderers"]
     Cache --> Explain["Text summaries"]
+    Graph --> Tools
 ```
 
 ## Adding A Tool
@@ -59,4 +68,3 @@ flowchart LR
 3. Add dispatch in `McpServer.callTool()`.
 4. Add tests for parsing, behavior, or rendering as appropriate.
 5. Update `docs/TOOLS.md` and examples when useful.
-
