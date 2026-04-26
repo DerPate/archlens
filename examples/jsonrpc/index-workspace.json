@@ -1,0 +1,14 @@
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/call",
+  "params": {
+    "name": "index_workspace",
+    "arguments": {
+      "paths": [
+        "/absolute/path/to/java/project"
+      ]
+    }
+  }
+}
+

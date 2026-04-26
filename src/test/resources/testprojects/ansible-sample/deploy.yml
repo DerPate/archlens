@@ -1,0 +1,12 @@
+---
+- name: Deploy web application
+  hosts: webservers
+  roles:
+    - common
+    - app
+
+- name: Configure databases
+  hosts: databases
+  roles:
+    - common
+    - postgres

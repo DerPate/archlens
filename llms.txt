@@ -1,0 +1,25 @@
+# Spoon MCP Server
+
+Spoon MCP Server is a Java 17 Maven project that implements a stdio Model Context Protocol server for Java architecture analysis using Spoon.
+
+## Key Files
+
+- README: ./README.md
+- Agent guide: ./AGENTS.md
+- Architecture guide: ./docs/ARCHITECTURE.md
+- MCP tool reference: ./docs/TOOLS.md
+- JSON-RPC examples: ./examples/jsonrpc/
+- Maven project: ./pom.xml
+- MCP server dispatch: ./src/main/java/dev/dominikbreu/spoonmcp/mcp/McpServer.java
+
+## Build
+
+- Test: `mvn test`
+- Package: `mvn package`
+- Run: `java -jar target/spoon-mcp-server-1.0.0-SNAPSHOT.jar`
+
+## Notes For Agents
+
+- Generated output is ignored and should not be committed.
+- MCP tool docs should stay in sync with `McpServer.java`.
+- The project intentionally has no GitHub Actions or hooks by default.

@@ -1,0 +1,83 @@
+package dev.dominikbreu.spoonmcp.mcp.tools;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
+import dev.dominikbreu.spoonmcp.model.Component;
+import dev.dominikbreu.spoonmcp.model.Container;
+
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+/**
+ * MCP tool that lists logical containers inferred during indexing.
+ */
+public class InferContainersTool {
+
+    private final ModelCache cache;
+
+    /**
+     * Creates the tool with the shared model cache.
+     *
+     * @param cache model cache used by prior indexing
+     */
+    public InferContainersTool(ModelCache cache) {
+        this.cache = cache;
+    }
+
+    /**
+     * Executes container listing.
+     *
+     * @param args JSON arguments, optionally including appId
+     * @return formatted container list or an error message
+     */
+    public String execute(JsonNode args) {
+        try {
+            ArchitectureModel model = cache.load();
+            if (model == null) return "No workspace indexed yet. Call index_workspace first.";
+
+            String appFilter = getString(args, "appId");
+
+            List<Container> containers = model.containers.stream()
+                .filter(c -> appFilter == null || (c.appId != null && c.appId.contains(appFilter)))
+                .collect(Collectors.toList());
+
+            if (containers.isEmpty()) return "No containers found. Re-run index_workspace to build containers.";
+
+            Map<String, Component> compById = model.components.stream()
+                .collect(Collectors.toMap(c -> c.id, c -> c));
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("Containers (").append(containers.size()).append("):\n\n");
+
+            String currentApp = null;
+            for (Container c : containers) {
+                if (!c.appId.equals(currentApp)) {
+                    sb.append("App: ").append(c.appId).append("\n");
+                    currentApp = c.appId;
+                }
+                sb.append("  [").append(c.name).append("] id=").append(c.id).append("\n");
+                sb.append("    Technology: ").append(c.technology).append("\n");
+                sb.append("    Derived from: ").append(c.derivedFrom).append("\n");
+                sb.append("    Components (").append(c.componentIds.size()).append("):\n");
+                for (String cid : c.componentIds) {
+                    Component comp = compById.get(cid);
+                    if (comp != null) {
+                        sb.append("      - [").append(comp.type).append("] ").append(comp.name).append("\n");
+                    }
+                }
+                sb.append("\n");
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return "Error inferring containers: " + e.getMessage();
+        }
+    }
+
+    private String getString(JsonNode n, String f) {
+        if (n == null) return null;
+        JsonNode v = n.get(f);
+        return (v != null && !v.isNull()) ? v.asText() : null;
+    }
+}

@@ -1,0 +1,206 @@
+package dev.dominikbreu.spoonmcp.renderer;
+
+import dev.dominikbreu.spoonmcp.extractor.ContainerInferrer;
+import dev.dominikbreu.spoonmcp.model.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class MermaidFlowchartRendererTest {
+
+    private final MermaidFlowchartRenderer renderer = new MermaidFlowchartRenderer();
+    private ArchitectureModel model;
+
+    @BeforeEach
+    void buildModel() {
+        model = new ArchitectureModel("test");
+
+        AppEntry app = new AppEntry();
+        app.id = "app:orders";
+        app.name = "orders";
+        app.technology = "quarkus";
+        app.packagingType = "jar";
+        model.applications.add(app);
+
+        Component resource   = comp("comp:Resource",   ComponentType.REST_RESOURCE, "app:orders", "quarkus");
+        Component service    = comp("comp:Service",    ComponentType.SERVICE,        "app:orders", "quarkus");
+        Component repository = comp("comp:Repository", ComponentType.REPOSITORY,     "app:orders", "quarkus");
+        Component entity     = comp("comp:Entity",     ComponentType.ENTITY,         "app:orders", "jpa");
+        model.components.addAll(List.of(resource, service, repository, entity));
+
+        app.componentIds.addAll(List.of(resource.id, service.id, repository.id, entity.id));
+
+        model.dependencies.add(dep(resource.id, service.id));
+        model.dependencies.add(dep(service.id, repository.id));
+
+        model.containers.addAll(new ContainerInferrer().infer(model.components));
+    }
+
+    // ── flowchart TD header ──────────────────────────────────────────────────
+
+    @Test
+    void outputStartsWithFlowchartDirective() {
+        assertThat(renderer.render(model, null, "component")).startsWith("flowchart TD");
+    }
+
+    // ── system level ─────────────────────────────────────────────────────────
+
+    @Test
+    void systemLevelContainsAppName() {
+        String out = renderer.render(model, null, "system");
+        assertThat(out).contains("orders");
+    }
+
+    @Test
+    void systemLevelContainsTechnology() {
+        String out = renderer.render(model, null, "system");
+        assertThat(out).contains("quarkus");
+    }
+
+    // ── container level ──────────────────────────────────────────────────────
+
+    @Test
+    void containerLevelContainsLayerNames() {
+        String out = renderer.render(model, null, "container");
+        assertThat(out).contains("api");
+        assertThat(out).contains("service");
+        assertThat(out).contains("repository");
+        assertThat(out).contains("domain");
+    }
+
+    // ── component level ──────────────────────────────────────────────────────
+
+    @Test
+    void componentLevelContainsComponentNames() {
+        String out = renderer.render(model, null, "component");
+        assertThat(out).contains("Resource");
+        assertThat(out).contains("Service");
+        assertThat(out).contains("Repository");
+    }
+
+    @Test
+    void componentLevelContainsDependencyEdge() {
+        String out = renderer.render(model, null, "component");
+        assertThat(out).contains("-->");
+    }
+
+    @Test
+    void componentLevelContainsSubgraphForApp() {
+        String out = renderer.render(model, null, "component");
+        assertThat(out).contains("subgraph");
+        assertThat(out).contains("end");
+    }
+
+    @Test
+    void entityUsedCylinderShape() {
+        String out = renderer.render(model, null, "component");
+        // Entity nodes rendered with [(" ... ")]
+        assertThat(out).contains("[(");
+    }
+
+    @Test
+    void restResourceUsesStadiumShape() {
+        String out = renderer.render(model, null, "component");
+        // REST_RESOURCE nodes rendered with ([ ... ])
+        assertThat(out).contains("([");
+    }
+
+    @Test
+    void appIdFilterOnlyShowsMatchingApp() {
+        // Add second app that should be excluded
+        AppEntry other = new AppEntry();
+        other.id = "app:other";
+        other.name = "other";
+        other.technology = "javaee";
+        other.packagingType = "war";
+        model.applications.add(other);
+        Component c = comp("comp:X", ComponentType.SERVICE, "app:other", "javaee");
+        model.components.add(c);
+        other.componentIds.add(c.id);
+
+        String out = renderer.render(model, "orders", "component");
+        assertThat(out).doesNotContain("app:other");
+    }
+
+    // ── module level ──────────────────────────────────────────────────────────
+
+    @Test
+    void moduleLevelRendersWarAsSubgraph() {
+        ArchitectureModel m = modelWithWarAndModules();
+        String out = renderer.render(m, null, "module");
+        assertThat(out).contains("subgraph");
+        assertThat(out).contains("war-app");
+    }
+
+    @Test
+    void moduleLevelShowsInternalModuleNodes() {
+        ArchitectureModel m = modelWithWarAndModules();
+        String out = renderer.render(m, null, "module");
+        assertThat(out).contains("core");
+    }
+
+    @Test
+    void moduleLevelStandaloneJarRenderedAsBox() {
+        ArchitectureModel m = modelWithWarAndModules();
+        String out = renderer.render(m, null, "module");
+        assertThat(out).startsWith("flowchart TD");
+    }
+
+    @Test
+    void defaultLevelIsComponent() {
+        String withNull  = renderer.render(model, null, null);
+        String withComp  = renderer.render(model, null, "component");
+        assertThat(withNull).isEqualTo(withComp);
+    }
+
+    // ── helpers ───────────────────────────────────────────────────────────────
+
+    private ArchitectureModel modelWithWarAndModules() {
+        ArchitectureModel m = new ArchitectureModel("test");
+
+        AppEntry war = new AppEntry();
+        war.id = "app:war-app"; war.name = "war-app";
+        war.technology = "javaee"; war.packagingType = "war";
+        war.role = "deployment_unit";
+        m.applications.add(war);
+
+        AppEntry core = new AppEntry();
+        core.id = "app:core"; core.name = "core";
+        core.technology = "javaee"; core.packagingType = "jar";
+        core.role = "internal_module"; core.parentAppId = "app:war-app";
+        m.applications.add(core);
+
+        AppEntry util = new AppEntry();
+        util.id = "app:util"; util.name = "util";
+        util.technology = "javaee"; util.packagingType = "jar";
+        util.role = "technical_library"; util.parentAppId = "app:war-app";
+        m.applications.add(util);
+
+        return m;
+    }
+
+    private Component comp(String id, ComponentType type, String module, String tech) {
+        Component c = new Component();
+        c.id = id;
+        c.name = id.replace("comp:", "");
+        c.type = type;
+        c.module = module;
+        c.technology = tech;
+        c.source = new SourceInfo("test.java", 1, "test", 1.0);
+        return c;
+    }
+
+    private Dependency dep(String from, String to) {
+        Dependency d = new Dependency();
+        d.id = "dep:" + from + "->" + to;
+        d.fromId = from;
+        d.toId = to;
+        d.kind = "injection";
+        d.derivedFrom = "annotation";
+        d.confidence = 0.95;
+        return d;
+    }
+}

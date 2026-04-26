@@ -1,0 +1,34 @@
+# Maven
+target/
+dependency-reduced-pom.xml
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+
+# Java build output
+*.class
+*.jar
+*.war
+*.ear
+
+# Runtime/cache output
+.spoon-mcp-cache/
+
+# Logs
+*.log
+hs_err_pid*
+replay_pid*
+
+# IDEs and editors
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# OS files
+.DS_Store
+Thumbs.db
+

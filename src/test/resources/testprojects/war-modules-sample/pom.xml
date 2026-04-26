@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.example.war</groupId>
+    <artifactId>war-parent</artifactId>
+    <version>1.0.0</version>
+    <packaging>war</packaging>
+    <modules>
+        <module>ear-app</module>
+        <module>core-module</module>
+        <module>util-module</module>
+    </modules>
+</project>
