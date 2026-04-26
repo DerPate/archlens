@@ -1,6 +1,6 @@
 # Spoon MCP Server
 
-Spoon MCP Server is a Java 17 Model Context Protocol server that analyzes Java workspaces with Spoon and exposes architecture-oriented tools over stdio.
+Spoon MCP Server is a Java 21 Model Context Protocol server that analyzes Java workspaces with Spoon and exposes architecture-oriented tools over stdio.
 
 It can index Java projects, identify applications and entry points, infer logical containers, trace component dependencies, and render Mermaid flowcharts or sequence diagrams for agent-friendly architecture exploration.
 
@@ -14,7 +14,7 @@ It can index Java projects, identify applications and entry points, infer logica
 
 ## Requirements
 
-- Java 17 or newer
+- Java 21 or newer
 - Maven 3.9 or newer
 
 ## Build
@@ -75,6 +75,31 @@ mvn versions:display-plugin-updates
 
 Generated files such as `target/`, `.spoon-mcp-cache/`, and `dependency-reduced-pom.xml` are intentionally ignored.
 
+## Local Releases
+
+The Maven release plugin is configured for local Git releases by default. It tags the current repository, does not push to a remote, and runs `clean package` during `release:perform`.
+
+```sh
+mvn release:prepare
+mvn release:perform
+```
+
+For a non-mutating check of the release flow, run:
+
+```sh
+mvn release:prepare -DdryRun=true
+mvn release:clean
+```
+
+JReleaser is configured for GitHub releases under `DerPate/spoon-mcp-server`. It uses the shaded server jar as the runnable distribution artifact, attaches source and Javadoc jars as release files, and appends generated release notes to `CHANGELOG.md`.
+
+```sh
+JRELEASER_GITHUB_TOKEN=dummy mvn clean package jreleaser:config
+JRELEASER_GITHUB_TOKEN=dummy mvn jreleaser:full-release -Djreleaser.dry.run=true
+```
+
+Use a real `JRELEASER_GITHUB_TOKEN` with repository release permissions for actual publishing.
+
 ## Publishing Notes
 
-This repository includes GitHub community defaults and project hygiene files, but it does not include GitHub Actions, pre-commit hooks, or release automation. Add a `LICENSE` file before publishing publicly if you want others to have explicit reuse rights.
+This repository includes GitHub community defaults and project hygiene files, but it does not include GitHub Actions or pre-commit hooks.
