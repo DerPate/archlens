@@ -34,6 +34,8 @@ java -jar target/spoon-mcp-server-1.0.0-SNAPSHOT.jar
 
 The server reads JSON-RPC messages from stdin and writes responses to stdout. Configure your MCP client to launch the jar with the command above.
 
+For step-by-step install instructions and example MCP client configurations (Claude Desktop, Claude Code, generic stdio clients), see [docs/INSTALL.md](docs/INSTALL.md).
+
 ## MCP Tools
 
 - `index_workspace`
@@ -69,9 +71,10 @@ The equivalent JVM property is `-Dspoonmcp.cache.backend=graph`.
 
 ## Documentation
 
-- `AGENTS.md`: repository guide for coding agents.
-- `docs/ARCHITECTURE.md`: package responsibilities and data flow.
+- `docs/INSTALL.md`: install, MCP client wiring, and configuration.
 - `docs/TOOLS.md`: MCP tool reference.
+- `docs/ARCHITECTURE.md`: package responsibilities and data flow.
+- `AGENTS.md`: repository guide for coding agents.
 - `examples/jsonrpc/`: example JSON-RPC requests.
 - `llms.txt`: compact index for LLM and agent ingestion.
 
