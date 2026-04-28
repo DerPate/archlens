@@ -1,0 +1,164 @@
+package dev.dominikbreu.spoonmcp.extractor;
+
+import dev.dominikbreu.spoonmcp.model.*;
+
+import java.util.*;
+
+/**
+ * Derives {@link UseCase} instances from indexed entrypoints.
+ *
+ * <p>When call-graph data is available the method chain is populated with actual
+ * invocation steps. When only injection edges are present the component list is
+ * populated from a BFS over {@code model.dependencies}, and {@code methodChain}
+ * is left empty.
+ *
+ * <p>Use case names are resolved through a {@link UseCaseNamingConfig}; unrecognised
+ * entrypoints receive an auto-derived title via {@link #deriveName}.
+ */
+public class UseCaseDetector {
+
+    /** Creates a use case detector with default naming heuristics. */
+    public UseCaseDetector() {}
+
+    /**
+     * Detects all use cases for the given model.
+     *
+     * @param model  architecture model (must already be indexed)
+     * @param config naming configuration; use {@link UseCaseNamingConfig#empty()} when none
+     * @return list of use cases, one per entrypoint
+     */
+    public List<UseCase> detect(ArchitectureModel model, UseCaseNamingConfig config) {
+        Map<String, Component> compById = new HashMap<>();
+        for (Component c : model.components) compById.put(c.id, c);
+
+        boolean hasCallGraph = !model.callEdges.isEmpty();
+        Map<String, List<CallEdge>> callAdj = buildCallAdj(model.callEdges);
+        Map<String, List<String>>  depAdj  = buildDepAdj(model.dependencies);
+
+        List<UseCase> result = new ArrayList<>();
+        for (Entrypoint ep : model.entrypoints) {
+            result.add(buildUseCase(ep, model, compById, hasCallGraph, callAdj, depAdj, config));
+        }
+        return result;
+    }
+
+    private UseCase buildUseCase(Entrypoint ep, ArchitectureModel model,
+                                  Map<String, Component> compById,
+                                  boolean hasCallGraph,
+                                  Map<String, List<CallEdge>> callAdj,
+                                  Map<String, List<String>> depAdj,
+                                  UseCaseNamingConfig config) {
+        UseCase uc = new UseCase();
+        uc.id           = "usecase:" + ep.id;
+        uc.entrypointId = ep.id;
+        uc.type         = ep.type;
+        uc.channelOrPath = ep.channelName != null ? ep.channelName : ep.path;
+        uc.name = config.resolveName(ep.id, deriveName(ep));
+
+        Set<String> visitedKeys  = new LinkedHashSet<>();
+        Set<String> visitedComps = new LinkedHashSet<>();
+
+        if (hasCallGraph) {
+            collectCallChain(ep.componentId, ep.name, 0, 5,
+                             callAdj, compById, visitedKeys, visitedComps, uc.methodChain);
+        } else {
+            collectDepChain(ep.componentId, 0, 5, depAdj, compById, visitedComps);
+        }
+
+        uc.componentIds = new ArrayList<>(visitedComps);
+        return uc;
+    }
+
+    private void collectCallChain(String compId, String method, int depth, int maxDepth,
+                                   Map<String, List<CallEdge>> adj,
+                                   Map<String, Component> compById,
+                                   Set<String> visitedKeys,
+                                   Set<String> visitedComps,
+                                   List<String> chain) {
+        String key = compId + "#" + method;
+        if (visitedKeys.contains(key) || depth > maxDepth) return;
+        visitedKeys.add(key);
+        visitedComps.add(compId);
+
+        Component fromComp = compById.get(compId);
+        String fromName = fromComp != null ? fromComp.name : compId;
+
+        for (CallEdge edge : adj.getOrDefault(key, List.of())) {
+            Component toComp = compById.get(edge.toComponentId);
+            String toName = toComp != null ? toComp.name : edge.toComponentId;
+            chain.add(fromName + "." + edge.fromMethod + " → " + toName + "." + edge.toMethod);
+            collectCallChain(edge.toComponentId, edge.toMethod, depth + 1, maxDepth,
+                             adj, compById, visitedKeys, visitedComps, chain);
+        }
+    }
+
+    private void collectDepChain(String compId, int depth, int maxDepth,
+                                  Map<String, List<String>> adj,
+                                  Map<String, Component> compById,
+                                  Set<String> visitedComps) {
+        if (visitedComps.contains(compId) || depth > maxDepth) return;
+        visitedComps.add(compId);
+        for (String nextId : adj.getOrDefault(compId, List.of())) {
+            collectDepChain(nextId, depth + 1, maxDepth, adj, compById, visitedComps);
+        }
+    }
+
+    // ── name derivation ───────────────────────────────────────────────────────
+
+    /**
+     * Derives a human-readable use case name from entrypoint metadata.
+     *
+     * @param ep entrypoint to name
+     * @return derived display name
+     */
+    public String deriveName(Entrypoint ep) {
+        return switch (ep.type) {
+            case REST_ENDPOINT -> {
+                String method = ep.httpMethod != null ? ep.httpMethod + " " : "";
+                yield method + camelToTitle(ep.name);
+            }
+            case MESSAGING_CONSUMER -> "Process " + camelToTitle(
+                ep.channelName != null ? ep.channelName : ep.name);
+            case MESSAGING_PRODUCER -> "Publish " + camelToTitle(
+                ep.channelName != null ? ep.channelName : ep.name);
+            case SCHEDULER -> "Scheduled: " + camelToTitle(ep.name);
+            case CDI_EVENT_OBSERVER -> "On Event: " + (ep.path != null ? ep.path : ep.name);
+            case JMS_CONSUMER -> "Consume " + camelToTitle(ep.name);
+            default -> ep.name != null ? camelToTitle(ep.name) : ep.id;
+        };
+    }
+
+    private String camelToTitle(String s) {
+        if (s == null || s.isEmpty()) return s != null ? s : "";
+        String spaced = s.replaceAll("[-_]", " ")
+                         .replaceAll("([a-z])([A-Z])", "$1 $2");
+        String[] words = spaced.split("\\s+");
+        StringBuilder sb = new StringBuilder();
+        for (String w : words) {
+            if (w.isEmpty()) continue;
+            sb.append(Character.toUpperCase(w.charAt(0)));
+            if (w.length() > 1) sb.append(w.substring(1).toLowerCase());
+            sb.append(' ');
+        }
+        return sb.toString().trim();
+    }
+
+    // ── adjacency builders ────────────────────────────────────────────────────
+
+    private Map<String, List<CallEdge>> buildCallAdj(List<CallEdge> edges) {
+        Map<String, List<CallEdge>> adj = new HashMap<>();
+        for (CallEdge e : edges) {
+            adj.computeIfAbsent(e.fromComponentId + "#" + e.fromMethod,
+                                k -> new ArrayList<>()).add(e);
+        }
+        return adj;
+    }
+
+    private Map<String, List<String>> buildDepAdj(List<Dependency> deps) {
+        Map<String, List<String>> adj = new HashMap<>();
+        for (Dependency d : deps) {
+            adj.computeIfAbsent(d.fromId, k -> new ArrayList<>()).add(d.toId);
+        }
+        return adj;
+    }
+}

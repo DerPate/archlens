@@ -108,7 +108,48 @@ public class MermaidFlowchartRenderer {
               .append(app.technology).append(" / ").append(app.packagingType)
               .append("\"]\n");
         }
+
+        Set<String> visibleApps = apps.stream().map(a -> a.id).collect(Collectors.toSet());
+        Map<String, String> compToApp = buildCompToAppMap(model);
+        Set<String> referencedExternals = new LinkedHashSet<>();
+        Set<String> drawnEdges = new LinkedHashSet<>();
+        for (Dependency dep : model.dependencies) {
+            if (!isExternalSystem(model, dep.toId)) continue;
+            String fromApp = compToApp.get(dep.fromId);
+            if (fromApp == null || !visibleApps.contains(fromApp)) continue;
+            referencedExternals.add(dep.toId);
+            String key = fromApp + "->" + dep.toId + ":" + dep.kind;
+            if (drawnEdges.add(key)) {
+                sb.append("    ").append(nid(fromApp))
+                  .append(" -->|").append(escape(dep.kind == null ? "" : dep.kind)).append("| ")
+                  .append(nid(dep.toId)).append("\n");
+            }
+        }
+
+        for (ExternalSystem ext : model.externalSystems) {
+            if (!referencedExternals.contains(ext.id)) continue;
+            String[] shape = externalShape(ext.kind);
+            sb.append("    ").append(nid(ext.id))
+              .append(shape[0]).append("\"").append(escape(ext.name))
+              .append("\\n").append(escape(ext.kind)).append("\"")
+              .append(shape[1]).append("\n");
+        }
         return sb.toString();
+    }
+
+    private boolean isExternalSystem(ArchitectureModel model, String id) {
+        if (id == null) return false;
+        for (ExternalSystem s : model.externalSystems) if (id.equals(s.id)) return true;
+        return false;
+    }
+
+    private String[] externalShape(String kind) {
+        if (kind == null) return new String[]{"[", "]"};
+        return switch (kind) {
+            case "MESSAGE_BROKER" -> new String[]{"[(", ")]"};
+            case "REST_API" -> new String[]{"[/", "/]"};
+            default -> new String[]{"[", "]"};
+        };
     }
 
     // ── container level: subgraph per app, box per container ─────────────────

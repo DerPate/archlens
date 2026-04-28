@@ -1,25 +1,109 @@
 # Spoon MCP Server
 
-Spoon MCP Server is a Java 17 Maven project that implements a stdio Model Context Protocol server for Java architecture analysis using Spoon.
+Spoon MCP Server is a Java 21 Maven project that implements a stdio Model Context
+Protocol (MCP) server for static architecture analysis of Java workspaces. It uses
+[Spoon](https://spoon.gforge.inria.fr/) to parse and model Java sources, then exposes
+architecture-oriented tools (component listing, dependency tracing, runtime flow
+extraction, Mermaid rendering, graph queries) over JSON-RPC on stdin/stdout.
 
-## Key Files
+The server is designed for consumption by LLM agents and MCP-capable clients
+(Claude Desktop, Claude Code, generic stdio MCP clients).
 
-- README: ./README.md
-- Agent guide: ./AGENTS.md
-- Architecture guide: ./docs/ARCHITECTURE.md
-- MCP tool reference: ./docs/TOOLS.md
-- JSON-RPC examples: ./examples/jsonrpc/
+## At A Glance
+
+- Language / runtime: Java 21
+- Build tool: Maven 3.9+
+- Entry point: `dev.dominikbreu.spoonmcp.Main`
+- Packaging: shaded jar via `maven-shade-plugin` → `target/spoon-mcp-server-1.0.0-SNAPSHOT.jar`
+- Transport: stdio JSON-RPC 2.0 (MCP protocol version `2024-11-05`)
+- Cache: `.spoon-mcp-cache/` in the working directory (JSON by default, optional graph backend)
+- License: see `LICENSE`
+
+## Documentation
+
+- Project README: ./README.md
+- Install & client wiring (Linux/macOS/Windows): ./docs/INSTALL.md
+- MCP tool reference (arguments, examples): ./docs/TOOLS.md
+- Architecture & package responsibilities: ./docs/ARCHITECTURE.md
+- Graph-based source architecture POC: ./docs/SOURCE_ARCHITECTURE_POC.md
+- Agent contributor guide: ./AGENTS.md
+- Contributing guide: ./CONTRIBUTING.md
+- Security policy: ./SECURITY.md
+- Changelog: ./CHANGELOG.md
+- JSON-RPC request examples: ./examples/jsonrpc/
+  - `initialize.json`, `tools-list.json`, `index-workspace.json`, `render-flowchart.json`
+
+## Source Map
+
 - Maven project: ./pom.xml
-- MCP server dispatch: ./src/main/java/dev/dominikbreu/spoonmcp/mcp/McpServer.java
+- Main class: ./src/main/java/dev/dominikbreu/spoonmcp/Main.java
+- MCP dispatch: ./src/main/java/dev/dominikbreu/spoonmcp/mcp/McpServer.java
+- Tool implementations: ./src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/
+- Spoon-based scanners: ./src/main/java/dev/dominikbreu/spoonmcp/scanner/
+- Component extractors: ./src/main/java/dev/dominikbreu/spoonmcp/extractor/
+- Deployment / asset mergers: ./src/main/java/dev/dominikbreu/spoonmcp/merger/
+- Architecture model: ./src/main/java/dev/dominikbreu/spoonmcp/model/
+- Cache & graph projection: ./src/main/java/dev/dominikbreu/spoonmcp/cache/
+  - `ModelCache.java`, `ArchitectureGraph.java`
+- Mermaid renderers: ./src/main/java/dev/dominikbreu/spoonmcp/renderer/
+  - flowchart, sequence, dependency map, dependency slice, source overview
+- Tests: ./src/test/java/
 
-## Build
+## Capabilities
+
+- Index one or more Java project roots with `index_workspace`.
+- Detect REST endpoints, JMS consumers, schedulers, EJB methods, services,
+  repositories, entities, HTTP clients, message-driven beans.
+- Infer logical containers (API, service, repository, domain, messaging, scheduling).
+- Merge deployment hints from Docker Compose and Ansible inventories.
+- Trace component dependencies with configurable depth and condensation.
+- Extract runtime flows for entry points by following injection edges.
+- Render Mermaid flowcharts (system/container/module/component levels), sequence
+  diagrams, dependency maps, source overviews, focused dependency slices.
+- Export architecture documentation (`export_architecture_docs`) and a graph-centric
+  POC document (`export_graph_architecture_poc`).
+- Query the architecture as a graph (`query_architecture_graph`) with
+  `summary`, `find_nodes`, `find_edges`, `neighborhood`, `paths`, `impacted_by` actions.
+
+## MCP Tools
+
+`index_workspace`, `list_apps`, `find_entrypoints`, `find_components`,
+`get_component_dependencies`, `infer_containers`, `render_mermaid_flowchart`,
+`get_runtime_flow`, `render_mermaid_sequence`, `render_source_overview`,
+`render_dependency_map`, `render_component_dependency_diagram`,
+`export_architecture_docs`, `export_graph_architecture_poc`,
+`query_architecture_graph`, `explain_architecture`.
+
+See `./docs/TOOLS.md` for arguments and examples.
+
+## Build & Run
 
 - Test: `mvn test`
 - Package: `mvn package`
 - Run: `java -jar target/spoon-mcp-server-1.0.0-SNAPSHOT.jar`
+- Smoke test: `java -jar target/spoon-mcp-server-1.0.0-SNAPSHOT.jar < examples/jsonrpc/initialize.json`
+
+## Configuration
+
+- Cache backend (default `json`, optional `graph`):
+  - Env: `SPOON_MCP_CACHE_BACKEND=graph`
+  - JVM property: `-Dspoonmcp.cache.backend=graph`
+- Cache directory: `.spoon-mcp-cache/` relative to the working directory.
+
+## Release Tooling
+
+- Maven Release Plugin configured for local Git releases (no remote push by default).
+- JReleaser config at `./jreleaser.yml` targets `DerPate/spoon-mcp-server` on GitHub.
+  - `JRELEASER_GITHUB_TOKEN` required for real publishing.
 
 ## Notes For Agents
 
-- Generated output is ignored and should not be committed.
-- MCP tool docs should stay in sync with `McpServer.java`.
-- The project intentionally has no GitHub Actions or hooks by default.
+- The cached architecture model is in-process; tools other than `index_workspace`
+  require a previous `index_workspace` call (or a pre-existing `.spoon-mcp-cache/`).
+- Tool argument schemas in `McpServer.java` are the authoritative source — keep
+  `docs/TOOLS.md` in sync when changing them.
+- Generated artifacts (`target/`, `.spoon-mcp-cache/`, `dependency-reduced-pom.xml`)
+  are git-ignored and must not be committed.
+- This repo intentionally ships no GitHub Actions or pre-commit hooks.
+- Code style is imperative Java 21 (no Mutiny / reactive). Use constructor injection
+  in beans and JBoss/Quarkus logging only when adding logging.

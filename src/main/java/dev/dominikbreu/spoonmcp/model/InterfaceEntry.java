@@ -18,6 +18,10 @@ public class InterfaceEntry {
     public String module;
     /** Technology or framework used by the interface. */
     public String technology;
+    /** Logical name of the external counterpart (REST configKey, messaging broker label). */
+    public String externalServiceName;
+    /** Resolved broker for messaging interfaces. */
+    public MessagingBroker broker;
     /** Source file and evidence metadata for this interface. */
     public SourceInfo source;
 
