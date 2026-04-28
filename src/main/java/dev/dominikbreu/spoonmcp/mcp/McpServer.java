@@ -27,7 +27,7 @@ public class McpServer {
     private final InferContainersTool containersTool;
     private final RenderMermaidFlowchartTool flowchartTool;
     private final GetRuntimeFlowTool runtimeFlowTool;
-    private final RenderMermaidSequenceTool sequenceTool;
+    private final RenderCallFlowTool callFlowTool;
     private final ExplainArchitectureTool explainTool;
     private final RenderSourceOverviewTool sourceOverviewTool;
     private final RenderDependencyMapTool dependencyMapTool;
@@ -55,7 +55,7 @@ public class McpServer {
         this.containersTool  = new InferContainersTool(cache);
         this.flowchartTool   = new RenderMermaidFlowchartTool(cache);
         this.runtimeFlowTool = new GetRuntimeFlowTool(cache);
-        this.sequenceTool    = new RenderMermaidSequenceTool(cache);
+        this.callFlowTool    = new RenderCallFlowTool(cache);
         this.explainTool     = new ExplainArchitectureTool(cache);
         this.sourceOverviewTool = new RenderSourceOverviewTool(cache);
         this.dependencyMapTool = new RenderDependencyMapTool(cache);
@@ -132,7 +132,7 @@ public class McpServer {
             case "infer_containers"          -> containersTool.execute(args);
             case "render_mermaid_flowchart"  -> flowchartTool.execute(args);
             case "get_runtime_flow"          -> runtimeFlowTool.execute(args);
-            case "render_mermaid_sequence"   -> sequenceTool.execute(args);
+            case "render_call_flow"          -> callFlowTool.execute(args);
             case "explain_architecture"      -> explainTool.execute(args);
             case "render_source_overview"    -> sourceOverviewTool.execute(args);
             case "render_dependency_map"     -> dependencyMapTool.execute(args);
@@ -198,13 +198,12 @@ public class McpServer {
                 .opt("entrypointName", "string", "Entrypoint name (partial match)")
                 .opt("maxDepth", "integer", "Max traversal depth (default 5)")));
 
-        tools.add(tool("render_mermaid_sequence",
-            "Render a Mermaid sequenceDiagram for a given entry point or runtime flow.",
+        tools.add(tool("render_call_flow",
+            "Render a Mermaid flowchart showing the execution path from an entry point through its call chain. Component shapes reflect architectural role (cylinder=repository, parallelogram=http-client, etc.). Edge labels show the actual called method name.",
             schema()
-                .opt("entrypointId", "string", "Entrypoint ID")
-                .opt("entrypointName", "string", "Entrypoint name (partial match)")
-                .opt("maxDepth", "integer", "Max traversal depth (default 5)")
-                .opt("level", "string", "component (default) | container | system — controls condensation")));
+                .opt("entrypointId", "string", "Entrypoint ID (from find_entrypoints)")
+                .opt("entrypointName", "string", "Entrypoint name or path (partial match)")
+                .opt("maxDepth", "integer", "Max traversal depth (default 5)")));
 
         tools.add(tool("explain_architecture",
             "Return an agent-friendly textual summary of the architecture model (apps, components, dependencies, deployments).",
