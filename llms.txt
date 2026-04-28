@@ -3,8 +3,9 @@
 Spoon MCP Server is a Java 21 Maven project that implements a stdio Model Context
 Protocol (MCP) server for static architecture analysis of Java workspaces. It uses
 [Spoon](https://spoon.gforge.inria.fr/) to parse and model Java sources, then exposes
-architecture-oriented tools (component listing, dependency tracing, runtime flow
-extraction, Mermaid rendering, graph queries) over JSON-RPC on stdin/stdout.
+architecture-oriented tools (component listing, dependency tracing, call graph extraction,
+use case detection, data-flow tracing, runtime flow extraction, Mermaid rendering, graph
+queries) over JSON-RPC on stdin/stdout.
 
 The server is designed for consumption by LLM agents and MCP-capable clients
 (Claude Desktop, Claude Code, generic stdio MCP clients).
@@ -51,15 +52,29 @@ The server is designed for consumption by LLM agents and MCP-capable clients
 
 ## Capabilities
 
-- Index one or more Java project roots with `index_workspace`.
-- Detect REST endpoints, JMS consumers, schedulers, EJB methods, services,
-  repositories, entities, HTTP clients, message-driven beans.
+- Index one or more Java project roots with `index_workspace`. Indexing runs six passes:
+  components + entrypoints, injection dependencies, call graph extraction (actual
+  method invocations), data-flow tracing (parameter → sink paths), container inference,
+  and external system inference.
+- Detect REST endpoints, JMS consumers, Reactive Messaging consumers/producers,
+  schedulers, EJB methods, services, repositories, entities, HTTP clients, and
+  message-driven beans.
+- Extract a **call graph** of directed method-call edges between components, with
+  parameter-name mappings at each call site.
+- Detect **use cases** automatically from indexed entrypoints: one use case per
+  entrypoint, named by auto-derived heuristics or a JSON naming-config override,
+  with a method call chain (or injection-based component list as fallback).
+- Trace **data-flow paths** from entrypoint parameters to architectural sinks
+  (persistence, messaging, http-outbound, event-bus), following parameter renames
+  across call hops.
 - Infer logical containers (API, service, repository, domain, messaging, scheduling).
 - Merge deployment hints from Docker Compose and Ansible inventories.
 - Trace component dependencies with configurable depth and condensation.
-- Extract runtime flows for entry points by following injection edges.
+- Extract runtime flows for entry points using call-graph DFS when available, falling
+  back to injection-edge BFS for pre-call-graph models.
 - Render Mermaid flowcharts (system/container/module/component levels), sequence
-  diagrams, dependency maps, source overviews, focused dependency slices.
+  diagrams with accurate call labels, dependency maps, source overviews, focused
+  dependency slices.
 - Export architecture documentation (`export_architecture_docs`) and a graph-centric
   POC document (`export_graph_architecture_poc`).
 - Query the architecture as a graph (`query_architecture_graph`) with
@@ -72,7 +87,8 @@ The server is designed for consumption by LLM agents and MCP-capable clients
 `get_runtime_flow`, `render_mermaid_sequence`, `render_source_overview`,
 `render_dependency_map`, `render_component_dependency_diagram`,
 `export_architecture_docs`, `export_graph_architecture_poc`,
-`query_architecture_graph`, `explain_architecture`.
+`query_architecture_graph`, `explain_architecture`,
+`detect_use_cases`, `trace_data_flow`.
 
 See `./docs/TOOLS.md` for arguments and examples.
 
@@ -100,6 +116,9 @@ See `./docs/TOOLS.md` for arguments and examples.
 
 - The cached architecture model is in-process; tools other than `index_workspace`
   require a previous `index_workspace` call (or a pre-existing `.spoon-mcp-cache/`).
+- `detect_use_cases` and `trace_data_flow` produce richer output when call-graph data
+  is available (i.e. after `index_workspace` on a real project). Without call edges they
+  fall back to injection-dependency traversal and emit a warning label.
 - Tool argument schemas in `McpServer.java` are the authoritative source — keep
   `docs/TOOLS.md` in sync when changing them.
 - Generated artifacts (`target/`, `.spoon-mcp-cache/`, `dependency-reduced-pom.xml`)
