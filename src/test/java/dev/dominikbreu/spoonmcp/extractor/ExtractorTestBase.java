@@ -5,7 +5,6 @@ import dev.dominikbreu.spoonmcp.model.AppEntry;
 import dev.dominikbreu.spoonmcp.scanner.SpoonScanner;
 import spoon.reflect.CtModel;
 
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Objects;
@@ -30,6 +29,10 @@ public abstract class ExtractorTestBase {
 
     protected static CtModel scan(String projectName) {
         return new SpoonScanner().scan(List.of(projectPath(projectName)));
+    }
+
+    protected static ArchitectureModel buildQuarkusModel() {
+        return new ArchitectureExtractor().extract(List.of(projectPath("quarkus-sample")));
     }
 
     protected static ArchitectureModel emptyModel(String appId) {

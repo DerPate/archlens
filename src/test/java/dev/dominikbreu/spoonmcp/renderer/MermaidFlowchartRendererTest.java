@@ -60,6 +60,78 @@ class MermaidFlowchartRendererTest {
         assertThat(out).contains("quarkus");
     }
 
+    @Test
+    void systemLevelRendersExternalRestApi() {
+        ExternalSystem rest = new ExternalSystem();
+        rest.id = "ext:rest:billing"; rest.name = "billing";
+        rest.kind = "REST_API"; rest.technology = "microprofile-rest-client";
+        model.externalSystems.add(rest);
+        Dependency d = dep("comp:Service", "ext:rest:billing");
+        d.kind = "rest-client";
+        model.dependencies.add(d);
+
+        String out = renderer.render(model, null, "system");
+
+        assertThat(out).contains("ext_rest_billing");
+        assertThat(out).contains("billing");
+        assertThat(out).contains("REST_API");
+        assertThat(out).contains("|rest-client|");
+    }
+
+    @Test
+    void systemLevelRendersExternalMessageBroker() {
+        ExternalSystem kafka = new ExternalSystem();
+        kafka.id = "ext:messaging:kafka"; kafka.name = "Kafka";
+        kafka.kind = "MESSAGE_BROKER"; kafka.technology = "kafka";
+        model.externalSystems.add(kafka);
+        Dependency d = dep("comp:Service", "ext:messaging:kafka");
+        d.kind = "messaging";
+        model.dependencies.add(d);
+
+        String out = renderer.render(model, null, "system");
+
+        assertThat(out).contains("ext_messaging_kafka");
+        assertThat(out).contains("Kafka");
+        assertThat(out).contains("MESSAGE_BROKER");
+        assertThat(out).contains("|messaging|");
+    }
+
+    @Test
+    void systemLevelOmitsUnreferencedExternalSystems() {
+        ExternalSystem ghost = new ExternalSystem();
+        ghost.id = "ext:rest:ghost"; ghost.name = "ghost";
+        ghost.kind = "REST_API"; ghost.technology = "microprofile-rest-client";
+        model.externalSystems.add(ghost);
+
+        String out = renderer.render(model, null, "system");
+
+        assertThat(out).doesNotContain("ext_rest_ghost");
+    }
+
+    @Test
+    void systemLevelRespectsAppFilter() {
+        AppEntry other = new AppEntry();
+        other.id = "app:other"; other.name = "other";
+        other.technology = "quarkus"; other.packagingType = "jar";
+        model.applications.add(other);
+
+        Component otherSvc = comp("comp:OtherSvc", ComponentType.SERVICE, "app:other", "quarkus");
+        model.components.add(otherSvc);
+        other.componentIds.add(otherSvc.id);
+
+        ExternalSystem ext = new ExternalSystem();
+        ext.id = "ext:rest:thirdparty"; ext.name = "thirdparty";
+        ext.kind = "REST_API"; ext.technology = "microprofile-rest-client";
+        model.externalSystems.add(ext);
+        Dependency d = dep("comp:OtherSvc", "ext:rest:thirdparty");
+        d.kind = "rest-client";
+        model.dependencies.add(d);
+
+        String out = renderer.render(model, "orders", "system");
+
+        assertThat(out).doesNotContain("ext_rest_thirdparty");
+    }
+
     // ── container level ──────────────────────────────────────────────────────
 
     @Test

@@ -52,6 +52,37 @@ public class QuarkusExtractor {
         "javax.persistence.Entity", "jakarta.persistence.Entity"
     );
 
+    private static final Set<String> INCOMING_ANNOTATIONS = Set.of(
+        "org.eclipse.microprofile.reactive.messaging.Incoming"
+    );
+
+    private static final Set<String> OUTGOING_ANNOTATIONS = Set.of(
+        "org.eclipse.microprofile.reactive.messaging.Outgoing"
+    );
+
+    private static final Set<String> CHANNEL_ANNOTATIONS = Set.of(
+        "org.eclipse.microprofile.reactive.messaging.Channel",
+        "io.smallrye.reactive.messaging.annotations.Channel"
+    );
+
+    private static final Set<String> KAFKA_PRODUCER_TYPES = Set.of(
+        "org.apache.kafka.clients.producer.KafkaProducer",
+        "org.apache.kafka.clients.producer.Producer"
+    );
+
+    private static final Set<String> KAFKA_CONSUMER_TYPES = Set.of(
+        "org.apache.kafka.clients.consumer.KafkaConsumer",
+        "org.apache.kafka.clients.consumer.Consumer"
+    );
+
+    /** Matches Paho v3/v5 ({@code MqttClient}, {@code IMqttAsyncClient}) and HiveMQ ({@code Mqtt3Client}, {@code Mqtt5AsyncClient}, {@code Mqtt5BlockingClient}, {@code Mqtt5RxClient}). */
+    private static final java.util.regex.Pattern MQTT_CLIENT_NAME = java.util.regex.Pattern.compile(
+        "^I?Mqtt[35]?(Async|Blocking|Rx)?Client$");
+
+    private static final String UNRESOLVED_TOPIC = "(unresolved)";
+
+    private final MessagingCallSiteResolver callSiteResolver = new MessagingCallSiteResolver();
+
     /** Creates a Quarkus extractor using built-in annotation rules. */
     public QuarkusExtractor() {}
 
@@ -88,6 +119,10 @@ public class QuarkusExtractor {
         boolean isEntity = hasAnnotation(type, ENTITY_ANNOTATIONS);
         boolean hasScheduled = type.getMethods().stream()
             .anyMatch(m -> hasAnnotation(m, SCHEDULED_ANNOTATIONS));
+        boolean hasMessaging = type.getMethods().stream()
+            .anyMatch(m -> hasAnnotation(m, INCOMING_ANNOTATIONS) || hasAnnotation(m, OUTGOING_ANNOTATIONS))
+            || type.getFields().stream().anyMatch(f -> hasAnnotation(f, CHANNEL_ANNOTATIONS))
+            || type.getFields().stream().anyMatch(f -> classifyRawClientField(f) != null);
 
         ComponentType compType;
         String technology;
@@ -110,7 +145,7 @@ public class QuarkusExtractor {
             compType = ComponentType.SCHEDULER;
             technology = "quarkus";
             stereotypes.add("scheduled");
-        } else if (hasCdiScope) {
+        } else if (hasCdiScope || hasMessaging) {
             technology = "quarkus";
             String lower = type.getSimpleName().toLowerCase();
             if (lower.endsWith("repository") || lower.endsWith("repo") || lower.endsWith("dao")) {
@@ -125,6 +160,7 @@ public class QuarkusExtractor {
             } else {
                 compType = ComponentType.SERVICE;
             }
+            if (hasMessaging) stereotypes.add("messaging");
         } else {
             return null;
         }
@@ -171,26 +207,166 @@ public class QuarkusExtractor {
                 ep.source = new SourceInfo(getFile(method), getLine(method), "annotation", 1.0);
                 model.entrypoints.add(ep);
             }
+
+            String incomingChannel = getAnnotationStringValue(method, INCOMING_ANNOTATIONS);
+            if (!incomingChannel.isEmpty()) {
+                addMessagingEntrypoint(method, type, component, EntrypointType.MESSAGING_CONSUMER,
+                    incomingChannel, "in", model);
+                addMessagingInterface(method, component, "messaging_consumer", incomingChannel, model);
+            }
+            String outgoingChannel = getAnnotationStringValue(method, OUTGOING_ANNOTATIONS);
+            if (!outgoingChannel.isEmpty()) {
+                addMessagingEntrypoint(method, type, component, EntrypointType.MESSAGING_PRODUCER,
+                    outgoingChannel, "out", model);
+                addMessagingInterface(method, component, "messaging_producer", outgoingChannel, model);
+            }
+        }
+
+        for (CtField<?> field : type.getFields()) {
+            String channel = getAnnotationStringValue(field, CHANNEL_ANNOTATIONS);
+            if (channel.isEmpty()) continue;
+            Entrypoint ep = new Entrypoint();
+            ep.id = "ep:" + type.getQualifiedName() + "#" + field.getSimpleName() + ":emitter:" + channel;
+            ep.type = EntrypointType.MESSAGING_PRODUCER;
+            ep.name = field.getSimpleName();
+            ep.channelName = channel;
+            ep.broker = MessagingBroker.UNKNOWN;
+            ep.componentId = component.id;
+            ep.source = new SourceInfo(getFile(field), getLine(field), "annotation", 1.0);
+            model.entrypoints.add(ep);
+            addMessagingInterface(field, component, "messaging_producer", channel, model);
+        }
+
+        Map<String, MessagingCallSiteResolver.TrackedField> trackedFields = new LinkedHashMap<>();
+        Map<String, RawClientKind> kinds = new LinkedHashMap<>();
+        for (CtField<?> field : type.getFields()) {
+            RawClientKind kind = classifyRawClientField(field);
+            if (kind == null) continue;
+            kinds.put(field.getSimpleName(), kind);
+            MessagingCallSiteResolver.Role roleHint = switch (kind.role) {
+                case PRODUCER -> MessagingCallSiteResolver.Role.PRODUCER;
+                case CONSUMER -> MessagingCallSiteResolver.Role.CONSUMER;
+                case BIDIRECTIONAL -> null;
+            };
+            trackedFields.put(field.getSimpleName(),
+                new MessagingCallSiteResolver.TrackedField(kind.broker, roleHint));
+        }
+
+        Map<String, List<MessagingCallSiteResolver.Finding>> findingsByField = new LinkedHashMap<>();
+        for (MessagingCallSiteResolver.Finding f : callSiteResolver.resolve(type, trackedFields)) {
+            findingsByField.computeIfAbsent(f.fieldName(), k -> new ArrayList<>()).add(f);
+        }
+
+        for (CtField<?> field : type.getFields()) {
+            RawClientKind kind = kinds.get(field.getSimpleName());
+            if (kind == null) continue;
+            List<MessagingCallSiteResolver.Finding> findings = findingsByField.get(field.getSimpleName());
+            if (findings != null && !findings.isEmpty()) {
+                for (MessagingCallSiteResolver.Finding f : findings) {
+                    addRawClientInterface(component, model, field, kind.broker,
+                        f.role() == MessagingCallSiteResolver.Role.PRODUCER ? "messaging_producer" : "messaging_consumer",
+                        f.topic(), "call-site");
+                }
+            } else {
+                String ifaceType = switch (kind.role) {
+                    case PRODUCER -> "messaging_producer";
+                    case CONSUMER -> "messaging_consumer";
+                    case BIDIRECTIONAL -> "messaging_client";
+                };
+                addRawClientInterface(component, model, field, kind.broker, ifaceType,
+                    UNRESOLVED_TOPIC, "field-type");
+            }
         }
 
         if (component.type == ComponentType.HTTP_CLIENT) {
             String clientBasePath = normalizePath(classBasePath);
-            addInterface(type, component, "rest_client", component.name, clientBasePath, model);
+            String serviceName = restClientServiceName(type);
+            InterfaceEntry clientIface = addInterface(type, component, "rest_client", component.name, clientBasePath, model);
+            if (clientIface != null) clientIface.externalServiceName = serviceName;
             for (CtMethod<?> method : type.getMethods()) {
                 String httpMethod = getHttpMethod(method);
                 if (httpMethod == null) continue;
                 String methodPath = getAnnotationStringValue(method, JAX_RS_PATH);
                 String fullPath = combinePaths(clientBasePath, methodPath);
-                addInterface(method, component, "rest_client_operation",
+                InterfaceEntry opIface = addInterface(method, component, "rest_client_operation",
                     httpMethod + " " + fullPath, fullPath, model);
+                if (opIface != null) opIface.externalServiceName = serviceName;
             }
         }
     }
 
-    private void addInterface(CtElement element, Component component, String type,
-                              String name, String path, ArchitectureModel model) {
-        String id = "iface:" + component.id.substring("comp:".length()) + ":" + type + ":" + name;
+    private void addMessagingEntrypoint(CtMethod<?> method, CtType<?> type, Component component,
+                                        EntrypointType entryType, String channel, String suffix,
+                                        ArchitectureModel model) {
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + ":msg-" + suffix + ":" + channel;
+        ep.type = entryType;
+        ep.name = method.getSimpleName();
+        ep.channelName = channel;
+        ep.broker = MessagingBroker.UNKNOWN;
+        ep.componentId = component.id;
+        ep.source = new SourceInfo(getFile(method), getLine(method), "annotation", 1.0);
+        model.entrypoints.add(ep);
+    }
+
+    private void addMessagingInterface(CtElement element, Component component, String type,
+                                       String channel, ArchitectureModel model) {
+        InterfaceEntry entry = addInterface(element, component, type, channel, channel, model);
+        if (entry != null) {
+            entry.broker = MessagingBroker.UNKNOWN;
+        }
+    }
+
+    private void addRawClientInterface(Component component, ArchitectureModel model, CtField<?> field,
+                                       MessagingBroker broker, String ifaceType, String topic, String evidence) {
+        String id = "iface:" + component.id.substring("comp:".length()) + ":" + ifaceType
+            + ":raw:" + field.getSimpleName() + ":" + topic;
         if (model.interfaces.stream().anyMatch(i -> i.id.equals(id))) return;
+        InterfaceEntry entry = new InterfaceEntry();
+        entry.id = id;
+        entry.type = ifaceType;
+        entry.name = field.getSimpleName();
+        entry.path = topic;
+        entry.componentId = component.id;
+        entry.module = component.module;
+        entry.technology = component.technology;
+        entry.broker = broker;
+        entry.source = new SourceInfo(getFile(field), getLine(field), evidence, "call-site".equals(evidence) ? 0.95 : 0.85);
+        model.interfaces.add(entry);
+    }
+
+    private RawClientKind classifyRawClientField(CtField<?> field) {
+        if (field.getType() == null) return null;
+        String fqn = field.getType().getQualifiedName();
+        String simple = field.getType().getSimpleName();
+        if (fqn != null) {
+            if (KAFKA_PRODUCER_TYPES.contains(fqn))
+                return new RawClientKind(MessagingBroker.KAFKA, RawClientRole.PRODUCER);
+            if (KAFKA_CONSUMER_TYPES.contains(fqn))
+                return new RawClientKind(MessagingBroker.KAFKA, RawClientRole.CONSUMER);
+        }
+        if (simple != null && MQTT_CLIENT_NAME.matcher(simple).matches()) {
+            return new RawClientKind(MessagingBroker.MQTT, RawClientRole.BIDIRECTIONAL);
+        }
+        return null;
+    }
+
+    private enum RawClientRole { PRODUCER, CONSUMER, BIDIRECTIONAL }
+
+    private record RawClientKind(MessagingBroker broker, RawClientRole role) {}
+
+    private String restClientServiceName(CtType<?> type) {
+        String configKey = getAnnotationAttributeValue(type, REST_CLIENT_ANNOTATIONS, "configKey");
+        if (!configKey.isEmpty()) return configKey;
+        String baseUri = getAnnotationAttributeValue(type, REST_CLIENT_ANNOTATIONS, "baseUri");
+        if (!baseUri.isEmpty()) return baseUri;
+        return type.getSimpleName();
+    }
+
+    private InterfaceEntry addInterface(CtElement element, Component component, String type,
+                                        String name, String path, ArchitectureModel model) {
+        String id = "iface:" + component.id.substring("comp:".length()) + ":" + type + ":" + name;
+        if (model.interfaces.stream().anyMatch(i -> i.id.equals(id))) return null;
         InterfaceEntry entry = new InterfaceEntry();
         entry.id = id;
         entry.type = type;
@@ -201,6 +377,7 @@ public class QuarkusExtractor {
         entry.technology = component.technology;
         entry.source = new SourceInfo(getFile(element), getLine(element), "annotation", 0.95);
         model.interfaces.add(entry);
+        return entry;
     }
 
     private String getHttpMethod(CtMethod<?> method) {
@@ -231,10 +408,14 @@ public class QuarkusExtractor {
     }
 
     private String getAnnotationStringValue(CtElement element, Set<String> names) {
+        return getAnnotationAttributeValue(element, names, "value");
+    }
+
+    private String getAnnotationAttributeValue(CtElement element, Set<String> names, String attribute) {
         for (var ann : element.getAnnotations()) {
             if (!annMatches(ann, names)) continue;
             try {
-                CtExpression<?> val = ann.getValue("value");
+                CtExpression<?> val = ann.getValue(attribute);
                 if (val == null) return "";
                 if (val instanceof CtLiteral<?> lit) {
                     Object v = lit.getValue();

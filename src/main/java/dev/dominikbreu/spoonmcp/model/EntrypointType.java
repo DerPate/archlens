@@ -8,6 +8,10 @@ public enum EntrypointType {
     REST_ENDPOINT,
     /** JMS queue or topic consumer. */
     JMS_CONSUMER,
+    /** Reactive Messaging consumer (@Incoming). */
+    MESSAGING_CONSUMER,
+    /** Reactive Messaging producer (@Outgoing or Emitter via @Channel). */
+    MESSAGING_PRODUCER,
     /** CDI event observer method. */
     CDI_EVENT_OBSERVER,
     /** Scheduled job or timer. */

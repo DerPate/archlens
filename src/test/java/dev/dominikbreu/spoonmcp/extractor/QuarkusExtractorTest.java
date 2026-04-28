@@ -57,8 +57,10 @@ class QuarkusExtractorTest extends ExtractorTestBase {
 
     @Test
     void componentCountMatchesKnownClasses() {
-        // OrderResource, OrderService, OrderRepository, Order, OrderCleanupScheduler, BillingClient
-        assertThat(model.components).hasSize(6);
+        // OrderResource, OrderService, OrderRepository, Order, OrderCleanupScheduler,
+        // BillingClient, KafkaService, MqttService,
+        // KafkaClientService, PahoMqttClientService, HiveMqClientService
+        assertThat(model.components).hasSize(11);
     }
 
     @Test
@@ -160,6 +162,177 @@ class QuarkusExtractorTest extends ExtractorTestBase {
     void restClientOperationsAreStoredAsInterfaces() {
         assertThat(model.interfaces)
             .anyMatch(i -> i.type.equals("rest_client_operation") && i.path.equals("/billing/{orderId}"));
+    }
+
+    // ── messaging detection ─────────────────────────────────────────────────
+
+    @Test
+    void detectsMessagingConsumerOnIncoming() {
+        assertThat(model.entrypoints)
+            .anyMatch(e -> e.type == EntrypointType.MESSAGING_CONSUMER
+                && "orders-in".equals(e.channelName));
+    }
+
+    @Test
+    void detectsMessagingProducerOnOutgoing() {
+        assertThat(model.entrypoints)
+            .anyMatch(e -> e.type == EntrypointType.MESSAGING_PRODUCER
+                && "orders-out".equals(e.channelName));
+    }
+
+    @Test
+    void detectsMessagingProducerOnEmitterChannel() {
+        assertThat(model.entrypoints)
+            .anyMatch(e -> e.type == EntrypointType.MESSAGING_PRODUCER
+                && "audit-log".equals(e.channelName));
+    }
+
+    @Test
+    void detectsMqttIncomingChannel() {
+        assertThat(model.entrypoints)
+            .anyMatch(e -> e.type == EntrypointType.MESSAGING_CONSUMER
+                && "device-events".equals(e.channelName));
+    }
+
+    @Test
+    void messagingEntrypointsHaveUnknownBrokerWithoutResolver() {
+        model.entrypoints.stream()
+            .filter(e -> e.type == EntrypointType.MESSAGING_CONSUMER
+                || e.type == EntrypointType.MESSAGING_PRODUCER)
+            .forEach(e -> assertThat(e.broker)
+                .as("broker for channel %s", e.channelName)
+                .isEqualTo(MessagingBroker.UNKNOWN));
+    }
+
+    @Test
+    void messagingChannelsAreStoredAsInterfaces() {
+        assertThat(model.interfaces)
+            .anyMatch(i -> "messaging_consumer".equals(i.type) && "orders-in".equals(i.path));
+        assertThat(model.interfaces)
+            .anyMatch(i -> "messaging_producer".equals(i.type) && "orders-out".equals(i.path));
+        assertThat(model.interfaces)
+            .anyMatch(i -> "messaging_producer".equals(i.type) && "audit-log".equals(i.path));
+    }
+
+    @Test
+    void kafkaAndMqttServicesAreServiceComponents() {
+        assertHasComponentOfType(ComponentType.SERVICE, "KafkaService");
+        assertHasComponentOfType(ComponentType.SERVICE, "MqttService");
+    }
+
+    // ── raw client detection ────────────────────────────────────────────────
+
+    @Test
+    void rawClientServicesAreDetectedAsComponents() {
+        assertHasComponentOfType(ComponentType.SERVICE, "KafkaClientService");
+        assertHasComponentOfType(ComponentType.SERVICE, "PahoMqttClientService");
+        assertHasComponentOfType(ComponentType.SERVICE, "HiveMqClientService");
+    }
+
+    // Kafka producer.send(new ProducerRecord<>(CONSTANT, ...)) → topic resolved from static-final field
+    @Test
+    void resolvesKafkaProducerTopicFromConstantField() {
+        assertThat(model.interfaces)
+            .anyMatch(i -> "messaging_producer".equals(i.type)
+                && i.broker == MessagingBroker.KAFKA
+                && "orders.events".equals(i.path));
+    }
+
+    // Kafka consumer.subscribe(List.of("a","b")) → one finding per literal in the collection
+    @Test
+    void resolvesKafkaConsumerTopicsFromListOf() {
+        assertThat(model.interfaces)
+            .anyMatch(i -> "messaging_consumer".equals(i.type)
+                && i.broker == MessagingBroker.KAFKA
+                && "orders.commands".equals(i.path));
+        assertThat(model.interfaces)
+            .anyMatch(i -> "messaging_consumer".equals(i.type)
+                && i.broker == MessagingBroker.KAFKA
+                && "orders.replies".equals(i.path));
+    }
+
+    // Paho publish(CONSTANT, ...) → resolved from static-final field
+    @Test
+    void resolvesPahoPublishTopicFromConstantField() {
+        assertThat(model.interfaces)
+            .anyMatch(i -> "messaging_producer".equals(i.type)
+                && i.broker == MessagingBroker.MQTT
+                && "device/state".equals(i.path));
+    }
+
+    // Paho subscribe(localVar, qos) where localVar = "..." literal → resolved from local-var initializer
+    @Test
+    void resolvesPahoSubscribeTopicFromLocalVariable() {
+        assertThat(model.interfaces)
+            .anyMatch(i -> "messaging_consumer".equals(i.type)
+                && i.broker == MessagingBroker.MQTT
+                && "orders/updated".equals(i.path));
+    }
+
+    // Paho subscribe(methodParam, qos) → unresolved
+    @Test
+    void unresolvableTopicMarkedUnresolved() {
+        assertThat(model.interfaces)
+            .anyMatch(i -> "messaging_consumer".equals(i.type)
+                && i.broker == MessagingBroker.MQTT
+                && "(unresolved)".equals(i.path));
+    }
+
+    // HiveMQ fluent: publishWith().topic("..").send() → MESSAGING_PRODUCER
+    @Test
+    void resolvesHiveMqFluentPublishTopic() {
+        assertThat(model.interfaces)
+            .anyMatch(i -> "messaging_producer".equals(i.type)
+                && i.broker == MessagingBroker.MQTT
+                && "device/telemetry".equals(i.path));
+    }
+
+    // HiveMQ fluent through toAsync(): hivemq5.toAsync().publishWith().topic("..").send()
+    @Test
+    void resolvesHiveMqFluentPublishThroughToAsync() {
+        assertThat(model.interfaces)
+            .anyMatch(i -> "messaging_producer".equals(i.type)
+                && i.broker == MessagingBroker.MQTT
+                && "device/control".equals(i.path));
+    }
+
+    // HiveMQ fluent subscribe: subscribeWith().topicFilter("..").send() → MESSAGING_CONSUMER
+    @Test
+    void resolvesHiveMqFluentSubscribeTopic() {
+        assertThat(model.interfaces)
+            .anyMatch(i -> "messaging_consumer".equals(i.type)
+                && i.broker == MessagingBroker.MQTT
+                && "device/+".equals(i.path));
+    }
+
+    // When call-site findings exist for a field, no field-level "messaging_client" fallback is emitted
+    @Test
+    void fieldLevelFallbackSuppressedWhenCallSitesExist() {
+        assertThat(model.interfaces)
+            .filteredOn(i -> i.componentId != null
+                && (i.componentId.endsWith("HiveMqClientService")
+                    || i.componentId.endsWith("PahoMqttClientService")
+                    || i.componentId.endsWith("KafkaClientService")))
+            .filteredOn(i -> "messaging_client".equals(i.type))
+            .isEmpty();
+    }
+
+    // ── REST client service name ────────────────────────────────────────────
+
+    @Test
+    void restClientInterfaceCarriesConfigKeyAsServiceName() {
+        assertThat(model.interfaces)
+            .filteredOn(i -> "rest_client".equals(i.type))
+            .extracting(i -> i.externalServiceName)
+            .contains("billing");
+    }
+
+    @Test
+    void restClientOperationsCarryServiceName() {
+        assertThat(model.interfaces)
+            .filteredOn(i -> "rest_client_operation".equals(i.type))
+            .extracting(i -> i.externalServiceName)
+            .contains("billing");
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

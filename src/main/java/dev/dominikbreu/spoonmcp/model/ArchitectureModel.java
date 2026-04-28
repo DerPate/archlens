@@ -31,6 +31,15 @@ public class ArchitectureModel {
     public List<Container> containers = new ArrayList<>();
     /** Deployment metadata merged from Docker Compose, Ansible, or similar descriptors. */
     public List<DeploymentEntry> deployments = new ArrayList<>();
+    /** External systems inferred from REST clients and messaging channels. */
+    @JsonProperty("external_systems")
+    public List<ExternalSystem> externalSystems = new ArrayList<>();
+    /** Directed method-call edges extracted from actual source invocations. */
+    @JsonProperty("call_edges")
+    public List<CallEdge> callEdges = new ArrayList<>();
+    /** Inter-procedural data-flow paths from entrypoint parameters to sinks. */
+    @JsonProperty("data_flow_paths")
+    public List<DataFlowPath> dataFlowPaths = new ArrayList<>();
 
     /** Creates an empty architecture model for JSON deserialization. */
     public ArchitectureModel() {}

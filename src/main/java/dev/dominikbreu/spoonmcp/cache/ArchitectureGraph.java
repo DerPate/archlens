@@ -581,6 +581,7 @@ public class ArchitectureGraph {
         return switch (entrypoint.type) {
             case REST_ENDPOINT -> "http";
             case JMS_CONSUMER -> "jms";
+            case MESSAGING_CONSUMER, MESSAGING_PRODUCER -> "messaging";
             case CDI_EVENT_OBSERVER -> "event";
             case SCHEDULER -> "scheduler";
             case EJB_BUSINESS_METHOD -> "ejb";
