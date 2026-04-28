@@ -35,6 +35,8 @@ public class McpServer {
     private final ExportArchitectureDocsTool exportDocsTool;
     private final ExportGraphArchitecturePocTool exportGraphPocTool;
     private final QueryArchitectureGraphTool graphTool;
+    private final DetectUseCasesTool detectUseCasesTool;
+    private final TraceDataFlowTool traceDataFlowTool;
     private final PrintStream out;
 
     /** Creates a server with the default extractor, cache, and tool registry. */
@@ -61,6 +63,8 @@ public class McpServer {
         this.exportDocsTool = new ExportArchitectureDocsTool(cache);
         this.exportGraphPocTool = new ExportGraphArchitecturePocTool(cache);
         this.graphTool = new QueryArchitectureGraphTool(cache);
+        this.detectUseCasesTool = new DetectUseCasesTool(cache);
+        this.traceDataFlowTool  = new TraceDataFlowTool(cache);
         this.out = System.out;
     }
 
@@ -136,6 +140,8 @@ public class McpServer {
             case "export_architecture_docs"  -> exportDocsTool.execute(args);
             case "export_graph_architecture_poc" -> exportGraphPocTool.execute(args);
             case "query_architecture_graph"  -> graphTool.execute(args);
+            case "detect_use_cases"          -> detectUseCasesTool.execute(args);
+            case "trace_data_flow"           -> traceDataFlowTool.execute(args);
             default -> "Unknown tool: " + name;
         };
     }
@@ -246,6 +252,21 @@ public class McpServer {
                 .opt("direction", "string", "in | out | both for neighborhood")
                 .opt("maxDepth", "integer", "Traversal depth for paths or impacted_by")
                 .opt("limit", "integer", "Maximum returned rows")));
+
+        tools.add(tool("trace_data_flow",
+            "Trace how entrypoint parameters flow through the call graph to sinks (persistence, messaging, http-outbound, event-bus). Requires call-graph data from index_workspace.",
+            schema()
+                .opt("entrypointId", "string", "Filter by entrypoint ID (partial match)")
+                .opt("entrypointName", "string", "Filter by entrypoint name or path (partial match)")
+                .opt("param", "string", "Filter by tracked parameter name")
+                .opt("sinkKind", "string", "Filter by sink kind: persistence | messaging | http-outbound | event-bus")));
+
+        tools.add(tool("detect_use_cases",
+            "Detect business use cases from indexed entrypoints and their call chains. Uses call-graph data when available; falls back to injection-dependency traversal.",
+            schema()
+                .opt("configFile", "string", "Path to a JSON naming config file ({ \"names\": { \"<entrypointId>\": \"Display Name\" } })")
+                .opt("module", "string", "Filter results by app/module ID (partial match)")
+                .opt("maxDepth", "integer", "Max call-chain depth shown per use case (default 5)")));
 
         return tools;
     }

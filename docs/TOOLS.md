@@ -33,7 +33,9 @@ Return architecturally relevant entry points.
 Arguments:
 
 - `appId` string, optional. Partial app ID filter.
-- `type` string, optional. One of `REST_ENDPOINT`, `JMS_CONSUMER`, `SCHEDULER`, `EJB_BUSINESS_METHOD`.
+- `type` string, optional. One of `REST_ENDPOINT`, `JMS_CONSUMER`, `MESSAGING_CONSUMER`, `MESSAGING_PRODUCER`, `SCHEDULER`, `EJB_BUSINESS_METHOD`.
+
+Messaging entrypoints carry `channelName` (Reactive Messaging channel) and `broker` (`KAFKA`, `MQTT`, `AMQP`, `RABBITMQ`, `PULSAR`, or `UNKNOWN`). The broker is resolved by reading `mp.messaging.{incoming|outgoing}.{channel}.connector` from `application.properties` / `.yaml` / `.yml`. This is the only configuration key the extractor reads.
 
 ## `find_components`
 
@@ -72,6 +74,8 @@ Arguments:
 
 - `appId` string, optional. Partial app ID filter.
 - `level` string, optional. One of `system`, `container`, `module`, or `component`. Default is `component`.
+
+At `level=system`, external systems inferred from REST clients (`@RegisterRestClient(configKey=...)`) and Reactive Messaging channels are rendered as boxes alongside the application(s), with directed edges labelled by dependency kind (`rest-client`, `messaging`).
 
 ## `get_runtime_flow`
 

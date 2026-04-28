@@ -87,6 +87,82 @@ class RuntimeFlowInferrerTest {
     }
 
     @Test
+    void step0ViaUsesEntrypointHttpMethodAndPath() {
+        ArchitectureModel model = threeLayerModel();
+        RuntimeFlow flow = inferrer.infer(model.entrypoints.get(0).id, 5, model);
+
+        assertThat(flow.steps.get(0).via).isEqualTo("GET /orders/{id}");
+    }
+
+    @Test
+    void step0ViaUsesChannelNameForMessagingEntrypoint() {
+        ArchitectureModel m = new ArchitectureModel("test");
+        Component resource = comp("Processor", ComponentType.SERVICE);
+        m.components.add(resource);
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:Processor#onMessage";
+        ep.name = "onMessage";
+        ep.componentId = resource.id;
+        ep.type = EntrypointType.MESSAGING_CONSUMER;
+        ep.channelName = "orders-in";
+        m.entrypoints.add(ep);
+
+        RuntimeFlow flow = inferrer.infer(ep.id, 5, m);
+
+        assertThat(flow.steps.get(0).via).isEqualTo("orders-in");
+    }
+
+    @Test
+    void subsequentStepsUseActualDepKind() {
+        ArchitectureModel m = new ArchitectureModel("test");
+        Component producer = comp("Producer", ComponentType.CDI_EVENT_PRODUCER);
+        Component consumer = comp("Consumer", ComponentType.CDI_EVENT_CONSUMER);
+        m.components.addAll(List.of(producer, consumer));
+        Dependency d = new Dependency();
+        d.id = "dep:prod->cons";
+        d.fromId = producer.id;
+        d.toId = consumer.id;
+        d.kind = "cdi-event";
+        d.confidence = 0.8;
+        m.dependencies.add(d);
+        m.entrypoints.add(ep("ep:Producer#fire", "fire", producer.id, null, null));
+
+        RuntimeFlow flow = inferrer.infer("ep:Producer#fire", 5, m);
+
+        assertThat(flow.steps).hasSize(2);
+        assertThat(flow.steps.get(1).via).isEqualTo("cdi-event");
+    }
+
+    @Test
+    void rawMessagingClientIsExcludedFromFlow() {
+        // MQTTConsumer (messaging entrypoint) injects VertxMqttClient (HTTP_CLIENT + "messaging" stereotype).
+        // The client is transport infrastructure; it must not appear as a called dependency in the flow.
+        ArchitectureModel m = new ArchitectureModel("test");
+        Component consumer = comp("MQTTConsumer", ComponentType.SERVICE);
+        Component mqttClient = comp("VertxMqttClient", ComponentType.HTTP_CLIENT);
+        mqttClient.stereotypes = new java.util.ArrayList<>(List.of("client", "messaging"));
+        Component service = comp("OrderService", ComponentType.SERVICE);
+        m.components.addAll(List.of(consumer, mqttClient, service));
+        m.dependencies.addAll(List.of(
+            dep(consumer.id, mqttClient.id),
+            dep(consumer.id, service.id)
+        ));
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:MQTTConsumer#handle";
+        ep.name = "handle";
+        ep.componentId = consumer.id;
+        ep.type = EntrypointType.MESSAGING_CONSUMER;
+        ep.channelName = "device-events";
+        m.entrypoints.add(ep);
+
+        RuntimeFlow flow = inferrer.infer(ep.id, 5, m);
+
+        assertThat(flow.steps).noneMatch(s -> s.componentName.equals("VertxMqttClient"));
+        assertThat(flow.steps).anyMatch(s -> s.componentName.equals("MQTTConsumer"));
+        assertThat(flow.steps).anyMatch(s -> s.componentName.equals("OrderService"));
+    }
+
+    @Test
     void returnsNullForUnknownEntrypoint() {
         ArchitectureModel model = threeLayerModel();
         assertThat(inferrer.infer("ep:nonexistent", 5, model)).isNull();
@@ -162,7 +238,7 @@ class RuntimeFlowInferrerTest {
         e.id = id;
         e.name = name;
         e.componentId = compId;
-        e.type = EntrypointType.REST_ENDPOINT;
+        e.type = method != null ? EntrypointType.REST_ENDPOINT : EntrypointType.UNKNOWN;
         e.httpMethod = method;
         e.path = path;
         return e;

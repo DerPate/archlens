@@ -24,6 +24,10 @@ public class ArchitectureExtractor {
     private final InternalModuleClassifier moduleClassifier = new InternalModuleClassifier();
     private final EventBusExtractor eventBusExtractor = new EventBusExtractor();
     private final RuntimeFlowInferrer runtimeFlowInferrer = new RuntimeFlowInferrer();
+    private final MessagingConfigResolver messagingConfigResolver = new MessagingConfigResolver();
+    private final ExternalSystemInferrer externalSystemInferrer = new ExternalSystemInferrer();
+    private final CallGraphExtractor callGraphExtractor = new CallGraphExtractor();
+    private final DataFlowTracer dataFlowTracer = new DataFlowTracer();
 
     /** Creates an extractor with the default scanner and extraction passes. */
     public ArchitectureExtractor() {}
@@ -49,8 +53,20 @@ public class ArchitectureExtractor {
         }
         eventBusExtractor.linkCrossModuleEvents(model);
 
+        // Pass 2b: call graph — actual method invocations between components
+        for (CtModel ctModel : ctModels.values()) {
+            callGraphExtractor.extract(ctModel, model);
+        }
+
+        // Pass 2c: data-flow tracing — parameter propagation to sinks
+        model.dataFlowPaths.addAll(dataFlowTracer.trace(model));
+
         // Pass 3: container inference
         model.containers.addAll(containerInferrer.infer(model.components));
+
+        // Pass 4: messaging broker resolution + external system inference
+        externalSystemInferrer.infer(model);
+
         for (Entrypoint entrypoint : model.entrypoints) {
             RuntimeFlow flow = runtimeFlowInferrer.infer(entrypoint.id, 5, model);
             if (flow != null) {
@@ -59,6 +75,28 @@ public class ArchitectureExtractor {
         }
 
         return model;
+    }
+
+    private void applyMessagingBrokers(ArchitectureModel model, String appId, Map<String, MessagingBroker> resolved) {
+        if (resolved.isEmpty()) return;
+        for (Entrypoint ep : model.entrypoints) {
+            if (!appId.equals(componentModule(model, ep.componentId))) continue;
+            if (ep.channelName == null) continue;
+            MessagingBroker broker = resolved.get(ep.channelName);
+            if (broker != null) ep.broker = broker;
+        }
+        for (InterfaceEntry iface : model.interfaces) {
+            if (!appId.equals(iface.module)) continue;
+            if (iface.path == null) continue;
+            MessagingBroker broker = resolved.get(iface.path);
+            if (broker != null) iface.broker = broker;
+        }
+    }
+
+    private String componentModule(ArchitectureModel model, String componentId) {
+        if (componentId == null) return null;
+        for (Component c : model.components) if (componentId.equals(c.id)) return c.module;
+        return null;
     }
 
     /**
@@ -142,6 +180,9 @@ public class ArchitectureExtractor {
             }
         }
         eventBusExtractor.extract(types, model, app.id);
+
+        Map<String, MessagingBroker> resolved = messagingConfigResolver.resolve(root);
+        applyMessagingBrokers(model, app.id, resolved);
     }
 
     private AppEntry buildAppEntry(String path) {
