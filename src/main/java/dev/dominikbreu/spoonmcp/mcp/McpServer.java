@@ -37,6 +37,7 @@ public class McpServer {
     private final QueryArchitectureGraphTool graphTool;
     private final DetectUseCasesTool detectUseCasesTool;
     private final TraceDataFlowTool traceDataFlowTool;
+    private final RenderUseCaseTimelineTool useCaseTimelineTool;
     private final PrintStream out;
 
     /** Creates a server with the default extractor, cache, and tool registry. */
@@ -64,7 +65,8 @@ public class McpServer {
         this.exportGraphPocTool = new ExportGraphArchitecturePocTool(cache);
         this.graphTool = new QueryArchitectureGraphTool(cache);
         this.detectUseCasesTool = new DetectUseCasesTool(cache);
-        this.traceDataFlowTool  = new TraceDataFlowTool(cache);
+        this.traceDataFlowTool      = new TraceDataFlowTool(cache);
+        this.useCaseTimelineTool    = new RenderUseCaseTimelineTool(cache);
         this.out = System.out;
     }
 
@@ -142,6 +144,7 @@ public class McpServer {
             case "query_architecture_graph"  -> graphTool.execute(args);
             case "detect_use_cases"          -> detectUseCasesTool.execute(args);
             case "trace_data_flow"           -> traceDataFlowTool.execute(args);
+            case "render_use_case_timeline"  -> useCaseTimelineTool.execute(args);
             default -> "Unknown tool: " + name;
         };
     }
@@ -259,6 +262,14 @@ public class McpServer {
                 .opt("entrypointName", "string", "Filter by entrypoint name or path (partial match)")
                 .opt("param", "string", "Filter by tracked parameter name")
                 .opt("sinkKind", "string", "Filter by sink kind: persistence | messaging | http-outbound | event-bus")));
+
+        tools.add(tool("render_use_case_timeline",
+            "Render a Mermaid gantt chart showing sequential execution steps across use cases. Each use case is a section; each component hop is a task bar positioned by call depth. Useful for comparing execution depth and component involvement across entry points.",
+            schema()
+                .opt("entrypointId", "string", "Filter to a single use case by entrypoint ID")
+                .opt("entrypointName", "string", "Filter by entrypoint name or HTTP path (partial match)")
+                .opt("maxUseCases", "integer", "Maximum sections to render (default 10)")
+                .opt("maxDepth", "integer", "Maximum steps per section (default 5)")));
 
         tools.add(tool("detect_use_cases",
             "Detect business use cases from indexed entrypoints and their call chains. Uses call-graph data when available; falls back to injection-dependency traversal.",

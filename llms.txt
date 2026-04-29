@@ -47,7 +47,7 @@ The server is designed for consumption by LLM agents and MCP-capable clients
 - Cache & graph projection: ./src/main/java/dev/dominikbreu/spoonmcp/cache/
   - `ModelCache.java`, `ArchitectureGraph.java`
 - Mermaid renderers: ./src/main/java/dev/dominikbreu/spoonmcp/renderer/
-  - flowchart, sequence, dependency map, dependency slice, source overview
+  - flowchart, call flow, dependency map, dependency slice, source overview, use case timeline
 - Tests: ./src/test/java/
 
 ## Capabilities
@@ -72,9 +72,9 @@ The server is designed for consumption by LLM agents and MCP-capable clients
 - Trace component dependencies with configurable depth and condensation.
 - Extract runtime flows for entry points using call-graph DFS when available, falling
   back to injection-edge BFS for pre-call-graph models.
-- Render Mermaid flowcharts (system/container/module/component levels), sequence
-  diagrams with accurate call labels, dependency maps, source overviews, focused
-  dependency slices.
+- Render Mermaid flowcharts (system/container/module/component levels), call-flow
+  diagrams with component-shape encoding and method-name edge labels, dependency maps,
+  source overviews, focused dependency slices, and use-case Gantt timelines.
 - Export architecture documentation (`export_architecture_docs`) and a graph-centric
   POC document (`export_graph_architecture_poc`).
 - Query the architecture as a graph (`query_architecture_graph`) with
@@ -84,7 +84,7 @@ The server is designed for consumption by LLM agents and MCP-capable clients
 
 `index_workspace`, `list_apps`, `find_entrypoints`, `find_components`,
 `get_component_dependencies`, `infer_containers`, `render_mermaid_flowchart`,
-`get_runtime_flow`, `render_mermaid_sequence`, `render_source_overview`,
+`get_runtime_flow`, `render_call_flow`, `render_use_case_timeline`, `render_source_overview`,
 `render_dependency_map`, `render_component_dependency_diagram`,
 `export_architecture_docs`, `export_graph_architecture_poc`,
 `query_architecture_graph`, `explain_architecture`,

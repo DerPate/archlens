@@ -39,11 +39,11 @@ extractor/cache/renderer services, and return user-facing strings.
 
 Current tools: `IndexWorkspaceTool`, `ListAppsTool`, `FindEntrypointsTool`,
 `FindComponentsTool`, `GetComponentDependenciesTool`, `InferContainersTool`,
-`RenderMermaidFlowchartTool`, `GetRuntimeFlowTool`, `RenderMermaidSequenceTool`,
+`RenderMermaidFlowchartTool`, `GetRuntimeFlowTool`, `RenderCallFlowTool`,
 `ExplainArchitectureTool`, `RenderSourceOverviewTool`, `RenderDependencyMapTool`,
 `RenderComponentDependencyDiagramTool`, `ExportArchitectureDocsTool`,
 `ExportGraphArchitecturePocTool`, `QueryArchitectureGraphTool`,
-`DetectUseCasesTool`, `TraceDataFlowTool`.
+`DetectUseCasesTool`, `TraceDataFlowTool`, `RenderUseCaseTimelineTool`.
 
 ### `dev.dominikbreu.spoonmcp.extractor`
 
@@ -204,12 +204,13 @@ and infrastructure files (`DockerComposeMerger`, `AnsibleMerger`).
 
 Renders architecture model slices to Mermaid diagrams and text summaries.
 
-Renderers: `MermaidFlowchartRenderer`, `MermaidSequenceRenderer`,
+Renderers: `MermaidFlowchartRenderer`, `MermaidCallFlowRenderer`,
 `MermaidDependencyMapRenderer`, `MermaidComponentDependencyRenderer`,
 `MermaidSourceOverviewRenderer`.
 
-Sequence diagrams use actual call-graph `via` labels when call-edge data is present,
-producing meaningful arrow labels instead of the generic `[injection]` fallback.
+`MermaidCallFlowRenderer` renders `flowchart TD` with component nodes shaped by
+architectural role and edges labeled with actual call-graph method names.
+`MermaidUseCaseTimelineRenderer` renders `gantt` charts for sequential use case analysis.
 
 ## Data Flow
 
