@@ -164,25 +164,95 @@ Example:
 
 ---
 
-## `render_mermaid_sequence`
+## `render_call_flow`
 
-Render a Mermaid sequence diagram for a given entry point or runtime flow.
+Render a Mermaid `flowchart TD` showing the execution path from an entry point through its
+call chain. Component shapes reflect architectural role:
 
-Arrow labels reflect actual call-graph method names when call-graph data is present,
-or dependency kinds (`injection`, `cdi-event`, etc.) when using the injection fallback.
+| Shape | Mermaid syntax | Used for |
+|-------|---------------|---------|
+| Rectangle | `[Name]` | SERVICE, REST_RESOURCE, EJB, default |
+| Cylinder | `[(Name)]` | REPOSITORY — persistence store |
+| Parallelogram | `[/Name/]` | HTTP_CLIENT — external call |
+| Stadium | `([Name])` | SCHEDULER, MESSAGE_DRIVEN_BEAN — async trigger |
+| Circle | `((Name))` | CDI_EVENT_CONSUMER / CDI_EVENT_PRODUCER |
+
+Edge labels carry the actual called method name from the call graph. The first edge from
+Client shows the HTTP method+path or channel name. No return arrows — execution path only.
 
 Arguments:
 
-- `entrypointId` string, optional.
-- `entrypointName` string, optional.
+- `entrypointId` string, optional. Entrypoint ID from `find_entrypoints`.
+- `entrypointName` string, optional. Entrypoint name or HTTP path (partial match).
 - `maxDepth` integer, optional. Default `5`.
-- `level` string, optional. One of `component`, `container`, or `system`. Default is
-  `component`.
 
 Example:
 
 ```json
-{ "entrypointName": "GET /orders/{id}", "level": "component" }
+{ "entrypointName": "createOrder" }
+```
+
+Sample output:
+
+```
+flowchart TD
+    Client([Client])
+    OrderResource[OrderResource]
+    OrderService[OrderService]
+    OrderRepository[(OrderRepository)]
+
+    Client -->|POST /orders| OrderResource
+    OrderResource -->|create| OrderService
+    OrderService -->|save| OrderRepository
+```
+
+---
+
+## `render_use_case_timeline`
+
+Render a Mermaid `gantt` chart showing the sequential execution steps of one or more use
+cases. Each use case becomes a section; each component hop in the call chain becomes a
+task bar positioned by its call depth.
+
+Useful for comparing how deeply different entry points penetrate the stack and which
+components are involved at each step.
+
+Arguments:
+
+- `entrypointId` string, optional. Filter to a single use case by entrypoint ID.
+- `entrypointName` string, optional. Filter by entrypoint name or HTTP path (partial match).
+- `maxUseCases` integer, optional. Maximum sections to render. Default `10`.
+- `maxDepth` integer, optional. Maximum call-chain steps per section. Default `5`.
+
+Example — all use cases:
+
+```json
+{}
+```
+
+Example — single use case:
+
+```json
+{ "entrypointName": "createOrder" }
+```
+
+Sample output:
+
+```
+gantt
+    title Use Case Execution Order
+    dateFormat  X
+    axisFormat  step %s
+
+    section POST Create Order
+    OrderResource.createOrder :active, 0, 1
+    OrderService.create       :       1, 1
+    OrderRepository.save      :       2, 1
+
+    section GET /orders/{id}
+    OrderResource.getOrder    :active, 0, 1
+    OrderService.find         :       1, 1
+    OrderRepository.findById  :       2, 1
 ```
 
 ---
