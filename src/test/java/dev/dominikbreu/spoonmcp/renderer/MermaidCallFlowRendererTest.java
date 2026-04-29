@@ -56,11 +56,36 @@ class MermaidCallFlowRendererTest {
     @Test
     void containsForwardEdgesWithViaLabel() {
         RuntimeFlow f = flow(3);
-        f.steps.get(1).via = "processOrder";
-        f.steps.get(2).via = "save";
+        f.edges.get(0).label = "processOrder";
+        f.edges.get(1).label = "save";
         String out = renderer.render(f, model(3));
         assertThat(out).contains("-->|processOrder|");
         assertThat(out).contains("-->|save|");
+    }
+
+    @Test
+    void branchingFlowRendersBothBranches() {
+        ArchitectureModel m = model(3);
+        RuntimeFlow f = new RuntimeFlow();
+        f.id = "flow:test";
+        f.entrypointId = "ep:test";
+        for (int i = 0; i < 3; i++) {
+            RuntimeFlowStep s = new RuntimeFlowStep();
+            s.order = i;
+            s.componentId = "comp:Comp" + i;
+            s.componentName = "Comp" + i;
+            s.componentType = "SERVICE";
+            s.via = "call";
+            f.steps.add(s);
+        }
+        // Comp0 fans out to both Comp1 and Comp2 — not a chain
+        f.edges.add(new RuntimeFlow.FlowEdge("comp:Comp0", "comp:Comp1", "doB"));
+        f.edges.add(new RuntimeFlow.FlowEdge("comp:Comp0", "comp:Comp2", "doC"));
+
+        String out = renderer.render(f, m);
+        assertThat(out).contains("Comp0 -->|doB| Comp1");
+        assertThat(out).contains("Comp0 -->|doC| Comp2");
+        assertThat(out).doesNotContain("Comp1 -->");
     }
 
     @Test
@@ -161,6 +186,10 @@ class MermaidCallFlowRendererTest {
             s.componentType = i == 0 ? "REST_RESOURCE" : "SERVICE";
             s.via = "call";
             f.steps.add(s);
+            if (i > 0) {
+                f.edges.add(new RuntimeFlow.FlowEdge(
+                    "comp:Comp" + (i - 1), "comp:Comp" + i, "call"));
+            }
         }
         return f;
     }

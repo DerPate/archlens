@@ -65,13 +65,15 @@ public class MermaidCallFlowRenderer {
               .append(pidMap.get(steps.get(0).componentId)).append("\n");
         }
 
-        // Forward edges
-        for (int i = 0; i < steps.size() - 1; i++) {
-            String via = steps.get(i + 1).via;
-            String label = (via != null && !via.isBlank()) ? via : "call";
-            sb.append("    ").append(pidMap.get(steps.get(i).componentId))
+        // Forward edges — derived from the recorded call-graph topology
+        for (RuntimeFlow.FlowEdge edge : flow.edges) {
+            String fromPid = pidMap.get(edge.fromId);
+            String toPid   = pidMap.get(edge.toId);
+            if (fromPid == null || toPid == null) continue;
+            String label = (edge.label != null && !edge.label.isBlank()) ? edge.label : "call";
+            sb.append("    ").append(fromPid)
               .append(" -->|").append(escape(label)).append("| ")
-              .append(pidMap.get(steps.get(i + 1).componentId)).append("\n");
+              .append(toPid).append("\n");
         }
 
         return sb.toString();
