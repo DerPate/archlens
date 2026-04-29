@@ -586,6 +586,7 @@ public class ArchitectureGraph {
             case SCHEDULER -> "scheduler";
             case EJB_BUSINESS_METHOD -> "ejb";
             case RMI_ENDPOINT -> "rmi";
+            case MAIN_METHOD -> "main";
             case UNKNOWN -> "unknown";
         };
     }
