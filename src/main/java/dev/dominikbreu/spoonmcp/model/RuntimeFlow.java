@@ -13,7 +13,24 @@ public class RuntimeFlow {
     public String entrypointId;
     /** Ordered steps in the inferred runtime flow. */
     public List<RuntimeFlowStep> steps = new ArrayList<>();
+    /** Directed edges between component steps, preserving branching topology. */
+    public List<FlowEdge> edges = new ArrayList<>();
 
     /** Creates an empty runtime flow for JSON deserialization. */
     public RuntimeFlow() {}
+
+    /** A directed call edge between two component steps in the flow. */
+    public static class FlowEdge {
+        public String fromId;
+        public String toId;
+        public String label;
+
+        public FlowEdge() {}
+
+        public FlowEdge(String fromId, String toId, String label) {
+            this.fromId = fromId;
+            this.toId   = toId;
+            this.label  = label;
+        }
+    }
 }

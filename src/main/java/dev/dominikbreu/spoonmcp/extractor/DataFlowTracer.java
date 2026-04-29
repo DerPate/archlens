@@ -45,7 +45,8 @@ public class DataFlowTracer {
         List<DataFlowPath> result = new ArrayList<>();
 
         for (Entrypoint ep : model.entrypoints) {
-            for (String param : ep.parameters) {
+            List<String> params = ep.parameters.isEmpty() ? List.of("*") : ep.parameters;
+            for (String param : params) {
                 DataFlowPath path = new DataFlowPath();
                 path.id           = "df:" + ep.id + "#" + param;
                 path.entrypointId = ep.id;
@@ -89,7 +90,9 @@ public class DataFlowTracer {
                     edge.toMethod,
                     sinkSrc.get(sinkKey)));
             } else {
-                String nextName = edge.paramMapping.getOrDefault(trackedName, trackedName);
+                String nextName = "*".equals(trackedName)
+                    ? "*"
+                    : edge.paramMapping.getOrDefault(trackedName, trackedName);
                 dfs(edge.toComponentId, edge.toMethod, nextName, depth + 1,
                     path, callAdj, compById, sinkSrc, visitedKeys);
             }
