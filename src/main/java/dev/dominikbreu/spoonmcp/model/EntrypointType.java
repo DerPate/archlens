@@ -20,6 +20,8 @@ public enum EntrypointType {
     EJB_BUSINESS_METHOD,
     /** RMI endpoint. */
     RMI_ENDPOINT,
+    /** Plain Java main(String[]) application entry point. */
+    MAIN_METHOD,
     /** Entrypoint whose trigger type could not be classified. */
     UNKNOWN
 }

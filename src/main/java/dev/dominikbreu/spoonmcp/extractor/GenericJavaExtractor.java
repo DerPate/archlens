@@ -3,9 +3,13 @@ package dev.dominikbreu.spoonmcp.extractor;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
+import dev.dominikbreu.spoonmcp.model.Entrypoint;
+import dev.dominikbreu.spoonmcp.model.EntrypointType;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
 import spoon.reflect.declaration.CtElement;
+import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtType;
+import spoon.reflect.declaration.ModifierKind;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -45,7 +49,32 @@ public class GenericJavaExtractor {
                 .filter(app -> app.id.equals(appId))
                 .findFirst()
                 .ifPresent(app -> app.componentIds.add(component.id));
+
+            extractMainEntrypoint(type, component, model);
         }
+    }
+
+    private void extractMainEntrypoint(CtType<?> type, Component component, ArchitectureModel model) {
+        for (CtMethod<?> method : type.getMethods()) {
+            if (isMainMethod(method)) {
+                Entrypoint ep = new Entrypoint();
+                ep.id = "ep:" + type.getQualifiedName() + "#main";
+                ep.type = EntrypointType.MAIN_METHOD;
+                ep.name = "main";
+                ep.componentId = component.id;
+                ep.source = new SourceInfo(getFile(method), getLine(method), "signature", 1.0);
+                model.entrypoints.add(ep);
+            }
+        }
+    }
+
+    private boolean isMainMethod(CtMethod<?> method) {
+        return "main".equals(method.getSimpleName())
+            && method.isStatic()
+            && method.getModifiers().contains(ModifierKind.PUBLIC)
+            && "void".equals(method.getType().getSimpleName())
+            && method.getParameters().size() == 1
+            && method.getParameters().get(0).getType().toString().contains("String");
     }
 
     private boolean isApplicationType(CtType<?> type) {
