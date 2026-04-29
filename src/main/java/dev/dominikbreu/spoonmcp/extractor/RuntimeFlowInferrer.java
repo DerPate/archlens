@@ -50,27 +50,26 @@ public class RuntimeFlowInferrer {
         }
         Map<String, Component> compById = buildCompById(model);
 
-        List<RuntimeFlowStep> steps = new ArrayList<>();
+        RuntimeFlow flow = new RuntimeFlow();
+        flow.id           = "flow:" + ep.id;
+        flow.entrypointId = ep.id;
+
         Set<String> visitedKeys  = new LinkedHashSet<>();
         Set<String> visitedComps = new LinkedHashSet<>();
 
-        dfsCallGraph(ep.componentId, ep.name, entrypointVia(ep),
-                     0, maxDepth, adj, compById, visitedKeys, visitedComps, steps);
+        dfsCallGraph(ep.componentId, ep.name, entrypointVia(ep), null,
+                     0, maxDepth, adj, compById, visitedKeys, visitedComps, flow);
 
-        RuntimeFlow flow = new RuntimeFlow();
-        flow.id          = "flow:" + ep.id;
-        flow.entrypointId = ep.id;
-        flow.steps       = steps;
         return flow;
     }
 
-    private void dfsCallGraph(String compId, String method, String via,
+    private void dfsCallGraph(String compId, String method, String via, String fromCompId,
                                int depth, int maxDepth,
                                Map<String, List<CallEdge>> adj,
                                Map<String, Component> compById,
                                Set<String> visitedKeys,
                                Set<String> visitedComps,
-                               List<RuntimeFlowStep> steps) {
+                               RuntimeFlow flow) {
         String key = compId + "#" + method;
         if (visitedKeys.contains(key) || depth > maxDepth) return;
         visitedKeys.add(key);
@@ -78,17 +77,26 @@ public class RuntimeFlowInferrer {
         Component comp = compById.get(compId);
         if (isRawMessagingClient(comp)) return;
 
+        boolean visible = comp != null && !SKIP_TYPES.contains(comp.type);
+
         if (!visitedComps.contains(compId)) {
             visitedComps.add(compId);
-            if (comp != null && !SKIP_TYPES.contains(comp.type)) {
-                steps.add(new RuntimeFlowStep(
-                    steps.size(), compId, comp.name, comp.type.name(), via));
+            if (visible) {
+                flow.steps.add(new RuntimeFlowStep(
+                    flow.steps.size(), compId, comp.name, comp.type.name(), via));
             }
         }
 
+        if (fromCompId != null && visible) {
+            flow.edges.add(new RuntimeFlow.FlowEdge(fromCompId, compId, via));
+        }
+
         for (CallEdge edge : adj.getOrDefault(key, List.of())) {
-            dfsCallGraph(edge.toComponentId, edge.toMethod, edge.toMethod,
-                         depth + 1, maxDepth, adj, compById, visitedKeys, visitedComps, steps);
+            Component target = compById.get(edge.toComponentId);
+            if (isRawMessagingClient(target)) continue;
+            if (target != null && SKIP_TYPES.contains(target.type)) continue;
+            dfsCallGraph(edge.toComponentId, edge.toMethod, edge.toMethod, compId,
+                         depth + 1, maxDepth, adj, compById, visitedKeys, visitedComps, flow);
         }
     }
 
@@ -98,18 +106,24 @@ public class RuntimeFlowInferrer {
         Map<String, Map<String, String>> adj = buildAdjacencyWithKinds(model.dependencies);
         Map<String, Component> compById = buildCompById(model);
 
-        List<RuntimeFlowStep> steps = new ArrayList<>();
+        RuntimeFlow flow = new RuntimeFlow();
+        flow.id           = "flow:" + ep.id;
+        flow.entrypointId = ep.id;
+
         Set<String> visited = new LinkedHashSet<>();
-        Deque<String> queue = new ArrayDeque<>();
+        Deque<String[]> queue = new ArrayDeque<>(); // [compId, fromCompId]
         Map<String, Integer> depths = new HashMap<>();
         Map<String, String> viaForNode = new HashMap<>();
 
-        queue.add(ep.componentId);
+        queue.add(new String[]{ep.componentId, null});
         depths.put(ep.componentId, 0);
         viaForNode.put(ep.componentId, entrypointVia(ep));
 
         while (!queue.isEmpty()) {
-            String compId = queue.poll();
+            String[] entry = queue.poll();
+            String compId     = entry[0];
+            String fromCompId = entry[1];
+
             if (visited.contains(compId)) continue;
 
             int depth = depths.getOrDefault(compId, 0);
@@ -120,26 +134,26 @@ public class RuntimeFlowInferrer {
             Component comp = compById.get(compId);
             if (isRawMessagingClient(comp)) continue;
 
-            if (comp != null && !SKIP_TYPES.contains(comp.type)) {
+            boolean visible = comp != null && !SKIP_TYPES.contains(comp.type);
+            if (visible) {
                 String via = viaForNode.getOrDefault(compId, "call");
-                steps.add(new RuntimeFlowStep(
-                    steps.size(), compId, comp.name, comp.type.name(), via));
+                flow.steps.add(new RuntimeFlowStep(
+                    flow.steps.size(), compId, comp.name, comp.type.name(), via));
+                if (fromCompId != null) {
+                    flow.edges.add(new RuntimeFlow.FlowEdge(fromCompId, compId, via));
+                }
             }
 
-            for (Map.Entry<String, String> entry : adj.getOrDefault(compId, Map.of()).entrySet()) {
-                String nextId = entry.getKey();
+            for (Map.Entry<String, String> next : adj.getOrDefault(compId, Map.of()).entrySet()) {
+                String nextId = next.getKey();
                 if (!visited.contains(nextId)) {
                     depths.put(nextId, depth + 1);
-                    viaForNode.put(nextId, entry.getValue());
-                    queue.add(nextId);
+                    viaForNode.put(nextId, next.getValue());
+                    queue.add(new String[]{nextId, visible ? compId : fromCompId});
                 }
             }
         }
 
-        RuntimeFlow flow = new RuntimeFlow();
-        flow.id           = "flow:" + ep.id;
-        flow.entrypointId = ep.id;
-        flow.steps        = steps;
         return flow;
     }
 

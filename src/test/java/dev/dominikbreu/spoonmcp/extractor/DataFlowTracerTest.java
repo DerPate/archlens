@@ -116,6 +116,38 @@ class DataFlowTracerTest {
         assertThat(tracer.trace(model)).isEmpty();
     }
 
+    @Test
+    void zeroParamEntrypointTracesReachableSinks() {
+        ArchitectureModel model = buildModel();
+
+        // Add a scheduler entrypoint with no parameters
+        Component scheduler = comp("JobScheduler", ComponentType.SCHEDULER);
+        model.components.add(scheduler);
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:scheduled";
+        ep.name = "runJob";
+        ep.type = EntrypointType.SCHEDULER;
+        ep.componentId = "comp:JobScheduler";
+        // ep.parameters intentionally left empty
+        model.entrypoints.add(ep);
+
+        addCallEdge(model, "comp:JobScheduler", "runJob", "comp:OrderService", "process",
+                    Map.of());
+        addCallEdge(model, "comp:OrderService", "process", "comp:OrderRepository", "save",
+                    Map.of());
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        assertThat(paths).anySatisfy(p -> {
+            assertThat(p.entrypointId).isEqualTo("ep:scheduled");
+            assertThat(p.trackedParam).isEqualTo("*");
+            assertThat(p.sinks).anySatisfy(s -> {
+                assertThat(s.kind).isEqualTo("persistence");
+                assertThat(s.componentName).isEqualTo("OrderRepository");
+            });
+        });
+    }
+
     // ── integration: real quarkus-sample ────────────────────────────────────────
 
     @Test
