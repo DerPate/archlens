@@ -1,250 +1,692 @@
-# Architecture
+# Generated Architecture
 
-Spoon MCP Server is organized around a simple pipeline:
+Generated from the indexed `ArchitectureModel` by the MCP tool `export_architecture_docs`.
 
-1. MCP clients send JSON-RPC requests over stdio.
-2. `McpServer` dispatches tool calls to tool adapter classes.
-3. Tool adapters read from or update the shared `ModelCache`.
-4. Extractors use Spoon to scan Java projects and populate `ArchitectureModel`.
-5. Mergers add deployment context from supporting files such as Docker Compose or Ansible.
-6. `ArchitectureGraph` projects the model into a property graph for traversal queries.
-7. Renderers turn the model into Mermaid diagrams or text summaries.
+## Summary
 
-## Extraction Pipeline
+- Applications: 1
+- Components: 71
+- Entrypoints: 1
+- Interfaces: 0
+- Dependencies: 84
+- Runtime flows: 1
 
-`ArchitectureExtractor.extract()` runs six ordered passes over the Spoon AST:
+## Source Overview
 
-| Pass | What | Classes |
-|------|------|---------|
-| 1 | Components + entrypoints per module, WAR role assignment | `QuarkusExtractor`, `JavaEEExtractor`, `GenericJavaExtractor`, `EventBusExtractor` |
-| 2 | Injection dependencies across all modules | `DependencyExtractor` |
-| 2b | **Call graph** — directed method-call edges between components; entrypoint parameter enrichment | `CallGraphExtractor` |
-| 2c | **Data-flow tracing** — parameter → sink paths pre-computed from call graph | `DataFlowTracer` |
-| 3 | Container inference | `ContainerInferrer` |
-| 4 | Messaging broker resolution + external system inference | `MessagingConfigResolver`, `ExternalSystemInferrer` |
+```mermaid
+flowchart TD
+    subgraph pkg_dev_dominikbreu_spoonmcp["dev.dominikbreu.spoonmcp"]
+        comp_dev_dominikbreu_spoonmcp_Main["Main\nUNKNOWN"]
+    end
+    subgraph pkg_dev_dominikbreu_spoonmcp_cache["dev.dominikbreu.spoonmcp.cache"]
+        comp_dev_dominikbreu_spoonmcp_cache_ArchitectureGraph["ArchitectureGraph\nUNKNOWN"]
+        comp_dev_dominikbreu_spoonmcp_cache_ModelCache["ModelCache\nSERVICE"]
+    end
+    subgraph pkg_dev_dominikbreu_spoonmcp_extractor["dev.dominikbreu.spoonmcp.extractor"]
+        comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor["ArchitectureExtractor\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_extractor_CallGraphExtractor["CallGraphExtractor\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_extractor_ContainerInferrer["ContainerInferrer\nUNKNOWN"]
+        comp_dev_dominikbreu_spoonmcp_extractor_DataFlowTracer["DataFlowTracer\nUNKNOWN"]
+        comp_dev_dominikbreu_spoonmcp_extractor_DependencyCondenser["DependencyCondenser\nUNKNOWN"]
+        comp_dev_dominikbreu_spoonmcp_extractor_DependencyEvidenceScorer["DependencyEvidenceScorer\nUNKNOWN"]
+        comp_dev_dominikbreu_spoonmcp_extractor_DependencyExtractor["DependencyExtractor\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_extractor_EventBusExtractor["EventBusExtractor\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_extractor_ExternalSystemInferrer["ExternalSystemInferrer\nUNKNOWN"]
+        comp_dev_dominikbreu_spoonmcp_extractor_GenericJavaExtractor["GenericJavaExtractor\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_extractor_InternalModuleClassifier["InternalModuleClassifier\nUNKNOWN"]
+        comp_dev_dominikbreu_spoonmcp_extractor_JavaEEExtractor["JavaEEExtractor\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_extractor_MessagingCallSiteResolver["MessagingCallSiteResolver\nUNKNOWN"]
+        comp_dev_dominikbreu_spoonmcp_extractor_MessagingConfigResolver["MessagingConfigResolver\nUNKNOWN"]
+        comp_dev_dominikbreu_spoonmcp_extractor_QuarkusExtractor["QuarkusExtractor\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_extractor_RuntimeFlowInferrer["RuntimeFlowInferrer\nUNKNOWN"]
+        comp_dev_dominikbreu_spoonmcp_extractor_UseCaseDetector["UseCaseDetector\nUNKNOWN"]
+    end
+    subgraph pkg_dev_dominikbreu_spoonmcp_mcp["dev.dominikbreu.spoonmcp.mcp"]
+        comp_dev_dominikbreu_spoonmcp_mcp_McpServer["McpServer\nSERVICE"]
+    end
+    subgraph pkg_dev_dominikbreu_spoonmcp_mcp_tools["dev.dominikbreu.spoonmcp.mcp.tools"]
+        comp_dev_dominikbreu_spoonmcp_mcp_tools_DetectUseCasesTool["DetectUseCasesTool\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_mcp_tools_ExplainArchitectureTool["ExplainArchitectureTool\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportArchitectureDocsTool["ExportArchitectureDocsTool\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportGraphArchitecturePocTool["ExportGraphArchitecturePocTool\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_mcp_tools_FindComponentsTool["FindComponentsTool\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_mcp_tools_FindEntrypointsTool["FindEntrypointsTool\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_mcp_tools_GetComponentDependenciesTool["GetComponentDependenciesTool\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_mcp_tools_GetRuntimeFlowTool["GetRuntimeFlowTool\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_mcp_tools_IndexWorkspaceTool["IndexWorkspaceTool\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_mcp_tools_InferContainersTool["InferContainersTool\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_mcp_tools_ListAppsTool["ListAppsTool\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_mcp_tools_QueryArchitectureGraphTool["QueryArchitectureGraphTool\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderCallFlowTool["RenderCallFlowTool\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderComponentDependencyDiagramTool["RenderComponentDependencyDiagramTool\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderDependencyMapTool["RenderDependencyMapTool\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderMermaidFlowchartTool["RenderMermaidFlowchartTool\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderSourceOverviewTool["RenderSourceOverviewTool\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool["RenderUseCaseTimelineTool\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_mcp_tools_TraceDataFlowTool["TraceDataFlowTool\nSERVICE"]
+    end
+    subgraph pkg_dev_dominikbreu_spoonmcp_merger["dev.dominikbreu.spoonmcp.merger"]
+        comp_dev_dominikbreu_spoonmcp_merger_AnsibleMerger["AnsibleMerger\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_merger_DeploymentMerger["DeploymentMerger\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_merger_DockerComposeMerger["DockerComposeMerger\nSERVICE"]
+    end
+    subgraph pkg_dev_dominikbreu_spoonmcp_model["dev.dominikbreu.spoonmcp.model"]
+        comp_dev_dominikbreu_spoonmcp_model_AppEntry["AppEntry\nENTITY"]
+        comp_dev_dominikbreu_spoonmcp_model_ArchitectureModel["ArchitectureModel\nENTITY"]
+        comp_dev_dominikbreu_spoonmcp_model_CallEdge["CallEdge\nENTITY"]
+        comp_dev_dominikbreu_spoonmcp_model_Component["Component\nENTITY"]
+        comp_dev_dominikbreu_spoonmcp_model_ComponentType["ComponentType\nENTITY"]
+        comp_dev_dominikbreu_spoonmcp_model_Container["Container\nENTITY"]
+        comp_dev_dominikbreu_spoonmcp_model_DataFlowPath["DataFlowPath\nENTITY"]
+        comp_dev_dominikbreu_spoonmcp_model_DataFlowSink["DataFlowSink\nENTITY"]
+        comp_dev_dominikbreu_spoonmcp_model_DataFlowStep["DataFlowStep\nENTITY"]
+        comp_dev_dominikbreu_spoonmcp_model_Dependency["Dependency\nENTITY"]
+        comp_dev_dominikbreu_spoonmcp_model_DeploymentEntry["DeploymentEntry\nENTITY"]
+        comp_dev_dominikbreu_spoonmcp_model_Entrypoint["Entrypoint\nENTITY"]
+        comp_dev_dominikbreu_spoonmcp_model_EntrypointType["EntrypointType\nENTITY"]
+        comp_dev_dominikbreu_spoonmcp_model_ExternalSystem["ExternalSystem\nENTITY"]
+        comp_dev_dominikbreu_spoonmcp_model_InterfaceEntry["InterfaceEntry\nENTITY"]
+        comp_dev_dominikbreu_spoonmcp_model_MessagingBroker["MessagingBroker\nENTITY"]
+        comp_dev_dominikbreu_spoonmcp_model_RuntimeFlow["RuntimeFlow\nENTITY"]
+        comp_dev_dominikbreu_spoonmcp_model_RuntimeFlowStep["RuntimeFlowStep\nENTITY"]
+        comp_dev_dominikbreu_spoonmcp_model_SourceInfo["SourceInfo\nENTITY"]
+        comp_dev_dominikbreu_spoonmcp_model_UseCase["UseCase\nENTITY"]
+        comp_dev_dominikbreu_spoonmcp_model_UseCaseNamingConfig["UseCaseNamingConfig\nENTITY"]
+    end
+    subgraph pkg_dev_dominikbreu_spoonmcp_renderer["dev.dominikbreu.spoonmcp.renderer"]
+        comp_dev_dominikbreu_spoonmcp_renderer_MermaidCallFlowRenderer["MermaidCallFlowRenderer\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencyMapRenderer["MermaidDependencyMapRenderer\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencySliceRenderer["MermaidDependencySliceRenderer\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_renderer_MermaidFlowchartRenderer["MermaidFlowchartRenderer\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_renderer_MermaidSourceOverviewRenderer["MermaidSourceOverviewRenderer\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_renderer_MermaidUseCaseTimelineRenderer["MermaidUseCaseTimelineRenderer\nSERVICE"]
+    end
+    subgraph pkg_dev_dominikbreu_spoonmcp_scanner["dev.dominikbreu.spoonmcp.scanner"]
+        comp_dev_dominikbreu_spoonmcp_scanner_SpoonScanner["SpoonScanner\nSERVICE"]
+    end
+    comp_dev_dominikbreu_spoonmcp_cache_ArchitectureGraph --> comp_dev_dominikbreu_spoonmcp_model_ArchitectureModel
+    comp_dev_dominikbreu_spoonmcp_cache_ModelCache --> comp_dev_dominikbreu_spoonmcp_cache_ArchitectureGraph
+    comp_dev_dominikbreu_spoonmcp_cache_ModelCache --> comp_dev_dominikbreu_spoonmcp_model_ArchitectureModel
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor --> comp_dev_dominikbreu_spoonmcp_scanner_SpoonScanner
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor --> comp_dev_dominikbreu_spoonmcp_extractor_QuarkusExtractor
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor --> comp_dev_dominikbreu_spoonmcp_extractor_JavaEEExtractor
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor --> comp_dev_dominikbreu_spoonmcp_extractor_GenericJavaExtractor
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor --> comp_dev_dominikbreu_spoonmcp_extractor_DependencyExtractor
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor --> comp_dev_dominikbreu_spoonmcp_extractor_ContainerInferrer
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor --> comp_dev_dominikbreu_spoonmcp_extractor_InternalModuleClassifier
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor --> comp_dev_dominikbreu_spoonmcp_extractor_EventBusExtractor
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor --> comp_dev_dominikbreu_spoonmcp_extractor_RuntimeFlowInferrer
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor --> comp_dev_dominikbreu_spoonmcp_extractor_MessagingConfigResolver
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor --> comp_dev_dominikbreu_spoonmcp_extractor_ExternalSystemInferrer
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor --> comp_dev_dominikbreu_spoonmcp_extractor_CallGraphExtractor
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor --> comp_dev_dominikbreu_spoonmcp_extractor_DataFlowTracer
+    comp_dev_dominikbreu_spoonmcp_extractor_DependencyExtractor --> comp_dev_dominikbreu_spoonmcp_extractor_DependencyEvidenceScorer
+    comp_dev_dominikbreu_spoonmcp_extractor_QuarkusExtractor --> comp_dev_dominikbreu_spoonmcp_extractor_MessagingCallSiteResolver
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_IndexWorkspaceTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_ListAppsTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_FindEntrypointsTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_FindComponentsTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_GetComponentDependenciesTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_InferContainersTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderMermaidFlowchartTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_GetRuntimeFlowTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderCallFlowTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_ExplainArchitectureTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderSourceOverviewTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderDependencyMapTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderComponentDependencyDiagramTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportArchitectureDocsTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportGraphArchitecturePocTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_QueryArchitectureGraphTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_DetectUseCasesTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_TraceDataFlowTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_DetectUseCasesTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_DetectUseCasesTool --> comp_dev_dominikbreu_spoonmcp_extractor_UseCaseDetector
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExplainArchitectureTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportArchitectureDocsTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportArchitectureDocsTool --> comp_dev_dominikbreu_spoonmcp_renderer_MermaidFlowchartRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportArchitectureDocsTool --> comp_dev_dominikbreu_spoonmcp_renderer_MermaidSourceOverviewRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportArchitectureDocsTool --> comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencySliceRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportArchitectureDocsTool --> comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencyMapRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportGraphArchitecturePocTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_FindComponentsTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_FindEntrypointsTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_GetComponentDependenciesTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_GetComponentDependenciesTool --> comp_dev_dominikbreu_spoonmcp_extractor_DependencyCondenser
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_GetRuntimeFlowTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_GetRuntimeFlowTool --> comp_dev_dominikbreu_spoonmcp_extractor_RuntimeFlowInferrer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_IndexWorkspaceTool --> comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_IndexWorkspaceTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_IndexWorkspaceTool --> comp_dev_dominikbreu_spoonmcp_merger_DeploymentMerger
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_InferContainersTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ListAppsTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_QueryArchitectureGraphTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderCallFlowTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderCallFlowTool --> comp_dev_dominikbreu_spoonmcp_extractor_RuntimeFlowInferrer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderCallFlowTool --> comp_dev_dominikbreu_spoonmcp_renderer_MermaidCallFlowRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderComponentDependencyDiagramTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderComponentDependencyDiagramTool --> comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencySliceRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderDependencyMapTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderDependencyMapTool --> comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencyMapRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderMermaidFlowchartTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderMermaidFlowchartTool --> comp_dev_dominikbreu_spoonmcp_renderer_MermaidFlowchartRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderSourceOverviewTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderSourceOverviewTool --> comp_dev_dominikbreu_spoonmcp_renderer_MermaidSourceOverviewRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool --> comp_dev_dominikbreu_spoonmcp_renderer_MermaidUseCaseTimelineRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_TraceDataFlowTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_merger_DeploymentMerger --> comp_dev_dominikbreu_spoonmcp_merger_DockerComposeMerger
+    comp_dev_dominikbreu_spoonmcp_merger_DeploymentMerger --> comp_dev_dominikbreu_spoonmcp_merger_AnsibleMerger
+    comp_dev_dominikbreu_spoonmcp_model_CallEdge --> comp_dev_dominikbreu_spoonmcp_model_SourceInfo
+    comp_dev_dominikbreu_spoonmcp_model_Component --> comp_dev_dominikbreu_spoonmcp_model_ComponentType
+    comp_dev_dominikbreu_spoonmcp_model_Component --> comp_dev_dominikbreu_spoonmcp_model_SourceInfo
+    comp_dev_dominikbreu_spoonmcp_model_DataFlowSink --> comp_dev_dominikbreu_spoonmcp_model_SourceInfo
+    comp_dev_dominikbreu_spoonmcp_model_Entrypoint --> comp_dev_dominikbreu_spoonmcp_model_EntrypointType
+    comp_dev_dominikbreu_spoonmcp_model_Entrypoint --> comp_dev_dominikbreu_spoonmcp_model_MessagingBroker
+    comp_dev_dominikbreu_spoonmcp_model_Entrypoint --> comp_dev_dominikbreu_spoonmcp_model_SourceInfo
+    comp_dev_dominikbreu_spoonmcp_model_InterfaceEntry --> comp_dev_dominikbreu_spoonmcp_model_MessagingBroker
+    comp_dev_dominikbreu_spoonmcp_model_InterfaceEntry --> comp_dev_dominikbreu_spoonmcp_model_SourceInfo
+    comp_dev_dominikbreu_spoonmcp_model_UseCase --> comp_dev_dominikbreu_spoonmcp_model_EntrypointType
+```
 
-Runtime flows are also derived per-entrypoint from the call graph (or injection-edge fallback) and stored in `model.runtimeFlows`.
+## Component Architecture
 
-## Packages
+```mermaid
+flowchart TD
+    subgraph app_spoon_mcp_server["spoon-mcp-server (unknown)"]
+        subgraph container_app_spoon_mcp_server_misc["misc"]
+            comp_dev_dominikbreu_spoonmcp_Main["UNKNOWN\nMain"]
+        end
+        subgraph container_app_spoon_mcp_server_cache["cache"]
+            comp_dev_dominikbreu_spoonmcp_cache_ArchitectureGraph["UNKNOWN\nArchitectureGraph"]
+            comp_dev_dominikbreu_spoonmcp_cache_ModelCache["SERVICE\nModelCache"]
+        end
+        subgraph container_app_spoon_mcp_server_extractor["extractor"]
+            comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor["SERVICE\nArchitectureExtractor"]
+            comp_dev_dominikbreu_spoonmcp_extractor_CallGraphExtractor["SERVICE\nCallGraphExtractor"]
+            comp_dev_dominikbreu_spoonmcp_extractor_ContainerInferrer["UNKNOWN\nContainerInferrer"]
+            comp_dev_dominikbreu_spoonmcp_extractor_DataFlowTracer["UNKNOWN\nDataFlowTracer"]
+            comp_dev_dominikbreu_spoonmcp_extractor_DependencyCondenser["UNKNOWN\nDependencyCondenser"]
+            comp_dev_dominikbreu_spoonmcp_extractor_DependencyEvidenceScorer["UNKNOWN\nDependencyEvidenceScorer"]
+            comp_dev_dominikbreu_spoonmcp_extractor_DependencyExtractor["SERVICE\nDependencyExtractor"]
+            comp_dev_dominikbreu_spoonmcp_extractor_EventBusExtractor["SERVICE\nEventBusExtractor"]
+            comp_dev_dominikbreu_spoonmcp_extractor_ExternalSystemInferrer["UNKNOWN\nExternalSystemInferrer"]
+            comp_dev_dominikbreu_spoonmcp_extractor_GenericJavaExtractor["SERVICE\nGenericJavaExtractor"]
+            comp_dev_dominikbreu_spoonmcp_extractor_InternalModuleClassifier["UNKNOWN\nInternalModuleClassifier"]
+            comp_dev_dominikbreu_spoonmcp_extractor_JavaEEExtractor["SERVICE\nJavaEEExtractor"]
+            comp_dev_dominikbreu_spoonmcp_extractor_MessagingCallSiteResolver["UNKNOWN\nMessagingCallSiteResolver"]
+            comp_dev_dominikbreu_spoonmcp_extractor_MessagingConfigResolver["UNKNOWN\nMessagingConfigResolver"]
+            comp_dev_dominikbreu_spoonmcp_extractor_QuarkusExtractor["SERVICE\nQuarkusExtractor"]
+            comp_dev_dominikbreu_spoonmcp_extractor_RuntimeFlowInferrer["UNKNOWN\nRuntimeFlowInferrer"]
+            comp_dev_dominikbreu_spoonmcp_extractor_UseCaseDetector["UNKNOWN\nUseCaseDetector"]
+        end
+        subgraph container_app_spoon_mcp_server_mcp_server["mcp-server"]
+            comp_dev_dominikbreu_spoonmcp_mcp_McpServer["SERVICE\nMcpServer"]
+        end
+        subgraph container_app_spoon_mcp_server_mcp_tools["mcp-tools"]
+            comp_dev_dominikbreu_spoonmcp_mcp_tools_DetectUseCasesTool["SERVICE\nDetectUseCasesTool"]
+            comp_dev_dominikbreu_spoonmcp_mcp_tools_ExplainArchitectureTool["SERVICE\nExplainArchitectureTool"]
+            comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportArchitectureDocsTool["SERVICE\nExportArchitectureDocsTool"]
+            comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportGraphArchitecturePocTool["SERVICE\nExportGraphArchitecturePocTool"]
+            comp_dev_dominikbreu_spoonmcp_mcp_tools_FindComponentsTool["SERVICE\nFindComponentsTool"]
+            comp_dev_dominikbreu_spoonmcp_mcp_tools_FindEntrypointsTool["SERVICE\nFindEntrypointsTool"]
+            comp_dev_dominikbreu_spoonmcp_mcp_tools_GetComponentDependenciesTool["SERVICE\nGetComponentDependenciesTool"]
+            comp_dev_dominikbreu_spoonmcp_mcp_tools_GetRuntimeFlowTool["SERVICE\nGetRuntimeFlowTool"]
+            comp_dev_dominikbreu_spoonmcp_mcp_tools_IndexWorkspaceTool["SERVICE\nIndexWorkspaceTool"]
+            comp_dev_dominikbreu_spoonmcp_mcp_tools_InferContainersTool["SERVICE\nInferContainersTool"]
+            comp_dev_dominikbreu_spoonmcp_mcp_tools_ListAppsTool["SERVICE\nListAppsTool"]
+            comp_dev_dominikbreu_spoonmcp_mcp_tools_QueryArchitectureGraphTool["SERVICE\nQueryArchitectureGraphTool"]
+            comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderCallFlowTool["SERVICE\nRenderCallFlowTool"]
+            comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderComponentDependencyDiagramTool["SERVICE\nRenderComponentDependencyDiagramTool"]
+            comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderDependencyMapTool["SERVICE\nRenderDependencyMapTool"]
+            comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderMermaidFlowchartTool["SERVICE\nRenderMermaidFlowchartTool"]
+            comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderSourceOverviewTool["SERVICE\nRenderSourceOverviewTool"]
+            comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool["SERVICE\nRenderUseCaseTimelineTool"]
+            comp_dev_dominikbreu_spoonmcp_mcp_tools_TraceDataFlowTool["SERVICE\nTraceDataFlowTool"]
+        end
+        subgraph container_app_spoon_mcp_server_deployment_merge["deployment-merge"]
+            comp_dev_dominikbreu_spoonmcp_merger_AnsibleMerger["SERVICE\nAnsibleMerger"]
+            comp_dev_dominikbreu_spoonmcp_merger_DeploymentMerger["SERVICE\nDeploymentMerger"]
+            comp_dev_dominikbreu_spoonmcp_merger_DockerComposeMerger["SERVICE\nDockerComposeMerger"]
+        end
+        subgraph container_app_spoon_mcp_server_model["model"]
+            comp_dev_dominikbreu_spoonmcp_model_AppEntry[("ENTITY\nAppEntry")]
+            comp_dev_dominikbreu_spoonmcp_model_ArchitectureModel[("ENTITY\nArchitectureModel")]
+            comp_dev_dominikbreu_spoonmcp_model_CallEdge[("ENTITY\nCallEdge")]
+            comp_dev_dominikbreu_spoonmcp_model_Component[("ENTITY\nComponent")]
+            comp_dev_dominikbreu_spoonmcp_model_ComponentType[("ENTITY\nComponentType")]
+            comp_dev_dominikbreu_spoonmcp_model_Container[("ENTITY\nContainer")]
+            comp_dev_dominikbreu_spoonmcp_model_DataFlowPath[("ENTITY\nDataFlowPath")]
+            comp_dev_dominikbreu_spoonmcp_model_DataFlowSink[("ENTITY\nDataFlowSink")]
+            comp_dev_dominikbreu_spoonmcp_model_DataFlowStep[("ENTITY\nDataFlowStep")]
+            comp_dev_dominikbreu_spoonmcp_model_Dependency[("ENTITY\nDependency")]
+            comp_dev_dominikbreu_spoonmcp_model_DeploymentEntry[("ENTITY\nDeploymentEntry")]
+            comp_dev_dominikbreu_spoonmcp_model_Entrypoint[("ENTITY\nEntrypoint")]
+            comp_dev_dominikbreu_spoonmcp_model_EntrypointType[("ENTITY\nEntrypointType")]
+            comp_dev_dominikbreu_spoonmcp_model_ExternalSystem[("ENTITY\nExternalSystem")]
+            comp_dev_dominikbreu_spoonmcp_model_InterfaceEntry[("ENTITY\nInterfaceEntry")]
+            comp_dev_dominikbreu_spoonmcp_model_MessagingBroker[("ENTITY\nMessagingBroker")]
+            comp_dev_dominikbreu_spoonmcp_model_RuntimeFlow[("ENTITY\nRuntimeFlow")]
+            comp_dev_dominikbreu_spoonmcp_model_RuntimeFlowStep[("ENTITY\nRuntimeFlowStep")]
+            comp_dev_dominikbreu_spoonmcp_model_SourceInfo[("ENTITY\nSourceInfo")]
+            comp_dev_dominikbreu_spoonmcp_model_UseCase[("ENTITY\nUseCase")]
+            comp_dev_dominikbreu_spoonmcp_model_UseCaseNamingConfig[("ENTITY\nUseCaseNamingConfig")]
+        end
+        subgraph container_app_spoon_mcp_server_renderer["renderer"]
+            comp_dev_dominikbreu_spoonmcp_renderer_MermaidCallFlowRenderer["SERVICE\nMermaidCallFlowRenderer"]
+            comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencyMapRenderer["SERVICE\nMermaidDependencyMapRenderer"]
+            comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencySliceRenderer["SERVICE\nMermaidDependencySliceRenderer"]
+            comp_dev_dominikbreu_spoonmcp_renderer_MermaidFlowchartRenderer["SERVICE\nMermaidFlowchartRenderer"]
+            comp_dev_dominikbreu_spoonmcp_renderer_MermaidSourceOverviewRenderer["SERVICE\nMermaidSourceOverviewRenderer"]
+            comp_dev_dominikbreu_spoonmcp_renderer_MermaidUseCaseTimelineRenderer["SERVICE\nMermaidUseCaseTimelineRenderer"]
+        end
+        subgraph container_app_spoon_mcp_server_scanner["scanner"]
+            comp_dev_dominikbreu_spoonmcp_scanner_SpoonScanner["SERVICE\nSpoonScanner"]
+        end
+    end
+    comp_dev_dominikbreu_spoonmcp_cache_ArchitectureGraph -->|field-reference| comp_dev_dominikbreu_spoonmcp_model_ArchitectureModel
+    comp_dev_dominikbreu_spoonmcp_cache_ModelCache -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ArchitectureGraph
+    comp_dev_dominikbreu_spoonmcp_cache_ModelCache -->|field-reference| comp_dev_dominikbreu_spoonmcp_model_ArchitectureModel
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor -->|field-reference| comp_dev_dominikbreu_spoonmcp_scanner_SpoonScanner
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_QuarkusExtractor
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_JavaEEExtractor
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_GenericJavaExtractor
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_DependencyExtractor
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_ContainerInferrer
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_InternalModuleClassifier
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_EventBusExtractor
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_RuntimeFlowInferrer
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_MessagingConfigResolver
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_ExternalSystemInferrer
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_CallGraphExtractor
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_DataFlowTracer
+    comp_dev_dominikbreu_spoonmcp_extractor_DependencyExtractor -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_DependencyEvidenceScorer
+    comp_dev_dominikbreu_spoonmcp_extractor_QuarkusExtractor -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_MessagingCallSiteResolver
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_IndexWorkspaceTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_ListAppsTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_FindEntrypointsTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_FindComponentsTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_GetComponentDependenciesTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_InferContainersTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderMermaidFlowchartTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_GetRuntimeFlowTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderCallFlowTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_ExplainArchitectureTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderSourceOverviewTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderDependencyMapTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderComponentDependencyDiagramTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportArchitectureDocsTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportGraphArchitecturePocTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_QueryArchitectureGraphTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_DetectUseCasesTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_TraceDataFlowTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_DetectUseCasesTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_DetectUseCasesTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_UseCaseDetector
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExplainArchitectureTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportArchitectureDocsTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportArchitectureDocsTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidFlowchartRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportArchitectureDocsTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidSourceOverviewRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportArchitectureDocsTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencySliceRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportArchitectureDocsTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencyMapRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportGraphArchitecturePocTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_FindComponentsTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_FindEntrypointsTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_GetComponentDependenciesTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_GetComponentDependenciesTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_DependencyCondenser
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_GetRuntimeFlowTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_GetRuntimeFlowTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_RuntimeFlowInferrer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_IndexWorkspaceTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_IndexWorkspaceTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_IndexWorkspaceTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_merger_DeploymentMerger
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_InferContainersTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ListAppsTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_QueryArchitectureGraphTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderCallFlowTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderCallFlowTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_RuntimeFlowInferrer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderCallFlowTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidCallFlowRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderComponentDependencyDiagramTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderComponentDependencyDiagramTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencySliceRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderDependencyMapTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderDependencyMapTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencyMapRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderMermaidFlowchartTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderMermaidFlowchartTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidFlowchartRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderSourceOverviewTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderSourceOverviewTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidSourceOverviewRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidUseCaseTimelineRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_TraceDataFlowTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_merger_DeploymentMerger -->|field-reference| comp_dev_dominikbreu_spoonmcp_merger_DockerComposeMerger
+    comp_dev_dominikbreu_spoonmcp_merger_DeploymentMerger -->|field-reference| comp_dev_dominikbreu_spoonmcp_merger_AnsibleMerger
+    comp_dev_dominikbreu_spoonmcp_model_CallEdge -->|field-reference| comp_dev_dominikbreu_spoonmcp_model_SourceInfo
+    comp_dev_dominikbreu_spoonmcp_model_Component -->|field-reference| comp_dev_dominikbreu_spoonmcp_model_ComponentType
+    comp_dev_dominikbreu_spoonmcp_model_Component -->|field-reference| comp_dev_dominikbreu_spoonmcp_model_SourceInfo
+    comp_dev_dominikbreu_spoonmcp_model_DataFlowSink -->|field-reference| comp_dev_dominikbreu_spoonmcp_model_SourceInfo
+    comp_dev_dominikbreu_spoonmcp_model_Entrypoint -->|field-reference| comp_dev_dominikbreu_spoonmcp_model_EntrypointType
+    comp_dev_dominikbreu_spoonmcp_model_Entrypoint -->|field-reference| comp_dev_dominikbreu_spoonmcp_model_MessagingBroker
+    comp_dev_dominikbreu_spoonmcp_model_Entrypoint -->|field-reference| comp_dev_dominikbreu_spoonmcp_model_SourceInfo
+    comp_dev_dominikbreu_spoonmcp_model_InterfaceEntry -->|field-reference| comp_dev_dominikbreu_spoonmcp_model_MessagingBroker
+    comp_dev_dominikbreu_spoonmcp_model_InterfaceEntry -->|field-reference| comp_dev_dominikbreu_spoonmcp_model_SourceInfo
+    comp_dev_dominikbreu_spoonmcp_model_UseCase -->|field-reference| comp_dev_dominikbreu_spoonmcp_model_EntrypointType
+```
 
-### `dev.dominikbreu.spoonmcp.mcp`
+## Container Architecture
 
-Owns the stdio JSON-RPC loop and the MCP protocol surface. `McpServer` registers every
-public tool name, tool schema, and dispatch branch.
+```mermaid
+flowchart TD
+    subgraph app_spoon_mcp_server["spoon-mcp-server (unknown)"]
+        container_app_spoon_mcp_server_misc["misc\n1 component / 1 EP"]
+        container_app_spoon_mcp_server_cache["cache\n2 components"]
+        container_app_spoon_mcp_server_extractor["extractor\n17 components"]
+        container_app_spoon_mcp_server_mcp_server["mcp-server\n1 component"]
+        container_app_spoon_mcp_server_mcp_tools["mcp-tools\n19 components"]
+        container_app_spoon_mcp_server_deployment_merge["deployment-merge\n3 components"]
+        container_app_spoon_mcp_server_model["model\n21 components"]
+        container_app_spoon_mcp_server_renderer["renderer\n6 components"]
+        container_app_spoon_mcp_server_scanner["scanner\n1 component"]
+    end
+    container_app_spoon_mcp_server_cache -->|field-reference| container_app_spoon_mcp_server_model
+    container_app_spoon_mcp_server_extractor -->|field-reference| container_app_spoon_mcp_server_scanner
+    container_app_spoon_mcp_server_mcp_server -->|field-reference| container_app_spoon_mcp_server_mcp_tools
+    container_app_spoon_mcp_server_mcp_tools -->|field-reference| container_app_spoon_mcp_server_cache
+    container_app_spoon_mcp_server_mcp_tools -->|field-reference| container_app_spoon_mcp_server_extractor
+    container_app_spoon_mcp_server_mcp_tools -->|field-reference| container_app_spoon_mcp_server_renderer
+    container_app_spoon_mcp_server_mcp_tools -->|field-reference| container_app_spoon_mcp_server_deployment_merge
+```
 
-### `dev.dominikbreu.spoonmcp.mcp.tools`
-
-Contains thin tool adapters. These classes parse JSON arguments, call
-extractor/cache/renderer services, and return user-facing strings.
-
-Current tools: `IndexWorkspaceTool`, `ListAppsTool`, `FindEntrypointsTool`,
-`FindComponentsTool`, `GetComponentDependenciesTool`, `InferContainersTool`,
-`RenderMermaidFlowchartTool`, `GetRuntimeFlowTool`, `RenderCallFlowTool`,
-`ExplainArchitectureTool`, `RenderSourceOverviewTool`, `RenderDependencyMapTool`,
-`RenderComponentDependencyDiagramTool`, `ExportArchitectureDocsTool`,
-`ExportGraphArchitecturePocTool`, `QueryArchitectureGraphTool`,
-`DetectUseCasesTool`, `TraceDataFlowTool`, `RenderUseCaseTimelineTool`.
-
-### `dev.dominikbreu.spoonmcp.extractor`
-
-Contains the core architecture analysis. It identifies applications, entry points,
-components, dependencies, call graphs, use cases, data-flow paths, runtime flows, and
-framework-specific constructs for Java EE and Quarkus-style projects.
-
-#### Framework extractors
-
-`QuarkusExtractor` reads SmallRye Reactive Messaging annotations (`@Incoming`,
-`@Outgoing`, `@Channel`) and emits `MESSAGING_CONSUMER` / `MESSAGING_PRODUCER`
-entrypoints with a `channelName`. Channel-to-broker resolution is performed by
-`MessagingConfigResolver` and attached as a `MessagingBroker` enum value (`KAFKA`,
-`MQTT`, `AMQP`, `RABBITMQ`, `PULSAR`, or `UNKNOWN`).
-
-`QuarkusExtractor` also detects raw broker clients held as fields, where the broker is
-implied by the field type: Kafka (`KafkaProducer`, `KafkaConsumer`, etc.) and MQTT
-(Paho v3/v5 and HiveMQ client types).
-
-`MessagingCallSiteResolver` scans method bodies for call sites on tracked client fields
-to resolve topic names and classify them as producer or consumer.
-
-`ExternalSystemInferrer` runs as a post-pass and groups REST client interfaces by
-`externalServiceName` into `REST_API` external systems, and messaging
-entrypoints/interfaces by broker into `MESSAGE_BROKER` external systems.
-
-#### `CallGraphExtractor`
-
-Extracts directed method-call edges between architecture components from actual
-`CtInvocation` nodes — not injection annotations.
-
-**Algorithm:**
-1. Builds two component lookup maps: by qualified-name ID and by simple name (for
-   interface-typed fields where the qualified name is unavailable).
-2. For each type matching a known component, builds a `fieldName → Component` map from
-   declared fields.
-3. For each method, walks all `CtInvocation` elements. Only invocations whose target is a
-   `CtFieldRead` referencing a known component field are recorded (cross-component calls
-   only; intra-component private calls are ignored).
-4. For each such invocation, populates a `CallEdge` with `fromComponentId#fromMethod →
-   toComponentId#toMethod`, `callKind` (`direct`, `event-bus`, or `messaging`), and a
-   `paramMapping` (caller-parameter-name → callee-parameter-name for arguments that are
-   simple variable reads and whose callee method is in the same Spoon model).
-5. Also enriches each `Entrypoint.parameters` list with the method's declared parameter
-   names when the method is found.
-
-Must run after all components are registered (after Pass 1 and dependency extraction).
-Deduplicates edges by ID on repeated runs.
-
-#### `DataFlowTracer`
-
-Traces how entrypoint parameters flow through the call graph to architectural sinks.
-
-**Sink classification:**
-
-| Condition | Sink kind |
-|-----------|-----------|
-| `edge.callKind == "event-bus"` | `event-bus` |
-| `edge.callKind == "messaging"` | `messaging` |
-| target component type is `REPOSITORY` | `persistence` |
-| target is `HTTP_CLIENT` with `"messaging"` stereotype | `messaging` |
-| target is `HTTP_CLIENT` without `"messaging"` stereotype | `http-outbound` |
-| target is `CDI_EVENT_PRODUCER` | `event-bus` |
-
-**Algorithm:**
-1. For each entrypoint, for each parameter in `ep.parameters`, start a `DataFlowPath`.
-2. DFS over `CallEdge` graph from `ep.componentId#ep.name`.
-3. At each hop, record a `DataFlowStep` with the current `localName` of the tracked value.
-4. When the edge reaches a sink, append a `DataFlowSink` and stop following that edge.
-5. When the edge does not reach a sink, look up `edge.paramMapping[trackedName]` for the
-   next local name (precise rename tracking); fall back to the current name if not found.
-6. Cycle guard: `visitedKeys` set keyed on `compId#method@localName`.
-7. Paths with no sinks are not stored.
-
-Pre-computed during `index_workspace`; results stored in `model.dataFlowPaths`.
-
-#### `UseCaseDetector`
-
-Derives one `UseCase` per entrypoint.
-
-**With call graph:** builds an adjacency map from `model.callEdges` and performs DFS from
-the entrypoint's component and method, recording the method call chain as
-`ComponentA.methodX → ComponentB.methodY` strings.
-
-**Without call graph (fallback):** performs BFS over `model.dependencies` from the
-entrypoint's component, recording the reachable component IDs.
-
-Name resolution: `UseCaseNamingConfig.resolveName(entrypointId, derivedName)`. Derived
-names follow these heuristics:
-- `REST_ENDPOINT` → `"HTTP_METHOD camelToTitle(name)"` (e.g. `"POST Create Order"`)
-- `MESSAGING_CONSUMER` → `"Process camelToTitle(channelName)"` (e.g. `"Process Order Events"`)
-- `MESSAGING_PRODUCER` → `"Publish camelToTitle(channelName)"`
-- `SCHEDULER` → `"Scheduled: camelToTitle(name)"`
-- `CDI_EVENT_OBSERVER` → `"On Event: <eventType>"`
-- `JMS_CONSUMER` → `"Consume camelToTitle(name)"`
-
-#### `RuntimeFlowInferrer`
-
-Infers the reduced runtime path for a given entry point.
-
-- **Call-graph mode** (when `model.callEdges` is non-empty): DFS over call edges; step
-  `via` reflects the actual called-method name or `HTTP_METHOD path` for REST entrypoints.
-- **Injection-edge fallback**: BFS over `model.dependencies`; step `via` reflects the
-  actual `dep.kind` (`injection`, `cdi-event`, `field-reference`, etc.).
-
-Raw messaging clients (`HTTP_CLIENT` + `"messaging"` stereotype) are excluded from
-traversal in both modes.
-
-#### Configuration parsing rule
-
-Spoon AST is the only source of code structure. **The single permitted configuration read
-is `mp.messaging.{incoming|outgoing}.{channel}.connector` from `application.properties`,
-`application.yaml`, or `application.yml`** under each module's `src/main/resources`.
-
-No other configuration key may be parsed. Do not extend the resolver to read additional
-properties.
-
-### `dev.dominikbreu.spoonmcp.model`
-
-Plain model classes used by extractors, mergers, renderers, and tools.
-
-| Class | Purpose |
-|-------|---------|
-| `ArchitectureModel` | Root document; contains all lists below |
-| `AppEntry` | Maven module / application entry |
-| `Component` | Source-level component (service, repository, etc.) |
-| `Entrypoint` | Runtime trigger (REST, messaging, scheduler); carries `parameters` list |
-| `Dependency` | Directed component dependency edge |
-| `RuntimeFlow` / `RuntimeFlowStep` | Pre-computed call path for an entrypoint |
-| `CallEdge` | Directed method-call edge from the call graph; carries `paramMapping` |
-| `DataFlowPath` / `DataFlowStep` / `DataFlowSink` | Inter-procedural parameter-to-sink flow |
-| `UseCase` / `UseCaseNamingConfig` | Business use case derived from an entrypoint |
-| `Container` | Logical container inferred from component roles |
-| `InterfaceEntry` | Exposed or consumed interface (REST, messaging) |
-| `ExternalSystem` | REST API or message broker inferred from client interfaces |
-| `MessagingBroker` | Resolved broker enum for Reactive Messaging channels |
-| `DeploymentEntry` | Deployment metadata from Docker Compose / Ansible |
-| `SourceInfo` | File/line/confidence evidence attached to extracted elements |
-
-### `dev.dominikbreu.spoonmcp.cache`
-
-Stores the most recently indexed `ArchitectureModel` for subsequent MCP tool calls.
-The default backend persists a JSON snapshot. Setting `SPOON_MCP_CACHE_BACKEND=graph`
-or `-Dspoonmcp.cache.backend=graph` eagerly maintains an embedded TinkerGraph
-projection. Graph tooling can also build this projection lazily from the JSON-backed
-model.
-
-The graph projection stores source metadata, confidence, package/module labels,
-runtime-relevance flags, cross-module dependency flags, fan-in/fan-out counts, and
-entrypoint reachability to support MCP traversal and impact-analysis tools.
-
-### `dev.dominikbreu.spoonmcp.merger`
-
-Adds deployment context to the extracted architecture model from deployment descriptors
-and infrastructure files (`DockerComposeMerger`, `AnsibleMerger`).
-
-### `dev.dominikbreu.spoonmcp.renderer`
-
-Renders architecture model slices to Mermaid diagrams and text summaries.
-
-Renderers: `MermaidFlowchartRenderer`, `MermaidCallFlowRenderer`,
-`MermaidDependencyMapRenderer`, `MermaidComponentDependencyRenderer`,
-`MermaidSourceOverviewRenderer`.
-
-`MermaidCallFlowRenderer` renders `flowchart TD` with component nodes shaped by
-architectural role and edges labeled with actual call-graph method names.
-`MermaidUseCaseTimelineRenderer` renders `gantt` charts for sequential use case analysis.
-
-## Data Flow
+## Dependency Slice: McpServer
 
 ```mermaid
 flowchart LR
-    Client["MCP client"] --> Server["McpServer"]
-    Server --> Tools["Tool adapters"]
-    Tools --> Extractor["ArchitectureExtractor"]
-    Extractor --> P1["Pass 1: components + entrypoints"]
-    Extractor --> P2["Pass 2: injection deps"]
-    Extractor --> P2b["Pass 2b: call graph\n(CallGraphExtractor)"]
-    Extractor --> P2c["Pass 2c: data-flow paths\n(DataFlowTracer)"]
-    Extractor --> P3["Pass 3: containers"]
-    Extractor --> P4["Pass 4: external systems"]
-    P1 & P2 & P2b & P2c & P3 & P4 --> Model["ArchitectureModel"]
-    Tools --> Cache["ModelCache"]
-    Cache --> Graph["ArchitectureGraph"]
-    Cache --> Renderers["Mermaid renderers"]
-    Cache --> Explain["Text summaries"]
-    Graph --> Tools
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer["McpServer\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_IndexWorkspaceTool["IndexWorkspaceTool\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ListAppsTool["ListAppsTool\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_FindEntrypointsTool["FindEntrypointsTool\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_FindComponentsTool["FindComponentsTool\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_GetComponentDependenciesTool["GetComponentDependenciesTool\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_InferContainersTool["InferContainersTool\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderMermaidFlowchartTool["RenderMermaidFlowchartTool\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_GetRuntimeFlowTool["GetRuntimeFlowTool\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderCallFlowTool["RenderCallFlowTool\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExplainArchitectureTool["ExplainArchitectureTool\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderSourceOverviewTool["RenderSourceOverviewTool\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderDependencyMapTool["RenderDependencyMapTool\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderComponentDependencyDiagramTool["RenderComponentDependencyDiagramTool\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportArchitectureDocsTool["ExportArchitectureDocsTool\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportGraphArchitecturePocTool["ExportGraphArchitecturePocTool\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_QueryArchitectureGraphTool["QueryArchitectureGraphTool\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_DetectUseCasesTool["DetectUseCasesTool\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_TraceDataFlowTool["TraceDataFlowTool\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool["RenderUseCaseTimelineTool\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor["ArchitectureExtractor\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_cache_ModelCache["ModelCache\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_merger_DeploymentMerger["DeploymentMerger\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_extractor_DependencyCondenser["DependencyCondenser\nUNKNOWN"]
+    comp_dev_dominikbreu_spoonmcp_renderer_MermaidFlowchartRenderer["MermaidFlowchartRenderer\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_extractor_RuntimeFlowInferrer["RuntimeFlowInferrer\nUNKNOWN"]
+    comp_dev_dominikbreu_spoonmcp_renderer_MermaidCallFlowRenderer["MermaidCallFlowRenderer\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_renderer_MermaidSourceOverviewRenderer["MermaidSourceOverviewRenderer\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencyMapRenderer["MermaidDependencyMapRenderer\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencySliceRenderer["MermaidDependencySliceRenderer\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_extractor_UseCaseDetector["UseCaseDetector\nUNKNOWN"]
+    comp_dev_dominikbreu_spoonmcp_renderer_MermaidUseCaseTimelineRenderer["MermaidUseCaseTimelineRenderer\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_IndexWorkspaceTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_ListAppsTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_FindEntrypointsTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_FindComponentsTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_GetComponentDependenciesTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_InferContainersTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderMermaidFlowchartTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_GetRuntimeFlowTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderCallFlowTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_ExplainArchitectureTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderSourceOverviewTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderDependencyMapTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderComponentDependencyDiagramTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportArchitectureDocsTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportGraphArchitecturePocTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_QueryArchitectureGraphTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_DetectUseCasesTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_TraceDataFlowTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_IndexWorkspaceTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_IndexWorkspaceTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_IndexWorkspaceTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_merger_DeploymentMerger
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ListAppsTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_FindEntrypointsTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_FindComponentsTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_GetComponentDependenciesTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_GetComponentDependenciesTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_DependencyCondenser
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_InferContainersTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderMermaidFlowchartTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderMermaidFlowchartTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidFlowchartRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_GetRuntimeFlowTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_GetRuntimeFlowTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_RuntimeFlowInferrer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderCallFlowTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderCallFlowTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_RuntimeFlowInferrer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderCallFlowTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidCallFlowRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExplainArchitectureTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderSourceOverviewTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderSourceOverviewTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidSourceOverviewRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderDependencyMapTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderDependencyMapTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencyMapRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderComponentDependencyDiagramTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderComponentDependencyDiagramTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencySliceRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportArchitectureDocsTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportArchitectureDocsTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidFlowchartRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportArchitectureDocsTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidSourceOverviewRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportArchitectureDocsTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencySliceRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportArchitectureDocsTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencyMapRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportGraphArchitecturePocTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_QueryArchitectureGraphTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_DetectUseCasesTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_DetectUseCasesTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_UseCaseDetector
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_TraceDataFlowTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidUseCaseTimelineRenderer
 ```
 
-## Adding A Tool
+## Components By Type
 
-1. Add the tool implementation in `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/`.
-2. Register its name, description, and schema in `McpServer.buildToolsList()`.
-3. Add dispatch in `McpServer.callTool()`.
-4. Add tests for parsing, behavior, or rendering as appropriate.
-5. Update `docs/TOOLS.md` and `llms.txt` when changing the public tool surface.
+### ENTITY
 
-## Adding An Extraction Pass
+- `dev.dominikbreu.spoonmcp.model.AppEntry` (java)
+- `dev.dominikbreu.spoonmcp.model.ArchitectureModel` (java)
+- `dev.dominikbreu.spoonmcp.model.CallEdge` (java)
+- `dev.dominikbreu.spoonmcp.model.Component` (java)
+- `dev.dominikbreu.spoonmcp.model.ComponentType` (java)
+- `dev.dominikbreu.spoonmcp.model.Container` (java)
+- `dev.dominikbreu.spoonmcp.model.DataFlowPath` (java)
+- `dev.dominikbreu.spoonmcp.model.DataFlowSink` (java)
+- `dev.dominikbreu.spoonmcp.model.DataFlowStep` (java)
+- `dev.dominikbreu.spoonmcp.model.Dependency` (java)
+- `dev.dominikbreu.spoonmcp.model.DeploymentEntry` (java)
+- `dev.dominikbreu.spoonmcp.model.Entrypoint` (java)
+- `dev.dominikbreu.spoonmcp.model.EntrypointType` (java)
+- `dev.dominikbreu.spoonmcp.model.ExternalSystem` (java)
+- `dev.dominikbreu.spoonmcp.model.InterfaceEntry` (java)
+- `dev.dominikbreu.spoonmcp.model.MessagingBroker` (java)
+- `dev.dominikbreu.spoonmcp.model.RuntimeFlow` (java)
+- `dev.dominikbreu.spoonmcp.model.RuntimeFlowStep` (java)
+- `dev.dominikbreu.spoonmcp.model.SourceInfo` (java)
+- `dev.dominikbreu.spoonmcp.model.UseCase` (java)
+- `dev.dominikbreu.spoonmcp.model.UseCaseNamingConfig` (java)
 
-1. Implement the extractor in `src/main/java/dev/dominikbreu/spoonmcp/extractor/`.
-2. Wire it into `ArchitectureExtractor.extract()` at the appropriate pass position.
-3. Add new model fields to `ArchitectureModel` with a `@JsonProperty` annotation.
-4. Add tests using `ExtractorTestBase` or model-only unit tests.
-5. Update the extraction pipeline table in this document.
+### SERVICE
+
+- `dev.dominikbreu.spoonmcp.merger.AnsibleMerger` (java)
+- `dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor` (java)
+- `dev.dominikbreu.spoonmcp.extractor.CallGraphExtractor` (java)
+- `dev.dominikbreu.spoonmcp.extractor.DependencyExtractor` (java)
+- `dev.dominikbreu.spoonmcp.merger.DeploymentMerger` (java)
+- `dev.dominikbreu.spoonmcp.mcp.tools.DetectUseCasesTool` (java)
+- `dev.dominikbreu.spoonmcp.merger.DockerComposeMerger` (java)
+- `dev.dominikbreu.spoonmcp.extractor.EventBusExtractor` (java)
+- `dev.dominikbreu.spoonmcp.mcp.tools.ExplainArchitectureTool` (java)
+- `dev.dominikbreu.spoonmcp.mcp.tools.ExportArchitectureDocsTool` (java)
+- `dev.dominikbreu.spoonmcp.mcp.tools.ExportGraphArchitecturePocTool` (java)
+- `dev.dominikbreu.spoonmcp.mcp.tools.FindComponentsTool` (java)
+- `dev.dominikbreu.spoonmcp.mcp.tools.FindEntrypointsTool` (java)
+- `dev.dominikbreu.spoonmcp.extractor.GenericJavaExtractor` (java)
+- `dev.dominikbreu.spoonmcp.mcp.tools.GetComponentDependenciesTool` (java)
+- `dev.dominikbreu.spoonmcp.mcp.tools.GetRuntimeFlowTool` (java)
+- `dev.dominikbreu.spoonmcp.mcp.tools.IndexWorkspaceTool` (java)
+- `dev.dominikbreu.spoonmcp.mcp.tools.InferContainersTool` (java)
+- `dev.dominikbreu.spoonmcp.extractor.JavaEEExtractor` (java)
+- `dev.dominikbreu.spoonmcp.mcp.tools.ListAppsTool` (java)
+- `dev.dominikbreu.spoonmcp.mcp.McpServer` (java)
+- `dev.dominikbreu.spoonmcp.renderer.MermaidCallFlowRenderer` (java)
+- `dev.dominikbreu.spoonmcp.renderer.MermaidDependencyMapRenderer` (java)
+- `dev.dominikbreu.spoonmcp.renderer.MermaidDependencySliceRenderer` (java)
+- `dev.dominikbreu.spoonmcp.renderer.MermaidFlowchartRenderer` (java)
+- `dev.dominikbreu.spoonmcp.renderer.MermaidSourceOverviewRenderer` (java)
+- `dev.dominikbreu.spoonmcp.renderer.MermaidUseCaseTimelineRenderer` (java)
+- `dev.dominikbreu.spoonmcp.cache.ModelCache` (java)
+- `dev.dominikbreu.spoonmcp.extractor.QuarkusExtractor` (java)
+- `dev.dominikbreu.spoonmcp.mcp.tools.QueryArchitectureGraphTool` (java)
+- `dev.dominikbreu.spoonmcp.mcp.tools.RenderCallFlowTool` (java)
+- `dev.dominikbreu.spoonmcp.mcp.tools.RenderComponentDependencyDiagramTool` (java)
+- `dev.dominikbreu.spoonmcp.mcp.tools.RenderDependencyMapTool` (java)
+- `dev.dominikbreu.spoonmcp.mcp.tools.RenderMermaidFlowchartTool` (java)
+- `dev.dominikbreu.spoonmcp.mcp.tools.RenderSourceOverviewTool` (java)
+- `dev.dominikbreu.spoonmcp.mcp.tools.RenderUseCaseTimelineTool` (java)
+- `dev.dominikbreu.spoonmcp.scanner.SpoonScanner` (java)
+- `dev.dominikbreu.spoonmcp.mcp.tools.TraceDataFlowTool` (java)
+
+### UNKNOWN
+
+- `dev.dominikbreu.spoonmcp.cache.ArchitectureGraph` (java)
+- `dev.dominikbreu.spoonmcp.extractor.ContainerInferrer` (java)
+- `dev.dominikbreu.spoonmcp.extractor.DataFlowTracer` (java)
+- `dev.dominikbreu.spoonmcp.extractor.DependencyCondenser` (java)
+- `dev.dominikbreu.spoonmcp.extractor.DependencyEvidenceScorer` (java)
+- `dev.dominikbreu.spoonmcp.extractor.ExternalSystemInferrer` (java)
+- `dev.dominikbreu.spoonmcp.extractor.InternalModuleClassifier` (java)
+- `dev.dominikbreu.spoonmcp.Main` (java)
+- `dev.dominikbreu.spoonmcp.extractor.MessagingCallSiteResolver` (java)
+- `dev.dominikbreu.spoonmcp.extractor.MessagingConfigResolver` (java)
+- `dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer` (java)
+- `dev.dominikbreu.spoonmcp.extractor.UseCaseDetector` (java)
+
+## Dependency Map
+
+```mermaid
+flowchart LR
+    dep_cache["cache\n2 components\n1 internal deps"]
+    dep_extractor["extractor\n17 components\n14 internal deps"]
+    dep_mcp["mcp\n1 components"]
+    dep_mcp_tools["mcp.tools\n19 components"]
+    dep_merger["merger\n3 components\n2 internal deps"]
+    dep_model["model\n21 components\n10 internal deps"]
+    dep_renderer["renderer\n6 components"]
+    dep_scanner["scanner\n1 components"]
+    dep_spoonmcp["spoonmcp\n1 components"]
+    dep_cache -->|2 deps / field-reference=2| dep_model
+    dep_extractor -->|1 dep / field-reference=1| dep_scanner
+    dep_mcp -->|19 deps / field-reference=19| dep_mcp_tools
+    dep_mcp_tools -->|19 deps / field-reference=19| dep_cache
+    dep_mcp_tools -->|5 deps / field-reference=5| dep_extractor
+    dep_mcp_tools -->|1 dep / field-reference=1| dep_merger
+    dep_mcp_tools -->|10 deps / field-reference=10| dep_renderer
+    classDef core fill:#243746,stroke:#78a6c8,color:#f2f7fb
+    classDef boundary fill:#3c2f4f,stroke:#b99df0,color:#fbf8ff
+    classDef data fill:#2f4235,stroke:#8bcf9f,color:#f5fff7
+    classDef default fill:#30343b,stroke:#9aa4b2,color:#f5f7fa
+    class dep_cache data
+    class dep_extractor core
+    class dep_mcp boundary
+    class dep_mcp_tools boundary
+    class dep_merger core
+    class dep_model data
+    class dep_renderer core
+    class dep_scanner core
+    class dep_spoonmcp default
+```
+
+## Dependency Details
+
+- `comp:dev.dominikbreu.spoonmcp.cache.ArchitectureGraph` -> `comp:dev.dominikbreu.spoonmcp.model.ArchitectureModel` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` -> `comp:dev.dominikbreu.spoonmcp.cache.ArchitectureGraph` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` -> `comp:dev.dominikbreu.spoonmcp.model.ArchitectureModel` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor` -> `comp:dev.dominikbreu.spoonmcp.scanner.SpoonScanner` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor` -> `comp:dev.dominikbreu.spoonmcp.extractor.QuarkusExtractor` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor` -> `comp:dev.dominikbreu.spoonmcp.extractor.JavaEEExtractor` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor` -> `comp:dev.dominikbreu.spoonmcp.extractor.GenericJavaExtractor` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor` -> `comp:dev.dominikbreu.spoonmcp.extractor.DependencyExtractor` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor` -> `comp:dev.dominikbreu.spoonmcp.extractor.ContainerInferrer` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor` -> `comp:dev.dominikbreu.spoonmcp.extractor.InternalModuleClassifier` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor` -> `comp:dev.dominikbreu.spoonmcp.extractor.EventBusExtractor` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor` -> `comp:dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor` -> `comp:dev.dominikbreu.spoonmcp.extractor.MessagingConfigResolver` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor` -> `comp:dev.dominikbreu.spoonmcp.extractor.ExternalSystemInferrer` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor` -> `comp:dev.dominikbreu.spoonmcp.extractor.CallGraphExtractor` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor` -> `comp:dev.dominikbreu.spoonmcp.extractor.DataFlowTracer` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.extractor.DependencyExtractor` -> `comp:dev.dominikbreu.spoonmcp.extractor.DependencyEvidenceScorer` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.extractor.QuarkusExtractor` -> `comp:dev.dominikbreu.spoonmcp.extractor.MessagingCallSiteResolver` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.IndexWorkspaceTool` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.ListAppsTool` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.FindEntrypointsTool` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.FindComponentsTool` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.GetComponentDependenciesTool` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.InferContainersTool` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderMermaidFlowchartTool` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.GetRuntimeFlowTool` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderCallFlowTool` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.ExplainArchitectureTool` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderSourceOverviewTool` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderDependencyMapTool` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderComponentDependencyDiagramTool` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.ExportArchitectureDocsTool` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.ExportGraphArchitecturePocTool` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.QueryArchitectureGraphTool` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.DetectUseCasesTool` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.TraceDataFlowTool` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderUseCaseTimelineTool` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.DetectUseCasesTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.DetectUseCasesTool` -> `comp:dev.dominikbreu.spoonmcp.extractor.UseCaseDetector` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.ExplainArchitectureTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.ExportArchitectureDocsTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.ExportArchitectureDocsTool` -> `comp:dev.dominikbreu.spoonmcp.renderer.MermaidFlowchartRenderer` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.ExportArchitectureDocsTool` -> `comp:dev.dominikbreu.spoonmcp.renderer.MermaidSourceOverviewRenderer` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.ExportArchitectureDocsTool` -> `comp:dev.dominikbreu.spoonmcp.renderer.MermaidDependencySliceRenderer` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.ExportArchitectureDocsTool` -> `comp:dev.dominikbreu.spoonmcp.renderer.MermaidDependencyMapRenderer` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.ExportGraphArchitecturePocTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.FindComponentsTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.FindEntrypointsTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.GetComponentDependenciesTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.GetComponentDependenciesTool` -> `comp:dev.dominikbreu.spoonmcp.extractor.DependencyCondenser` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.GetRuntimeFlowTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.GetRuntimeFlowTool` -> `comp:dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.IndexWorkspaceTool` -> `comp:dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.IndexWorkspaceTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.IndexWorkspaceTool` -> `comp:dev.dominikbreu.spoonmcp.merger.DeploymentMerger` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.InferContainersTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.ListAppsTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.QueryArchitectureGraphTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderCallFlowTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderCallFlowTool` -> `comp:dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderCallFlowTool` -> `comp:dev.dominikbreu.spoonmcp.renderer.MermaidCallFlowRenderer` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderComponentDependencyDiagramTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderComponentDependencyDiagramTool` -> `comp:dev.dominikbreu.spoonmcp.renderer.MermaidDependencySliceRenderer` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderDependencyMapTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderDependencyMapTool` -> `comp:dev.dominikbreu.spoonmcp.renderer.MermaidDependencyMapRenderer` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderMermaidFlowchartTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderMermaidFlowchartTool` -> `comp:dev.dominikbreu.spoonmcp.renderer.MermaidFlowchartRenderer` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderSourceOverviewTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderSourceOverviewTool` -> `comp:dev.dominikbreu.spoonmcp.renderer.MermaidSourceOverviewRenderer` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderUseCaseTimelineTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderUseCaseTimelineTool` -> `comp:dev.dominikbreu.spoonmcp.renderer.MermaidUseCaseTimelineRenderer` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.TraceDataFlowTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.merger.DeploymentMerger` -> `comp:dev.dominikbreu.spoonmcp.merger.DockerComposeMerger` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.merger.DeploymentMerger` -> `comp:dev.dominikbreu.spoonmcp.merger.AnsibleMerger` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.model.CallEdge` -> `comp:dev.dominikbreu.spoonmcp.model.SourceInfo` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.model.Component` -> `comp:dev.dominikbreu.spoonmcp.model.ComponentType` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.model.Component` -> `comp:dev.dominikbreu.spoonmcp.model.SourceInfo` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.model.DataFlowSink` -> `comp:dev.dominikbreu.spoonmcp.model.SourceInfo` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.model.Entrypoint` -> `comp:dev.dominikbreu.spoonmcp.model.EntrypointType` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.model.Entrypoint` -> `comp:dev.dominikbreu.spoonmcp.model.MessagingBroker` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.model.Entrypoint` -> `comp:dev.dominikbreu.spoonmcp.model.SourceInfo` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.model.InterfaceEntry` -> `comp:dev.dominikbreu.spoonmcp.model.MessagingBroker` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.model.InterfaceEntry` -> `comp:dev.dominikbreu.spoonmcp.model.SourceInfo` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.model.UseCase` -> `comp:dev.dominikbreu.spoonmcp.model.EntrypointType` (field-reference, type-relation, evidence-score=0.6)
