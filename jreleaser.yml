@@ -21,7 +21,7 @@ release:
     enabled: true
     owner: DerPate
     name: spoon-mcp-server
-    branch: master
+    branch: main
     changelog:
       enabled: true
       formatted: ALWAYS

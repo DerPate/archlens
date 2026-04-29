@@ -6,6 +6,7 @@ import dev.dominikbreu.spoonmcp.model.Dependency;
 
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
@@ -28,13 +29,15 @@ public class MermaidDependencyMapRenderer {
         Map<String, Component> componentsById = model.components.stream()
             .collect(Collectors.toMap(component -> component.id, component -> component, (left, right) -> left, LinkedHashMap::new));
 
+        String commonPrefix = commonPackagePrefix(model.components);
+
         Map<String, GroupStats> groups = new TreeMap<>();
         Map<EdgeKey, EdgeStats> edges = new TreeMap<>(Comparator
             .comparing(EdgeKey::from)
             .thenComparing(EdgeKey::to));
 
         for (Component component : model.components) {
-            groups.computeIfAbsent(groupName(component), ignored -> new GroupStats()).components++;
+            groups.computeIfAbsent(groupName(component, commonPrefix), ignored -> new GroupStats()).components++;
         }
 
         for (Dependency dependency : model.dependencies) {
@@ -42,8 +45,8 @@ public class MermaidDependencyMapRenderer {
             Component to = componentsById.get(dependency.toId);
             if (from == null || to == null) continue;
 
-            String fromGroup = groupName(from);
-            String toGroup = groupName(to);
+            String fromGroup = groupName(from, commonPrefix);
+            String toGroup = groupName(to, commonPrefix);
             if (fromGroup.equals(toGroup)) {
                 groups.computeIfAbsent(fromGroup, ignored -> new GroupStats()).internalDependencies++;
                 continue;
@@ -88,19 +91,63 @@ public class MermaidDependencyMapRenderer {
         return sb.toString();
     }
 
-    private String groupName(Component component) {
+    private String groupName(Component component, String rootPackage) {
         String qualifiedName = component.qualifiedName;
-        if (qualifiedName == null || !qualifiedName.startsWith("dev.dominikbreu.spoonmcp.")) {
+        if (qualifiedName == null || qualifiedName.isBlank()) {
             return component.module != null && !component.module.isBlank() ? component.module : "(default)";
         }
 
-        String remainder = qualifiedName.substring("dev.dominikbreu.spoonmcp.".length());
-        int dot = remainder.indexOf('.');
-        if (dot < 0) return "root";
+        int lastDot = qualifiedName.lastIndexOf('.');
+        String packageName = lastDot > 0 ? qualifiedName.substring(0, lastDot) : "";
 
-        String first = remainder.substring(0, dot);
-        if ("mcp".equals(first) && remainder.startsWith("mcp.tools.")) return "mcp.tools";
-        return first;
+        // Component is IN the root package itself — use the leaf segment of the package
+        if (rootPackage.isEmpty() || packageName.equals(rootPackage)) {
+            int dot = packageName.lastIndexOf('.');
+            return dot >= 0 ? packageName.substring(dot + 1) : (packageName.isEmpty() ? "(default)" : packageName);
+        }
+
+        String afterRoot = packageName.startsWith(rootPackage + ".")
+            ? packageName.substring(rootPackage.length() + 1)
+            : packageName;
+
+        int dot = afterRoot.indexOf('.');
+        String first = dot < 0 ? afterRoot : afterRoot.substring(0, dot);
+
+        // Collapse known two-segment groups (e.g. mcp.tools)
+        if (dot >= 0) {
+            int dot2 = afterRoot.indexOf('.', dot + 1);
+            String second = dot2 < 0 ? afterRoot.substring(dot + 1) : afterRoot.substring(dot + 1, dot2);
+            String twoSeg = first + "." + second;
+            if (isKnownGroup(twoSeg)) return twoSeg;
+        }
+        return first.isEmpty() ? "(default)" : first;
+    }
+
+    private boolean isKnownGroup(String seg) {
+        return seg.equals("mcp.tools");
+    }
+
+    private String commonPackagePrefix(List<Component> components) {
+        // Work on package names (strip simple class name from each qualified name)
+        List<String> packages = components.stream()
+            .map(c -> c.qualifiedName)
+            .filter(q -> q != null && q.contains("."))
+            .map(q -> q.substring(0, q.lastIndexOf('.')))
+            .distinct()
+            .toList();
+        if (packages.isEmpty()) return "";
+
+        String prefix = packages.get(0);
+        for (String pkg : packages) {
+            // Shrink prefix until pkg equals it or starts with prefix + "."
+            while (!pkg.equals(prefix) && !pkg.startsWith(prefix + ".")) {
+                int dot = prefix.lastIndexOf('.');
+                if (dot < 0) { prefix = ""; break; }
+                prefix = prefix.substring(0, dot);
+            }
+            if (prefix.isEmpty()) break;
+        }
+        return prefix;
     }
 
     private String className(String group) {
