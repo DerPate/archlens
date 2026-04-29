@@ -157,6 +157,16 @@ public class MermaidFlowchartRenderer {
     private String renderContainerLevel(List<AppEntry> apps, ArchitectureModel model) {
         StringBuilder sb = new StringBuilder("flowchart TD\n");
 
+        Map<String, String> compToContainer = buildCompToContainerMap(model);
+
+        // Count entrypoints per container
+        Map<String, Long> epByContainer = model.entrypoints.stream()
+            .filter(ep -> ep.componentId != null)
+            .collect(Collectors.groupingBy(
+                ep -> compToContainer.getOrDefault(ep.componentId, ""),
+                Collectors.counting()));
+
+        Set<String> visibleContainers = new LinkedHashSet<>();
         for (AppEntry app : apps) {
             sb.append("    subgraph ").append(nid(app.id))
               .append("[\"").append(escape(app.name))
@@ -167,33 +177,69 @@ public class MermaidFlowchartRenderer {
                 .collect(Collectors.toList());
 
             for (Container container : appContainers) {
+                visibleContainers.add(container.id);
+                long epCount = epByContainer.getOrDefault(container.id, 0L);
+                String label = escape(container.name) + "\\n"
+                    + container.componentIds.size() + " component"
+                    + (container.componentIds.size() != 1 ? "s" : "")
+                    + (epCount > 0 ? " / " + epCount + " EP" : "");
                 sb.append("        ").append(nid(container.id))
-                  .append("[\"").append(escape(container.name)).append("\"]\n");
+                  .append("[\"").append(label).append("\"]\n");
             }
             sb.append("    end\n");
         }
 
-        // Dependencies between containers (de-duped)
-        Set<String> drawn = new HashSet<>();
-        Map<String, String> compToContainer = buildCompToContainerMap(model);
+        // Aggregate cross-container edge kinds by (from, to) pair
+        Map<String, Set<String>> edgeKinds = new LinkedHashMap<>();
+        Set<String> referencedExternals = new LinkedHashSet<>();
+
         for (Dependency dep : model.dependencies) {
             String fromC = compToContainer.get(dep.fromId);
+
+            if (fromC != null && visibleContainers.contains(fromC) && isExternalSystem(model, dep.toId)) {
+                referencedExternals.add(dep.toId);
+                edgeKinds.computeIfAbsent(fromC + "\0" + dep.toId, k -> new LinkedHashSet<>())
+                    .add(nullToEmpty(dep.kind));
+                continue;
+            }
+
             String toC = compToContainer.get(dep.toId);
             if (fromC == null || toC == null || fromC.equals(toC)) continue;
-            String edgeKey = fromC + "->" + toC;
-            if (drawn.add(edgeKey)) {
-                sb.append("    ").append(nid(fromC)).append(" --> ").append(nid(toC)).append("\n");
-            }
+            if (!visibleContainers.contains(fromC) || !visibleContainers.contains(toC)) continue;
+            edgeKinds.computeIfAbsent(fromC + "\0" + toC, k -> new LinkedHashSet<>())
+                .add(nullToEmpty(dep.kind));
         }
+
+        // External system nodes (outside subgraphs)
+        for (ExternalSystem ext : model.externalSystems) {
+            if (!referencedExternals.contains(ext.id)) continue;
+            String[] shape = externalShape(ext.kind);
+            sb.append("    ").append(nid(ext.id))
+              .append(shape[0]).append("\"").append(escape(ext.name))
+              .append("\\n").append(escape(ext.kind)).append("\"")
+              .append(shape[1]).append("\n");
+        }
+
+        // Labelled edges
+        for (Map.Entry<String, Set<String>> entry : edgeKinds.entrySet()) {
+            String[] parts = entry.getKey().split("\0", 2);
+            String kindLabel = String.join(", ", entry.getValue());
+            sb.append("    ").append(nid(parts[0]))
+              .append(" -->|").append(escape(kindLabel)).append("| ")
+              .append(nid(parts[1])).append("\n");
+        }
+
         return sb.toString();
+    }
+
+    private String nullToEmpty(String s) {
+        return (s == null || s.isBlank()) ? "uses" : s;
     }
 
     // ── component level: subgraph per container, box per component ───────────
 
     private String renderComponentLevel(List<AppEntry> apps, ArchitectureModel model) {
         StringBuilder sb = new StringBuilder("flowchart TD\n");
-
-        Set<String> appIds = apps.stream().map(a -> a.id).collect(Collectors.toSet());
 
         for (AppEntry app : apps) {
             sb.append("    subgraph ").append(nid(app.id))
