@@ -148,6 +148,81 @@ class DataFlowTracerTest {
         });
     }
 
+    // ── two-phase pipeline (cache write → scheduler read) ───────────────────────
+
+    @Test
+    void incomingConsumerWritingToCacheEmitsStoreSink() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("SnapshotIngestor", ComponentType.SERVICE));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:incoming";
+        ep.name = "consume";
+        ep.type = EntrypointType.MESSAGING_CONSUMER;
+        ep.componentId = "comp:SnapshotIngestor";
+        ep.parameters.add("payload");
+        model.entrypoints.add(ep);
+
+        FieldAccess fw = new FieldAccess();
+        fw.kind                  = FieldAccess.Kind.WRITE;
+        fw.componentId           = "comp:SnapshotIngestor";
+        fw.fieldOwnerComponentId = "comp:SnapshotIngestor";
+        fw.method                = "consume";
+        fw.fieldName             = "snapshots";
+        fw.sourceVarName         = "payload";
+        fw.id                    = "field:comp:SnapshotIngestor#consume@snapshots:write";
+        model.fieldAccesses.add(fw);
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        assertThat(paths).anySatisfy(p -> {
+            assertThat(p.entrypointId).isEqualTo("ep:incoming");
+            assertThat(p.trackedParam).isEqualTo("payload");
+            assertThat(p.sinks).anySatisfy(s -> {
+                assertThat(s.kind).isEqualTo("store");
+                assertThat(s.fieldName).isEqualTo("snapshots");
+                assertThat(s.fieldOwnerComponentId).isEqualTo("comp:SnapshotIngestor");
+            });
+        });
+    }
+
+    @Test
+    void schedulerReadingCacheSeedsTrackingFromFieldName() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("StateScheduler", ComponentType.SCHEDULER));
+        model.components.add(comp("MqttClient",     ComponentType.HTTP_CLIENT));
+
+        Component mqtt = model.components.get(1);
+        mqtt.stereotypes = List.of("messaging");
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:tick";
+        ep.name = "tick";
+        ep.type = EntrypointType.SCHEDULER;
+        ep.componentId = "comp:StateScheduler";
+        model.entrypoints.add(ep);
+
+        FieldAccess fr = new FieldAccess();
+        fr.kind                  = FieldAccess.Kind.READ;
+        fr.componentId           = "comp:StateScheduler";
+        fr.fieldOwnerComponentId = "comp:StateScheduler";
+        fr.method                = "tick";
+        fr.fieldName             = "snapshots";
+        fr.id                    = "field:comp:StateScheduler#tick@snapshots:read";
+        model.fieldAccesses.add(fr);
+
+        addCallEdgeWithKind(model, "comp:StateScheduler", "tick", "comp:MqttClient", "publish",
+                            Map.of(), "messaging");
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        assertThat(paths).anySatisfy(p -> {
+            assertThat(p.entrypointId).isEqualTo("ep:tick");
+            assertThat(p.trackedParam).isEqualTo("snapshots");
+            assertThat(p.sinks).anySatisfy(s -> assertThat(s.kind).isEqualTo("messaging"));
+        });
+    }
+
     // ── integration: real quarkus-sample ────────────────────────────────────────
 
     @Test

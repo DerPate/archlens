@@ -103,6 +103,9 @@ public class TraceDataFlowTool {
                 for (DataFlowSink sink : path.sinks) {
                     sb.append("    - [").append(sink.kind).append("] ")
                       .append(sink.componentName).append(".").append(sink.method);
+                    if ("store".equals(sink.kind) && sink.fieldName != null) {
+                        sb.append("  field=").append(sink.fieldName);
+                    }
                     if (sink.source != null && sink.source.file != null
                             && !sink.source.file.equals("unknown")) {
                         String file = sink.source.file;
