@@ -118,7 +118,7 @@ Dry run — tests the full pipeline locally without publishing or pushing anythi
 
 ```sh
 JRELEASER_GITHUB_TOKEN=dummy mvn release:prepare release:perform \
-  -Darguments="-DskipTests -Djreleaser.dry.run=true"
+  -Darguments="-DskipTests -Drelease.perform=true -Djreleaser.dry.run=true"
 ```
 
 After the dry run, remove the local commits and tag that `release:prepare` created:
