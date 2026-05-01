@@ -4,7 +4,7 @@ This file gives coding agents the shortest reliable path through the project.
 
 ## Project Shape
 
-Spoon MCP Server is a Java 17 Maven project. It runs as a stdio Model Context Protocol server and exposes architecture-analysis tools built on top of Spoon.
+Spoon MCP Server is a Java 21 Maven project. It runs as a stdio Model Context Protocol server and exposes architecture-analysis tools built on top of Spoon.
 
 Important paths:
 
@@ -38,7 +38,7 @@ java -jar target/spoon-mcp-server-1.0.0-SNAPSHOT.jar
 
 ## Conventions
 
-- Keep Java source compatible with Java 17.
+- Keep Java source compatible with Java 21.
 - Prefer entity/model changes that are covered by focused tests.
 - Update `docs/TOOLS.md` when adding or changing MCP tools.
 - Update `docs/ARCHITECTURE.md` when changing major package responsibilities.

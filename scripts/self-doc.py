@@ -1,12 +1,20 @@
 #!/usr/bin/env python3
 """Drive the spoon-mcp-server against its own source to regenerate docs."""
 
+import glob
 import json
 import subprocess
 import sys
 import os
 
-JAR = os.path.join(os.path.dirname(__file__), "..", "target", "spoon-mcp-server-1.0.0-SNAPSHOT.jar")
+_target = os.path.join(os.path.dirname(__file__), "..", "target")
+_candidates = [
+    j for j in glob.glob(os.path.join(_target, "spoon-mcp-server-*.jar"))
+    if not any(x in os.path.basename(j) for x in ("-sources", "-javadoc", "original-"))
+]
+if not _candidates:
+    raise FileNotFoundError(f"No spoon-mcp-server jar found in {_target}. Run 'mvn package' first.")
+JAR = max(_candidates, key=os.path.getmtime)
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 

@@ -26,7 +26,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spoon.version>11.3.0</spoon.version>
         <jackson.version>2.17.2</jackson.version>
-        <maven.model.version>3.6.0</maven.model.version>
+        <maven.model.version>3.9.15</maven.model.version>
         <slf4j.version>2.0.17</slf4j.version>
         <tinkerpop.version>3.8.1</tinkerpop.version>
         <jreleaser.version>1.23.0</jreleaser.version>
@@ -57,6 +57,7 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
             <version>${slf4j.version}</version>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -79,6 +80,16 @@
             <groupId>org.apache.tinkerpop</groupId>
             <artifactId>tinkergraph-gremlin</artifactId>
             <version>${tinkerpop.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tinkerpop</groupId>
+            <artifactId>gremlin-core</artifactId>
+            <version>${tinkerpop.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>${jackson.version}</version>
         </dependency>
     </dependencies>
 
@@ -111,9 +122,6 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
-                <configuration>
-                    <release>${maven.compiler.release}</release>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -180,7 +188,7 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>3.11.2</version>
                 <configuration>
-                    <source>${maven.compiler.release}</source>
+                    <release>${maven.compiler.release}</release>
                 </configuration>
                 <executions>
                     <execution>
@@ -206,7 +214,7 @@
                     <localCheckout>true</localCheckout>
                     <pushChanges>false</pushChanges>
                     <preparationGoals>clean verify</preparationGoals>
-                    <goals>clean package</goals>
+                    <goals>clean package jreleaser:full-release</goals>
                     <arguments>-DskipTests=false</arguments>
                     <scmCommentPrefix>[maven-release-plugin] </scmCommentPrefix>
                 </configuration>
@@ -215,6 +223,20 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>versions-maven-plugin</artifactId>
                 <version>2.18.0</version>
+            </plugin>
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>12.1.1</version>
+                <configuration>
+                    <failBuildOnCVSS>7</failBuildOnCVSS>
+                    <suppressionFile>dependency-check-suppressions.xml</suppressionFile>
+                    <nvdApiDelay>6000</nvdApiDelay>
+                    <formats>
+                        <format>JSON</format>
+                        <format>XML</format>
+                    </formats>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.jreleaser</groupId>
