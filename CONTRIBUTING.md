@@ -4,7 +4,7 @@ Thanks for taking the time to improve Spoon MCP Server.
 
 ## Development Setup
 
-1. Install Java 17 or newer.
+1. Install Java 21 or newer.
 2. Install Maven 3.9 or newer.
 3. Run `mvn test` to verify the project locally.
 
