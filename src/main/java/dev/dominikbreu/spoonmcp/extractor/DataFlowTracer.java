@@ -10,13 +10,19 @@ import java.util.*;
  * <p>A sink is any call edge that reaches a {@link ComponentType#REPOSITORY},
  * {@link ComponentType#HTTP_CLIENT}, or {@link ComponentType#CDI_EVENT_PRODUCER} component,
  * or whose {@link CallEdge#callKind} is {@code messaging} or {@code event-bus}.
+ * Writes to shared-state fields recorded in {@link ArchitectureModel#fieldAccesses}
+ * are reported as {@code store} sinks so two-phase pipelines (consumer → cache → scheduler)
+ * remain visible even though no direct call edge connects them.
  *
  * <p>Parameter propagation uses {@link CallEdge#paramMapping}: when a caller passes a tracked
  * variable by name the callee's parameter name is used for the next hop. When the mapping is
  * absent the original name is carried forward as a best-effort approximation.
  *
- * <p>Requires the call graph ({@code model.callEdges}) and entrypoint parameter lists
- * ({@code Entrypoint.parameters}) to be populated before tracing.
+ * <p>For entrypoints with no parameters (e.g. {@link EntrypointType#SCHEDULER}) the tracer
+ * additionally seeds tracking from any shared-state field that the entrypoint or its
+ * transitively reached methods read. The resulting path's {@code trackedParam} is the
+ * field's simple name, so agents can stitch it to the matching {@code store} sink emitted
+ * by the consumer phase.
  */
 public class DataFlowTracer {
 
@@ -38,23 +44,31 @@ public class DataFlowTracer {
      * @return list of data-flow paths; paths with no sinks are omitted
      */
     public List<DataFlowPath> trace(ArchitectureModel model) {
-        Map<String, Component>        compById  = buildCompById(model);
-        Map<String, List<CallEdge>>   callAdj   = buildCallAdj(model);
-        Map<String, SourceInfo>       sinkSrc   = buildSinkSourceMap(model);
+        Map<String, Component>         compById = buildCompById(model);
+        Map<String, List<CallEdge>>    callAdj  = buildCallAdj(model);
+        Map<String, SourceInfo>        sinkSrc  = buildSinkSourceMap(model);
+        Map<String, List<FieldAccess>> writes   = buildFieldAccessIndex(model, FieldAccess.Kind.WRITE);
+        Map<String, List<FieldAccess>> reads    = buildFieldAccessIndex(model, FieldAccess.Kind.READ);
 
         List<DataFlowPath> result = new ArrayList<>();
 
         for (Entrypoint ep : model.entrypoints) {
-            List<String> params = ep.parameters.isEmpty() ? List.of("*") : ep.parameters;
-            for (String param : params) {
-                DataFlowPath path = new DataFlowPath();
-                path.id           = "df:" + ep.id + "#" + param;
-                path.entrypointId = ep.id;
-                path.trackedParam = param;
+            List<String> trackedNames = new ArrayList<>(
+                ep.parameters.isEmpty() ? List.of("*") : ep.parameters);
 
-                Set<String>    visitedKeys = new LinkedHashSet<>();
-                dfs(ep.componentId, ep.name, param, 0,
-                    path, callAdj, compById, sinkSrc, visitedKeys);
+            if (ep.parameters.isEmpty()) {
+                trackedNames.addAll(collectReachableReadFields(ep, callAdj, reads));
+            }
+
+            for (String tracked : trackedNames) {
+                DataFlowPath path = new DataFlowPath();
+                path.id           = "df:" + ep.id + "#" + tracked;
+                path.entrypointId = ep.id;
+                path.trackedParam = tracked;
+
+                Set<String> visitedKeys = new LinkedHashSet<>();
+                dfs(ep.componentId, ep.name, tracked, 0,
+                    path, callAdj, compById, sinkSrc, writes, visitedKeys);
 
                 if (!path.sinks.isEmpty()) result.add(path);
             }
@@ -67,6 +81,7 @@ public class DataFlowTracer {
                      Map<String, List<CallEdge>> callAdj,
                      Map<String, Component> compById,
                      Map<String, SourceInfo> sinkSrc,
+                     Map<String, List<FieldAccess>> writes,
                      Set<String> visitedKeys) {
 
         String key = compId + "#" + method + "@" + trackedName;
@@ -77,6 +92,19 @@ public class DataFlowTracer {
         String compName = comp != null ? comp.name : compId;
 
         path.steps.add(new DataFlowStep(path.steps.size(), compId, compName, method, trackedName));
+
+        for (FieldAccess fw : writes.getOrDefault(compId + "#" + method, List.of())) {
+            if (matchesTracked(trackedName, fw.sourceVarName)) {
+                path.sinks.add(new DataFlowSink(
+                    "store",
+                    fw.fieldOwnerComponentId,
+                    compName,
+                    fw.fieldName,
+                    fw.source,
+                    fw.fieldName,
+                    fw.fieldOwnerComponentId));
+            }
+        }
 
         for (CallEdge edge : callAdj.getOrDefault(compId + "#" + method, List.of())) {
             Component target = compById.get(edge.toComponentId);
@@ -94,9 +122,37 @@ public class DataFlowTracer {
                     ? "*"
                     : edge.paramMapping.getOrDefault(trackedName, trackedName);
                 dfs(edge.toComponentId, edge.toMethod, nextName, depth + 1,
-                    path, callAdj, compById, sinkSrc, visitedKeys);
+                    path, callAdj, compById, sinkSrc, writes, visitedKeys);
             }
         }
+    }
+
+    private boolean matchesTracked(String trackedName, String sourceVarName) {
+        if ("*".equals(trackedName) || sourceVarName == null) return false;
+        return trackedName.equals(sourceVarName);
+    }
+
+    private Set<String> collectReachableReadFields(Entrypoint ep,
+                                                    Map<String, List<CallEdge>> callAdj,
+                                                    Map<String, List<FieldAccess>> reads) {
+        Set<String> fields = new LinkedHashSet<>();
+        Deque<String> stack = new ArrayDeque<>();
+        Set<String>   seen  = new HashSet<>();
+        String start = ep.componentId + "#" + ep.name;
+        stack.push(start);
+        seen.add(start);
+        int budget = 64;
+        while (!stack.isEmpty() && budget-- > 0) {
+            String key = stack.pop();
+            for (FieldAccess r : reads.getOrDefault(key, List.of())) {
+                fields.add(r.fieldName);
+            }
+            for (CallEdge edge : callAdj.getOrDefault(key, List.of())) {
+                String next = edge.toComponentId + "#" + edge.toMethod;
+                if (seen.add(next)) stack.push(next);
+            }
+        }
+        return fields;
     }
 
     private boolean isSink(CallEdge edge, Component target) {
@@ -139,6 +195,16 @@ public class DataFlowTracer {
         Map<String, SourceInfo> map = new HashMap<>();
         for (CallEdge e : model.callEdges) {
             map.put(e.toComponentId + "#" + e.toMethod, e.source);
+        }
+        return map;
+    }
+
+    private Map<String, List<FieldAccess>> buildFieldAccessIndex(ArchitectureModel model,
+                                                                  FieldAccess.Kind kind) {
+        Map<String, List<FieldAccess>> map = new HashMap<>();
+        for (FieldAccess fa : model.fieldAccesses) {
+            if (fa.kind != kind) continue;
+            map.computeIfAbsent(fa.componentId + "#" + fa.method, k -> new ArrayList<>()).add(fa);
         }
         return map;
     }
