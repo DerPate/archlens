@@ -1,13 +1,18 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.*;
+import spoon.reflect.code.CtAssignment;
+import spoon.reflect.code.CtExpression;
+import spoon.reflect.code.CtFieldAccess;
 import spoon.reflect.code.CtFieldRead;
+import spoon.reflect.code.CtFieldWrite;
 import spoon.reflect.code.CtInvocation;
 import spoon.reflect.code.CtVariableRead;
 import spoon.reflect.declaration.CtField;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.declaration.CtType;
+import spoon.reflect.reference.CtTypeReference;
 import spoon.reflect.visitor.filter.TypeFilter;
 import spoon.reflect.CtModel;
 
@@ -29,6 +34,24 @@ public class CallGraphExtractor {
 
     private static final Set<String> EVENT_BUS_TYPES = Set.of("EventBus");
     private static final Set<String> EMITTER_TYPES   = Set.of("Emitter", "MutinyEmitter");
+
+    private static final Set<String> SHARED_STATE_SIMPLE_TYPES = Set.of(
+        "Map", "ConcurrentMap", "ConcurrentHashMap", "HashMap", "LinkedHashMap", "TreeMap",
+        "List", "ArrayList", "LinkedList", "CopyOnWriteArrayList",
+        "Set", "HashSet", "LinkedHashSet", "TreeSet", "ConcurrentSkipListSet",
+        "Collection", "Queue", "Deque", "BlockingQueue", "ConcurrentLinkedQueue",
+        "AtomicReference", "AtomicLong", "AtomicInteger", "AtomicBoolean"
+    );
+
+    private static final Set<String> SHARED_STATE_NAME_SUFFIXES = Set.of(
+        "Cache", "State", "Store", "Buffer", "Queue", "Registry", "Snapshots", "Repository"
+    );
+
+    private static final Set<String> WRITE_METHODS = Set.of(
+        "put", "putIfAbsent", "putAll", "computeIfAbsent", "compute", "merge", "replace",
+        "add", "addAll", "addFirst", "addLast", "offer", "offerFirst", "offerLast", "push",
+        "set", "lazySet", "getAndSet", "compareAndSet", "accumulateAndGet", "updateAndGet"
+    );
 
     /** Creates a call graph extractor using default resolution rules. */
     public CallGraphExtractor() {}
@@ -60,12 +83,100 @@ public class CallGraphExtractor {
             if (fromComp == null) continue;
 
             Map<String, Component> fieldToComp = buildFieldMap(type, fromId, byId, bySimpleName);
+            Set<String> sharedStateFields = buildSharedStateFieldSet(type);
 
             for (CtMethod<?> method : type.getMethods()) {
                 extractFromMethod(method, fromComp, fieldToComp, model, existingIds);
+                extractFieldAccesses(method, fromComp, sharedStateFields, model);
                 enrichEntrypointParameters(method, fromId, entrypointParams, model);
             }
         }
+    }
+
+    private Set<String> buildSharedStateFieldSet(CtType<?> type) {
+        Set<String> names = new HashSet<>();
+        for (CtField<?> field : type.getFields()) {
+            CtTypeReference<?> t = field.getType();
+            if (t == null) continue;
+            String simple = t.getSimpleName();
+            String fieldName = field.getSimpleName();
+            if (SHARED_STATE_SIMPLE_TYPES.contains(simple)) {
+                names.add(fieldName);
+                continue;
+            }
+            for (String suffix : SHARED_STATE_NAME_SUFFIXES) {
+                if (simple.endsWith(suffix) || fieldName.endsWith(lowerFirst(suffix))) {
+                    names.add(fieldName);
+                    break;
+                }
+            }
+        }
+        return names;
+    }
+
+    private static String lowerFirst(String s) {
+        return s.isEmpty() ? s : Character.toLowerCase(s.charAt(0)) + s.substring(1);
+    }
+
+    private void extractFieldAccesses(CtMethod<?> method, Component fromComp,
+                                       Set<String> sharedStateFields, ArchitectureModel model) {
+        if (sharedStateFields.isEmpty()) return;
+        String methodName = method.getSimpleName();
+
+        for (CtAssignment<?, ?> assign : method.getElements(new TypeFilter<>(CtAssignment.class))) {
+            CtExpression<?> assigned = assign.getAssigned();
+            if (!(assigned instanceof CtFieldWrite<?> fw)) continue;
+            String fieldName = fw.getVariable().getSimpleName();
+            if (!sharedStateFields.contains(fieldName)) continue;
+            String src = (assign.getAssignment() instanceof CtVariableRead<?> vr)
+                ? vr.getVariable().getSimpleName() : null;
+            model.fieldAccesses.add(buildAccess(FieldAccess.Kind.WRITE, fromComp, methodName,
+                fieldName, src, assign.getPosition()));
+        }
+
+        for (CtInvocation<?> inv : method.getElements(new TypeFilter<>(CtInvocation.class))) {
+            if (!(inv.getTarget() instanceof CtFieldAccess<?> fa)) continue;
+            String fieldName = fa.getVariable().getSimpleName();
+            if (!sharedStateFields.contains(fieldName)) continue;
+            String invName = inv.getExecutable().getSimpleName();
+            if (WRITE_METHODS.contains(invName)) {
+                String src = inv.getArguments().stream()
+                    .filter(a -> a instanceof CtVariableRead<?>)
+                    .map(a -> ((CtVariableRead<?>) a).getVariable().getSimpleName())
+                    .findFirst().orElse(null);
+                model.fieldAccesses.add(buildAccess(FieldAccess.Kind.WRITE, fromComp, methodName,
+                    fieldName, src, inv.getPosition()));
+            } else {
+                model.fieldAccesses.add(buildAccess(FieldAccess.Kind.READ, fromComp, methodName,
+                    fieldName, null, inv.getPosition()));
+            }
+        }
+
+        for (CtFieldRead<?> read : method.getElements(new TypeFilter<>(CtFieldRead.class))) {
+            String fieldName = read.getVariable().getSimpleName();
+            if (!sharedStateFields.contains(fieldName)) continue;
+            if (read.getParent() instanceof CtInvocation<?> inv && inv.getTarget() == read) continue;
+            if (read.getParent() instanceof CtFieldAccess<?> parentFa && parentFa.getTarget() == read) continue;
+            model.fieldAccesses.add(buildAccess(FieldAccess.Kind.READ, fromComp, methodName,
+                fieldName, null, read.getPosition()));
+        }
+    }
+
+    private FieldAccess buildAccess(FieldAccess.Kind kind, Component owner, String method,
+                                     String fieldName, String sourceVar,
+                                     spoon.reflect.cu.SourcePosition pos) {
+        FieldAccess fa = new FieldAccess();
+        fa.kind                  = kind;
+        fa.componentId           = owner.id;
+        fa.fieldOwnerComponentId = owner.id;
+        fa.fieldName             = fieldName;
+        fa.method                = method;
+        fa.sourceVarName         = sourceVar;
+        fa.id = "field:" + owner.id + "#" + method + "@" + fieldName + ":" + kind.name().toLowerCase();
+        String file = (pos != null && pos.isValidPosition()) ? pos.getFile().getAbsolutePath() : "unknown";
+        int    line = (pos != null && pos.isValidPosition()) ? pos.getLine() : 0;
+        fa.source = new SourceInfo(file, line, "field-access", 0.9);
+        return fa;
     }
 
     private Map<String, Component> buildFieldMap(CtType<?> type, String ownId,

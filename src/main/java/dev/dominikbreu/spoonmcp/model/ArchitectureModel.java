@@ -40,6 +40,9 @@ public class ArchitectureModel {
     /** Inter-procedural data-flow paths from entrypoint parameters to sinks. */
     @JsonProperty("data_flow_paths")
     public List<DataFlowPath> dataFlowPaths = new ArrayList<>();
+    /** Reads/writes of shared-state fields, used to stitch cross-entrypoint pipelines. */
+    @JsonProperty("field_accesses")
+    public List<FieldAccess> fieldAccesses = new ArrayList<>();
 
     /** Creates an empty architecture model for JSON deserialization. */
     public ArchitectureModel() {}
