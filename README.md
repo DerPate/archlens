@@ -92,20 +92,43 @@ Useful maintenance commands:
 mvn dependency:analyze
 mvn versions:display-dependency-updates
 mvn versions:display-plugin-updates
+mvn dependency-check:check
 ```
+
+`dependency-check:check` runs the OWASP Dependency-Check and fails on CVEs with CVSS score ≥ 7.
+Set `NVD_API_KEY` or pass `-DnvdApiKey=<key>` for faster NVD data downloads (free key at https://nvd.nist.gov/developers/request-an-api-key).
+Add false positives to `dependency-check-suppressions.xml`.
 
 Generated files such as `target/`, `.spoon-mcp-cache/`, and `dependency-reduced-pom.xml` are intentionally ignored.
 
 ## Local Releases
 
-The Maven release plugin is configured for local Git releases by default. It tags the current repository, does not push to a remote, and runs `clean package` during `release:perform`.
+The Maven release plugin is configured for local Git releases by default. It tags the current repository, does not push to a remote, and runs `clean package jreleaser:full-release` during `release:perform`. JReleaser therefore always executes inside the release checkout where the version is already resolved to the release tag — not the post-release SNAPSHOT.
+
+**All working-tree changes must be committed before running the release.**
+
+Actual release (requires a GitHub token with repository release permissions):
 
 ```sh
-mvn release:prepare
-mvn release:perform
+JRELEASER_GITHUB_TOKEN=<token> mvn release:prepare release:perform
+git push origin main --tags
 ```
 
-For a non-mutating check of the release flow, run:
+Dry run — tests the full pipeline locally without publishing or pushing anything:
+
+```sh
+JRELEASER_GITHUB_TOKEN=dummy mvn release:prepare release:perform \
+  -Darguments="-DskipTests -Djreleaser.dry.run=true"
+```
+
+After the dry run, remove the local commits and tag that `release:prepare` created:
+
+```sh
+git reset --hard HEAD~2
+git tag -d $(git describe --tags --abbrev=0)
+```
+
+Non-mutating check of just the preparation phase:
 
 ```sh
 mvn release:prepare -DdryRun=true
@@ -114,13 +137,6 @@ mvn release:clean
 
 JReleaser is configured for GitHub releases under `DerPate/spoon-mcp-server`. It uses the shaded server jar as the runnable distribution artifact, attaches source and Javadoc jars as release files, and appends generated release notes to `CHANGELOG.md`.
 
-```sh
-JRELEASER_GITHUB_TOKEN=dummy mvn clean package jreleaser:config
-JRELEASER_GITHUB_TOKEN=dummy mvn jreleaser:full-release -Djreleaser.dry.run=true
-```
-
-Use a real `JRELEASER_GITHUB_TOKEN` with repository release permissions for actual publishing.
-
 ## Publishing Notes
 
-This repository includes GitHub community defaults and project hygiene files, but it does not include GitHub Actions or pre-commit hooks.
+This repository includes GitHub community defaults and project hygiene files. It does not use pre-commit hooks.
