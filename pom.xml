@@ -204,6 +204,35 @@
                 <artifactId>maven-dependency-plugin</artifactId>
                 <version>3.8.1</version>
             </plugin>
+            <!--
+                During release:perform the checkout is cloned from file:// (localCheckout),
+                so its origin remote is a local path. JReleaser requires a resolvable GitHub
+                remote to initialise. This antrun execution rewrites origin to the real GitHub
+                URL, but ONLY when -Drelease.perform=true is passed — which the release plugin
+                does via <arguments> below. Normal builds are never affected.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>set-github-remote</id>
+                        <phase>package</phase>
+                        <goals><goal>run</goal></goals>
+                        <configuration>
+                            <target if="release.perform">
+                                <exec executable="git" failonerror="true">
+                                    <arg value="remote"/>
+                                    <arg value="set-url"/>
+                                    <arg value="origin"/>
+                                    <arg value="https://github.com/DerPate/spoon-mcp-server.git"/>
+                                </exec>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-release-plugin</artifactId>
@@ -215,7 +244,7 @@
                     <pushChanges>false</pushChanges>
                     <preparationGoals>clean verify</preparationGoals>
                     <goals>clean package jreleaser:full-release</goals>
-                    <arguments>-DskipTests=false</arguments>
+                    <arguments>-DskipTests=false -Drelease.perform=true</arguments>
                     <scmCommentPrefix>[maven-release-plugin] </scmCommentPrefix>
                 </configuration>
             </plugin>
