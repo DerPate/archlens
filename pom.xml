@@ -30,6 +30,7 @@
         <slf4j.version>2.0.17</slf4j.version>
         <tinkerpop.version>3.8.1</tinkerpop.version>
         <jreleaser.version>1.23.0</jreleaser.version>
+        <jreleaser.dry.run>false</jreleaser.dry.run>
     </properties>
 
     <dependencies>
@@ -274,6 +275,7 @@
                 <inherited>false</inherited>
                 <configuration>
                     <configFile>jreleaser.yml</configFile>
+                    <dryrun>${jreleaser.dry.run}</dryrun>
                 </configuration>
             </plugin>
         </plugins>
