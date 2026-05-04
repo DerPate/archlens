@@ -25,6 +25,10 @@ public class DataFlowSink {
         EVENT_BUS("event-bus"),
         /** Value written to a shared in-memory field (cache, state map, …) inside the same service. */
         STORE("store"),
+        /** Value written to a local file or filesystem (e.g. {@code java.nio.file.Files}). */
+        FILE_OUTBOUND("file-outbound"),
+        /** Value uploaded to an object-storage backend (S3, GCS, Azure Blob, MinIO). */
+        OBJECT_STORAGE("object-storage"),
         /** Sink type could not be determined. */
         UNKNOWN("unknown");
 

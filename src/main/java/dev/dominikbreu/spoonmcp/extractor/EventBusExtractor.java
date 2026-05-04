@@ -1,8 +1,13 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.*;
+import spoon.reflect.code.CtExpression;
+import spoon.reflect.code.CtInvocation;
+import spoon.reflect.code.CtLambda;
+import spoon.reflect.code.CtLiteral;
 import spoon.reflect.declaration.*;
 import spoon.reflect.reference.CtTypeReference;
+import spoon.reflect.visitor.filter.TypeFilter;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -64,7 +69,78 @@ public class EventBusExtractor {
         for (CtType<?> type : types) {
             detectProducer(type, model, appId, existingIds);
             detectConsumer(type, model, appId, existingIds);
+            detectVertxEventBusConsumer(type, model, appId, existingIds);
         }
+    }
+
+    /**
+     * Detects programmatic Vert.x EventBus consumers of the form
+     * {@code eventBus.consumer(addr, lambda)} and
+     * {@code eventBus.consumer(addr).handler(lambda)}.
+     *
+     * Each match becomes an {@link EntrypointType#EVENT_BUS_CONSUMER} entrypoint with
+     * {@code channelName = addr} and the lambda's first parameter copied into the
+     * entrypoint's parameters list so the data-flow tracer can follow it.
+     */
+    private void detectVertxEventBusConsumer(CtType<?> type, ArchitectureModel model,
+                                              String appId, Set<String> existingIds) {
+        for (CtMethod<?> method : type.getMethods()) {
+            for (CtInvocation<?> inv : method.getElements(new TypeFilter<>(CtInvocation.class))) {
+                if (!"consumer".equals(inv.getExecutable().getSimpleName())) continue;
+                CtTypeReference<?> targetType = inv.getTarget() != null ? inv.getTarget().getType() : null;
+                if (targetType == null) continue;
+                if (!"EventBus".equals(targetType.getSimpleName())) continue;
+                if (inv.getArguments().isEmpty()) continue;
+
+                String address = literalString(inv.getArguments().get(0));
+                CtLambda<?> lambda = findHandlerLambda(inv);
+                if (address == null || lambda == null) continue;
+
+                String paramName = lambda.getParameters().isEmpty()
+                    ? "message"
+                    : lambda.getParameters().get(0).getSimpleName();
+
+                String compId = "comp:" + type.getQualifiedName();
+                Component comp = findOrCreateComponent(compId, type, appId,
+                    ComponentType.CDI_EVENT_CONSUMER, "event-bus-consumer", model, existingIds);
+
+                String epId = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName()
+                            + ":eventbus:" + address;
+                if (model.entrypoints.stream().anyMatch(e -> e.id.equals(epId))) continue;
+
+                Entrypoint ep = new Entrypoint();
+                ep.id          = epId;
+                ep.type        = EntrypointType.EVENT_BUS_CONSUMER;
+                ep.name        = method.getSimpleName();
+                ep.channelName = address;
+                ep.path        = address;
+                ep.componentId = comp.id;
+                ep.parameters.add(paramName);
+                ep.source = new SourceInfo(getFile(inv), getLine(inv), "invocation", 0.9);
+                model.entrypoints.add(ep);
+            }
+        }
+    }
+
+    private static String literalString(CtExpression<?> expr) {
+        if (expr instanceof CtLiteral<?> lit && lit.getValue() instanceof String s) return s;
+        return null;
+    }
+
+    private static CtLambda<?> findHandlerLambda(CtInvocation<?> consumerInv) {
+        // Form 1: eventBus.consumer(addr, lambda)
+        for (CtExpression<?> arg : consumerInv.getArguments()) {
+            if (arg instanceof CtLambda<?> l) return l;
+        }
+        // Form 2: eventBus.consumer(addr).handler(lambda)
+        var parent = consumerInv.getParent();
+        if (parent instanceof CtInvocation<?> chained
+                && "handler".equals(chained.getExecutable().getSimpleName())) {
+            for (CtExpression<?> arg : chained.getArguments()) {
+                if (arg instanceof CtLambda<?> l) return l;
+            }
+        }
+        return null;
     }
 
     /**

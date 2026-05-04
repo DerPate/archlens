@@ -128,6 +128,28 @@ See `./docs/TOOLS.md` for arguments and examples.
 - `trace_data_flow`: every `store` sink carries `linkedPathIds` listing downstream
   `DataFlowPath`s whose entrypoint reads the same shared field — explicit
   cross-entrypoint pipeline links so agents do not need to match field names heuristically.
+- `trace_data_flow`: edges now also carry `assignedToVar` + `returnsTracked` for
+  invocations whose result is bound to a local (used to extend tracking when the callee
+  returns a parameter), and `killedTrackedNames` listing caller locals reassigned before
+  the call site (tracker drops tracking when the name appears).
+- `trace_data_flow`: new sink kinds `file-outbound` and `object-storage`. Recognised
+  either via component stereotype or via {@code ArchitectureModel.outboundSinkSites},
+  which records direct invocations against `java.nio.file.Files`,
+  `software.amazon.awssdk.services.s3.*`, and `com.azure.storage.*` even when the
+  callee is not a project component. New entrypoint types `EVENT_BUS_CONSUMER` (Vert.x
+  `eventBus.consumer(addr, handler)`), `WEBSOCKET_ENDPOINT`, `SSE_ENDPOINT`, `GRPC_METHOD`
+  — Vert.x EventBus, WebSocket, SSE (REST + `text/event-stream` / `SseEventSink`), and
+  gRPC (`@GrpcService` / `BindableService` / `*Grpc.*ImplBase` stubs) all detected.
+- `trace_data_flow`: call-edge `paramMapping` now also descends into constructor calls,
+  nested invocations, and ternaries (`new Foo(x)`, `wrap(x)`, `cond ? x : y`); callee
+  parameter names whose mapping was synthesised this way are listed in the new
+  `syntheticParamMappings` set on the edge.
+- `trace_data_flow`: `MESSAGING_PRODUCER` and `SCHEDULER` entrypoints also seed tracking
+  from transitively read shared-state fields even when they declare parameters of their
+  own, and writes whose RHS is a field read on the same bean record `sourceFieldName` so
+  store sinks stay attached to paths tracking the upstream field. Field types `Logger`,
+  `Log`, `Slf4j`, `Tracer`, and types prefixed with `Audit` are excluded from
+  shared-state heuristics.
 - Property graph (`query_architecture_graph`): now projects `DataFlowPath` and
   `DataFlowSink` vertices and `ORIGINATES`, `REACHES`, `ON_FIELD`, `AT_COMPONENT`, and
   `LINKS_TO` edges. `LINKS_TO` is the graph materialisation of `linkedPathIds`.
