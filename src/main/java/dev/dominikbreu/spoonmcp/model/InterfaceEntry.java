@@ -22,6 +22,8 @@ public class InterfaceEntry {
     public String externalServiceName;
     /** Resolved broker for messaging interfaces. */
     public MessagingBroker broker;
+    /** Resolved broker-side destination (Kafka topic, AMQP address, RabbitMQ queue) for messaging interfaces. */
+    public String topic;
     /** Source file and evidence metadata for this interface. */
     public SourceInfo source;
 

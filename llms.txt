@@ -119,6 +119,18 @@ See `./docs/TOOLS.md` for arguments and examples.
 - `detect_use_cases` and `trace_data_flow` produce richer output when call-graph data
   is available (i.e. after `index_workspace` on a real project). Without call edges they
   fall back to injection-dependency traversal and emit a warning label.
+- Messaging entrypoints/interfaces resolve `broker` from
+  `mp.messaging.{incoming|outgoing}.{channel}.connector`. Channels with no `connector`
+  property that are referenced by both an `@Incoming` and an `@Outgoing` declaration in
+  the same module are tagged `IN_MEMORY` (no external broker, no `ExternalSystem`).
+  The resolved broker-side destination (`mp.messaging.*.topic` / `.address` /
+  `.queue.name` / `.exchange.name`) is exposed as `topic` on the entry.
+- `trace_data_flow`: every `store` sink carries `linkedPathIds` listing downstream
+  `DataFlowPath`s whose entrypoint reads the same shared field — explicit
+  cross-entrypoint pipeline links so agents do not need to match field names heuristically.
+- Property graph (`query_architecture_graph`): now projects `DataFlowPath` and
+  `DataFlowSink` vertices and `ORIGINATES`, `REACHES`, `ON_FIELD`, `AT_COMPONENT`, and
+  `LINKS_TO` edges. `LINKS_TO` is the graph materialisation of `linkedPathIds`.
 - Tool argument schemas in `McpServer.java` are the authoritative source — keep
   `docs/TOOLS.md` in sync when changing them.
 - Generated artifacts (`target/`, `.spoon-mcp-cache/`, `dependency-reduced-pom.xml`)

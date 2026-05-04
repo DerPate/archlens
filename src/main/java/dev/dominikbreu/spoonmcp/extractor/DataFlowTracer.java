@@ -73,7 +73,79 @@ public class DataFlowTracer {
                 if (!path.sinks.isEmpty()) result.add(path);
             }
         }
+
+        linkStoreSinksToFieldReaders(result, model, callAdj, reads);
         return result;
+    }
+
+    /**
+     * For each STORE sink, find every other path whose entrypoint component (or transitively
+     * reached methods) reads the same {@code (fieldOwnerComponentId, fieldName)} pair, and
+     * record the reader path id on the sink. Lets agents stitch consumer → cache → producer
+     * pipelines that span entrypoints.
+     */
+    private void linkStoreSinksToFieldReaders(List<DataFlowPath> paths,
+                                              ArchitectureModel model,
+                                              Map<String, List<CallEdge>> callAdj,
+                                              Map<String, List<FieldAccess>> reads) {
+        // Build entrypointId → set of (fieldOwnerComponentId, fieldName) pairs read transitively.
+        Map<String, Entrypoint> epById = new HashMap<>();
+        for (Entrypoint ep : model.entrypoints) epById.put(ep.id, ep);
+
+        Map<String, Set<String>> readsByEntrypoint = new HashMap<>();
+        for (Entrypoint ep : model.entrypoints) {
+            readsByEntrypoint.put(ep.id, collectReachableReadFieldKeys(ep, callAdj, reads));
+        }
+
+        // Index reader paths by (owner, field) → pathIds.
+        Map<String, List<String>> readerPathsByKey = new HashMap<>();
+        for (DataFlowPath p : paths) {
+            Set<String> keys = readsByEntrypoint.get(p.entrypointId);
+            if (keys == null) continue;
+            for (String key : keys) {
+                readerPathsByKey.computeIfAbsent(key, k -> new ArrayList<>()).add(p.id);
+            }
+        }
+
+        for (DataFlowPath p : paths) {
+            for (DataFlowSink s : p.sinks) {
+                if (s.kind != DataFlowSink.Kind.STORE) continue;
+                if (s.fieldOwnerComponentId == null || s.fieldName == null) continue;
+                String key = s.fieldOwnerComponentId + "@" + s.fieldName;
+                List<String> readerIds = readerPathsByKey.get(key);
+                if (readerIds == null) continue;
+                for (String rid : readerIds) {
+                    if (!rid.equals(p.id) && !s.linkedPathIds.contains(rid)) {
+                        s.linkedPathIds.add(rid);
+                    }
+                }
+            }
+        }
+    }
+
+    private Set<String> collectReachableReadFieldKeys(Entrypoint ep,
+                                                       Map<String, List<CallEdge>> callAdj,
+                                                       Map<String, List<FieldAccess>> reads) {
+        Set<String> keys = new LinkedHashSet<>();
+        Deque<String> stack = new ArrayDeque<>();
+        Set<String>   seen  = new HashSet<>();
+        String start = ep.componentId + "#" + ep.name;
+        stack.push(start);
+        seen.add(start);
+        int budget = 64;
+        while (!stack.isEmpty() && budget-- > 0) {
+            String key = stack.pop();
+            for (FieldAccess r : reads.getOrDefault(key, List.of())) {
+                if (r.fieldOwnerComponentId != null && r.fieldName != null) {
+                    keys.add(r.fieldOwnerComponentId + "@" + r.fieldName);
+                }
+            }
+            for (CallEdge edge : callAdj.getOrDefault(key, List.of())) {
+                String next = edge.toComponentId + "#" + edge.toMethod;
+                if (seen.add(next)) stack.push(next);
+            }
+        }
+        return keys;
     }
 
     private void dfs(String compId, String method, String trackedName, int depth,

@@ -264,6 +264,71 @@ class DataFlowTracerTest {
         });
     }
 
+    @Test
+    void storeSinkLinksToProducerEntrypointReadingSameField() {
+        // Two entrypoints in the same model:
+        //   - consumer: writes 'snapshots' field on SnapshotIngestor
+        //   - producer: scheduler-style ep on a different bean reads 'snapshots' from
+        //     SnapshotIngestor (modelled as a field-read whose owner is the ingestor)
+        // The consumer's STORE sink should carry the producer path id in linkedPathIds.
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("SnapshotIngestor", ComponentType.SERVICE));
+        model.components.add(comp("StatePublisher",   ComponentType.SCHEDULER));
+        model.components.add(comp("MqttClient",       ComponentType.HTTP_CLIENT));
+        model.components.get(2).stereotypes = List.of("messaging");
+
+        Entrypoint consumer = new Entrypoint();
+        consumer.id          = "ep:consume";
+        consumer.name        = "consume";
+        consumer.type        = EntrypointType.MESSAGING_CONSUMER;
+        consumer.componentId = "comp:SnapshotIngestor";
+        consumer.parameters.add("payload");
+        model.entrypoints.add(consumer);
+
+        Entrypoint producer = new Entrypoint();
+        producer.id          = "ep:tick";
+        producer.name        = "tick";
+        producer.type        = EntrypointType.MESSAGING_PRODUCER;
+        producer.componentId = "comp:StatePublisher";
+        model.entrypoints.add(producer);
+
+        FieldAccess fw = new FieldAccess();
+        fw.kind                  = FieldAccess.Kind.WRITE;
+        fw.componentId           = "comp:SnapshotIngestor";
+        fw.fieldOwnerComponentId = "comp:SnapshotIngestor";
+        fw.method                = "consume";
+        fw.fieldName             = "snapshots";
+        fw.sourceVarName         = "payload";
+        fw.id                    = "field:comp:SnapshotIngestor#consume@snapshots:write";
+        model.fieldAccesses.add(fw);
+
+        FieldAccess fr = new FieldAccess();
+        fr.kind                  = FieldAccess.Kind.READ;
+        fr.componentId           = "comp:StatePublisher";
+        fr.fieldOwnerComponentId = "comp:SnapshotIngestor";
+        fr.method                = "tick";
+        fr.fieldName             = "snapshots";
+        fr.id                    = "field:comp:StatePublisher#tick@snapshots:read";
+        model.fieldAccesses.add(fr);
+
+        addCallEdgeWithKind(model, "comp:StatePublisher", "tick", "comp:MqttClient", "publish",
+                            Map.of(), "messaging");
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        DataFlowPath consumerPath = paths.stream()
+            .filter(p -> p.entrypointId.equals("ep:consume"))
+            .findFirst().orElseThrow();
+        DataFlowPath producerPath = paths.stream()
+            .filter(p -> p.entrypointId.equals("ep:tick"))
+            .findFirst().orElseThrow();
+
+        DataFlowSink storeSink = consumerPath.sinks.stream()
+            .filter(s -> s.kind == DataFlowSink.Kind.STORE)
+            .findFirst().orElseThrow();
+        assertThat(storeSink.linkedPathIds).contains(producerPath.id);
+    }
+
     // ── integration: real quarkus-sample ────────────────────────────────────────
 
     @Test

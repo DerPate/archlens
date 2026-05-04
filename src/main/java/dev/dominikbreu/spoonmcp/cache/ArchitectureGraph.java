@@ -4,6 +4,8 @@ import dev.dominikbreu.spoonmcp.model.AppEntry;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.Container;
+import dev.dominikbreu.spoonmcp.model.DataFlowPath;
+import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.DeploymentEntry;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
@@ -81,6 +83,9 @@ public class ArchitectureGraph {
         sourceModel.dependencies.forEach(dependency ->
             addEdge(dependency.fromId, dependency.toId, "DEPENDS_ON", dependencyProperties(dependency)));
         sourceModel.runtimeFlows.forEach(this::addRuntimeFlowEdges);
+        sourceModel.dataFlowPaths.forEach(this::addDataFlowPath);
+        sourceModel.dataFlowPaths.forEach(this::addDataFlowEdges);
+        linkDataFlowSinkReaders(sourceModel);
         computeDerivedProperties();
     }
 
@@ -374,6 +379,67 @@ public class ArchitectureGraph {
         }
     }
 
+    private void addDataFlowPath(DataFlowPath path) {
+        Vertex vertex = addVertex(path.id, "DataFlowPath", path.id);
+        set(vertex, "kind", "dataFlowPath");
+        set(vertex, "entrypointId", path.entrypointId);
+        set(vertex, "trackedParam", path.trackedParam);
+        set(vertex, "paramType", path.paramType);
+        set(vertex, "stepCount", path.steps.size());
+        set(vertex, "sinkCount", path.sinks.size());
+    }
+
+    private void addDataFlowEdges(DataFlowPath path) {
+        addEdge(path.entrypointId, path.id, "ORIGINATES",
+            Map.of("trackedParam", Objects.toString(path.trackedParam, "")));
+
+        for (int i = 0; i < path.sinks.size(); i++) {
+            DataFlowSink sink = path.sinks.get(i);
+            String sinkId = path.id + ":sink:" + i;
+            Vertex sinkVertex = addVertex(sinkId, "DataFlowSink", sink.componentName);
+            set(sinkVertex, "kind", "dataFlowSink");
+            set(sinkVertex, "sinkKind", sink.kind != null ? sink.kind.value() : null);
+            set(sinkVertex, "pathId", path.id);
+            set(sinkVertex, "componentId", sink.componentId);
+            set(sinkVertex, "method", sink.method);
+            set(sinkVertex, "fieldName", sink.fieldName);
+            set(sinkVertex, "fieldOwnerComponentId", sink.fieldOwnerComponentId);
+            setSource(sinkVertex, sink.source);
+
+            addEdge(path.id, sinkId, "REACHES",
+                Map.of("sinkKind", sink.kind != null ? sink.kind.value() : ""));
+
+            if (sink.kind == DataFlowSink.Kind.STORE && sink.fieldOwnerComponentId != null) {
+                addEdge(sinkId, sink.fieldOwnerComponentId, "ON_FIELD",
+                    Map.of("fieldName", Objects.toString(sink.fieldName, "")));
+            } else if (sink.componentId != null) {
+                addEdge(sinkId, sink.componentId, "AT_COMPONENT",
+                    Map.of("method", Objects.toString(sink.method, "")));
+            }
+        }
+    }
+
+    /**
+     * Materialises {@code DataFlowSink.linkedPathIds} as explicit {@code LINKS_TO} edges
+     * from each STORE sink vertex to the downstream {@code DataFlowPath} that reads the
+     * same shared-state field. This is the property-graph projection of issue #5.
+     */
+    private void linkDataFlowSinkReaders(ArchitectureModel sourceModel) {
+        for (DataFlowPath path : sourceModel.dataFlowPaths) {
+            for (int i = 0; i < path.sinks.size(); i++) {
+                DataFlowSink sink = path.sinks.get(i);
+                if (sink.kind != DataFlowSink.Kind.STORE) continue;
+                if (sink.linkedPathIds == null || sink.linkedPathIds.isEmpty()) continue;
+                String sinkId = path.id + ":sink:" + i;
+                for (String downstreamPathId : sink.linkedPathIds) {
+                    addEdge(sinkId, downstreamPathId, "LINKS_TO",
+                        Map.of("viaField", Objects.toString(sink.fieldName, ""),
+                               "fieldOwnerComponentId", Objects.toString(sink.fieldOwnerComponentId, "")));
+                }
+            }
+        }
+    }
+
     private Map<String, Object> dependencyProperties(Dependency dependency) {
         Map<String, Object> properties = new HashMap<>();
         properties.put("id", dependency.id);
@@ -421,7 +487,9 @@ public class ArchitectureGraph {
             while (edges.hasNext()) {
                 Edge edge = edges.next();
                 String label = edge.label();
-                if ("STARTS_AT".equals(label) || "DEPENDS_ON".equals(label) || "VISITS".equals(label)) {
+                if ("STARTS_AT".equals(label) || "DEPENDS_ON".equals(label) || "VISITS".equals(label)
+                    || "ORIGINATES".equals(label) || "REACHES".equals(label)
+                    || "LINKS_TO".equals(label) || "ON_FIELD".equals(label) || "AT_COMPONENT".equals(label)) {
                     queue.addLast(edge.inVertex().id().toString());
                 }
             }

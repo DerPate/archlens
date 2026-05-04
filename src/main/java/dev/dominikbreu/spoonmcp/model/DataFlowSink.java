@@ -62,6 +62,11 @@ public class DataFlowSink {
     public String fieldName;
     /** For {@code store} sinks: id of the component declaring the field. */
     public String fieldOwnerComponentId;
+    /**
+     * For {@code store} sinks: ids of {@link DataFlowPath}s that read this same field and
+     * therefore form the downstream half of a two-phase pipeline (consumer → cache → producer).
+     */
+    public java.util.List<String> linkedPathIds = new java.util.ArrayList<>();
 
     /** Creates an empty sink for JSON deserialization. */
     public DataFlowSink() {}
