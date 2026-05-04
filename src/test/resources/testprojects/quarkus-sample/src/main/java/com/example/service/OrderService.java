@@ -14,4 +14,12 @@ public class OrderService {
     public Order find(Long id) {
         return orderRepository.findById(id);
     }
+
+    public Order findTernary(Long id) {
+        return orderRepository.findById(id != null ? id : 0L);
+    }
+
+    public Order findWrapped(Long raw) {
+        return orderRepository.findById(Long.valueOf(String.valueOf(raw)));
+    }
 }
