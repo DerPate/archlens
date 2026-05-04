@@ -28,7 +28,7 @@ class DataFlowTracerTest {
         assertThat(paths).anySatisfy(p -> {
             assertThat(p.trackedParam).isEqualTo("order");
             assertThat(p.sinks).anySatisfy(s -> {
-                assertThat(s.kind).isEqualTo("persistence");
+                assertThat(s.kind).isEqualTo(DataFlowSink.Kind.PERSISTENCE);
                 assertThat(s.componentName).isEqualTo("OrderRepository");
                 assertThat(s.method).isEqualTo("save");
             });
@@ -66,7 +66,7 @@ class DataFlowTracerTest {
         List<DataFlowPath> paths = tracer.trace(model);
 
         assertThat(paths).anySatisfy(p -> p.sinks.stream()
-            .anyMatch(s -> "messaging".equals(s.kind)));
+            .anyMatch(s -> s.kind == DataFlowSink.Kind.MESSAGING));
     }
 
     @Test
@@ -79,7 +79,7 @@ class DataFlowTracerTest {
         List<DataFlowPath> paths = tracer.trace(model);
 
         assertThat(paths).anySatisfy(p ->
-            p.sinks.stream().anyMatch(s -> "event-bus".equals(s.kind)));
+            p.sinks.stream().anyMatch(s -> s.kind == DataFlowSink.Kind.EVENT_BUS));
     }
 
     @Test
@@ -142,7 +142,7 @@ class DataFlowTracerTest {
             assertThat(p.entrypointId).isEqualTo("ep:scheduled");
             assertThat(p.trackedParam).isEqualTo("*");
             assertThat(p.sinks).anySatisfy(s -> {
-                assertThat(s.kind).isEqualTo("persistence");
+                assertThat(s.kind).isEqualTo(DataFlowSink.Kind.PERSISTENCE);
                 assertThat(s.componentName).isEqualTo("OrderRepository");
             });
         });
@@ -179,7 +179,7 @@ class DataFlowTracerTest {
             assertThat(p.entrypointId).isEqualTo("ep:incoming");
             assertThat(p.trackedParam).isEqualTo("payload");
             assertThat(p.sinks).anySatisfy(s -> {
-                assertThat(s.kind).isEqualTo("store");
+                assertThat(s.kind).isEqualTo(DataFlowSink.Kind.STORE);
                 assertThat(s.fieldName).isEqualTo("snapshots");
                 assertThat(s.fieldOwnerComponentId).isEqualTo("comp:SnapshotIngestor");
             });
@@ -220,7 +220,7 @@ class DataFlowTracerTest {
             assertThat(p.entrypointId).isEqualTo("ep:ingest");
             assertThat(p.trackedParam).isEqualTo("deviceSnapshot");
             assertThat(p.sinks).anySatisfy(s -> {
-                assertThat(s.kind).isEqualTo("store");
+                assertThat(s.kind).isEqualTo(DataFlowSink.Kind.STORE);
                 assertThat(s.fieldName).isEqualTo("store");
                 assertThat(s.fieldOwnerComponentId).isEqualTo("comp:DeviceStateDataService");
             });
@@ -260,7 +260,7 @@ class DataFlowTracerTest {
         assertThat(paths).anySatisfy(p -> {
             assertThat(p.entrypointId).isEqualTo("ep:tick");
             assertThat(p.trackedParam).isEqualTo("snapshots");
-            assertThat(p.sinks).anySatisfy(s -> assertThat(s.kind).isEqualTo("messaging"));
+            assertThat(p.sinks).anySatisfy(s -> assertThat(s.kind).isEqualTo(DataFlowSink.Kind.MESSAGING));
         });
     }
 
@@ -274,7 +274,7 @@ class DataFlowTracerTest {
         assertThat(paths)
             .as("at least one persistence sink should be found in quarkus-sample")
             .anySatisfy(p -> assertThat(p.sinks)
-                .anySatisfy(s -> assertThat(s.kind).isEqualTo("persistence")));
+                .anySatisfy(s -> assertThat(s.kind).isEqualTo(DataFlowSink.Kind.PERSISTENCE)));
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────────

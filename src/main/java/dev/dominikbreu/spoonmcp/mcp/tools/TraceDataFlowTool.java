@@ -11,8 +11,8 @@ import java.util.stream.Collectors;
  * MCP tool that exposes pre-computed data-flow paths from entrypoint parameters to sinks.
  *
  * <p>Sinks are classified as {@code persistence}, {@code messaging}, {@code http-outbound},
- * or {@code event-bus}.  The tool requires the workspace to be indexed with call-graph data;
- * without it the paths list will be empty.
+ * {@code event-bus}, or {@code store}.  The tool requires the workspace to be indexed with
+ * call-graph data; without it the paths list will be empty.
  */
 public class TraceDataFlowTool {
 
@@ -61,8 +61,9 @@ public class TraceDataFlowTool {
                     .collect(Collectors.toList());
             }
             if (sinkFilter != null) {
+                DataFlowSink.Kind filterKind = DataFlowSink.Kind.from(sinkFilter);
                 paths = paths.stream()
-                    .filter(p -> p.sinks.stream().anyMatch(s -> sinkFilter.equals(s.kind)))
+                    .filter(p -> p.sinks.stream().anyMatch(s -> s.kind == filterKind))
                     .collect(Collectors.toList());
             }
 
@@ -103,7 +104,7 @@ public class TraceDataFlowTool {
                 for (DataFlowSink sink : path.sinks) {
                     sb.append("    - [").append(sink.kind).append("] ")
                       .append(sink.componentName).append(".").append(sink.method);
-                    if ("store".equals(sink.kind) && sink.fieldName != null) {
+                    if (sink.kind == DataFlowSink.Kind.STORE && sink.fieldName != null) {
                         sb.append("  field=").append(sink.fieldName);
                     }
                     if (sink.source != null && sink.source.file != null

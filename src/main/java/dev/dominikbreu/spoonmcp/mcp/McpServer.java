@@ -256,12 +256,12 @@ public class McpServer {
                 .opt("limit", "integer", "Maximum returned rows")));
 
         tools.add(tool("trace_data_flow",
-            "Trace how entrypoint parameters flow through the call graph to sinks (persistence, messaging, http-outbound, event-bus). Requires call-graph data from index_workspace.",
+            "Trace how entrypoint parameters flow through the call graph to sinks (persistence, messaging, http-outbound, event-bus, store). Requires call-graph data from index_workspace.",
             schema()
                 .opt("entrypointId", "string", "Filter by entrypoint ID (partial match)")
                 .opt("entrypointName", "string", "Filter by entrypoint name or path (partial match)")
                 .opt("param", "string", "Filter by tracked parameter name")
-                .opt("sinkKind", "string", "Filter by sink kind: persistence | messaging | http-outbound | event-bus")));
+                .opt("sinkKind", "string", "Filter by sink kind: persistence | messaging | http-outbound | event-bus | store")));
 
         tools.add(tool("render_use_case_timeline",
             "Render a Mermaid gantt chart showing sequential execution steps across use cases. Each use case is a section; each component hop is a task bar positioned by call depth. Useful for comparing execution depth and component involvement across entry points.",
