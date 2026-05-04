@@ -59,14 +59,16 @@ class QuarkusExtractorTest extends ExtractorTestBase {
     void componentCountMatchesKnownClasses() {
         // OrderResource, OrderService, OrderRepository, Order, OrderCleanupScheduler,
         // BillingClient, KafkaService, MqttService,
-        // KafkaClientService, PahoMqttClientService, HiveMqClientService
-        assertThat(model.components).hasSize(11);
+        // KafkaClientService, PahoMqttClientService, HiveMqClientService,
+        // EventsResource (SSE), GreeterService (gRPC)
+        assertThat(model.components).hasSize(13);
     }
 
     @Test
     void componentsHaveCorrectTechnology() {
         model.components.stream()
             .filter(c -> c.type != ComponentType.ENTITY && c.type != ComponentType.HTTP_CLIENT)
+            .filter(c -> !c.stereotypes.contains("grpc") && !c.stereotypes.contains("websocket"))
             .forEach(c -> assertThat(c.technology)
                 .as("technology of %s", c.name).isEqualTo("quarkus"));
     }
@@ -128,6 +130,22 @@ class QuarkusExtractorTest extends ExtractorTestBase {
             .filter(e -> e.type == EntrypointType.SCHEDULER)
             .toList();
         assertThat(scheduled).hasSize(2); // cleanup + dailyReport
+    }
+
+    @Test
+    void detectsSseEndpoint() {
+        assertThat(model.entrypoints)
+            .anyMatch(e -> e.type == EntrypointType.SSE_ENDPOINT
+                && "stream".equals(e.name)
+                && "/events/stream".equals(e.path));
+    }
+
+    @Test
+    void detectsGrpcMethodEntrypoints() {
+        List<Entrypoint> grpc = model.entrypoints.stream()
+            .filter(e -> e.type == EntrypointType.GRPC_METHOD)
+            .toList();
+        assertThat(grpc).extracting(e -> e.name).contains("sayHello", "sayGoodbye");
     }
 
     @Test

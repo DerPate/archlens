@@ -65,6 +65,32 @@ public class QuarkusExtractor {
         "io.smallrye.reactive.messaging.annotations.Channel"
     );
 
+    private static final Set<String> WS_ENDPOINT_ANNOTATIONS = Set.of(
+        "javax.websocket.server.ServerEndpoint",
+        "jakarta.websocket.server.ServerEndpoint"
+    );
+
+    private static final Set<String> WS_ON_MESSAGE_ANNOTATIONS = Set.of(
+        "javax.websocket.OnMessage",
+        "jakarta.websocket.OnMessage"
+    );
+
+    private static final Set<String> JAX_RS_PRODUCES = Set.of(
+        "javax.ws.rs.Produces", "jakarta.ws.rs.Produces"
+    );
+
+    private static final Set<String> SSE_EVENT_SINK_TYPES = Set.of(
+        "SseEventSink", "Sse"
+    );
+
+    private static final Set<String> GRPC_SERVICE_ANNOTATIONS = Set.of(
+        "io.quarkus.grpc.GrpcService"
+    );
+
+    private static final Set<String> GRPC_BINDABLE_SERVICE_TYPES = Set.of(
+        "io.grpc.BindableService"
+    );
+
     private static final Set<String> KAFKA_PRODUCER_TYPES = Set.of(
         "org.apache.kafka.clients.producer.KafkaProducer",
         "org.apache.kafka.clients.producer.Producer"
@@ -117,6 +143,8 @@ public class QuarkusExtractor {
         boolean hasCdiScope = hasAnnotation(type, CDI_SCOPE_ANNOTATIONS);
         boolean hasRestClient = hasAnnotation(type, REST_CLIENT_ANNOTATIONS);
         boolean isEntity = hasAnnotation(type, ENTITY_ANNOTATIONS);
+        boolean hasWsEndpoint = hasAnnotation(type, WS_ENDPOINT_ANNOTATIONS);
+        boolean isGrpcService = hasAnnotation(type, GRPC_SERVICE_ANNOTATIONS) || implementsGrpcBindable(type);
         boolean hasScheduled = type.getMethods().stream()
             .anyMatch(m -> hasAnnotation(m, SCHEDULED_ANNOTATIONS));
         boolean hasMessaging = type.getMethods().stream()
@@ -141,6 +169,14 @@ public class QuarkusExtractor {
             compType = ComponentType.REST_RESOURCE;
             technology = "quarkus";
             stereotypes.add("jax-rs");
+        } else if (hasWsEndpoint) {
+            compType = ComponentType.REST_RESOURCE;
+            technology = "websocket";
+            stereotypes.add("websocket");
+        } else if (isGrpcService) {
+            compType = ComponentType.REST_RESOURCE;
+            technology = "grpc";
+            stereotypes.add("grpc");
         } else if (hasScheduled) {
             compType = ComponentType.SCHEDULER;
             technology = "quarkus";
@@ -179,22 +215,42 @@ public class QuarkusExtractor {
 
     private void extractEntrypoints(CtType<?> type, Component component, ArchitectureModel model) {
         String classBasePath = getAnnotationStringValue(type, JAX_RS_PATH);
+        String wsClassPath   = getAnnotationStringValue(type, WS_ENDPOINT_ANNOTATIONS);
+
+        if ("grpc".equals(component.technology)) {
+            emitGrpcEntrypoints(type, component, model);
+            return;
+        }
 
         for (CtMethod<?> method : type.getMethods()) {
+            if (hasAnnotation(method, WS_ON_MESSAGE_ANNOTATIONS)) {
+                Entrypoint ep = new Entrypoint();
+                ep.id   = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + ":websocket";
+                ep.type = EntrypointType.WEBSOCKET_ENDPOINT;
+                ep.name = method.getSimpleName();
+                ep.path = wsClassPath;
+                ep.componentId = component.id;
+                ep.source = new SourceInfo(getFile(method), getLine(method), "annotation", 1.0);
+                model.entrypoints.add(ep);
+                continue;
+            }
             String httpMethod = getHttpMethod(method);
             if (httpMethod != null && component.type != ComponentType.HTTP_CLIENT) {
                 String methodPath = getAnnotationStringValue(method, JAX_RS_PATH);
                 String fullPath = combinePaths(classBasePath, methodPath);
+                boolean isSse = isSseEndpoint(method, type);
                 Entrypoint ep = new Entrypoint();
-                ep.id = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName();
-                ep.type = EntrypointType.REST_ENDPOINT;
+                ep.id = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName()
+                      + (isSse ? ":sse" : "");
+                ep.type = isSse ? EntrypointType.SSE_ENDPOINT : EntrypointType.REST_ENDPOINT;
                 ep.name = method.getSimpleName();
                 ep.httpMethod = httpMethod;
                 ep.path = fullPath;
                 ep.componentId = component.id;
                 ep.source = new SourceInfo(getFile(method), getLine(method), "annotation", 1.0);
                 model.entrypoints.add(ep);
-                addInterface(method, component, "rest_endpoint", httpMethod + " " + fullPath, fullPath, model);
+                addInterface(method, component, isSse ? "sse_endpoint" : "rest_endpoint",
+                             httpMethod + " " + fullPath, fullPath, model);
                 continue;
             }
 
@@ -378,6 +434,57 @@ public class QuarkusExtractor {
         entry.source = new SourceInfo(getFile(element), getLine(element), "annotation", 0.95);
         model.interfaces.add(entry);
         return entry;
+    }
+
+    private boolean isSseEndpoint(CtMethod<?> method, CtType<?> type) {
+        String produces = getAnnotationStringValue(method, JAX_RS_PRODUCES);
+        if (produces.isEmpty()) produces = getAnnotationStringValue(type, JAX_RS_PRODUCES);
+        if (produces.contains("text/event-stream") || produces.contains("SERVER_SENT_EVENTS")) {
+            return true;
+        }
+        if (method.getType() != null
+                && SSE_EVENT_SINK_TYPES.contains(method.getType().getSimpleName())) {
+            return true;
+        }
+        for (CtParameter<?> param : method.getParameters()) {
+            if (param.getType() != null
+                    && SSE_EVENT_SINK_TYPES.contains(param.getType().getSimpleName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean implementsGrpcBindable(CtType<?> type) {
+        for (var ref : type.getSuperInterfaces()) {
+            String qn = ref.getQualifiedName();
+            String sn = ref.getSimpleName();
+            if (GRPC_BINDABLE_SERVICE_TYPES.contains(qn) || "BindableService".equals(sn)) return true;
+        }
+        var superRef = type.getSuperclass();
+        if (superRef != null) {
+            String qn = superRef.getQualifiedName();
+            // Generated gRPC stubs typically extend "<Svc>Grpc.<Svc>ImplBase"
+            if (qn != null && qn.contains(".grpc.") && qn.endsWith("ImplBase")) return true;
+        }
+        return false;
+    }
+
+    private void emitGrpcEntrypoints(CtType<?> type, Component component, ArchitectureModel model) {
+        for (CtMethod<?> method : type.getMethods()) {
+            if (!method.getModifiers().contains(spoon.reflect.declaration.ModifierKind.PUBLIC)) continue;
+            if (method.getSimpleName().equals("bindService")) continue;
+            String epId = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + ":grpc";
+            if (model.entrypoints.stream().anyMatch(e -> e.id.equals(epId))) continue;
+            Entrypoint ep = new Entrypoint();
+            ep.id   = epId;
+            ep.type = EntrypointType.GRPC_METHOD;
+            ep.name = method.getSimpleName();
+            ep.path = type.getSimpleName() + "/" + method.getSimpleName();
+            ep.componentId = component.id;
+            ep.source = new SourceInfo(getFile(method), getLine(method), "annotation", 0.95);
+            model.entrypoints.add(ep);
+        }
     }
 
     private String getHttpMethod(CtMethod<?> method) {

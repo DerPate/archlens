@@ -5,13 +5,13 @@ Generated from the indexed `ArchitectureModel` and the embedded `ArchitectureGra
 ## Summary
 
 - Applications: 1
-- Components: 72
+- Components: 73
 - Entrypoints: 1
 - Interfaces: 0
-- Dependencies: 85
+- Dependencies: 86
 - Runtime flows: 1
-- Graph nodes: 84
-- Graph edges: 231
+- Graph nodes: 85
+- Graph edges: 234
 - Cache backend: json
 
 ## Graph Metadata POC
@@ -24,7 +24,7 @@ Use the MCP tool `query_architecture_graph` to inspect the same metadata interac
 
 ### Node labels
 
-- Component: 72
+- Component: 73
 - Container: 9
 - Application: 1
 - RuntimeFlow: 1
@@ -32,10 +32,10 @@ Use the MCP tool `query_architecture_graph` to inspect the same metadata interac
 
 ### Edge labels
 
-- OWNS: 72
+- OWNS: 73
 - STARTS_AT: 1
-- CONTAINS: 72
-- DEPENDS_ON: 85
+- CONTAINS: 73
+- DEPENDS_ON: 86
 - STARTED_BY: 1
 
 ## Property Catalog

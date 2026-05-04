@@ -43,6 +43,10 @@ public class ArchitectureModel {
     /** Reads/writes of shared-state fields, used to stitch cross-entrypoint pipelines. */
     @JsonProperty("field_accesses")
     public List<FieldAccess> fieldAccesses = new ArrayList<>();
+    /** Invocations against outbound infrastructure (filesystem, S3, Azure Blob) that
+     *  cannot be modelled as call edges because the callee is not a project component. */
+    @JsonProperty("outbound_sink_sites")
+    public List<OutboundSinkSite> outboundSinkSites = new ArrayList<>();
 
     /** Creates an empty architecture model for JSON deserialization. */
     public ArchitectureModel() {}

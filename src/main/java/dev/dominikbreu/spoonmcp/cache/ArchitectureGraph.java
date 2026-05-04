@@ -655,6 +655,10 @@ public class ArchitectureGraph {
             case EJB_BUSINESS_METHOD -> "ejb";
             case RMI_ENDPOINT -> "rmi";
             case MAIN_METHOD -> "main";
+            case EVENT_BUS_CONSUMER -> "event-bus";
+            case WEBSOCKET_ENDPOINT -> "websocket";
+            case SSE_ENDPOINT -> "sse";
+            case GRPC_METHOD -> "grpc";
             case UNKNOWN -> "unknown";
         };
     }

@@ -79,6 +79,48 @@ class CallGraphExtractorTest extends ExtractorTestBase {
     }
 
     @Test
+    void recordsSynthesisedParamMappingForTernaryArg() {
+        // findTernary calls orderRepository.findById(id != null ? id : 0L)
+        // — argument is a CtConditional wrapping CtVariableRead 'id', so buildParamMapping
+        // descends into it and flags the callee param as synthesised.
+        assertThat(model.callEdges)
+            .as("OrderService.findTernary -> OrderRepository.findById has synthesised mapping")
+            .anySatisfy(e -> {
+                assertThat(e.fromMethod).isEqualTo("findTernary");
+                assertThat(e.toMethod).isEqualTo("findById");
+                assertThat(e.paramMapping).containsEntry("id", "id");
+                assertThat(e.syntheticParamMappings).contains("id");
+            });
+    }
+
+    @Test
+    void recordsSynthesisedParamMappingForNestedInvocationArg() {
+        // findWrapped calls orderRepository.findById(Long.valueOf(String.valueOf(raw)))
+        // — argument is a nested CtInvocation, descend should reach 'raw'.
+        assertThat(model.callEdges)
+            .as("OrderService.findWrapped -> OrderRepository.findById has synthesised mapping")
+            .anySatisfy(e -> {
+                assertThat(e.fromMethod).isEqualTo("findWrapped");
+                assertThat(e.toMethod).isEqualTo("findById");
+                assertThat(e.paramMapping).containsEntry("raw", "id");
+                assertThat(e.syntheticParamMappings).contains("id");
+            });
+    }
+
+    @Test
+    void scansOutboundFileSinkSites() {
+        assertThat(model.outboundSinkSites)
+            .as("OrderRepository.archive uses java.nio.file.Files → FILE_OUTBOUND site")
+            .anySatisfy(s -> {
+                assertThat(s.componentId).contains("OrderRepository");
+                assertThat(s.method).isEqualTo("archive");
+                assertThat(s.calleeQualifiedName).startsWith("java.nio.file.Files");
+                assertThat(s.calleeMethod).isEqualTo("writeString");
+                assertThat(s.kind.name()).isEqualTo("FILE_OUTBOUND");
+            });
+    }
+
+    @Test
     void rerunDoesNotDuplicateEdges() {
         int beforeCount = model.callEdges.size();
         CtModel ctModel = scan("quarkus-sample");

@@ -337,14 +337,54 @@ A sink is any call that reaches a `REPOSITORY` component (persistence), an `HTTP
 component (http-outbound), or a call edge with kind `messaging` or `event-bus`. Parameter
 names are tracked across call hops using the `paramMapping` captured at each call site;
 when the mapping is absent the name is carried forward as a best-effort approximation.
+When the argument expression is non-trivial — a constructor call, nested invocation, or
+ternary that wraps a tracked variable — the mapping is still recorded, and the callee
+parameter is listed in `syntheticParamMappings` on the call edge so consumers know the
+hop relied on a heuristic descent rather than a direct variable reference.
 
 **Two-phase pipeline support (store sinks):** writes to shared in-memory state fields
 (e.g. `ConcurrentHashMap` caches) inside a `MESSAGING_CONSUMER` entrypoint are reported
 as `store` sinks, even though no direct call edge connects the consumer to a downstream
-component. For `SCHEDULER` entrypoints that have no method parameters, the tracer
+component. For `SCHEDULER` and `MESSAGING_PRODUCER` entrypoints, the tracer
 automatically seeds tracking from any shared-state field that the entrypoint or its
-transitively called methods read — the resulting path's `trackedParam` is the field name,
-allowing agents to stitch a consumer's `store` sink to the matching scheduler path.
+transitively called methods read — even when the entrypoint declares parameters of its
+own — so producer paths cover both their argument flow and the cached state they publish.
+The resulting path's `trackedParam` is the field name, allowing agents to stitch a
+consumer's `store` sink to the matching producer/scheduler path. When a write's
+right-hand side is itself a field read on the same bean (`outbox = inbox`), the tracer
+records `sourceFieldName` so the data-flow keeps a `store` sink on paths tracking the
+upstream field.
+
+**Shared-state denylist:** field types `Logger`, `Log`, `Slf4j`, `Tracer`, and any type
+prefixed with `Audit` are excluded from shared-state heuristics to prevent logging or
+audit infrastructure from being reported as store sinks.
+
+**Return-value flow:** when a call site binds the invocation result to a local
+(`Order o = orderService.lookup(id)`) and the callee returns one of its parameters,
+the call edge records `assignedToVar` and `returnsTracked=true`. The tracer adds
+`assignedToVar` to the entrypoint's tracked names so persistence/messaging hops
+downstream of the assignment are still visible.
+
+**Reassigned-local pruning:** when a caller-method local is rebound to a fresh
+invocation result (`order = service.lookup(id)`) before reaching a call site, the
+edge's `killedTrackedNames` lists that local. The tracer drops the original tracking
+at that edge so we no longer report sinks reached by the stale binding.
+
+**Sink kinds:** `persistence`, `messaging`, `http-outbound`, `event-bus`, `store`,
+`file-outbound`, `object-storage`, `unknown`. Components carrying the stereotype
+`object-storage` or `file-outbound` are classified accordingly even when their
+component type is `HTTP_CLIENT`. Direct invocations against
+`java.nio.file.Files` (→ `file-outbound`), `software.amazon.awssdk.services.s3.*`,
+or `com.azure.storage.*` (→ `object-storage`) are detected even when the callee is
+not a project component, via {@code outbound_sink_sites} captured during call-graph
+extraction. Sinks land on the entrypoint method's data-flow path at depth 0.
+
+**New entrypoint families:** `EVENT_BUS_CONSUMER` (Vert.x `eventBus.consumer(addr, handler)`),
+`WEBSOCKET_ENDPOINT` (`@ServerEndpoint` + `@OnMessage`), `SSE_ENDPOINT` (REST methods
+producing `text/event-stream` or with an `SseEventSink`/`Sse` parameter or return type),
+and `GRPC_METHOD` (classes annotated `@GrpcService`, implementing `BindableService`, or
+extending a generated `*Grpc.*ImplBase` stub — every public non-`bindService` method
+becomes a `GRPC_METHOD` entrypoint).
 
 **Cross-entrypoint linkage (`linkedPathIds`):** every `store` sink carries a
 `linkedPathIds` list pointing to the IDs of downstream `DataFlowPath`s whose entrypoint

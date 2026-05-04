@@ -1,6 +1,7 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
+import dev.dominikbreu.spoonmcp.model.EntrypointType;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -31,6 +32,17 @@ class ArchitectureExtractorTest extends ExtractorTestBase {
             .anyMatch(d -> d.kind.equals("cdi-event")
                 && d.fromId.contains("OrderEventProducer")
                 && d.toId.contains("OrderEventConsumer"));
+    }
+
+    @Test
+    void detectsVertxEventBusConsumerEntrypoint() {
+        ArchitectureModel model = new ArchitectureExtractor()
+            .extract(List.of(projectPath("eventbus-sample")));
+
+        assertThat(model.entrypoints)
+            .anyMatch(e -> e.type == EntrypointType.EVENT_BUS_CONSUMER
+                && "order.events".equals(e.channelName)
+                && e.componentId.contains("VertxBusConsumer"));
     }
 
     @Test
