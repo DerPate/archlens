@@ -4,7 +4,7 @@
 
     <groupId>dev.dominikbreu.spoonmcp</groupId>
     <artifactId>spoon-mcp-server</artifactId>
-    <version>1.0.2-SNAPSHOT</version>
+    <version>1.0.2</version>
     <packaging>jar</packaging>
 
     <licenses>
@@ -18,7 +18,7 @@
     <scm>
         <connection>scm:git:file://${project.basedir}</connection>
         <developerConnection>scm:git:file://${project.basedir}</developerConnection>
-        <tag>HEAD</tag>
+        <tag>spoon-mcp-server-1.0.2</tag>
     </scm>
 
     <properties>
@@ -224,10 +224,10 @@
                         <configuration>
                             <target if="release.perform">
                                 <exec executable="git" failonerror="true">
-                                    <arg value="remote"/>
-                                    <arg value="set-url"/>
-                                    <arg value="origin"/>
-                                    <arg value="https://github.com/DerPate/spoon-mcp-server.git"/>
+                                    <arg value="remote" />
+                                    <arg value="set-url" />
+                                    <arg value="origin" />
+                                    <arg value="https://github.com/DerPate/spoon-mcp-server.git" />
                                 </exec>
                             </target>
                         </configuration>
