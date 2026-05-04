@@ -101,7 +101,7 @@ public class DataFlowTracer {
             boolean isEntrypointBody = depth == 0 && !"*".equals(trackedName);
             if (isEntrypointBody || matchesTracked(trackedName, fw.sourceVarName)) {
                 path.sinks.add(new DataFlowSink(
-                    "store",
+                    DataFlowSink.Kind.STORE,
                     fw.fieldOwnerComponentId,
                     compName,
                     fw.fieldName,
@@ -165,15 +165,15 @@ public class DataFlowTracer {
         return target != null && SINK_TYPES.contains(target.type);
     }
 
-    private String classifySink(CallEdge edge, Component target) {
-        if ("event-bus".equals(edge.callKind))  return "event-bus";
-        if ("messaging".equals(edge.callKind))  return "messaging";
-        if (target == null)                      return "unknown";
+    private DataFlowSink.Kind classifySink(CallEdge edge, Component target) {
+        if ("event-bus".equals(edge.callKind))  return DataFlowSink.Kind.EVENT_BUS;
+        if ("messaging".equals(edge.callKind))  return DataFlowSink.Kind.MESSAGING;
+        if (target == null)                      return DataFlowSink.Kind.UNKNOWN;
         return switch (target.type) {
-            case REPOSITORY        -> "persistence";
-            case HTTP_CLIENT       -> isMsgClient(target) ? "messaging" : "http-outbound";
-            case CDI_EVENT_PRODUCER -> "event-bus";
-            default                -> "unknown";
+            case REPOSITORY         -> DataFlowSink.Kind.PERSISTENCE;
+            case HTTP_CLIENT        -> isMsgClient(target) ? DataFlowSink.Kind.MESSAGING : DataFlowSink.Kind.HTTP_OUTBOUND;
+            case CDI_EVENT_PRODUCER -> DataFlowSink.Kind.EVENT_BUS;
+            default                 -> DataFlowSink.Kind.UNKNOWN;
         };
     }
 
