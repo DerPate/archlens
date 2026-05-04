@@ -2,12 +2,17 @@ package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.*;
 import spoon.reflect.code.CtAssignment;
+import spoon.reflect.code.CtConditional;
+import spoon.reflect.code.CtConstructorCall;
 import spoon.reflect.code.CtExpression;
 import spoon.reflect.code.CtFieldAccess;
 import spoon.reflect.code.CtFieldRead;
 import spoon.reflect.code.CtFieldWrite;
 import spoon.reflect.code.CtInvocation;
+import spoon.reflect.code.CtLocalVariable;
+import spoon.reflect.code.CtReturn;
 import spoon.reflect.code.CtVariableRead;
+import spoon.reflect.code.CtVariableWrite;
 import spoon.reflect.declaration.CtField;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtParameter;
@@ -45,6 +50,23 @@ public class CallGraphExtractor {
 
     private static final Set<String> SHARED_STATE_NAME_SUFFIXES = Set.of(
         "Cache", "State", "Store", "Buffer", "Queue", "Registry", "Snapshots", "Repository"
+    );
+
+    private static final Set<String> SHARED_STATE_TYPE_DENYLIST = Set.of(
+        "Logger", "Log", "Slf4j", "Tracer"
+    );
+
+    private static final Set<String> SHARED_STATE_TYPE_DENYLIST_PREFIXES = Set.of(
+        "Audit"
+    );
+
+    private static final Set<String> FILE_OUTBOUND_PREFIXES = Set.of(
+        "java.nio.file.Files"
+    );
+
+    private static final Set<String> OBJECT_STORAGE_PREFIXES = Set.of(
+        "software.amazon.awssdk.services.s3",
+        "com.azure.storage"
     );
 
     private static final Set<String> WRITE_METHODS = Set.of(
@@ -88,6 +110,7 @@ public class CallGraphExtractor {
             for (CtMethod<?> method : type.getMethods()) {
                 extractFromMethod(method, fromComp, fieldToComp, model, existingIds);
                 extractFieldAccesses(method, fromComp, sharedStateFields, model);
+                extractOutboundSinkSites(method, fromComp, model);
                 enrichEntrypointParameters(method, fromId, entrypointParams, model);
             }
         }
@@ -100,6 +123,7 @@ public class CallGraphExtractor {
             if (t == null) continue;
             String simple = t.getSimpleName();
             String fieldName = field.getSimpleName();
+            if (isSharedStateDenylisted(simple)) continue;
             if (SHARED_STATE_SIMPLE_TYPES.contains(simple)) {
                 names.add(fieldName);
                 continue;
@@ -118,6 +142,15 @@ public class CallGraphExtractor {
         return s.isEmpty() ? s : Character.toLowerCase(s.charAt(0)) + s.substring(1);
     }
 
+    private static boolean isSharedStateDenylisted(String simpleTypeName) {
+        if (simpleTypeName == null) return false;
+        if (SHARED_STATE_TYPE_DENYLIST.contains(simpleTypeName)) return true;
+        for (String prefix : SHARED_STATE_TYPE_DENYLIST_PREFIXES) {
+            if (simpleTypeName.startsWith(prefix)) return true;
+        }
+        return false;
+    }
+
     private void extractFieldAccesses(CtMethod<?> method, Component fromComp,
                                        Set<String> sharedStateFields, ArchitectureModel model) {
         if (sharedStateFields.isEmpty()) return;
@@ -128,10 +161,11 @@ public class CallGraphExtractor {
             if (!(assigned instanceof CtFieldWrite<?> fw)) continue;
             String fieldName = fw.getVariable().getSimpleName();
             if (!sharedStateFields.contains(fieldName)) continue;
-            String src = (assign.getAssignment() instanceof CtVariableRead<?> vr)
-                ? vr.getVariable().getSimpleName() : null;
+            CtExpression<?> rhs = assign.getAssignment();
+            String srcVar   = (rhs instanceof CtVariableRead<?> vr) ? vr.getVariable().getSimpleName() : null;
+            String srcField = (rhs instanceof CtFieldRead<?> fr)    ? fr.getVariable().getSimpleName() : null;
             model.fieldAccesses.add(buildAccess(FieldAccess.Kind.WRITE, fromComp, methodName,
-                fieldName, src, assign.getPosition()));
+                fieldName, srcVar, srcField, assign.getPosition()));
         }
 
         for (CtInvocation<?> inv : method.getElements(new TypeFilter<>(CtInvocation.class))) {
@@ -140,15 +174,19 @@ public class CallGraphExtractor {
             if (!sharedStateFields.contains(fieldName)) continue;
             String invName = inv.getExecutable().getSimpleName();
             if (WRITE_METHODS.contains(invName)) {
-                String src = inv.getArguments().stream()
+                String srcVar = inv.getArguments().stream()
                     .filter(a -> a instanceof CtVariableRead<?>)
                     .map(a -> ((CtVariableRead<?>) a).getVariable().getSimpleName())
                     .findFirst().orElse(null);
+                String srcField = inv.getArguments().stream()
+                    .filter(a -> a instanceof CtFieldRead<?>)
+                    .map(a -> ((CtFieldRead<?>) a).getVariable().getSimpleName())
+                    .findFirst().orElse(null);
                 model.fieldAccesses.add(buildAccess(FieldAccess.Kind.WRITE, fromComp, methodName,
-                    fieldName, src, inv.getPosition()));
+                    fieldName, srcVar, srcField, inv.getPosition()));
             } else {
                 model.fieldAccesses.add(buildAccess(FieldAccess.Kind.READ, fromComp, methodName,
-                    fieldName, null, inv.getPosition()));
+                    fieldName, null, null, inv.getPosition()));
             }
         }
 
@@ -158,12 +196,12 @@ public class CallGraphExtractor {
             if (read.getParent() instanceof CtInvocation<?> inv && inv.getTarget() == read) continue;
             if (read.getParent() instanceof CtFieldAccess<?> parentFa && parentFa.getTarget() == read) continue;
             model.fieldAccesses.add(buildAccess(FieldAccess.Kind.READ, fromComp, methodName,
-                fieldName, null, read.getPosition()));
+                fieldName, null, null, read.getPosition()));
         }
     }
 
     private FieldAccess buildAccess(FieldAccess.Kind kind, Component owner, String method,
-                                     String fieldName, String sourceVar,
+                                     String fieldName, String sourceVar, String sourceField,
                                      spoon.reflect.cu.SourcePosition pos) {
         FieldAccess fa = new FieldAccess();
         fa.kind                  = kind;
@@ -172,6 +210,7 @@ public class CallGraphExtractor {
         fa.fieldName             = fieldName;
         fa.method                = method;
         fa.sourceVarName         = sourceVar;
+        fa.sourceFieldName       = sourceField;
         fa.id = "field:" + owner.id + "#" + method + "@" + fieldName + ":" + kind.name().toLowerCase();
         String file = (pos != null && pos.isValidPosition()) ? pos.getFile().getAbsolutePath() : "unknown";
         int    line = (pos != null && pos.isValidPosition()) ? pos.getLine() : 0;
@@ -199,6 +238,7 @@ public class CallGraphExtractor {
                                     Map<String, Component> fieldToComp,
                                     ArchitectureModel model, Set<String> existingIds) {
         String fromMethod = method.getSimpleName();
+        Map<CtInvocation<?>, Set<String>> killedSnapshots = computeKilledSnapshots(method);
 
         for (CtInvocation<?> inv : method.getElements(new TypeFilter<>(CtInvocation.class))) {
             if (!(inv.getTarget() instanceof CtFieldRead<?> fieldRead)) continue;
@@ -222,24 +262,161 @@ public class CallGraphExtractor {
             edge.toMethod        = toMethod;
             edge.callKind        = callKind;
             edge.source          = buildSource(inv);
-            edge.paramMapping    = buildParamMapping(inv);
+            buildParamMapping(inv, edge);
+            edge.assignedToVar   = resolveAssignedToVar(inv);
+            edge.returnsTracked  = calleeReturnsTracked(inv);
+            Set<String> snap = killedSnapshots.get(inv);
+            if (snap != null) edge.killedTrackedNames.addAll(snap);
             model.callEdges.add(edge);
         }
     }
 
-    private Map<String, String> buildParamMapping(CtInvocation<?> inv) {
-        Map<String, String> mapping = new LinkedHashMap<>();
+    /**
+     * Walks the method body in source order and snapshots, at every CtInvocation, which
+     * caller-method local names have been reassigned (via another invocation result or
+     * cross-component call) prior to that point. The snapshot is consumed when emitting
+     * the corresponding cross-component {@link CallEdge}.
+     */
+    private Map<CtInvocation<?>, Set<String>> computeKilledSnapshots(CtMethod<?> method) {
+        Map<CtInvocation<?>, Set<String>> snapshots = new java.util.IdentityHashMap<>();
+        Set<String> killed = new LinkedHashSet<>();
+        for (var element : method.getElements(new TypeFilter<>(spoon.reflect.declaration.CtElement.class))) {
+            if (element instanceof CtInvocation<?> inv) {
+                snapshots.put(inv, new LinkedHashSet<>(killed));
+            } else if (element instanceof CtAssignment<?, ?> assign
+                    && assign.getAssignment() instanceof CtInvocation<?>
+                    && assign.getAssigned() instanceof CtVariableWrite<?> vw) {
+                killed.add(vw.getVariable().getSimpleName());
+            } else if (element instanceof CtLocalVariable<?> lv
+                    && lv.getDefaultExpression() instanceof CtInvocation<?>) {
+                // a fresh local declaration shadows any prior name — same effect for tracker.
+                killed.add(lv.getSimpleName());
+            }
+        }
+        return snapshots;
+    }
+
+    private String resolveAssignedToVar(CtInvocation<?> inv) {
+        var parent = inv.getParent();
+        if (parent instanceof CtLocalVariable<?> lv) {
+            return lv.getSimpleName();
+        }
+        if (parent instanceof CtAssignment<?, ?> assign
+                && assign.getAssigned() instanceof CtVariableWrite<?> vw) {
+            return vw.getVariable().getSimpleName();
+        }
+        return null;
+    }
+
+    private void extractOutboundSinkSites(CtMethod<?> method, Component fromComp,
+                                           ArchitectureModel model) {
+        String methodName = method.getSimpleName();
+        Set<String> existingIds = model.outboundSinkSites.stream()
+            .map(s -> s.id).collect(Collectors.toSet());
+        int index = 0;
+        for (CtInvocation<?> inv : method.getElements(new TypeFilter<>(CtInvocation.class))) {
+            var declaringType = inv.getExecutable().getDeclaringType();
+            if (declaringType == null) continue;
+            String qn = declaringType.getQualifiedName();
+            if (qn == null || qn.isEmpty()) continue;
+
+            DataFlowSink.Kind kind = classifyOutboundCallee(qn);
+            if (kind == null) continue;
+
+            String id = "outbound:" + fromComp.id + "#" + methodName + ":" + (index++);
+            if (!existingIds.add(id)) continue;
+
+            OutboundSinkSite site = new OutboundSinkSite();
+            site.id                  = id;
+            site.kind                = kind;
+            site.componentId         = fromComp.id;
+            site.method              = methodName;
+            site.calleeQualifiedName = qn;
+            site.calleeMethod        = inv.getExecutable().getSimpleName();
+            var pos = inv.getPosition();
+            String file = (pos != null && pos.isValidPosition()) ? pos.getFile().getAbsolutePath() : "unknown";
+            int    line = (pos != null && pos.isValidPosition()) ? pos.getLine() : 0;
+            site.source = new SourceInfo(file, line, "invocation", 0.85);
+            model.outboundSinkSites.add(site);
+        }
+    }
+
+    private static DataFlowSink.Kind classifyOutboundCallee(String calleeQualifiedName) {
+        for (String prefix : FILE_OUTBOUND_PREFIXES) {
+            if (calleeQualifiedName.equals(prefix) || calleeQualifiedName.startsWith(prefix + ".")) {
+                return DataFlowSink.Kind.FILE_OUTBOUND;
+            }
+        }
+        for (String prefix : OBJECT_STORAGE_PREFIXES) {
+            if (calleeQualifiedName.equals(prefix) || calleeQualifiedName.startsWith(prefix + ".")) {
+                return DataFlowSink.Kind.OBJECT_STORAGE;
+            }
+        }
+        return null;
+    }
+
+    private boolean calleeReturnsTracked(CtInvocation<?> inv) {
         var executable = inv.getExecutable().getDeclaration();
-        if (executable == null) return mapping;
+        if (!(executable instanceof CtMethod<?> calleeMethod)) return false;
+        if (calleeMethod.getBody() == null) return false;
+        Set<String> paramNames = calleeMethod.getParameters().stream()
+            .map(CtParameter::getSimpleName)
+            .collect(Collectors.toSet());
+        for (CtReturn<?> ret : calleeMethod.getElements(new TypeFilter<>(CtReturn.class))) {
+            CtExpression<?> ex = ret.getReturnedExpression();
+            if (ex == null) continue;
+            String name = findFirstVarRead(ex);
+            if (name != null && paramNames.contains(name)) return true;
+        }
+        return false;
+    }
+
+    private void buildParamMapping(CtInvocation<?> inv, CallEdge edge) {
+        var executable = inv.getExecutable().getDeclaration();
+        if (executable == null) return;
         List<CtParameter<?>> calleeParams = executable.getParameters();
         var args = inv.getArguments();
         for (int i = 0; i < args.size() && i < calleeParams.size(); i++) {
-            if (args.get(i) instanceof CtVariableRead<?> varRead) {
-                mapping.put(varRead.getVariable().getSimpleName(),
-                            calleeParams.get(i).getSimpleName());
+            String calleeParam = calleeParams.get(i).getSimpleName();
+            CtExpression<?> arg = args.get(i);
+            if (arg instanceof CtVariableRead<?> direct) {
+                edge.paramMapping.put(direct.getVariable().getSimpleName(), calleeParam);
+                continue;
+            }
+            String synthesised = findFirstVarRead(arg);
+            if (synthesised != null) {
+                edge.paramMapping.put(synthesised, calleeParam);
+                edge.syntheticParamMappings.add(calleeParam);
             }
         }
-        return mapping;
+    }
+
+    private static String findFirstVarRead(CtExpression<?> expr) {
+        if (expr == null) return null;
+        if (expr instanceof CtVariableRead<?> vr) return vr.getVariable().getSimpleName();
+        if (expr instanceof CtConditional<?> cond) {
+            String t = findFirstVarRead(cond.getThenExpression());
+            return t != null ? t : findFirstVarRead(cond.getElseExpression());
+        }
+        if (expr instanceof CtConstructorCall<?> ctor) {
+            for (CtExpression<?> a : ctor.getArguments()) {
+                String r = findFirstVarRead(a);
+                if (r != null) return r;
+            }
+            return null;
+        }
+        if (expr instanceof CtInvocation<?> inv) {
+            CtExpression<?> target = inv.getTarget() instanceof CtExpression<?> t ? t : null;
+            if (target != null) {
+                String r = findFirstVarRead(target);
+                if (r != null) return r;
+            }
+            for (CtExpression<?> a : inv.getArguments()) {
+                String r = findFirstVarRead(a);
+                if (r != null) return r;
+            }
+        }
+        return null;
     }
 
     private Map<String, List<String>> buildEntrypointParamMap(ArchitectureModel model) {

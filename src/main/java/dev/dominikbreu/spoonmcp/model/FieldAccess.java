@@ -27,6 +27,8 @@ public class FieldAccess {
     public String fieldName;
     /** For writes: name of the local variable or parameter whose value is stored. May be null. */
     public String sourceVarName;
+    /** For writes: name of the source field whose value is stored, when RHS is another field read on the same bean. May be null. */
+    public String sourceFieldName;
     /** Source location of the access. */
     public SourceInfo source;
 
