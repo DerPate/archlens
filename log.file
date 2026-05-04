@@ -1,0 +1,366 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -------------< dev.dominikbreu.spoonmcp:spoon-mcp-server >--------------
+[INFO] Building spoon-mcp-server 1.0.3-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- release:3.1.1:prepare (default-cli) @ spoon-mcp-server ---
+[INFO] starting prepare goal, composed of 17 phases: check-poms, scm-check-modifications, check-dependency-snapshots, create-backup-poms, map-release-versions, input-variables, map-development-versions, rewrite-poms-for-release, generate-release-poms, run-preparation-goals, scm-commit-release, scm-tag, rewrite-poms-for-development, remove-release-poms, run-completion-goals, scm-commit-development, end-release
+[INFO] Release preparation already completed. You can now continue with release:perform, or start again using the -Dresume=false flag
+[INFO] 
+[INFO] --- release:3.1.1:perform (default-cli) @ spoon-mcp-server ---
+[INFO] starting perform goal, composed of 3 phases: verify-completed-prepare-phases, checkout-project-from-scm, run-perform-goals
+[INFO] 1/3 perform:verify-completed-prepare-phases
+[INFO] 2/3 perform:checkout-project-from-scm
+[INFO] Performing a LOCAL checkout from scm:git:file:///home/dominik/spoon-mcp-server
+[INFO] Checking out the project to perform the release ...
+[INFO] Executing: /bin/sh -c cd '/home/dominik/spoon-mcp-server/target' && 'git' 'clone' '--depth' '1' '--branch' 'spoon-mcp-server-1.0.2' 'file:///home/dominik/spoon-mcp-server' 'checkout'
+[INFO] Working directory: /home/dominik/spoon-mcp-server/target
+[INFO] Executing: /bin/sh -c cd '/tmp' && 'git' 'ls-remote' 'file:///home/dominik/spoon-mcp-server'
+[INFO] Working directory: /tmp
+[INFO] Executing: /bin/sh -c cd '/home/dominik/spoon-mcp-server/target/checkout' && 'git' 'fetch' 'file:///home/dominik/spoon-mcp-server'
+[INFO] Working directory: /home/dominik/spoon-mcp-server/target/checkout
+[INFO] Executing: /bin/sh -c cd '/home/dominik/spoon-mcp-server/target/checkout' && 'git' 'checkout' 'spoon-mcp-server-1.0.2'
+[INFO] Working directory: /home/dominik/spoon-mcp-server/target/checkout
+[INFO] Executing: /bin/sh -c cd '/home/dominik/spoon-mcp-server/target/checkout' && 'git' 'ls-files'
+[INFO] Working directory: /home/dominik/spoon-mcp-server/target/checkout
+[INFO] 3/3 perform:run-perform-goals
+[INFO] Invoking perform goals in directory /home/dominik/spoon-mcp-server/target/checkout
+[INFO] Executing goals 'clean package jreleaser:full-release'...
+[INFO] [INFO] Scanning for projects...
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/jreleaser/maven-metadata.xml
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/owasp/maven-metadata.xml
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/apache/maven/plugins/maven-metadata.xml
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/codehaus/mojo/maven-metadata.xml
+[INFO] Progress (1): 4.6 kB
+[INFO] Progress (1): 9.7 kB
+[INFO] Progress (1): 14 kB 
+[INFO]                    
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/maven/plugins/maven-metadata.xml (14 kB at 23 kB/s)
+[INFO] Progress (1): 257 B
+[INFO] Progress (2): 257 B | 3.1 kB
+[INFO]                             
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/owasp/maven-metadata.xml (257 B at 413 B/s)
+[INFO] Progress (1): 7.7 kB
+[INFO] Progress (1): 12 kB 
+[INFO] Progress (1): 17 kB
+[INFO] Progress (1): 20 kB
+[INFO] Progress (1): 21 kB
+[INFO]                    
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/codehaus/mojo/maven-metadata.xml (21 kB at 32 kB/s)
+[INFO] [INFO] 
+[INFO] [INFO] -------------< dev.dominikbreu.spoonmcp:spoon-mcp-server >--------------
+[INFO] [INFO] Building spoon-mcp-server 1.0.2
+[INFO] [INFO]   from pom.xml
+[INFO] [INFO] --------------------------------[ jar ]---------------------------------
+[INFO] [INFO] 
+[INFO] [INFO] --- clean:3.2.0:clean (default-clean) @ spoon-mcp-server ---
+[INFO] [INFO] 
+[INFO] [INFO] --- enforcer:3.5.0:enforce (enforce-build-environment) @ spoon-mcp-server ---
+[INFO] [INFO] Rule 0: org.apache.maven.enforcer.rules.version.RequireJavaVersion passed
+[INFO] [INFO] Rule 1: org.apache.maven.enforcer.rules.version.RequireMavenVersion passed
+[INFO] [INFO] 
+[INFO] [INFO] --- resources:3.3.1:resources (default-resources) @ spoon-mcp-server ---
+[INFO] [INFO] skip non existing resourceDirectory /home/dominik/spoon-mcp-server/target/checkout/src/main/resources
+[INFO] [INFO] 
+[INFO] [INFO] --- compiler:3.13.0:compile (default-compile) @ spoon-mcp-server ---
+[INFO] [INFO] Recompiling the module because of changed source code.
+[INFO] [INFO] Compiling 72 source files with javac [debug release 21] to target/classes
+[INFO] [INFO] 
+[INFO] [INFO] --- resources:3.3.1:testResources (default-testResources) @ spoon-mcp-server ---
+[INFO] [INFO] Copying 41 resources from src/test/resources to target/test-classes
+[INFO] [INFO] 
+[INFO] [INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ spoon-mcp-server ---
+[INFO] [INFO] Recompiling the module because of changed dependency.
+[INFO] [INFO] Compiling 27 source files with javac [debug release 21] to target/test-classes
+[INFO] [INFO] 
+[INFO] [INFO] --- surefire:3.5.2:test (default-test) @ spoon-mcp-server ---
+[INFO] [INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] [INFO] 
+[INFO] [INFO] -------------------------------------------------------
+[INFO] [INFO]  T E S T S
+[INFO] [INFO] -------------------------------------------------------
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.cache.ArchitectureGraphTest
+[INFO] [INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.153 s -- in dev.dominikbreu.spoonmcp.cache.ArchitectureGraphTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.cache.ModelCacheGraphBackendTest
+[INFO] [INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.191 s -- in dev.dominikbreu.spoonmcp.cache.ModelCacheGraphBackendTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.scanner.SpoonScannerMultiModuleTest
+[INFO] [INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.639 s -- in dev.dominikbreu.spoonmcp.scanner.SpoonScannerMultiModuleTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.extractor.DependencyExtractorTest
+[INFO] [INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.236 s -- in dev.dominikbreu.spoonmcp.extractor.DependencyExtractorTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.extractor.ContainerInferrerTest
+[INFO] [INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.019 s -- in dev.dominikbreu.spoonmcp.extractor.ContainerInferrerTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.extractor.QuarkusExtractorTest
+[INFO] [INFO] Tests run: 41, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.133 s -- in dev.dominikbreu.spoonmcp.extractor.QuarkusExtractorTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.extractor.DataFlowTracerTest
+[INFO] [INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.128 s -- in dev.dominikbreu.spoonmcp.extractor.DataFlowTracerTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.extractor.ExternalSystemInferrerTest
+[INFO] [INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.008 s -- in dev.dominikbreu.spoonmcp.extractor.ExternalSystemInferrerTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.extractor.GenericJavaExtractorTest
+[INFO] [INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.037 s -- in dev.dominikbreu.spoonmcp.extractor.GenericJavaExtractorTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.extractor.UseCaseDetectorTest
+[INFO] [INFO] Tests run: 14, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.018 s -- in dev.dominikbreu.spoonmcp.extractor.UseCaseDetectorTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.extractor.JavaEEExtractorTest
+[INFO] [INFO] Tests run: 16, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.067 s -- in dev.dominikbreu.spoonmcp.extractor.JavaEEExtractorTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.extractor.CallGraphExtractorTest
+[INFO] [INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.172 s -- in dev.dominikbreu.spoonmcp.extractor.CallGraphExtractorTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.extractor.WarModuleExtractionTest
+[INFO] [INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.062 s -- in dev.dominikbreu.spoonmcp.extractor.WarModuleExtractionTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractorTest
+[INFO] [INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.100 s -- in dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractorTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.extractor.DependencyCondenserTest
+[INFO] [INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.009 s -- in dev.dominikbreu.spoonmcp.extractor.DependencyCondenserTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.extractor.MessagingConfigResolverTest
+[INFO] [INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.048 s -- in dev.dominikbreu.spoonmcp.extractor.MessagingConfigResolverTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.extractor.InternalModuleClassifierTest
+[INFO] [INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.049 s -- in dev.dominikbreu.spoonmcp.extractor.InternalModuleClassifierTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrerTest
+[INFO] [INFO] Tests run: 14, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.011 s -- in dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrerTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.merger.AnsibleMergerTest
+[INFO] [INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.028 s -- in dev.dominikbreu.spoonmcp.merger.AnsibleMergerTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.merger.DockerComposeMergerTest
+[INFO] [INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.015 s -- in dev.dominikbreu.spoonmcp.merger.DockerComposeMergerTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.mcp.tools.QueryArchitectureGraphToolTest
+[INFO] [INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.045 s -- in dev.dominikbreu.spoonmcp.mcp.tools.QueryArchitectureGraphToolTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.mcp.tools.ExportGraphArchitecturePocToolTest
+[INFO] [INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.021 s -- in dev.dominikbreu.spoonmcp.mcp.tools.ExportGraphArchitecturePocToolTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.renderer.MermaidCallFlowRendererTest
+[INFO] [INFO] Tests run: 13, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.020 s -- in dev.dominikbreu.spoonmcp.renderer.MermaidCallFlowRendererTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.renderer.MermaidUseCaseTimelineRendererTest
+[INFO] [INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.008 s -- in dev.dominikbreu.spoonmcp.renderer.MermaidUseCaseTimelineRendererTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.renderer.MermaidFlowchartRendererTest
+[INFO] [INFO] Tests run: 18, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.022 s -- in dev.dominikbreu.spoonmcp.renderer.MermaidFlowchartRendererTest
+[INFO] [INFO] Running dev.dominikbreu.spoonmcp.renderer.MermaidDependencyMapRendererTest
+[INFO] [INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.012 s -- in dev.dominikbreu.spoonmcp.renderer.MermaidDependencyMapRendererTest
+[INFO] [INFO] 
+[INFO] [INFO] Results:
+[INFO] [INFO] 
+[INFO] [INFO] Tests run: 229, Failures: 0, Errors: 0, Skipped: 0
+[INFO] [INFO] 
+[INFO] [INFO] 
+[INFO] [INFO] --- jar:3.4.2:jar (default-jar) @ spoon-mcp-server ---
+[INFO] [INFO] Building jar: /home/dominik/spoon-mcp-server/target/checkout/target/spoon-mcp-server-1.0.2.jar
+[INFO] [INFO] 
+[INFO] [INFO] --- shade:3.6.0:shade (default) @ spoon-mcp-server ---
+[INFO] [INFO] Including fr.inria.gforge.spoon:spoon-core:jar:11.3.0 in the shaded jar.
+[INFO] [INFO] Including org.eclipse.jdt:org.eclipse.jdt.core:jar:3.41.0 in the shaded jar.
+[INFO] [INFO] Including org.eclipse.jdt:ecj:jar:3.41.0 in the shaded jar.
+[INFO] [INFO] Including com.martiansoftware:jsap:jar:2.1 in the shaded jar.
+[INFO] [INFO] Including org.slf4j:slf4j-api:jar:2.0.17 in the shaded jar.
+[INFO] [INFO] Including commons-io:commons-io:jar:2.21.0 in the shaded jar.
+[INFO] [INFO] Including org.apache.commons:commons-lang3:jar:3.20.0 in the shaded jar.
+[INFO] [INFO] Including org.apache.commons:commons-compress:jar:1.28.0 in the shaded jar.
+[INFO] [INFO] Including commons-codec:commons-codec:jar:1.19.0 in the shaded jar.
+[INFO] [INFO] Including org.jspecify:jspecify:jar:1.0.0 in the shaded jar.
+[INFO] [INFO] Including org.apache.maven.shared:maven-invoker:jar:3.3.0 in the shaded jar.
+[INFO] [INFO] Including org.apache.maven.shared:maven-shared-utils:jar:3.4.2 in the shaded jar.
+[INFO] [INFO] Including javax.inject:javax.inject:jar:1 in the shaded jar.
+[INFO] [INFO] Including com.fasterxml.jackson.core:jackson-databind:jar:2.17.2 in the shaded jar.
+[INFO] [INFO] Including com.fasterxml.jackson.core:jackson-core:jar:2.17.2 in the shaded jar.
+[INFO] [INFO] Including com.fasterxml.jackson.datatype:jackson-datatype-jsr310:jar:2.17.2 in the shaded jar.
+[INFO] [INFO] Including org.apache.maven:maven-model:jar:3.9.15 in the shaded jar.
+[INFO] [INFO] Including org.codehaus.plexus:plexus-utils:jar:3.6.1 in the shaded jar.
+[INFO] [INFO] Including org.slf4j:slf4j-simple:jar:2.0.17 in the shaded jar.
+[INFO] [INFO] Including org.yaml:snakeyaml:jar:2.3 in the shaded jar.
+[INFO] [INFO] Including org.apache.tinkerpop:tinkergraph-gremlin:jar:3.8.1 in the shaded jar.
+[INFO] [INFO] Including org.apache.tinkerpop:gremlin-core:jar:3.8.1 in the shaded jar.
+[INFO] [INFO] Including org.apache.tinkerpop:gremlin-shaded:jar:3.8.1 in the shaded jar.
+[INFO] [INFO] Including org.apache.tinkerpop:gremlin-language:jar:3.8.1 in the shaded jar.
+[INFO] [INFO] Including org.antlr:antlr4-runtime:jar:4.9.1 in the shaded jar.
+[INFO] [INFO] Including org.javatuples:javatuples:jar:1.2 in the shaded jar.
+[INFO] [INFO] Including org.apache.commons:commons-text:jar:1.10.0 in the shaded jar.
+[INFO] [INFO] Including org.slf4j:jcl-over-slf4j:jar:1.7.25 in the shaded jar.
+[INFO] [INFO] Including org.apache.commons:commons-configuration2:jar:2.9.0 in the shaded jar.
+[INFO] [INFO] Including commons-logging:commons-logging:jar:1.2 in the shaded jar.
+[INFO] [INFO] Including commons-beanutils:commons-beanutils:jar:1.9.4 in the shaded jar.
+[INFO] [INFO] Including commons-collections:commons-collections:jar:3.2.2 in the shaded jar.
+[INFO] [INFO] Including com.carrotsearch:hppc:jar:0.7.1 in the shaded jar.
+[INFO] [INFO] Including com.squareup:javapoet:jar:1.13.0 in the shaded jar.
+[INFO] [INFO] Including net.objecthunter:exp4j:jar:0.4.8 in the shaded jar.
+[INFO] [INFO] Including com.github.ben-manes.caffeine:caffeine:jar:2.3.1 in the shaded jar.
+[INFO] [INFO] Including com.fasterxml.jackson.core:jackson-annotations:jar:2.17.2 in the shaded jar.
+[INFO] [WARNING] Discovered module-info.class. Shading will break its strong encapsulation.
+[INFO] [WARNING] gremlin-core-3.8.1.jar, gremlin-language-3.8.1.jar, gremlin-shaded-3.8.1.jar, maven-invoker-3.3.0.jar, maven-model-3.9.15.jar, maven-shared-utils-3.4.2.jar, tinkergraph-gremlin-3.8.1.jar define 1 overlapping resource: 
+[INFO] [WARNING]   - META-INF/DEPENDENCIES
+[INFO] [WARNING] commons-codec-1.19.0.jar, commons-compress-1.28.0.jar, commons-io-2.21.0.jar, commons-lang3-3.20.0.jar, gremlin-shaded-3.8.1.jar, jackson-core-2.17.2.jar, jackson-databind-2.17.2.jar, jackson-datatype-jsr310-2.17.2.jar, jspecify-1.0.0.jar, slf4j-api-2.0.17.jar, slf4j-simple-2.0.17.jar, snakeyaml-2.3.jar define 1 overlapping classes: 
+[INFO] [WARNING]   - META-INF.versions.9.module-info
+[INFO] [WARNING] ecj-3.41.0.jar, org.eclipse.jdt.core-3.41.0.jar define 3 overlapping resources: 
+[INFO] [WARNING]   - .api_description
+[INFO] [WARNING]   - META-INF/eclipse.inf
+[INFO] [WARNING]   - about.html
+[INFO] [WARNING] gremlin-core-3.8.1.jar, gremlin-language-3.8.1.jar, gremlin-shaded-3.8.1.jar, jackson-annotations-2.17.2.jar, jackson-core-2.17.2.jar, jackson-databind-2.17.2.jar, jackson-datatype-jsr310-2.17.2.jar, maven-invoker-3.3.0.jar, maven-model-3.9.15.jar, maven-shared-utils-3.4.2.jar, plexus-utils-3.6.1.jar, tinkergraph-gremlin-3.8.1.jar define 2 overlapping resources: 
+[INFO] [WARNING]   - META-INF/LICENSE
+[INFO] [WARNING]   - META-INF/NOTICE
+[INFO] [WARNING] gremlin-shaded-3.8.1.jar, jackson-annotations-2.17.2.jar define 2 overlapping resources: 
+[INFO] [WARNING]   - META-INF/maven/com.fasterxml.jackson.core/jackson-annotations/pom.properties
+[INFO] [WARNING]   - META-INF/maven/com.fasterxml.jackson.core/jackson-annotations/pom.xml
+[INFO] [WARNING] commons-beanutils-1.9.4.jar, commons-codec-1.19.0.jar, commons-collections-3.2.2.jar, commons-compress-1.28.0.jar, commons-configuration2-2.9.0.jar, commons-io-2.21.0.jar, commons-lang3-3.20.0.jar, commons-logging-1.2.jar, commons-text-1.10.0.jar, javatuples-1.2.jar define 1 overlapping resource: 
+[INFO] [WARNING]   - META-INF/NOTICE.txt
+[INFO] [WARNING] commons-beanutils-1.9.4.jar, commons-codec-1.19.0.jar, commons-collections-3.2.2.jar, commons-compress-1.28.0.jar, commons-configuration2-2.9.0.jar, commons-io-2.21.0.jar, commons-lang3-3.20.0.jar, commons-logging-1.2.jar, commons-text-1.10.0.jar, javatuples-1.2.jar, slf4j-api-2.0.17.jar, slf4j-simple-2.0.17.jar define 1 overlapping resource: 
+[INFO] [WARNING]   - META-INF/LICENSE.txt
+[INFO] [WARNING] gremlin-shaded-3.8.1.jar, jackson-databind-2.17.2.jar define 2 overlapping resources: 
+[INFO] [WARNING]   - META-INF/maven/com.fasterxml.jackson.core/jackson-databind/pom.properties
+[INFO] [WARNING]   - META-INF/maven/com.fasterxml.jackson.core/jackson-databind/pom.xml
+[INFO] [WARNING] gremlin-shaded-3.8.1.jar, jackson-core-2.17.2.jar define 2 overlapping resources: 
+[INFO] [WARNING]   - META-INF/maven/com.fasterxml.jackson.core/jackson-core/pom.properties
+[INFO] [WARNING]   - META-INF/maven/com.fasterxml.jackson.core/jackson-core/pom.xml
+[INFO] [WARNING] antlr4-runtime-4.9.1.jar, caffeine-2.3.1.jar, commons-beanutils-1.9.4.jar, commons-codec-1.19.0.jar, commons-collections-3.2.2.jar, commons-compress-1.28.0.jar, commons-configuration2-2.9.0.jar, commons-io-2.21.0.jar, commons-lang3-3.20.0.jar, commons-logging-1.2.jar, commons-text-1.10.0.jar, ecj-3.41.0.jar, exp4j-0.4.8.jar, gremlin-core-3.8.1.jar, gremlin-language-3.8.1.jar, gremlin-shaded-3.8.1.jar, hppc-0.7.1.jar, jackson-annotations-2.17.2.jar, jackson-core-2.17.2.jar, jackson-databind-2.17.2.jar, jackson-datatype-jsr310-2.17.2.jar, javapoet-1.13.0.jar, javatuples-1.2.jar, jcl-over-slf4j-1.7.25.jar, jsap-2.1.jar, jspecify-1.0.0.jar, maven-invoker-3.3.0.jar, maven-model-3.9.15.jar, maven-shared-utils-3.4.2.jar, org.eclipse.jdt.core-3.41.0.jar, plexus-utils-3.6.1.jar, slf4j-api-2.0.17.jar, slf4j-simple-2.0.17.jar, snakeyaml-2.3.jar, spoon-core-11.3.0.jar, spoon-mcp-server-1.0.2.jar, tinkergraph-gremlin-3.8.1.jar define 1 overlapping resource: 
+[INFO] [WARNING]   - META-INF/MANIFEST.MF
+[INFO] [WARNING] commons-configuration2-2.9.0.jar, spoon-core-11.3.0.jar define 1 overlapping resource: 
+[INFO] [WARNING]   - properties.dtd
+[INFO] [WARNING] commons-logging-1.2.jar, jcl-over-slf4j-1.7.25.jar define 6 overlapping classes: 
+[INFO] [WARNING]   - org.apache.commons.logging.Log
+[INFO] [WARNING]   - org.apache.commons.logging.LogConfigurationException
+[INFO] [WARNING]   - org.apache.commons.logging.LogFactory
+[INFO] [WARNING]   - org.apache.commons.logging.impl.NoOpLog
+[INFO] [WARNING]   - org.apache.commons.logging.impl.SimpleLog
+[INFO] [WARNING]   - org.apache.commons.logging.impl.SimpleLog$1
+[INFO] [WARNING] maven-shade-plugin has detected that some files are
+[INFO] [WARNING] present in two or more JARs. When this happens, only one
+[INFO] [WARNING] single version of the file is copied to the uber jar.
+[INFO] [WARNING] Usually this is not harmful and you can skip these warnings,
+[INFO] [WARNING] otherwise try to manually exclude artifacts based on
+[INFO] [WARNING] mvn dependency:tree -Ddetail=true and the above output.
+[INFO] [WARNING] See https://maven.apache.org/plugins/maven-shade-plugin/
+[INFO] [INFO] Replacing original artifact with shaded artifact.
+[INFO] [INFO] Replacing /home/dominik/spoon-mcp-server/target/checkout/target/spoon-mcp-server-1.0.2.jar with /home/dominik/spoon-mcp-server/target/checkout/target/spoon-mcp-server-1.0.2-shaded.jar
+[INFO] [INFO] 
+[INFO] [INFO] --- source:3.3.1:jar-no-fork (attach-sources) @ spoon-mcp-server ---
+[INFO] [INFO] Building jar: /home/dominik/spoon-mcp-server/target/checkout/target/spoon-mcp-server-1.0.2-sources.jar
+[INFO] [INFO] 
+[INFO] [INFO] --- javadoc:3.11.2:jar (attach-javadocs) @ spoon-mcp-server ---
+[INFO] [INFO] No previous run data found, generating javadoc.
+[INFO] [WARNING] Javadoc Warnings
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/extractor/MessagingCallSiteResolver.java:222: warning: no @param for fieldName
+[INFO] [WARNING] public record Finding(String fieldName, MessagingBroker broker, Role role, String topic, int line) {}
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/extractor/MessagingCallSiteResolver.java:222: warning: no @param for broker
+[INFO] [WARNING] public record Finding(String fieldName, MessagingBroker broker, Role role, String topic, int line) {}
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/extractor/MessagingCallSiteResolver.java:222: warning: no @param for role
+[INFO] [WARNING] public record Finding(String fieldName, MessagingBroker broker, Role role, String topic, int line) {}
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/extractor/MessagingCallSiteResolver.java:222: warning: no @param for topic
+[INFO] [WARNING] public record Finding(String fieldName, MessagingBroker broker, Role role, String topic, int line) {}
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/extractor/MessagingCallSiteResolver.java:222: warning: no @param for line
+[INFO] [WARNING] public record Finding(String fieldName, MessagingBroker broker, Role role, String topic, int line) {}
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/extractor/MessagingCallSiteResolver.java:219: warning: no @param for broker
+[INFO] [WARNING] public record TrackedField(MessagingBroker broker, Role role) {}
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/extractor/MessagingCallSiteResolver.java:219: warning: no @param for role
+[INFO] [WARNING] public record TrackedField(MessagingBroker broker, Role role) {}
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/model/DataFlowSink.java:25: warning: no comment
+[INFO] [WARNING] public DataFlowSink(String kind, String componentId, String componentName,
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/model/DataFlowSink.java:34: warning: no comment
+[INFO] [WARNING] public DataFlowSink(String kind, String componentId, String componentName,
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/model/DataFlowStep.java:21: warning: no comment
+[INFO] [WARNING] public DataFlowStep(int index, String componentId, String componentName,
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/model/FieldAccess.java:14: warning: no comment
+[INFO] [WARNING] public enum Kind { READ, WRITE }
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/model/FieldAccess.java:14: warning: no comment
+[INFO] [WARNING] public enum Kind { READ, WRITE }
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/model/MessagingBroker.java:9: warning: no comment
+[INFO] [WARNING] AMQP,
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/model/MessagingBroker.java:7: warning: no comment
+[INFO] [WARNING] KAFKA,
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/model/MessagingBroker.java:8: warning: no comment
+[INFO] [WARNING] MQTT,
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/model/MessagingBroker.java:11: warning: no comment
+[INFO] [WARNING] PULSAR,
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/model/MessagingBroker.java:10: warning: no comment
+[INFO] [WARNING] RABBITMQ,
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/model/MessagingBroker.java:12: warning: no comment
+[INFO] [WARNING] UNKNOWN
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/extractor/MessagingCallSiteResolver.java:225: warning: no comment
+[INFO] [WARNING] public enum Role { PRODUCER, CONSUMER }
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/extractor/MessagingCallSiteResolver.java:225: warning: no comment
+[INFO] [WARNING] public enum Role { PRODUCER, CONSUMER }
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderCallFlowTool.java:19: warning: no comment
+[INFO] [WARNING] public RenderCallFlowTool(ModelCache cache) {
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderCallFlowTool.java:23: warning: no comment
+[INFO] [WARNING] public String execute(JsonNode args) {
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderUseCaseTimelineTool.java:20: warning: no comment
+[INFO] [WARNING] public RenderUseCaseTimelineTool(ModelCache cache) {
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderUseCaseTimelineTool.java:24: warning: no comment
+[INFO] [WARNING] public String execute(JsonNode args) {
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/model/RuntimeFlow.java:24: warning: no comment
+[INFO] [WARNING] public String fromId;
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/model/RuntimeFlow.java:26: warning: no comment
+[INFO] [WARNING] public String label;
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/model/RuntimeFlow.java:25: warning: no comment
+[INFO] [WARNING] public String toId;
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/model/RuntimeFlow.java:28: warning: no comment
+[INFO] [WARNING] public FlowEdge() {}
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/model/RuntimeFlow.java:30: warning: no comment
+[INFO] [WARNING] public FlowEdge(String fromId, String toId, String label) {
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/TraceDataFlowTool.java:21: warning: no comment
+[INFO] [WARNING] public TraceDataFlowTool(ModelCache cache) {
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/TraceDataFlowTool.java:25: warning: no comment
+[INFO] [WARNING] public String execute(JsonNode args) {
+[INFO] [WARNING] ^
+[INFO] [WARNING] /home/dominik/spoon-mcp-server/target/checkout/src/main/java/dev/dominikbreu/spoonmcp/model/UseCaseNamingConfig.java:55: warning: no @return
+[INFO] [WARNING] public static UseCaseNamingConfig empty() {
+[INFO] [WARNING] ^
+[INFO] [WARNING] 32 warnings
+[INFO] [INFO] Building jar: /home/dominik/spoon-mcp-server/target/checkout/target/spoon-mcp-server-1.0.2-javadoc.jar
+[INFO] [INFO] 
+[INFO] [INFO] --- jreleaser:1.23.0:full-release (default-cli) @ spoon-mcp-server ---
+[INFO] [INFO] JReleaser 1.23.0
+[INFO] [INFO] Configuring with /home/dominik/spoon-mcp-server/target/checkout/jreleaser.yml
+[INFO] [INFO]   - basedir set to /home/dominik/spoon-mcp-server/target/checkout
+[INFO] [INFO]   - outputdir set to /home/dominik/spoon-mcp-server/target/checkout/target/jreleaser
+[INFO] [INFO] Reading configuration
+[INFO] [INFO] git-root-search set to false
+[INFO] [INFO] ------------------------------------------------------------------------
+[INFO] [INFO] BUILD FAILURE
+[INFO] [INFO] ------------------------------------------------------------------------
+[INFO] [INFO] Total time:  16.076 s
+[INFO] [INFO] Finished at: 2026-05-01T11:49:21+02:00
+[INFO] [INFO] ------------------------------------------------------------------------
+[INFO] [ERROR] Failed to execute goal org.jreleaser:jreleaser-maven-plugin:1.23.0:full-release (default-cli) on project spoon-mcp-server: JReleaser for project spoon-mcp-server has not been properly configured.: Could not determine remote: Cannot invoke "String.hashCode()" because "<local7>" is null -> [Help 1]
+[INFO] [ERROR] 
+[INFO] [ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[INFO] [ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[INFO] [ERROR] 
+[INFO] [ERROR] For more information about the errors and possible solutions, please read the following articles:
+[INFO] [ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  23.733 s
+[INFO] Finished at: 2026-05-01T11:49:21+02:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-release-plugin:3.1.1:perform (default-cli) on project spoon-mcp-server: Maven execution failed, exit code: 1 -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException
