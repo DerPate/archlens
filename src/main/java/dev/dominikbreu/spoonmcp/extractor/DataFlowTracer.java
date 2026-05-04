@@ -94,7 +94,12 @@ public class DataFlowTracer {
         path.steps.add(new DataFlowStep(path.steps.size(), compId, compName, method, trackedName));
 
         for (FieldAccess fw : writes.getOrDefault(compId + "#" + method, List.of())) {
-            if (matchesTracked(trackedName, fw.sourceVarName)) {
+            // At depth 0 we are directly inside the entrypoint method body. Any write to
+            // shared state here is causally connected to the entrypoint invocation even
+            // when the stored value was derived from the parameter (e.g. extracted into a
+            // local variable) and the sourceVarName therefore differs from trackedName.
+            boolean isEntrypointBody = depth == 0 && !"*".equals(trackedName);
+            if (isEntrypointBody || matchesTracked(trackedName, fw.sourceVarName)) {
                 path.sinks.add(new DataFlowSink(
                     "store",
                     fw.fieldOwnerComponentId,

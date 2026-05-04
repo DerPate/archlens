@@ -331,6 +331,14 @@ component (http-outbound), or a call edge with kind `messaging` or `event-bus`. 
 names are tracked across call hops using the `paramMapping` captured at each call site;
 when the mapping is absent the name is carried forward as a best-effort approximation.
 
+**Two-phase pipeline support (store sinks):** writes to shared in-memory state fields
+(e.g. `ConcurrentHashMap` caches) inside a `MESSAGING_CONSUMER` entrypoint are reported
+as `store` sinks, even though no direct call edge connects the consumer to a downstream
+component. For `SCHEDULER` entrypoints that have no method parameters, the tracer
+automatically seeds tracking from any shared-state field that the entrypoint or its
+transitively called methods read — the resulting path's `trackedParam` is the field name,
+allowing agents to stitch a consumer's `store` sink to the matching scheduler path.
+
 Requires call-graph data from `index_workspace`. Without it, the paths list will be empty.
 
 Arguments:
@@ -339,7 +347,7 @@ Arguments:
 - `entrypointName` string, optional. Filter by entrypoint name or HTTP path (partial match).
 - `param` string, optional. Filter by tracked parameter name.
 - `sinkKind` string, optional. Filter by sink kind: `persistence`, `messaging`,
-  `http-outbound`, or `event-bus`.
+  `http-outbound`, `event-bus`, or `store`.
 
 Example — trace all data-flow paths:
 
@@ -365,7 +373,13 @@ Example — trace a specific parameter:
 { "entrypointName": "POST /orders", "param": "order" }
 ```
 
-Sample output:
+Example — find all store sinks (shared in-memory state writes from messaging consumers):
+
+```json
+{ "sinkKind": "store" }
+```
+
+Sample output — REST entrypoints:
 
 ```
 3 data-flow path(s):
@@ -388,6 +402,32 @@ Sample output:
   sinks:
     - [persistence] OrderRepository.findById  (OrderService.java:17)
 ```
+
+Sample output — two-phase pipeline (`MESSAGING_CONSUMER` → cache → `SCHEDULER`):
+
+```
+2 data-flow path(s):
+
+## handle (device-snapshots) → param: snapshot
+  id: df:ep:com.example.DeviceConsumer#handle:msg-in:device-snapshots#snapshot
+  flow:
+    1. DeviceConsumer.handle (as 'snapshot')
+    2. StateCache.put (as 'snapshot')
+  sinks:
+    - [store] stateCache  field owner: StateCache  (DeviceConsumer.java:42)
+
+## processSnapshots → param: stateCache
+  id: df:ep:com.example.scheduler.SnapshotProcessor#processSnapshots#stateCache
+  flow:
+    1. SnapshotProcessor.processSnapshots (as 'stateCache')
+    2. StateCalculator.calculate (as 'entry')
+  sinks:
+    - [messaging] mqttEmitter.send  (StateCalculator.java:67)
+    - [persistence] SnapshotRepository.save  (StateCalculator.java:72)
+```
+
+The matching field name (`stateCache`) in both paths identifies the shared state linking the
+two phases. Agents can stitch these into a single cross-phase pipeline diagram.
 
 ---
 

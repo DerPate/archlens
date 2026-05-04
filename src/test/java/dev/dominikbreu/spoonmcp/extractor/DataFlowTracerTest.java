@@ -187,6 +187,47 @@ class DataFlowTracerTest {
     }
 
     @Test
+    void incomingConsumerStoringDerivedVariableEmitsStoreSinkAtDepthZero() {
+        // Regression test: parameter is destructured into a local variable before being
+        // stored (e.g. store.put(device, map.get(device)) where `device` is extracted from
+        // the entrypoint parameter `deviceSnapshot`). sourceVarName="device" != "deviceSnapshot"
+        // but depth==0 means we are still inside the entrypoint body, so the store sink
+        // should be emitted regardless.
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("DeviceStateDataService", ComponentType.SERVICE));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id          = "ep:ingest";
+        ep.name        = "ingest";
+        ep.type        = EntrypointType.MESSAGING_CONSUMER;
+        ep.componentId = "comp:DeviceStateDataService";
+        ep.parameters.add("deviceSnapshot");
+        model.entrypoints.add(ep);
+
+        FieldAccess fw = new FieldAccess();
+        fw.kind                  = FieldAccess.Kind.WRITE;
+        fw.componentId           = "comp:DeviceStateDataService";
+        fw.fieldOwnerComponentId = "comp:DeviceStateDataService";
+        fw.method                = "ingest";
+        fw.fieldName             = "store";
+        fw.sourceVarName         = "device"; // derived local var, not the raw param name
+        fw.id                    = "field:comp:DeviceStateDataService#ingest@store:write";
+        model.fieldAccesses.add(fw);
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        assertThat(paths).anySatisfy(p -> {
+            assertThat(p.entrypointId).isEqualTo("ep:ingest");
+            assertThat(p.trackedParam).isEqualTo("deviceSnapshot");
+            assertThat(p.sinks).anySatisfy(s -> {
+                assertThat(s.kind).isEqualTo("store");
+                assertThat(s.fieldName).isEqualTo("store");
+                assertThat(s.fieldOwnerComponentId).isEqualTo("comp:DeviceStateDataService");
+            });
+        });
+    }
+
+    @Test
     void schedulerReadingCacheSeedsTrackingFromFieldName() {
         ArchitectureModel model = new ArchitectureModel("test");
         model.components.add(comp("StateScheduler", ComponentType.SCHEDULER));
