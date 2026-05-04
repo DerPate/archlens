@@ -42,6 +42,18 @@ java -jar target/spoon-mcp-server-1.0.0-SNAPSHOT.jar
 - Prefer entity/model changes that are covered by focused tests.
 - Update `docs/TOOLS.md` when adding or changing MCP tools.
 - Update `docs/ARCHITECTURE.md` when changing major package responsibilities.
+- When adding new graph vertex/edge labels in `cache/ArchitectureGraph.java`, also:
+  - extend the property/edge catalog in `docs/TOOLS.md` (`query_architecture_graph` section);
+  - update `llms.txt` "Notes For Agents";
+  - extend `reachableFromEntrypoints` if the new edge should propagate
+    `entrypointReachable=true` to the new vertices;
+  - add coverage in `cache/ArchitectureGraphTest.java`.
+- When extending `MessagingConfigResolver` (broker / topic / new connector kinds), also
+  update the "Messaging entrypoints" paragraph in `docs/TOOLS.md` and the
+  `Entrypoint` / `InterfaceEntry` model fields.
+- When extending `DataFlowTracer` (new sink kind, new propagation rule, new sink
+  metadata), also update the "trace_data_flow" section in `docs/TOOLS.md`,
+  `DataFlowSink.Kind` Javadoc, and `llms.txt`.
 - Do not commit generated output from `target/`, `.spoon-mcp-cache/`, or `dependency-reduced-pom.xml`.
 - Do not add GitHub Actions, hooks, or release automation unless explicitly requested.
 

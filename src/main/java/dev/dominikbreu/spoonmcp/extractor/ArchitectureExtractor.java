@@ -77,19 +77,56 @@ public class ArchitectureExtractor {
         return model;
     }
 
-    private void applyMessagingBrokers(ArchitectureModel model, String appId, Map<String, MessagingBroker> resolved) {
-        if (resolved.isEmpty()) return;
+    private void applyMessagingBrokers(ArchitectureModel model, String appId,
+                                       Map<String, MessagingConfigResolver.ChannelConfig> resolved) {
+        // Pass A: apply config-resolved broker + topic.
         for (Entrypoint ep : model.entrypoints) {
             if (!appId.equals(componentModule(model, ep.componentId))) continue;
             if (ep.channelName == null) continue;
-            MessagingBroker broker = resolved.get(ep.channelName);
-            if (broker != null) ep.broker = broker;
+            MessagingConfigResolver.ChannelConfig cfg = resolved.get(ep.channelName);
+            if (cfg == null) continue;
+            ep.broker = cfg.broker;
+            if (cfg.topic != null) ep.topic = cfg.topic;
         }
         for (InterfaceEntry iface : model.interfaces) {
             if (!appId.equals(iface.module)) continue;
             if (iface.path == null) continue;
-            MessagingBroker broker = resolved.get(iface.path);
-            if (broker != null) iface.broker = broker;
+            MessagingConfigResolver.ChannelConfig cfg = resolved.get(iface.path);
+            if (cfg == null) continue;
+            iface.broker = cfg.broker;
+            if (cfg.topic != null) iface.topic = cfg.topic;
+        }
+
+        // Pass B: tag in-memory channels — channel referenced by both an @Incoming consumer
+        // and an @Outgoing producer in this app, with no connector property.
+        Set<String> producerChannels = new HashSet<>();
+        Set<String> consumerChannels = new HashSet<>();
+        for (Entrypoint ep : model.entrypoints) {
+            if (!appId.equals(componentModule(model, ep.componentId))) continue;
+            if (ep.channelName == null) continue;
+            if (ep.type == EntrypointType.MESSAGING_PRODUCER) producerChannels.add(ep.channelName);
+            if (ep.type == EntrypointType.MESSAGING_CONSUMER) consumerChannels.add(ep.channelName);
+        }
+        Set<String> inMemory = new HashSet<>(producerChannels);
+        inMemory.retainAll(consumerChannels);
+        // Only re-tag channels with no resolved connector.
+        inMemory.removeIf(ch -> {
+            MessagingConfigResolver.ChannelConfig cfg = resolved.get(ch);
+            return cfg != null && cfg.broker != MessagingBroker.UNKNOWN;
+        });
+        if (inMemory.isEmpty()) return;
+
+        for (Entrypoint ep : model.entrypoints) {
+            if (!appId.equals(componentModule(model, ep.componentId))) continue;
+            if (ep.channelName != null && inMemory.contains(ep.channelName)) {
+                ep.broker = MessagingBroker.IN_MEMORY;
+            }
+        }
+        for (InterfaceEntry iface : model.interfaces) {
+            if (!appId.equals(iface.module)) continue;
+            if (iface.path != null && inMemory.contains(iface.path)) {
+                iface.broker = MessagingBroker.IN_MEMORY;
+            }
         }
     }
 
@@ -181,7 +218,7 @@ public class ArchitectureExtractor {
         }
         eventBusExtractor.extract(types, model, app.id);
 
-        Map<String, MessagingBroker> resolved = messagingConfigResolver.resolve(root);
+        Map<String, MessagingConfigResolver.ChannelConfig> resolved = messagingConfigResolver.resolve(root);
         applyMessagingBrokers(model, app.id, resolved);
     }
 

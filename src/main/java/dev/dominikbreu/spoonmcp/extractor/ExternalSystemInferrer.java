@@ -55,6 +55,7 @@ public class ExternalSystemInferrer {
         for (InterfaceEntry iface : model.interfaces) {
             if (!isMessagingInterface(iface.type)) continue;
             MessagingBroker broker = iface.broker != null ? iface.broker : MessagingBroker.UNKNOWN;
+            if (broker == MessagingBroker.IN_MEMORY) continue;
             ExternalSystem system = systemForBroker(systemsById, broker);
             addDependency(model, existingDeps, iface.componentId, system.id, "messaging");
         }
@@ -62,6 +63,7 @@ public class ExternalSystemInferrer {
         for (Entrypoint ep : model.entrypoints) {
             if (ep.type != EntrypointType.MESSAGING_CONSUMER && ep.type != EntrypointType.MESSAGING_PRODUCER) continue;
             MessagingBroker broker = ep.broker != null ? ep.broker : MessagingBroker.UNKNOWN;
+            if (broker == MessagingBroker.IN_MEMORY) continue;
             ExternalSystem system = systemForBroker(systemsById, broker);
             addDependency(model, existingDeps, ep.componentId, system.id, "messaging");
         }
@@ -98,6 +100,7 @@ public class ExternalSystemInferrer {
             case AMQP -> "AMQP";
             case RABBITMQ -> "RabbitMQ";
             case PULSAR -> "Pulsar";
+            case IN_MEMORY -> "In-memory channel";
             case UNKNOWN -> "Messaging (unknown broker)";
         };
     }

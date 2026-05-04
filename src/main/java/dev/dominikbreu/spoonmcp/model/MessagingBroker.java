@@ -9,5 +9,7 @@ public enum MessagingBroker {
     AMQP,
     RABBITMQ,
     PULSAR,
+    /** SmallRye in-memory channel — handoff between two beans within the same JVM, no external broker. */
+    IN_MEMORY,
     UNKNOWN
 }

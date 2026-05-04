@@ -5,10 +5,10 @@ Generated from the indexed `ArchitectureModel` by the MCP tool `export_architect
 ## Summary
 
 - Applications: 1
-- Components: 71
+- Components: 72
 - Entrypoints: 1
 - Interfaces: 0
-- Dependencies: 84
+- Dependencies: 85
 - Runtime flows: 1
 
 ## Source Overview
@@ -85,6 +85,7 @@ flowchart TD
         comp_dev_dominikbreu_spoonmcp_model_Entrypoint["Entrypoint\nENTITY"]
         comp_dev_dominikbreu_spoonmcp_model_EntrypointType["EntrypointType\nENTITY"]
         comp_dev_dominikbreu_spoonmcp_model_ExternalSystem["ExternalSystem\nENTITY"]
+        comp_dev_dominikbreu_spoonmcp_model_FieldAccess["FieldAccess\nENTITY"]
         comp_dev_dominikbreu_spoonmcp_model_InterfaceEntry["InterfaceEntry\nENTITY"]
         comp_dev_dominikbreu_spoonmcp_model_MessagingBroker["MessagingBroker\nENTITY"]
         comp_dev_dominikbreu_spoonmcp_model_RuntimeFlow["RuntimeFlow\nENTITY"]
@@ -185,6 +186,7 @@ flowchart TD
     comp_dev_dominikbreu_spoonmcp_model_Entrypoint --> comp_dev_dominikbreu_spoonmcp_model_EntrypointType
     comp_dev_dominikbreu_spoonmcp_model_Entrypoint --> comp_dev_dominikbreu_spoonmcp_model_MessagingBroker
     comp_dev_dominikbreu_spoonmcp_model_Entrypoint --> comp_dev_dominikbreu_spoonmcp_model_SourceInfo
+    comp_dev_dominikbreu_spoonmcp_model_FieldAccess --> comp_dev_dominikbreu_spoonmcp_model_SourceInfo
     comp_dev_dominikbreu_spoonmcp_model_InterfaceEntry --> comp_dev_dominikbreu_spoonmcp_model_MessagingBroker
     comp_dev_dominikbreu_spoonmcp_model_InterfaceEntry --> comp_dev_dominikbreu_spoonmcp_model_SourceInfo
     comp_dev_dominikbreu_spoonmcp_model_UseCase --> comp_dev_dominikbreu_spoonmcp_model_EntrypointType
@@ -265,6 +267,7 @@ flowchart TD
             comp_dev_dominikbreu_spoonmcp_model_Entrypoint[("ENTITY\nEntrypoint")]
             comp_dev_dominikbreu_spoonmcp_model_EntrypointType[("ENTITY\nEntrypointType")]
             comp_dev_dominikbreu_spoonmcp_model_ExternalSystem[("ENTITY\nExternalSystem")]
+            comp_dev_dominikbreu_spoonmcp_model_FieldAccess[("ENTITY\nFieldAccess")]
             comp_dev_dominikbreu_spoonmcp_model_InterfaceEntry[("ENTITY\nInterfaceEntry")]
             comp_dev_dominikbreu_spoonmcp_model_MessagingBroker[("ENTITY\nMessagingBroker")]
             comp_dev_dominikbreu_spoonmcp_model_RuntimeFlow[("ENTITY\nRuntimeFlow")]
@@ -366,6 +369,7 @@ flowchart TD
     comp_dev_dominikbreu_spoonmcp_model_Entrypoint -->|field-reference| comp_dev_dominikbreu_spoonmcp_model_EntrypointType
     comp_dev_dominikbreu_spoonmcp_model_Entrypoint -->|field-reference| comp_dev_dominikbreu_spoonmcp_model_MessagingBroker
     comp_dev_dominikbreu_spoonmcp_model_Entrypoint -->|field-reference| comp_dev_dominikbreu_spoonmcp_model_SourceInfo
+    comp_dev_dominikbreu_spoonmcp_model_FieldAccess -->|field-reference| comp_dev_dominikbreu_spoonmcp_model_SourceInfo
     comp_dev_dominikbreu_spoonmcp_model_InterfaceEntry -->|field-reference| comp_dev_dominikbreu_spoonmcp_model_MessagingBroker
     comp_dev_dominikbreu_spoonmcp_model_InterfaceEntry -->|field-reference| comp_dev_dominikbreu_spoonmcp_model_SourceInfo
     comp_dev_dominikbreu_spoonmcp_model_UseCase -->|field-reference| comp_dev_dominikbreu_spoonmcp_model_EntrypointType
@@ -382,7 +386,7 @@ flowchart TD
         container_app_spoon_mcp_server_mcp_server["mcp-server\n1 component"]
         container_app_spoon_mcp_server_mcp_tools["mcp-tools\n19 components"]
         container_app_spoon_mcp_server_deployment_merge["deployment-merge\n3 components"]
-        container_app_spoon_mcp_server_model["model\n21 components"]
+        container_app_spoon_mcp_server_model["model\n22 components"]
         container_app_spoon_mcp_server_renderer["renderer\n6 components"]
         container_app_spoon_mcp_server_scanner["scanner\n1 component"]
     end
@@ -505,6 +509,7 @@ flowchart LR
 - `dev.dominikbreu.spoonmcp.model.Entrypoint` (java)
 - `dev.dominikbreu.spoonmcp.model.EntrypointType` (java)
 - `dev.dominikbreu.spoonmcp.model.ExternalSystem` (java)
+- `dev.dominikbreu.spoonmcp.model.FieldAccess` (java)
 - `dev.dominikbreu.spoonmcp.model.InterfaceEntry` (java)
 - `dev.dominikbreu.spoonmcp.model.MessagingBroker` (java)
 - `dev.dominikbreu.spoonmcp.model.RuntimeFlow` (java)
@@ -578,7 +583,7 @@ flowchart LR
     dep_mcp["mcp\n1 components"]
     dep_mcp_tools["mcp.tools\n19 components"]
     dep_merger["merger\n3 components\n2 internal deps"]
-    dep_model["model\n21 components\n10 internal deps"]
+    dep_model["model\n22 components\n11 internal deps"]
     dep_renderer["renderer\n6 components"]
     dep_scanner["scanner\n1 components"]
     dep_spoonmcp["spoonmcp\n1 components"]
@@ -687,6 +692,7 @@ flowchart LR
 - `comp:dev.dominikbreu.spoonmcp.model.Entrypoint` -> `comp:dev.dominikbreu.spoonmcp.model.EntrypointType` (field-reference, type-relation, evidence-score=0.6)
 - `comp:dev.dominikbreu.spoonmcp.model.Entrypoint` -> `comp:dev.dominikbreu.spoonmcp.model.MessagingBroker` (field-reference, type-relation, evidence-score=0.6)
 - `comp:dev.dominikbreu.spoonmcp.model.Entrypoint` -> `comp:dev.dominikbreu.spoonmcp.model.SourceInfo` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.model.FieldAccess` -> `comp:dev.dominikbreu.spoonmcp.model.SourceInfo` (field-reference, type-relation, evidence-score=0.6)
 - `comp:dev.dominikbreu.spoonmcp.model.InterfaceEntry` -> `comp:dev.dominikbreu.spoonmcp.model.MessagingBroker` (field-reference, type-relation, evidence-score=0.6)
 - `comp:dev.dominikbreu.spoonmcp.model.InterfaceEntry` -> `comp:dev.dominikbreu.spoonmcp.model.SourceInfo` (field-reference, type-relation, evidence-score=0.6)
 - `comp:dev.dominikbreu.spoonmcp.model.UseCase` -> `comp:dev.dominikbreu.spoonmcp.model.EntrypointType` (field-reference, type-relation, evidence-score=0.6)

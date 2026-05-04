@@ -55,9 +55,16 @@ Arguments:
 - `type` string, optional. One of `REST_ENDPOINT`, `JMS_CONSUMER`, `MESSAGING_CONSUMER`,
   `MESSAGING_PRODUCER`, `SCHEDULER`, `EJB_BUSINESS_METHOD`.
 
-Messaging entrypoints carry `channelName` (Reactive Messaging channel) and `broker`
-(`KAFKA`, `MQTT`, `AMQP`, `RABBITMQ`, `PULSAR`, or `UNKNOWN`). The broker is resolved from
-`mp.messaging.{incoming|outgoing}.{channel}.connector` in `application.properties`.
+Messaging entrypoints carry `channelName` (Reactive Messaging channel), `broker`
+(`KAFKA`, `MQTT`, `AMQP`, `RABBITMQ`, `PULSAR`, `IN_MEMORY`, or `UNKNOWN`), and `topic`
+(broker-side destination — Kafka topic, AMQP address, RabbitMQ queue/exchange — when set
+in configuration; falls back to the channel name otherwise).
+
+The broker is resolved from `mp.messaging.{incoming|outgoing}.{channel}.connector` in
+`application.properties` / `application.yaml`. Channels with no `connector` property that
+are referenced by both an `@Incoming` and an `@Outgoing` declaration in the same module
+are tagged `IN_MEMORY` (SmallRye in-memory channel — internal handoff, no external broker,
+no external system created). The same fields are populated on `InterfaceEntry` records.
 
 Each entrypoint also includes a `parameters` list (method parameter names populated during
 call-graph extraction), which powers `trace_data_flow`.
@@ -339,6 +346,13 @@ automatically seeds tracking from any shared-state field that the entrypoint or 
 transitively called methods read — the resulting path's `trackedParam` is the field name,
 allowing agents to stitch a consumer's `store` sink to the matching scheduler path.
 
+**Cross-entrypoint linkage (`linkedPathIds`):** every `store` sink carries a
+`linkedPathIds` list pointing to the IDs of downstream `DataFlowPath`s whose entrypoint
+transitively reads the same `(fieldOwnerComponentId, fieldName)`. This makes the
+consumer → cache → producer/scheduler hand-off explicit so agents do not need to match
+field names heuristically. The same relation is projected as a `LINKS_TO` edge in the
+property graph (see `query_architecture_graph`).
+
 Requires call-graph data from `index_workspace`. Without it, the paths list will be empty.
 
 Arguments:
@@ -427,7 +441,9 @@ Sample output — two-phase pipeline (`MESSAGING_CONSUMER` → cache → `SCHEDU
 ```
 
 The matching field name (`stateCache`) in both paths identifies the shared state linking the
-two phases. Agents can stitch these into a single cross-phase pipeline diagram.
+two phases. The consumer's `store` sink also carries
+`linkedPathIds: ["df:ep:com.example.scheduler.SnapshotProcessor#processSnapshots#stateCache"]`,
+so agents can stitch the cross-phase pipeline without name matching.
 
 ---
 
@@ -480,8 +496,8 @@ Arguments: none.
 ## `query_architecture_graph`
 
 Query the indexed architecture model as a graph. The graph view includes applications,
-components, entrypoints, interfaces, containers, deployments, runtime flows, and their
-relationships.
+components, entrypoints, interfaces, containers, deployments, runtime flows, data-flow
+paths, data-flow sinks, and their relationships.
 
 Set `SPOON_MCP_CACHE_BACKEND=graph` or `-Dspoonmcp.cache.backend=graph` to eagerly
 maintain the graph projection during cache store/load. With the default JSON backend,
@@ -508,8 +524,34 @@ Useful graph properties include:
 - Component nodes: `componentType`, `qualifiedName`, `packageName`, `module`, `technology`,
   `sourceFile`, `sourceLine`, `confidence`, `fanIn`, `fanOut`, `entrypointReachable`.
 - Entrypoint nodes: `entrypointType`, `protocol`, `httpMethod`, `path`, `componentId`.
+- Interface nodes: `interfaceType`, `path`, `module`, `technology`. Messaging interfaces
+  additionally expose `broker` (incl. `IN_MEMORY`) and `topic` on the underlying
+  JSON model; surface them via `find_nodes` filters.
+- DataFlowPath nodes (label `DataFlowPath`): `entrypointId`, `trackedParam`, `paramType`,
+  `stepCount`, `sinkCount`.
+- DataFlowSink nodes (label `DataFlowSink`): `sinkKind` (`persistence`, `messaging`,
+  `http-outbound`, `event-bus`, `store`, `unknown`), `pathId`, `componentId`, `method`,
+  `fieldName`, `fieldOwnerComponentId`.
 - Dependency edges: `kind`, `derivedFrom`, `confidence`, `isRuntimeRelevant`,
   `isCondensable`, `isCrossModule`, `fromModule`, `toModule`, `weight`.
+
+Edge labels:
+
+- `OWNS` — Application → Component
+- `STARTS_AT` — Entrypoint → Component
+- `EXPOSES` — Interface → Component
+- `CONTAINS` — Container → Component
+- `DEPLOYS` — Deployment → Application
+- `DEPENDS_ON` — Component → Component (or Component → ExternalSystem)
+- `STARTED_BY` / `HAS_STEP` / `VISITS` — RuntimeFlow / RuntimeFlowStep relationships
+- `ORIGINATES` — Entrypoint → DataFlowPath (carries `trackedParam`)
+- `REACHES` — DataFlowPath → DataFlowSink (carries `sinkKind`)
+- `ON_FIELD` — DataFlowSink (`store`) → Component (the field's declaring component;
+  carries `fieldName`)
+- `AT_COMPONENT` — DataFlowSink (non-`store`) → Component (carries `method`)
+- `LINKS_TO` — DataFlowSink (`store`) → DataFlowPath downstream (carries `viaField`,
+  `fieldOwnerComponentId`). This is how cross-entrypoint pipelines (consumer → cache →
+  producer/scheduler) are made explicit in the graph.
 
 Example — graph summary:
 
@@ -527,6 +569,18 @@ Example — find what is impacted if OrderRepository changes:
 
 ```json
 { "action": "impacted_by", "nodeId": "comp:com.example.repository.OrderRepository", "maxDepth": 4 }
+```
+
+Example — list cross-entrypoint pipeline links (consumer store → producer/scheduler path):
+
+```json
+{ "action": "find_edges", "label": "LINKS_TO" }
+```
+
+Example — find every messaging entrypoint bound to an in-memory channel:
+
+```json
+{ "action": "find_nodes", "label": "Interface", "filters": { "broker": "IN_MEMORY" } }
 ```
 
 ---

@@ -21,6 +21,8 @@ public class Entrypoint {
     public String channelName;
     /** Resolved broker for messaging entrypoints. UNKNOWN until config resolution. */
     public MessagingBroker broker;
+    /** Resolved broker-side destination (Kafka topic, AMQP address, RabbitMQ queue) for messaging entrypoints. */
+    public String topic;
     /** Component that owns the entrypoint. */
     public String componentId;
     /** Source file and evidence metadata for this entrypoint. */

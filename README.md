@@ -54,8 +54,23 @@ For step-by-step install instructions and example MCP client configurations (Cla
 - `export_graph_architecture_poc`
 - `query_architecture_graph`
 - `explain_architecture`
+- `trace_data_flow`
 
 See `docs/TOOLS.md` for arguments and example payloads.
+
+`trace_data_flow` records writes to shared state as `store` sinks, and links each
+`store` sink to downstream `DataFlowPath`s that read the same shared field via
+`linkedPathIds` — surfacing cross-entrypoint pipelines (e.g. `@Incoming` consumer →
+in-memory cache → `@Scheduled` / `@Outgoing` producer). The same relation is exposed
+in the property graph as a `LINKS_TO` edge between the `DataFlowSink` and the
+downstream `DataFlowPath`.
+
+Messaging entrypoints carry `channelName`, `broker` (`KAFKA`, `MQTT`, `AMQP`,
+`RABBITMQ`, `PULSAR`, `IN_MEMORY`, or `UNKNOWN`), and `topic` (broker-side
+destination resolved from `mp.messaging.*.topic` / `.address` / `.queue.name` /
+`.exchange.name`). `IN_MEMORY` is inferred for SmallRye in-memory channels — those
+that have no `connector` property but are referenced by both an `@Incoming` and an
+`@Outgoing` declaration in the same module — and does not produce an external system.
 
 ## Cache Backend
 

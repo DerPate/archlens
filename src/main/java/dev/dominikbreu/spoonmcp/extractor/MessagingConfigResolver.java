@@ -15,18 +15,27 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Resolves the broker behind a SmallRye Reactive Messaging channel by reading the
- * single configuration key {@code mp.messaging.{incoming|outgoing}.{channel}.connector}
- * from {@code application.properties}, {@code application.yaml}, or {@code application.yml}
+ * Resolves SmallRye Reactive Messaging channel configuration from
+ * {@code application.properties}, {@code application.yaml}, or {@code application.yml}
  * inside a module's {@code src/main/resources} directory.
+ *
+ * <p>The resolver reads two property families per channel:
+ * <ul>
+ *   <li>{@code mp.messaging.{incoming|outgoing}.{channel}.connector} — broker</li>
+ *   <li>{@code mp.messaging.{incoming|outgoing}.{channel}.{topic|address|queue.name|exchange.name}}
+ *       — broker-side destination name (Kafka topic, AMQP address, RabbitMQ queue/exchange)</li>
+ * </ul>
  *
  * <p>This is the only configuration file read in the entire extractor pipeline. Reading any
  * other property is forbidden — see {@code docs/ARCHITECTURE.md}.
  */
 public class MessagingConfigResolver {
 
-    private static final Pattern PROPERTY_KEY = Pattern.compile(
+    private static final Pattern CONNECTOR_KEY = Pattern.compile(
         "^mp\\.messaging\\.(incoming|outgoing)\\.(.+)\\.connector$");
+
+    private static final Pattern DESTINATION_KEY = Pattern.compile(
+        "^mp\\.messaging\\.(incoming|outgoing)\\.(.+)\\.(topic|address|queue\\.name|exchange\\.name)$");
 
     private static final List<String> RESOURCE_FILES = List.of(
         "application.properties",
@@ -34,66 +43,101 @@ public class MessagingConfigResolver {
         "application.yml"
     );
 
+    /** Per-channel resolved configuration. */
+    public static final class ChannelConfig {
+        /** Broker resolved from the {@code connector} property; never null. */
+        public final MessagingBroker broker;
+        /** Broker-side destination name (topic / address / queue) when set; otherwise null. */
+        public final String topic;
+
+        public ChannelConfig(MessagingBroker broker, String topic) {
+            this.broker = broker == null ? MessagingBroker.UNKNOWN : broker;
+            this.topic  = topic;
+        }
+    }
+
     /** Creates a resolver. */
     public MessagingConfigResolver() {}
 
     /**
-     * Resolves channel-to-broker mappings for a module rooted at {@code moduleRoot}.
+     * Resolves channel configuration for a module rooted at {@code moduleRoot}.
      *
      * @param moduleRoot module root directory (the one containing {@code src/main/resources})
-     * @return map from channel name to resolved broker; missing channels are simply absent
+     * @return map from channel name to {@link ChannelConfig}; missing channels are simply absent
      */
-    public Map<String, MessagingBroker> resolve(File moduleRoot) {
-        Map<String, MessagingBroker> result = new LinkedHashMap<>();
+    public Map<String, ChannelConfig> resolve(File moduleRoot) {
+        Map<String, MessagingBroker> brokers = new LinkedHashMap<>();
+        Map<String, String> topics = new LinkedHashMap<>();
         File resources = new File(moduleRoot, "src/main/resources");
-        if (!resources.isDirectory()) return result;
+        if (!resources.isDirectory()) return Map.of();
 
         for (String name : RESOURCE_FILES) {
             File file = new File(resources, name);
             if (!file.isFile()) continue;
             try {
-                if (name.endsWith(".properties")) {
-                    readProperties(file, result);
-                } else {
-                    readYaml(file, result);
-                }
+                Map<String, String> flat = name.endsWith(".properties")
+                    ? readProperties(file)
+                    : readYaml(file);
+                collect(flat, brokers, topics);
             } catch (IOException ignored) {
             }
+        }
+
+        Map<String, ChannelConfig> result = new LinkedHashMap<>();
+        for (Map.Entry<String, MessagingBroker> e : brokers.entrySet()) {
+            result.put(e.getKey(), new ChannelConfig(e.getValue(), topics.get(e.getKey())));
+        }
+        // Channels declaring only a destination (no connector) — keep topic, broker = UNKNOWN.
+        for (Map.Entry<String, String> e : topics.entrySet()) {
+            result.computeIfAbsent(e.getKey(), k -> new ChannelConfig(MessagingBroker.UNKNOWN, e.getValue()));
         }
         return result;
     }
 
-    private void readProperties(File file, Map<String, MessagingBroker> result) throws IOException {
+    private void collect(Map<String, String> flat,
+                         Map<String, MessagingBroker> brokers,
+                         Map<String, String> topics) {
+        for (Map.Entry<String, String> entry : flat.entrySet()) {
+            Matcher cm = CONNECTOR_KEY.matcher(entry.getKey());
+            if (cm.matches()) {
+                brokers.put(cm.group(2), mapBroker(entry.getValue()));
+                continue;
+            }
+            Matcher dm = DESTINATION_KEY.matcher(entry.getKey());
+            if (dm.matches()) {
+                // First value wins — incoming/outgoing rarely conflict for the same channel name.
+                topics.putIfAbsent(dm.group(2), entry.getValue());
+            }
+        }
+    }
+
+    private Map<String, String> readProperties(File file) throws IOException {
         Properties props = new Properties();
         try (InputStream in = Files.newInputStream(file.toPath())) {
             props.load(in);
         }
+        Map<String, String> out = new LinkedHashMap<>();
         for (String key : props.stringPropertyNames()) {
-            Matcher m = PROPERTY_KEY.matcher(key);
-            if (!m.matches()) continue;
-            String channel = m.group(2);
-            MessagingBroker broker = mapBroker(props.getProperty(key));
-            result.put(channel, broker);
+            out.put(key, props.getProperty(key));
         }
+        return out;
     }
 
     @SuppressWarnings("unchecked")
-    private void readYaml(File file, Map<String, MessagingBroker> result) throws IOException {
+    private Map<String, String> readYaml(File file) throws IOException {
         Yaml yaml = new Yaml();
         Object root;
         try (InputStream in = Files.newInputStream(file.toPath())) {
             root = yaml.load(in);
         }
-        if (!(root instanceof Map<?, ?> map)) return;
+        Map<String, String> out = new LinkedHashMap<>();
+        if (!(root instanceof Map<?, ?> map)) return out;
         Map<String, Object> flat = new LinkedHashMap<>();
         flatten("", (Map<String, Object>) map, flat);
         for (Map.Entry<String, Object> entry : flat.entrySet()) {
-            Matcher m = PROPERTY_KEY.matcher(entry.getKey());
-            if (!m.matches()) continue;
-            String channel = m.group(2);
-            MessagingBroker broker = mapBroker(String.valueOf(entry.getValue()));
-            result.put(channel, broker);
+            out.put(entry.getKey(), String.valueOf(entry.getValue()));
         }
+        return out;
     }
 
     @SuppressWarnings("unchecked")
