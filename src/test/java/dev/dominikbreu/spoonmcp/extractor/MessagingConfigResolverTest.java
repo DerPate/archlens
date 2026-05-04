@@ -25,13 +25,12 @@ class MessagingConfigResolverTest {
             "mp.messaging.incoming.device-events.connector=smallrye-mqtt\n" +
             "quarkus.http.port=8080\n");
 
-        Map<String, MessagingBroker> result = resolver.resolve(tmp.toFile());
+        Map<String, MessagingConfigResolver.ChannelConfig> result = resolver.resolve(tmp.toFile());
 
-        assertThat(result)
-            .containsEntry("orders-in", MessagingBroker.KAFKA)
-            .containsEntry("audit-log", MessagingBroker.KAFKA)
-            .containsEntry("device-events", MessagingBroker.MQTT)
-            .doesNotContainKey("quarkus.http.port");
+        assertThat(result.get("orders-in").broker).isEqualTo(MessagingBroker.KAFKA);
+        assertThat(result.get("audit-log").broker).isEqualTo(MessagingBroker.KAFKA);
+        assertThat(result.get("device-events").broker).isEqualTo(MessagingBroker.MQTT);
+        assertThat(result).doesNotContainKey("quarkus.http.port");
     }
 
     @Test
@@ -48,11 +47,10 @@ class MessagingConfigResolverTest {
             "      audit-log:\n" +
             "        connector: smallrye-rabbitmq\n");
 
-        Map<String, MessagingBroker> result = resolver.resolve(tmp.toFile());
+        Map<String, MessagingConfigResolver.ChannelConfig> result = resolver.resolve(tmp.toFile());
 
-        assertThat(result)
-            .containsEntry("orders-in", MessagingBroker.KAFKA)
-            .containsEntry("audit-log", MessagingBroker.RABBITMQ);
+        assertThat(result.get("orders-in").broker).isEqualTo(MessagingBroker.KAFKA);
+        assertThat(result.get("audit-log").broker).isEqualTo(MessagingBroker.RABBITMQ);
     }
 
     @Test
@@ -66,9 +64,9 @@ class MessagingConfigResolverTest {
             "      pulsar-events:\n" +
             "        connector: smallrye-pulsar\n");
 
-        Map<String, MessagingBroker> result = resolver.resolve(tmp.toFile());
+        Map<String, MessagingConfigResolver.ChannelConfig> result = resolver.resolve(tmp.toFile());
 
-        assertThat(result).containsEntry("pulsar-events", MessagingBroker.PULSAR);
+        assertThat(result.get("pulsar-events").broker).isEqualTo(MessagingBroker.PULSAR);
     }
 
     @Test
@@ -78,29 +76,43 @@ class MessagingConfigResolverTest {
         Files.writeString(resources.resolve("application.properties"),
             "mp.messaging.incoming.weird.connector=some-future-connector\n");
 
-        Map<String, MessagingBroker> result = resolver.resolve(tmp.toFile());
+        Map<String, MessagingConfigResolver.ChannelConfig> result = resolver.resolve(tmp.toFile());
 
-        assertThat(result).containsEntry("weird", MessagingBroker.UNKNOWN);
+        assertThat(result.get("weird").broker).isEqualTo(MessagingBroker.UNKNOWN);
     }
 
     @Test
     void missingResourcesReturnsEmptyMap(@TempDir Path tmp) {
-        Map<String, MessagingBroker> result = resolver.resolve(tmp.toFile());
+        Map<String, MessagingConfigResolver.ChannelConfig> result = resolver.resolve(tmp.toFile());
         assertThat(result).isEmpty();
     }
 
     @Test
-    void ignoresNonConnectorMessagingKeys(@TempDir Path tmp) throws Exception {
+    void resolvesKafkaTopicAlongsideConnector(@TempDir Path tmp) throws Exception {
         Path resources = tmp.resolve("src/main/resources");
         Files.createDirectories(resources);
         Files.writeString(resources.resolve("application.properties"),
-            "mp.messaging.incoming.orders-in.connector=smallrye-kafka\n" +
-            "mp.messaging.incoming.orders-in.topic=orders-events\n" +
-            "mp.messaging.incoming.orders-in.bootstrap.servers=localhost:9092\n");
+            "mp.messaging.incoming.snapshots.connector=smallrye-kafka\n" +
+            "mp.messaging.incoming.snapshots.topic=device_snapshots\n");
 
-        Map<String, MessagingBroker> result = resolver.resolve(tmp.toFile());
+        Map<String, MessagingConfigResolver.ChannelConfig> result = resolver.resolve(tmp.toFile());
 
-        assertThat(result).hasSize(1).containsEntry("orders-in", MessagingBroker.KAFKA);
+        assertThat(result.get("snapshots").broker).isEqualTo(MessagingBroker.KAFKA);
+        assertThat(result.get("snapshots").topic).isEqualTo("device_snapshots");
+    }
+
+    @Test
+    void resolvesAmqpAddressAsTopic(@TempDir Path tmp) throws Exception {
+        Path resources = tmp.resolve("src/main/resources");
+        Files.createDirectories(resources);
+        Files.writeString(resources.resolve("application.properties"),
+            "mp.messaging.outgoing.audit.connector=smallrye-amqp\n" +
+            "mp.messaging.outgoing.audit.address=audit.events\n");
+
+        Map<String, MessagingConfigResolver.ChannelConfig> result = resolver.resolve(tmp.toFile());
+
+        assertThat(result.get("audit").broker).isEqualTo(MessagingBroker.AMQP);
+        assertThat(result.get("audit").topic).isEqualTo("audit.events");
     }
 
     @Test
@@ -114,20 +126,19 @@ class MessagingConfigResolverTest {
             "mp.messaging.incoming.r.connector=smallrye-rabbitmq\n" +
             "mp.messaging.incoming.p.connector=smallrye-pulsar\n");
 
-        Map<String, MessagingBroker> result = resolver.resolve(tmp.toFile());
+        Map<String, MessagingConfigResolver.ChannelConfig> result = resolver.resolve(tmp.toFile());
 
-        assertThat(result)
-            .containsEntry("k", MessagingBroker.KAFKA)
-            .containsEntry("m", MessagingBroker.MQTT)
-            .containsEntry("a", MessagingBroker.AMQP)
-            .containsEntry("r", MessagingBroker.RABBITMQ)
-            .containsEntry("p", MessagingBroker.PULSAR);
+        assertThat(result.get("k").broker).isEqualTo(MessagingBroker.KAFKA);
+        assertThat(result.get("m").broker).isEqualTo(MessagingBroker.MQTT);
+        assertThat(result.get("a").broker).isEqualTo(MessagingBroker.AMQP);
+        assertThat(result.get("r").broker).isEqualTo(MessagingBroker.RABBITMQ);
+        assertThat(result.get("p").broker).isEqualTo(MessagingBroker.PULSAR);
     }
 
     @Test
     void onlyResolvesIfResourcesDirectoryExists(@TempDir Path tmp) throws Exception {
         File noResources = tmp.resolve("not-a-module").toFile();
-        Map<String, MessagingBroker> result = resolver.resolve(noResources);
+        Map<String, MessagingConfigResolver.ChannelConfig> result = resolver.resolve(noResources);
         assertThat(result).isEmpty();
     }
 }
