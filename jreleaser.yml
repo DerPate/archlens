@@ -22,6 +22,14 @@ release:
     owner: DerPate
     name: spoon-mcp-server
     branch: main
+    # The maven-release-plugin already creates the canonical tag
+    # (e.g. spoon-mcp-server-1.0.2). We point JReleaser at that tag
+    # rather than letting it create a duplicate "v{{projectVersion}}"
+    # tag — which previously broke previous-release lookup and
+    # produced empty changelogs.
+    tagName: spoon-mcp-server-{{projectVersion}}
+    previousTagName: spoon-mcp-server-{{previousVersion}}
+    skipTag: true
     changelog:
       enabled: true
       formatted: ALWAYS
