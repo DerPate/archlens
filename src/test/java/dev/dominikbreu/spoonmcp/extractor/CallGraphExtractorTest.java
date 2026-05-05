@@ -121,10 +121,102 @@ class CallGraphExtractorTest extends ExtractorTestBase {
     }
 
     @Test
+    void scansEmitterSendAsMessagingOutboundSink() {
+        // KafkaService.publishAudit calls auditEmitter.send(msg) on an injected
+        // org.eclipse.microprofile.reactive.messaging.Emitter field. The Emitter type
+        // is not a known component, so extractFromMethod cannot emit a CallEdge —
+        // extractOutboundSinkSites must produce a MESSAGING OutboundSinkSite instead.
+        assertThat(model.outboundSinkSites)
+            .as("KafkaService.publishAudit -> Emitter.send is a MESSAGING sink")
+            .anySatisfy(s -> {
+                assertThat(s.componentId).contains("KafkaService");
+                assertThat(s.method).isEqualTo("publishAudit");
+                assertThat(s.calleeMethod).isEqualTo("send");
+                assertThat(s.kind).isEqualTo(DataFlowSink.Kind.MESSAGING);
+            });
+    }
+
+    @Test
+    void endToEndIncomingCacheSchedulerEmitterPipelineProducesLinkedSinks() {
+        // Real-world three-bean pipeline (OrderIngest → OrderBuffer ← OrderForwarder):
+        //   @Incoming("orders-in") OrderIngest.consume(payload)
+        //     → OrderBuffer.store(value) → cache.put("k", value)         [STORE sink on 'cache']
+        //   @Scheduled OrderForwarder.forward()
+        //     → OrderBuffer.peek() → cache.get("k")
+        //     → outEmitter.send(v)                                       [MESSAGING sink]
+        // After running the full extraction + DataFlowTracer pipeline:
+        //   • the consumer path must carry a STORE sink on 'cache' owned by OrderBuffer
+        //   • the scheduler path must carry a MESSAGING sink (Emitter.send)
+        //   • the consumer's STORE sink must link to the scheduler path id
+        List<DataFlowPath> paths = new DataFlowTracer().trace(model);
+
+        DataFlowPath consumerPath = paths.stream()
+            .filter(p -> p.entrypointId.contains("OrderIngest")
+                      && p.entrypointId.contains("#consume"))
+            .findFirst().orElseThrow(() ->
+                new AssertionError("no data-flow path traced from OrderIngest.consume"));
+
+        DataFlowPath schedulerPath = paths.stream()
+            .filter(p -> p.entrypointId.contains("OrderForwarder")
+                      && p.entrypointId.contains("#forward"))
+            .findFirst().orElseThrow(() ->
+                new AssertionError("no data-flow path traced from OrderForwarder.forward"));
+
+        DataFlowSink storeSink = consumerPath.sinks.stream()
+            .filter(s -> s.kind == DataFlowSink.Kind.STORE
+                      && "cache".equals(s.fieldName)
+                      && s.fieldOwnerComponentId != null
+                      && s.fieldOwnerComponentId.contains("OrderBuffer"))
+            .findFirst().orElseThrow(() ->
+                new AssertionError("OrderIngest.consume did not emit a STORE sink on OrderBuffer.cache"));
+
+        DataFlowSink messagingSink = schedulerPath.sinks.stream()
+            .filter(s -> s.kind == DataFlowSink.Kind.MESSAGING && "send".equals(s.method))
+            .findFirst().orElseThrow(() ->
+                new AssertionError("OrderForwarder.forward did not emit a MESSAGING sink via Emitter.send"));
+
+        assertThat(messagingSink.channel)
+            .as("MESSAGING sink must carry the channel name from @Channel annotation")
+            .isEqualTo("orders-out");
+
+        DataFlowPath nextStagePath = paths.stream()
+            .filter(p -> p.entrypointId.contains("OrderNextStage")
+                      && p.entrypointId.contains("#process"))
+            .findFirst().orElse(null);
+        // OrderNextStage.process has no parameters and no call edges → no path with sinks,
+        // so only assert the link if a path was traced.
+        if (nextStagePath != null) {
+            assertThat(messagingSink.linkedPathIds)
+                .as("MESSAGING sink on 'orders-out' must link to OrderNextStage consumer path")
+                .contains(nextStagePath.id);
+        }
+
+        assertThat(storeSink.linkedPathIds)
+            .as("STORE sink on OrderBuffer.cache must link to the OrderForwarder reader path")
+            .contains(schedulerPath.id);
+    }
+
+    @Test
     void rerunDoesNotDuplicateEdges() {
         int beforeCount = model.callEdges.size();
         CtModel ctModel = scan("quarkus-sample");
         new CallGraphExtractor().extract(ctModel, model);
         assertThat(model.callEdges).hasSize(beforeCount);
+    }
+
+    @Test
+    void recordsFieldWriteForIncomingConsumerWithDerivedLocalVar() {
+        // CachingConsumer.handle writes to ConcurrentHashMap 'cache' via
+        // cache.put("id", tmp.get("id")) — the stored value is derived through
+        // a local HashMap, not a direct CtVariableRead of the tracked param.
+        // extractFieldAccesses must still emit a WRITE FieldAccess for this.
+        assertThat(model.fieldAccesses)
+            .as("CachingConsumer.handle -> WRITE to 'cache'")
+            .anySatisfy(fa -> {
+                assertThat(fa.componentId).contains("CachingConsumer");
+                assertThat(fa.method).isEqualTo("handle");
+                assertThat(fa.kind).isEqualTo(FieldAccess.Kind.WRITE);
+                assertThat(fa.fieldName).isEqualTo("cache");
+            });
     }
 }

@@ -71,6 +71,8 @@ public class DataFlowSink {
      * therefore form the downstream half of a two-phase pipeline (consumer → cache → producer).
      */
     public java.util.List<String> linkedPathIds = new java.util.ArrayList<>();
+    /** For {@code messaging} / {@code event-bus} sinks: the channel/topic name, or null. */
+    public String channel;
 
     /** Creates an empty sink for JSON deserialization. */
     public DataFlowSink() {}
