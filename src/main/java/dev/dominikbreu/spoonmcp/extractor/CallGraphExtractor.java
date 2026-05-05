@@ -11,6 +11,7 @@ import spoon.reflect.code.CtFieldWrite;
 import spoon.reflect.code.CtInvocation;
 import spoon.reflect.code.CtLocalVariable;
 import spoon.reflect.code.CtReturn;
+import spoon.reflect.code.CtTypeAccess;
 import spoon.reflect.code.CtVariableRead;
 import spoon.reflect.code.CtVariableWrite;
 import spoon.reflect.declaration.CtField;
@@ -107,8 +108,13 @@ public class CallGraphExtractor {
             Map<String, Component> fieldToComp = buildFieldMap(type, fromId, byId, bySimpleName);
             Set<String> sharedStateFields = buildSharedStateFieldSet(type);
 
+            Set<String> ownMethodNames = type.getMethods().stream()
+                .map(CtMethod::getSimpleName)
+                .collect(Collectors.toSet());
+
             for (CtMethod<?> method : type.getMethods()) {
                 extractFromMethod(method, fromComp, fieldToComp, model, existingIds);
+                extractIntraComponentCalls(method, fromComp, ownMethodNames, model, existingIds);
                 extractFieldAccesses(method, fromComp, sharedStateFields, model);
                 extractOutboundSinkSites(method, fromComp, model);
                 enrichEntrypointParameters(method, fromId, entrypointParams, model);
@@ -218,6 +224,37 @@ public class CallGraphExtractor {
         return fa;
     }
 
+    /**
+     * Emits same-component call edges for method calls on implicit/explicit {@code this}
+     * whose callee is declared in the same type. This lets the DataFlowTracer follow
+     * chains like {@code dispatchAll → buildAndSend → BrokerClient.publish} even when
+     * the intermediate hop is a private method that the field-read filter would skip.
+     */
+    private void extractIntraComponentCalls(CtMethod<?> method, Component fromComp,
+                                             Set<String> ownMethodNames,
+                                             ArchitectureModel model, Set<String> existingIds) {
+        String fromMethod = method.getSimpleName();
+        for (CtInvocation<?> inv : method.getElements(new TypeFilter<>(CtInvocation.class))) {
+            if (inv.getTarget() instanceof CtFieldRead<?>) continue;  // cross-component, handled elsewhere
+            if (inv.getTarget() instanceof CtTypeAccess<?>) continue; // static call
+            String toMethod = inv.getExecutable().getSimpleName();
+            if (!ownMethodNames.contains(toMethod)) continue;
+            if (toMethod.equals(fromMethod)) continue; // ignore trivial self-call
+            String edgeId = "call:" + fromComp.id + "#" + fromMethod
+                          + "->" + fromComp.id + "#" + toMethod;
+            if (!existingIds.add(edgeId)) continue;
+            CallEdge edge = new CallEdge();
+            edge.id              = edgeId;
+            edge.fromComponentId = fromComp.id;
+            edge.fromMethod      = fromMethod;
+            edge.toComponentId   = fromComp.id;
+            edge.toMethod        = toMethod;
+            edge.callKind        = "intra";
+            edge.source          = buildSource(inv);
+            model.callEdges.add(edge);
+        }
+    }
+
     private Map<String, Component> buildFieldMap(CtType<?> type, String ownId,
                                                   Map<String, Component> byId,
                                                   Map<String, Component> bySimpleName) {
@@ -268,6 +305,7 @@ public class CallGraphExtractor {
             Set<String> snap = killedSnapshots.get(inv);
             if (snap != null) edge.killedTrackedNames.addAll(snap);
             model.callEdges.add(edge);
+            emitCallerSideFieldReadIfGetter(inv, fromComp, fromMethod, toComp, model);
         }
     }
 
@@ -399,13 +437,51 @@ public class CallGraphExtractor {
         Set<String> paramNames = calleeMethod.getParameters().stream()
             .map(CtParameter::getSimpleName)
             .collect(Collectors.toSet());
+        CtType<?> calleeType = calleeMethod.getDeclaringType();
+        Set<String> calleeSharedState = calleeType != null
+            ? buildSharedStateFieldSet(calleeType) : Set.of();
         for (CtReturn<?> ret : calleeMethod.getElements(new TypeFilter<>(CtReturn.class))) {
             CtExpression<?> ex = ret.getReturnedExpression();
             if (ex == null) continue;
+            if (ex instanceof CtFieldRead<?> fr) {
+                String fieldName = fr.getVariable().getSimpleName();
+                if (calleeSharedState.contains(fieldName)) return true;
+            }
             String name = findFirstVarRead(ex);
             if (name != null && paramNames.contains(name)) return true;
         }
         return false;
+    }
+
+    private void emitCallerSideFieldReadIfGetter(CtInvocation<?> inv, Component fromComp,
+                                                   String fromMethod, Component toComp,
+                                                   ArchitectureModel model) {
+        var executable = inv.getExecutable().getDeclaration();
+        if (!(executable instanceof CtMethod<?> calleeMethod)) return;
+        if (calleeMethod.getBody() == null) return;
+        CtType<?> calleeType = calleeMethod.getDeclaringType();
+        if (calleeType == null) return;
+        Set<String> calleeSharedState = buildSharedStateFieldSet(calleeType);
+        if (calleeSharedState.isEmpty()) return;
+        for (CtReturn<?> ret : calleeMethod.getElements(new TypeFilter<>(CtReturn.class))) {
+            CtExpression<?> ex = ret.getReturnedExpression();
+            if (!(ex instanceof CtFieldRead<?> fr)) continue;
+            String fieldName = fr.getVariable().getSimpleName();
+            if (!calleeSharedState.contains(fieldName)) continue;
+            FieldAccess fa = new FieldAccess();
+            fa.kind                  = FieldAccess.Kind.READ;
+            fa.componentId           = fromComp.id;
+            fa.fieldOwnerComponentId = toComp.id;
+            fa.fieldName             = fieldName;
+            fa.method                = fromMethod;
+            fa.id = "field:" + fromComp.id + "#" + fromMethod + "@" + toComp.id + ":" + fieldName + ":read:xcomp";
+            var pos = inv.getPosition();
+            String file = (pos != null && pos.isValidPosition()) ? pos.getFile().getAbsolutePath() : "unknown";
+            int    line = (pos != null && pos.isValidPosition()) ? pos.getLine() : 0;
+            fa.source = new SourceInfo(file, line, "field-access-via-getter", 0.85);
+            model.fieldAccesses.add(fa);
+            return;
+        }
     }
 
     private void buildParamMapping(CtInvocation<?> inv, CallEdge edge) {
