@@ -88,7 +88,12 @@ The server is designed for consumption by LLM agents and MCP-capable clients
 `render_dependency_map`, `render_component_dependency_diagram`,
 `export_architecture_docs`, `export_graph_architecture_poc`,
 `query_architecture_graph`, `explain_architecture`,
-`detect_use_cases`, `trace_data_flow`.
+`detect_use_cases`, `trace_data_flow`, `render_pipeline`.
+
+`render_pipeline` stitches multiple `DataFlowPath`s into a single end-to-end Mermaid
+diagram across entrypoint boundaries (consumer → store → scheduler → channel → consumer).
+Prefer it over `render_call_flow` (single entrypoint) and `trace_data_flow` (textual
+per-path output) when the question is "what does the full pipeline look like".
 
 See `./docs/TOOLS.md` for arguments and examples.
 
@@ -150,9 +155,16 @@ See `./docs/TOOLS.md` for arguments and examples.
   store sinks stay attached to paths tracking the upstream field. Field types `Logger`,
   `Log`, `Slf4j`, `Tracer`, and types prefixed with `Audit` are excluded from
   shared-state heuristics.
-- Property graph (`query_architecture_graph`): now projects `DataFlowPath` and
-  `DataFlowSink` vertices and `ORIGINATES`, `REACHES`, `ON_FIELD`, `AT_COMPONENT`, and
-  `LINKS_TO` edges. `LINKS_TO` is the graph materialisation of `linkedPathIds`.
+- Property graph (`query_architecture_graph`): projects `DataFlowPath`,
+  `DataFlowSink`, and `PipelineChain` vertices and `ORIGINATES`, `REACHES`,
+  `ON_FIELD`, `AT_COMPONENT`, `LINKS_TO`, and `HAS_SEGMENT` edges.
+  `LINKS_TO` materialises `linkedPathIds` for `store`, `messaging`, and `event-bus`
+  sinks (carries `linkKind` plus `viaField` + `fieldOwnerComponentId` for STORE,
+  `viaChannel` for MESSAGING / EVENT_BUS). `PipelineChain` nodes carry
+  `segmentCount`, `rootEntrypointId`, and `linkKinds` (comma-separated handoff
+  kinds in traversal order); each `HAS_SEGMENT` edge carries `segmentIndex` and,
+  for non-root segments, `linkKind` + `incomingSinkId` + the channel/field
+  property — giving graph-only clients parity with `render_pipeline`.
 - Tool argument schemas in `McpServer.java` are the authoritative source — keep
   `docs/TOOLS.md` in sync when changing them.
 - Generated artifacts (`target/`, `.spoon-mcp-cache/`, `dependency-reduced-pom.xml`)

@@ -7,6 +7,9 @@ import dev.dominikbreu.spoonmcp.model.Container;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Dependency;
+import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder;
+import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Chain;
+import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Segment;
 import dev.dominikbreu.spoonmcp.model.DeploymentEntry;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.InterfaceEntry;
@@ -86,6 +89,7 @@ public class ArchitectureGraph {
         sourceModel.dataFlowPaths.forEach(this::addDataFlowPath);
         sourceModel.dataFlowPaths.forEach(this::addDataFlowEdges);
         linkDataFlowSinkReaders(sourceModel);
+        addPipelineChains(sourceModel);
         computeDerivedProperties();
     }
 
@@ -421,23 +425,96 @@ public class ArchitectureGraph {
 
     /**
      * Materialises {@code DataFlowSink.linkedPathIds} as explicit {@code LINKS_TO} edges
-     * from each STORE sink vertex to the downstream {@code DataFlowPath} that reads the
-     * same shared-state field. This is the property-graph projection of issue #5.
+     * from each linker-aware sink vertex to the downstream {@code DataFlowPath}.
+     *
+     * <p>STORE sinks carry {@code viaField} + {@code fieldOwnerComponentId}; MESSAGING
+     * and EVENT_BUS sinks carry {@code viaChannel}. Edges are tagged with
+     * {@code linkKind} (= {@code store|messaging|event-bus}) so graph queries can
+     * filter by handoff kind without inspecting both endpoints.
      */
     private void linkDataFlowSinkReaders(ArchitectureModel sourceModel) {
         for (DataFlowPath path : sourceModel.dataFlowPaths) {
             for (int i = 0; i < path.sinks.size(); i++) {
                 DataFlowSink sink = path.sinks.get(i);
-                if (sink.kind != DataFlowSink.Kind.STORE) continue;
                 if (sink.linkedPathIds == null || sink.linkedPathIds.isEmpty()) continue;
+                if (sink.kind != DataFlowSink.Kind.STORE
+                        && sink.kind != DataFlowSink.Kind.MESSAGING
+                        && sink.kind != DataFlowSink.Kind.EVENT_BUS) continue;
                 String sinkId = path.id + ":sink:" + i;
+                Map<String, Object> props = new HashMap<>();
+                props.put("linkKind", sink.kind.value());
+                if (sink.kind == DataFlowSink.Kind.STORE) {
+                    props.put("viaField", Objects.toString(sink.fieldName, ""));
+                    props.put("fieldOwnerComponentId", Objects.toString(sink.fieldOwnerComponentId, ""));
+                } else {
+                    props.put("viaChannel", Objects.toString(sink.channel, ""));
+                }
                 for (String downstreamPathId : sink.linkedPathIds) {
-                    addEdge(sinkId, downstreamPathId, "LINKS_TO",
-                        Map.of("viaField", Objects.toString(sink.fieldName, ""),
-                               "fieldOwnerComponentId", Objects.toString(sink.fieldOwnerComponentId, "")));
+                    addEdge(sinkId, downstreamPathId, "LINKS_TO", props);
                 }
             }
         }
+    }
+
+    /**
+     * Materialises end-to-end pipeline chains as {@code PipelineChain} vertices linked to
+     * their constituent {@code DataFlowPath}s via ordered {@code HAS_SEGMENT} edges.
+     *
+     * <p>Each chain vertex carries {@code segmentCount}, {@code rootEntrypointId},
+     * and {@code linkKinds} (comma-separated handoff kinds in traversal order).
+     * Each {@code HAS_SEGMENT} edge carries {@code segmentIndex} and, when the
+     * segment was reached via a linker sink, {@code incomingSinkId} / {@code linkKind}
+     * / {@code viaField} or {@code viaChannel}, so consumers can reconstruct the
+     * boundary type without traversing back to the upstream sink.
+     */
+    private void addPipelineChains(ArchitectureModel sourceModel) {
+        List<Chain> chains = new PipelineGraphBuilder().build(sourceModel, 32);
+        int chainIdx = 0;
+        for (Chain chain : chains) {
+            chainIdx++;
+            String chainId = "chain:" + chainIdx;
+            Segment root = chain.segments.get(0);
+            String rootEpId = root.path != null ? root.path.entrypointId : "";
+            Vertex vertex = addVertex(chainId, "PipelineChain", chainId);
+            set(vertex, "kind", "pipelineChain");
+            set(vertex, "segmentCount", chain.segments.size());
+            set(vertex, "rootEntrypointId", rootEpId);
+            StringBuilder linkKinds = new StringBuilder();
+            for (int i = 1; i < chain.segments.size(); i++) {
+                DataFlowSink in = chain.segments.get(i).incomingSink;
+                if (linkKinds.length() > 0) linkKinds.append(',');
+                linkKinds.append(in != null && in.kind != null ? in.kind.value() : "");
+            }
+            set(vertex, "linkKinds", linkKinds.toString());
+
+            for (int i = 0; i < chain.segments.size(); i++) {
+                Segment seg = chain.segments.get(i);
+                Map<String, Object> edgeProps = new HashMap<>();
+                edgeProps.put("segmentIndex", i);
+                DataFlowSink in = seg.incomingSink;
+                if (in != null) {
+                    edgeProps.put("linkKind", in.kind != null ? in.kind.value() : "");
+                    edgeProps.put("incomingSinkId", incomingSinkId(chain, i, sourceModel));
+                    if (in.kind == DataFlowSink.Kind.STORE) {
+                        edgeProps.put("viaField", Objects.toString(in.fieldName, ""));
+                        edgeProps.put("fieldOwnerComponentId", Objects.toString(in.fieldOwnerComponentId, ""));
+                    } else {
+                        edgeProps.put("viaChannel", Objects.toString(in.channel, ""));
+                    }
+                }
+                addEdge(chainId, seg.path.id, "HAS_SEGMENT", edgeProps);
+            }
+        }
+    }
+
+    private String incomingSinkId(Chain chain, int segmentIndex, ArchitectureModel sourceModel) {
+        if (segmentIndex == 0) return "";
+        Segment prev = chain.segments.get(segmentIndex - 1);
+        DataFlowSink target = chain.segments.get(segmentIndex).incomingSink;
+        for (int i = 0; i < prev.path.sinks.size(); i++) {
+            if (prev.path.sinks.get(i) == target) return prev.path.id + ":sink:" + i;
+        }
+        return "";
     }
 
     private Map<String, Object> dependencyProperties(Dependency dependency) {
@@ -494,7 +571,8 @@ public class ArchitectureGraph {
                 String label = edge.label();
                 if ("STARTS_AT".equals(label) || "DEPENDS_ON".equals(label) || "VISITS".equals(label)
                     || "ORIGINATES".equals(label) || "REACHES".equals(label)
-                    || "LINKS_TO".equals(label) || "ON_FIELD".equals(label) || "AT_COMPONENT".equals(label)) {
+                    || "LINKS_TO".equals(label) || "ON_FIELD".equals(label) || "AT_COMPONENT".equals(label)
+                    || "HAS_SEGMENT".equals(label)) {
                     queue.addLast(edge.inVertex().id().toString());
                 }
             }

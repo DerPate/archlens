@@ -143,6 +143,73 @@ class ArchitectureGraphTest {
             .containsEntry("fieldOwnerComponentId", "comp:OrderService");
     }
 
+    @Test
+    void projectsMessagingLinksToEdgeAndPipelineChainNodes() {
+        ArchitectureModel model = model();
+
+        // Producer ep:tick → MESSAGING(internal) → consumer ep:process
+        Entrypoint producerEp = new Entrypoint();
+        producerEp.id          = "ep:tick";
+        producerEp.name        = "tick";
+        producerEp.type        = EntrypointType.SCHEDULER;
+        producerEp.componentId = "comp:OrderService";
+        model.entrypoints.add(producerEp);
+
+        Entrypoint consumerEp = new Entrypoint();
+        consumerEp.id          = "ep:process";
+        consumerEp.name        = "process";
+        consumerEp.type        = EntrypointType.MESSAGING_CONSUMER;
+        consumerEp.channelName = "internal";
+        consumerEp.componentId = "comp:OrderRepository";
+        model.entrypoints.add(consumerEp);
+
+        DataFlowPath producerPath = new DataFlowPath();
+        producerPath.id           = "df:ep:tick#snap";
+        producerPath.entrypointId = "ep:tick";
+        producerPath.trackedParam = "snap";
+        DataFlowSink msgSink = new DataFlowSink(
+            DataFlowSink.Kind.MESSAGING, "comp:OrderService", "OrderService", "send", null);
+        msgSink.channel = "internal";
+        msgSink.linkedPathIds.add("df:ep:process#entry");
+        producerPath.sinks.add(msgSink);
+        model.dataFlowPaths.add(producerPath);
+
+        DataFlowPath consumerPath = new DataFlowPath();
+        consumerPath.id           = "df:ep:process#entry";
+        consumerPath.entrypointId = "ep:process";
+        consumerPath.trackedParam = "entry";
+        model.dataFlowPaths.add(consumerPath);
+
+        ArchitectureGraph graph = new ArchitectureGraph();
+        graph.rebuild(model);
+
+        // 1. MESSAGING LINKS_TO edge with viaChannel + linkKind
+        List<ArchitectureGraph.GraphEdge> linkEdges = graph.findEdges("LINKS_TO", Map.of(), 10);
+        assertThat(linkEdges)
+            .anyMatch(e -> "df:ep:process#entry".equals(e.toId())
+                && "messaging".equals(e.properties().get("linkKind"))
+                && "internal".equals(e.properties().get("viaChannel")));
+
+        // 2. PipelineChain node materialised with segmentCount and rootEntrypointId
+        assertThat(graph.summary().labels()).containsEntry("PipelineChain", 1);
+        List<ArchitectureGraph.GraphNode> chains = graph.findNodes("PipelineChain", null, Map.of(), 10);
+        assertThat(chains).hasSize(1);
+        assertThat(chains.getFirst().properties())
+            .containsEntry("segmentCount", 2)
+            .containsEntry("rootEntrypointId", "ep:tick")
+            .containsEntry("linkKinds", "messaging");
+
+        // 3. HAS_SEGMENT edges in order, with linkKind/viaChannel on the bridging segment
+        List<ArchitectureGraph.GraphEdge> segEdges = graph.findEdges("HAS_SEGMENT", Map.of(), 10);
+        assertThat(segEdges).hasSize(2);
+        assertThat(segEdges)
+            .anyMatch(e -> "df:ep:tick#snap".equals(e.toId()) && Integer.valueOf(0).equals(e.properties().get("segmentIndex")))
+            .anyMatch(e -> "df:ep:process#entry".equals(e.toId())
+                && Integer.valueOf(1).equals(e.properties().get("segmentIndex"))
+                && "messaging".equals(e.properties().get("linkKind"))
+                && "internal".equals(e.properties().get("viaChannel")));
+    }
+
     private ArchitectureModel model() {
         ArchitectureModel model = new ArchitectureModel("test");
 

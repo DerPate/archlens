@@ -9,7 +9,7 @@ import os
 
 _target = os.path.join(os.path.dirname(__file__), "..", "target")
 _candidates = [
-    j for j in glob.glob(os.path.join(_target, "spoon-mcp-server-*.jar"))
+    j for j in glob.glob(os.path.join(_target, "spoon-mcp-server*.jar"))
     if not any(x in os.path.basename(j) for x in ("-sources", "-javadoc", "original-"))
 ]
 if not _candidates:
