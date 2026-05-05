@@ -99,7 +99,8 @@ public class QueryArchitectureGraphTool {
             }
             appendInterestingProperties(sb, node.properties(),
                 "type", "path", "module", "technology", "qualifiedName", "packageName",
-                "sourceFile", "sourceLine", "confidence", "fanIn", "fanOut", "entrypointReachable");
+                "sourceFile", "sourceLine", "confidence", "fanIn", "fanOut", "degree",
+                "ownedEntrypointCount", "architecturalWeight", "entrypointReachable");
             sb.append("\n");
         }
         return sb.toString();

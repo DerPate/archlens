@@ -95,7 +95,8 @@ public class ExportGraphArchitecturePocTool {
         sb.append("- `kind=component`\n");
         sb.append("- `componentType`, `type`, `name`, `simpleName`, `qualifiedName`, `packageName`\n");
         sb.append("- `module`, `technology`, `stereotypes`, `sourceFile`, `sourceLine`\n");
-        sb.append("- `derivedFrom`, `confidence`, `fanIn`, `fanOut`, `degree`, `entrypointReachable`\n\n");
+        sb.append("- `derivedFrom`, `confidence`, `fanIn`, `fanOut`, `degree`, `entrypointReachable`\n");
+        sb.append("- `ownedEntrypointCount`, `architecturalWeight` (= fanIn + fanOut + ownedEntrypointCount×2)\n\n");
 
         sb.append("### Entrypoint Nodes\n\n");
         sb.append("- `kind=entrypoint`\n");
@@ -108,8 +109,7 @@ public class ExportGraphArchitecturePocTool {
 
         sb.append("## High Signal Components\n\n");
         Comparator<ArchitectureGraph.GraphNode> signalOrder = Comparator
-            .comparingInt((ArchitectureGraph.GraphNode node) -> numeric(node.properties().get("fanOut"))).reversed()
-            .thenComparing(Comparator.comparingInt((ArchitectureGraph.GraphNode node) -> numeric(node.properties().get("fanIn"))).reversed())
+            .comparingInt((ArchitectureGraph.GraphNode node) -> numeric(node.properties().get("architecturalWeight"))).reversed()
             .thenComparing(ArchitectureGraph.GraphNode::id);
         graph.findNodes("Component", null, Map.of(), 100).stream()
             .sorted(signalOrder)
@@ -119,7 +119,8 @@ public class ExportGraphArchitecturePocTool {
                 if (node.name() != null && !node.name().isBlank()) {
                     sb.append(" ").append(node.name());
                 }
-                appendProperties(sb, node.properties(), "componentType", "packageName", "module", "sourceFile", "sourceLine", "fanIn", "fanOut", "degree", "entrypointReachable");
+                appendProperties(sb, node.properties(), "componentType", "packageName", "module", "sourceFile", "sourceLine",
+                    "fanIn", "fanOut", "ownedEntrypointCount", "architecturalWeight", "entrypointReachable");
                 sb.append("\n");
             });
         sb.append("\n");
@@ -140,7 +141,7 @@ public class ExportGraphArchitecturePocTool {
             .limit(20)
             .forEach(node -> {
                 sb.append("- `").append(node.id()).append("`");
-                appendProperties(sb, node.properties(), "packageName", "module", "fanIn", "fanOut", "degree");
+                appendProperties(sb, node.properties(), "packageName", "module", "fanIn", "fanOut", "ownedEntrypointCount", "architecturalWeight");
                 sb.append("\n");
             });
         sb.append("\n");

@@ -467,6 +467,11 @@ public class ArchitectureGraph {
             set(vertex, "fanOut", fanOut);
             set(vertex, "degree", fanIn + fanOut);
             set(vertex, "entrypointReachable", entrypointReachable.contains(vertex.id().toString()));
+            if ("Component".equals(vertex.label())) {
+                int ownedEntrypoints = countEdges(vertex, Direction.IN, "STARTS_AT");
+                set(vertex, "ownedEntrypointCount", ownedEntrypoints);
+                set(vertex, "architecturalWeight", fanIn + fanOut + (ownedEntrypoints * 2));
+            }
         }
     }
 
