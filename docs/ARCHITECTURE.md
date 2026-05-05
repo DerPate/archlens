@@ -5,10 +5,10 @@ Generated from the indexed `ArchitectureModel` by the MCP tool `export_architect
 ## Summary
 
 - Applications: 1
-- Components: 73
+- Components: 76
 - Entrypoints: 1
 - Interfaces: 0
-- Dependencies: 86
+- Dependencies: 90
 - Runtime flows: 1
 
 ## Source Overview
@@ -37,6 +37,7 @@ flowchart TD
         comp_dev_dominikbreu_spoonmcp_extractor_JavaEEExtractor["JavaEEExtractor\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_extractor_MessagingCallSiteResolver["MessagingCallSiteResolver\nUNKNOWN"]
         comp_dev_dominikbreu_spoonmcp_extractor_MessagingConfigResolver["MessagingConfigResolver\nUNKNOWN"]
+        comp_dev_dominikbreu_spoonmcp_extractor_PipelineGraphBuilder["PipelineGraphBuilder\nUNKNOWN"]
         comp_dev_dominikbreu_spoonmcp_extractor_QuarkusExtractor["QuarkusExtractor\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_extractor_RuntimeFlowInferrer["RuntimeFlowInferrer\nUNKNOWN"]
         comp_dev_dominikbreu_spoonmcp_extractor_UseCaseDetector["UseCaseDetector\nUNKNOWN"]
@@ -61,6 +62,7 @@ flowchart TD
         comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderComponentDependencyDiagramTool["RenderComponentDependencyDiagramTool\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderDependencyMapTool["RenderDependencyMapTool\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderMermaidFlowchartTool["RenderMermaidFlowchartTool\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderPipelineTool["RenderPipelineTool\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderSourceOverviewTool["RenderSourceOverviewTool\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool["RenderUseCaseTimelineTool\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_mcp_tools_TraceDataFlowTool["TraceDataFlowTool\nSERVICE"]
@@ -100,6 +102,7 @@ flowchart TD
         comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencyMapRenderer["MermaidDependencyMapRenderer\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencySliceRenderer["MermaidDependencySliceRenderer\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_renderer_MermaidFlowchartRenderer["MermaidFlowchartRenderer\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_renderer_MermaidPipelineRenderer["MermaidPipelineRenderer\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_renderer_MermaidSourceOverviewRenderer["MermaidSourceOverviewRenderer\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_renderer_MermaidUseCaseTimelineRenderer["MermaidUseCaseTimelineRenderer\nSERVICE"]
     end
@@ -143,6 +146,7 @@ flowchart TD
     comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_DetectUseCasesTool
     comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_TraceDataFlowTool
     comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer --> comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderPipelineTool
     comp_dev_dominikbreu_spoonmcp_mcp_tools_DetectUseCasesTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
     comp_dev_dominikbreu_spoonmcp_mcp_tools_DetectUseCasesTool --> comp_dev_dominikbreu_spoonmcp_extractor_UseCaseDetector
     comp_dev_dominikbreu_spoonmcp_mcp_tools_ExplainArchitectureTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
@@ -173,6 +177,9 @@ flowchart TD
     comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderDependencyMapTool --> comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencyMapRenderer
     comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderMermaidFlowchartTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
     comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderMermaidFlowchartTool --> comp_dev_dominikbreu_spoonmcp_renderer_MermaidFlowchartRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderPipelineTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderPipelineTool --> comp_dev_dominikbreu_spoonmcp_extractor_PipelineGraphBuilder
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderPipelineTool --> comp_dev_dominikbreu_spoonmcp_renderer_MermaidPipelineRenderer
     comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderSourceOverviewTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
     comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderSourceOverviewTool --> comp_dev_dominikbreu_spoonmcp_renderer_MermaidSourceOverviewRenderer
     comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool --> comp_dev_dominikbreu_spoonmcp_cache_ModelCache
@@ -221,6 +228,7 @@ flowchart TD
             comp_dev_dominikbreu_spoonmcp_extractor_JavaEEExtractor["SERVICE\nJavaEEExtractor"]
             comp_dev_dominikbreu_spoonmcp_extractor_MessagingCallSiteResolver["UNKNOWN\nMessagingCallSiteResolver"]
             comp_dev_dominikbreu_spoonmcp_extractor_MessagingConfigResolver["UNKNOWN\nMessagingConfigResolver"]
+            comp_dev_dominikbreu_spoonmcp_extractor_PipelineGraphBuilder["UNKNOWN\nPipelineGraphBuilder"]
             comp_dev_dominikbreu_spoonmcp_extractor_QuarkusExtractor["SERVICE\nQuarkusExtractor"]
             comp_dev_dominikbreu_spoonmcp_extractor_RuntimeFlowInferrer["UNKNOWN\nRuntimeFlowInferrer"]
             comp_dev_dominikbreu_spoonmcp_extractor_UseCaseDetector["UNKNOWN\nUseCaseDetector"]
@@ -245,6 +253,7 @@ flowchart TD
             comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderComponentDependencyDiagramTool["SERVICE\nRenderComponentDependencyDiagramTool"]
             comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderDependencyMapTool["SERVICE\nRenderDependencyMapTool"]
             comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderMermaidFlowchartTool["SERVICE\nRenderMermaidFlowchartTool"]
+            comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderPipelineTool["SERVICE\nRenderPipelineTool"]
             comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderSourceOverviewTool["SERVICE\nRenderSourceOverviewTool"]
             comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool["SERVICE\nRenderUseCaseTimelineTool"]
             comp_dev_dominikbreu_spoonmcp_mcp_tools_TraceDataFlowTool["SERVICE\nTraceDataFlowTool"]
@@ -284,6 +293,7 @@ flowchart TD
             comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencyMapRenderer["SERVICE\nMermaidDependencyMapRenderer"]
             comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencySliceRenderer["SERVICE\nMermaidDependencySliceRenderer"]
             comp_dev_dominikbreu_spoonmcp_renderer_MermaidFlowchartRenderer["SERVICE\nMermaidFlowchartRenderer"]
+            comp_dev_dominikbreu_spoonmcp_renderer_MermaidPipelineRenderer["SERVICE\nMermaidPipelineRenderer"]
             comp_dev_dominikbreu_spoonmcp_renderer_MermaidSourceOverviewRenderer["SERVICE\nMermaidSourceOverviewRenderer"]
             comp_dev_dominikbreu_spoonmcp_renderer_MermaidUseCaseTimelineRenderer["SERVICE\nMermaidUseCaseTimelineRenderer"]
         end
@@ -328,6 +338,7 @@ flowchart TD
     comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_DetectUseCasesTool
     comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_TraceDataFlowTool
     comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderPipelineTool
     comp_dev_dominikbreu_spoonmcp_mcp_tools_DetectUseCasesTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
     comp_dev_dominikbreu_spoonmcp_mcp_tools_DetectUseCasesTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_UseCaseDetector
     comp_dev_dominikbreu_spoonmcp_mcp_tools_ExplainArchitectureTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
@@ -358,6 +369,9 @@ flowchart TD
     comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderDependencyMapTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencyMapRenderer
     comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderMermaidFlowchartTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
     comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderMermaidFlowchartTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidFlowchartRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderPipelineTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderPipelineTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_PipelineGraphBuilder
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderPipelineTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidPipelineRenderer
     comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderSourceOverviewTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
     comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderSourceOverviewTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidSourceOverviewRenderer
     comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
@@ -386,12 +400,12 @@ flowchart TD
     subgraph app_spoon_mcp_server["spoon-mcp-server (unknown)"]
         container_app_spoon_mcp_server_misc["misc\n1 component / 1 EP"]
         container_app_spoon_mcp_server_cache["cache\n2 components"]
-        container_app_spoon_mcp_server_extractor["extractor\n17 components"]
+        container_app_spoon_mcp_server_extractor["extractor\n18 components"]
         container_app_spoon_mcp_server_mcp_server["mcp-server\n1 component"]
-        container_app_spoon_mcp_server_mcp_tools["mcp-tools\n19 components"]
+        container_app_spoon_mcp_server_mcp_tools["mcp-tools\n20 components"]
         container_app_spoon_mcp_server_deployment_merge["deployment-merge\n3 components"]
         container_app_spoon_mcp_server_model["model\n23 components"]
-        container_app_spoon_mcp_server_renderer["renderer\n6 components"]
+        container_app_spoon_mcp_server_renderer["renderer\n7 components"]
         container_app_spoon_mcp_server_scanner["scanner\n1 component"]
     end
     container_app_spoon_mcp_server_cache -->|field-reference| container_app_spoon_mcp_server_model
@@ -427,6 +441,7 @@ flowchart LR
     comp_dev_dominikbreu_spoonmcp_mcp_tools_DetectUseCasesTool["DetectUseCasesTool\nSERVICE"]
     comp_dev_dominikbreu_spoonmcp_mcp_tools_TraceDataFlowTool["TraceDataFlowTool\nSERVICE"]
     comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool["RenderUseCaseTimelineTool\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderPipelineTool["RenderPipelineTool\nSERVICE"]
     comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor["ArchitectureExtractor\nSERVICE"]
     comp_dev_dominikbreu_spoonmcp_cache_ModelCache["ModelCache\nSERVICE"]
     comp_dev_dominikbreu_spoonmcp_merger_DeploymentMerger["DeploymentMerger\nSERVICE"]
@@ -439,6 +454,8 @@ flowchart LR
     comp_dev_dominikbreu_spoonmcp_renderer_MermaidDependencySliceRenderer["MermaidDependencySliceRenderer\nSERVICE"]
     comp_dev_dominikbreu_spoonmcp_extractor_UseCaseDetector["UseCaseDetector\nUNKNOWN"]
     comp_dev_dominikbreu_spoonmcp_renderer_MermaidUseCaseTimelineRenderer["MermaidUseCaseTimelineRenderer\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_extractor_PipelineGraphBuilder["PipelineGraphBuilder\nUNKNOWN"]
+    comp_dev_dominikbreu_spoonmcp_renderer_MermaidPipelineRenderer["MermaidPipelineRenderer\nSERVICE"]
     comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_IndexWorkspaceTool
     comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_ListAppsTool
     comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_FindEntrypointsTool
@@ -458,6 +475,7 @@ flowchart LR
     comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_DetectUseCasesTool
     comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_TraceDataFlowTool
     comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool
+    comp_dev_dominikbreu_spoonmcp_mcp_McpServer -->|field-reference| comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderPipelineTool
     comp_dev_dominikbreu_spoonmcp_mcp_tools_IndexWorkspaceTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_ArchitectureExtractor
     comp_dev_dominikbreu_spoonmcp_mcp_tools_IndexWorkspaceTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
     comp_dev_dominikbreu_spoonmcp_mcp_tools_IndexWorkspaceTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_merger_DeploymentMerger
@@ -493,6 +511,9 @@ flowchart LR
     comp_dev_dominikbreu_spoonmcp_mcp_tools_TraceDataFlowTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
     comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
     comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidUseCaseTimelineRenderer
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderPipelineTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderPipelineTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_PipelineGraphBuilder
+    comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderPipelineTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidPipelineRenderer
 ```
 
 ## Components By Type
@@ -550,6 +571,7 @@ flowchart LR
 - `dev.dominikbreu.spoonmcp.renderer.MermaidDependencyMapRenderer` (java)
 - `dev.dominikbreu.spoonmcp.renderer.MermaidDependencySliceRenderer` (java)
 - `dev.dominikbreu.spoonmcp.renderer.MermaidFlowchartRenderer` (java)
+- `dev.dominikbreu.spoonmcp.renderer.MermaidPipelineRenderer` (java)
 - `dev.dominikbreu.spoonmcp.renderer.MermaidSourceOverviewRenderer` (java)
 - `dev.dominikbreu.spoonmcp.renderer.MermaidUseCaseTimelineRenderer` (java)
 - `dev.dominikbreu.spoonmcp.cache.ModelCache` (java)
@@ -559,6 +581,7 @@ flowchart LR
 - `dev.dominikbreu.spoonmcp.mcp.tools.RenderComponentDependencyDiagramTool` (java)
 - `dev.dominikbreu.spoonmcp.mcp.tools.RenderDependencyMapTool` (java)
 - `dev.dominikbreu.spoonmcp.mcp.tools.RenderMermaidFlowchartTool` (java)
+- `dev.dominikbreu.spoonmcp.mcp.tools.RenderPipelineTool` (java)
 - `dev.dominikbreu.spoonmcp.mcp.tools.RenderSourceOverviewTool` (java)
 - `dev.dominikbreu.spoonmcp.mcp.tools.RenderUseCaseTimelineTool` (java)
 - `dev.dominikbreu.spoonmcp.scanner.SpoonScanner` (java)
@@ -576,6 +599,7 @@ flowchart LR
 - `dev.dominikbreu.spoonmcp.Main` (java)
 - `dev.dominikbreu.spoonmcp.extractor.MessagingCallSiteResolver` (java)
 - `dev.dominikbreu.spoonmcp.extractor.MessagingConfigResolver` (java)
+- `dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder` (java)
 - `dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer` (java)
 - `dev.dominikbreu.spoonmcp.extractor.UseCaseDetector` (java)
 
@@ -584,21 +608,21 @@ flowchart LR
 ```mermaid
 flowchart LR
     dep_cache["cache\n2 components\n1 internal deps"]
-    dep_extractor["extractor\n17 components\n14 internal deps"]
+    dep_extractor["extractor\n18 components\n14 internal deps"]
     dep_mcp["mcp\n1 components"]
-    dep_mcp_tools["mcp.tools\n19 components"]
+    dep_mcp_tools["mcp.tools\n20 components"]
     dep_merger["merger\n3 components\n2 internal deps"]
     dep_model["model\n23 components\n12 internal deps"]
-    dep_renderer["renderer\n6 components"]
+    dep_renderer["renderer\n7 components"]
     dep_scanner["scanner\n1 components"]
     dep_spoonmcp["spoonmcp\n1 components"]
     dep_cache -->|2 deps / field-reference=2| dep_model
     dep_extractor -->|1 dep / field-reference=1| dep_scanner
-    dep_mcp -->|19 deps / field-reference=19| dep_mcp_tools
-    dep_mcp_tools -->|19 deps / field-reference=19| dep_cache
-    dep_mcp_tools -->|5 deps / field-reference=5| dep_extractor
+    dep_mcp -->|20 deps / field-reference=20| dep_mcp_tools
+    dep_mcp_tools -->|20 deps / field-reference=20| dep_cache
+    dep_mcp_tools -->|6 deps / field-reference=6| dep_extractor
     dep_mcp_tools -->|1 dep / field-reference=1| dep_merger
-    dep_mcp_tools -->|10 deps / field-reference=10| dep_renderer
+    dep_mcp_tools -->|11 deps / field-reference=11| dep_renderer
     classDef core fill:#243746,stroke:#78a6c8,color:#f2f7fb
     classDef boundary fill:#3c2f4f,stroke:#b99df0,color:#fbf8ff
     classDef data fill:#2f4235,stroke:#8bcf9f,color:#f5fff7
@@ -653,6 +677,7 @@ flowchart LR
 - `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.DetectUseCasesTool` (field-reference, type-relation, evidence-score=0.65)
 - `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.TraceDataFlowTool` (field-reference, type-relation, evidence-score=0.65)
 - `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderUseCaseTimelineTool` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` -> `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderPipelineTool` (field-reference, type-relation, evidence-score=0.65)
 - `comp:dev.dominikbreu.spoonmcp.mcp.tools.DetectUseCasesTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
 - `comp:dev.dominikbreu.spoonmcp.mcp.tools.DetectUseCasesTool` -> `comp:dev.dominikbreu.spoonmcp.extractor.UseCaseDetector` (field-reference, type-relation, evidence-score=0.6)
 - `comp:dev.dominikbreu.spoonmcp.mcp.tools.ExplainArchitectureTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
@@ -683,6 +708,9 @@ flowchart LR
 - `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderDependencyMapTool` -> `comp:dev.dominikbreu.spoonmcp.renderer.MermaidDependencyMapRenderer` (field-reference, type-relation, evidence-score=0.65)
 - `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderMermaidFlowchartTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
 - `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderMermaidFlowchartTool` -> `comp:dev.dominikbreu.spoonmcp.renderer.MermaidFlowchartRenderer` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderPipelineTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderPipelineTool` -> `comp:dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder` (field-reference, type-relation, evidence-score=0.6)
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderPipelineTool` -> `comp:dev.dominikbreu.spoonmcp.renderer.MermaidPipelineRenderer` (field-reference, type-relation, evidence-score=0.65)
 - `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderSourceOverviewTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)
 - `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderSourceOverviewTool` -> `comp:dev.dominikbreu.spoonmcp.renderer.MermaidSourceOverviewRenderer` (field-reference, type-relation, evidence-score=0.65)
 - `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderUseCaseTimelineTool` -> `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` (field-reference, type-relation, evidence-score=0.65)

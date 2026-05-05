@@ -53,7 +53,9 @@ Arguments:
 
 - `appId` string, optional. Partial app ID filter.
 - `type` string, optional. One of `REST_ENDPOINT`, `JMS_CONSUMER`, `MESSAGING_CONSUMER`,
-  `MESSAGING_PRODUCER`, `SCHEDULER`, `EJB_BUSINESS_METHOD`.
+  `MESSAGING_PRODUCER`, `CDI_EVENT_OBSERVER`, `SCHEDULER`, `EJB_BUSINESS_METHOD`,
+  `RMI_ENDPOINT`, `MAIN_METHOD`, `EVENT_BUS_CONSUMER`, `WEBSOCKET_ENDPOINT`,
+  `SSE_ENDPOINT`, `GRPC_METHOD`, `UNKNOWN`.
 
 Messaging entrypoints carry `channelName` (Reactive Messaging channel), `broker`
 (`KAFKA`, `MQTT`, `AMQP`, `RABBITMQ`, `PULSAR`, `IN_MEMORY`, or `UNKNOWN`), and `topic`
@@ -92,7 +94,8 @@ Arguments:
 - `appId` string, optional. Partial app ID filter.
 - `type` string, optional. One of `REST_RESOURCE`, `SERVICE`, `REPOSITORY`, `ENTITY`,
   `EJB_STATELESS`, `EJB_STATEFUL`, `EJB_SINGLETON`, `MESSAGE_DRIVEN_BEAN`, `SCHEDULER`,
-  `HTTP_CLIENT`.
+  `HTTP_CLIENT`, `CDI_EVENT_CONSUMER`, `CDI_EVENT_PRODUCER`, `REMOTE_SERVICE`, `UTILITY`,
+  `UNKNOWN`.
 - `technology` string, optional. For example `quarkus`, `javaee`, or `jpa`.
 
 ---
@@ -401,7 +404,7 @@ Arguments:
 - `entrypointName` string, optional. Filter by entrypoint name or HTTP path (partial match).
 - `param` string, optional. Filter by tracked parameter name.
 - `sinkKind` string, optional. Filter by sink kind: `persistence`, `messaging`,
-  `http-outbound`, `event-bus`, or `store`.
+  `http-outbound`, `event-bus`, `store`, `file-outbound`, `object-storage`, or `unknown`.
 
 Example — trace all data-flow paths:
 
@@ -484,6 +487,66 @@ The matching field name (`stateCache`) in both paths identifies the shared state
 two phases. The consumer's `store` sink also carries
 `linkedPathIds: ["df:ep:com.example.scheduler.SnapshotProcessor#processSnapshots#stateCache"]`,
 so agents can stitch the cross-phase pipeline without name matching.
+
+---
+
+## `render_pipeline`
+
+Render an end-to-end Mermaid `flowchart TD` for a multi-phase pipeline by stitching
+multiple `DataFlowPath`s across entrypoint boundaries. Where `render_call_flow`
+shows the call chain rooted at a single entrypoint, and `trace_data_flow` produces
+textual per-path output, `render_pipeline` follows `DataFlowSink.linkedPathIds`
+forward to produce one connected diagram per chain.
+
+A *pipeline chain* is an ordered sequence of segments where each segment's
+entrypoint is reached from the previous segment via either:
+
+- a `STORE` sink (in-memory shared field) — boundary rendered as a cylinder
+  labelled `OwnerComponent.fieldName`, styled as a data store
+- a `MESSAGING` sink with a resolved channel — boundary rendered as a rounded
+  rectangle labelled with the channel name, styled as a message broker
+- an `EVENT_BUS` sink — boundary rendered as a circle
+
+Per-segment call steps are shaped by the component's architectural role
+(rectangle for SERVICE, cylinder for REPOSITORY, parallelogram for HTTP_CLIENT,
+stadium for SCHEDULER / MESSAGING_CONSUMER, etc.).
+
+Arguments:
+
+- `entrypointName` string, optional. Filter chains whose root entrypoint name
+  or HTTP path contains this substring.
+- `channel` string, optional. Filter chains that pass through a messaging link
+  whose channel name contains this substring.
+- `maxDepth` integer, optional (default 8). Maximum number of pipeline segments
+  per chain.
+- `maxChains` integer, optional (default 5). Maximum number of distinct chains
+  rendered in one response.
+
+Requires `index_workspace` to have been called first. Chain quality depends on
+`DataFlowSink.linkedPathIds` being populated by `DataFlowTracer` — i.e. channel
+names and field names must be resolvable from source. When no chains are found
+the tool returns a single-line diagnostic explaining how many paths exist and
+how many carry `linkedPathIds`.
+
+Example output sketch (single chain, two segments):
+
+```mermaid
+flowchart TD
+    S0_0(["RecordIngestor.consume"])
+    S0_1["RecordIngestor.consume"]
+    S0_2["RecordStore.put"]
+    B1[("RecordStore.records")]
+    S1_0(["RecordDispatcher.dispatchAll"])
+    S1_1["RecordDispatcher.dispatchAll"]
+    S1_2(["recordsInternal"])
+
+    S0_0 -->|consume| S0_1
+    S0_1 -->|put| S0_2
+    S0_2 -->|put| B1
+    B1 -->|dispatchAll| S1_0
+    S1_0 -->|dispatchAll| S1_1
+    S1_1 -->|send| S1_2
+```
 
 ---
 
@@ -572,6 +635,10 @@ Useful graph properties include:
 - DataFlowSink nodes (label `DataFlowSink`): `sinkKind` (`persistence`, `messaging`,
   `http-outbound`, `event-bus`, `store`, `unknown`), `pathId`, `componentId`, `method`,
   `fieldName`, `fieldOwnerComponentId`.
+- PipelineChain nodes (label `PipelineChain`): one vertex per end-to-end pipeline
+  produced by stitching `DataFlowSink.linkedPathIds` forward across entrypoint
+  boundaries. Properties: `segmentCount`, `rootEntrypointId`, `linkKinds`
+  (comma-separated handoff kinds in traversal order, e.g. `store,messaging`).
 - Dependency edges: `kind`, `derivedFrom`, `confidence`, `isRuntimeRelevant`,
   `isCondensable`, `isCrossModule`, `fromModule`, `toModule`, `weight`.
 
@@ -589,9 +656,17 @@ Edge labels:
 - `ON_FIELD` — DataFlowSink (`store`) → Component (the field's declaring component;
   carries `fieldName`)
 - `AT_COMPONENT` — DataFlowSink (non-`store`) → Component (carries `method`)
-- `LINKS_TO` — DataFlowSink (`store`) → DataFlowPath downstream (carries `viaField`,
-  `fieldOwnerComponentId`). This is how cross-entrypoint pipelines (consumer → cache →
-  producer/scheduler) are made explicit in the graph.
+- `LINKS_TO` — DataFlowSink (`store` | `messaging` | `event-bus`) → DataFlowPath
+  downstream. Always carries `linkKind` (= the sink kind). STORE links additionally
+  carry `viaField` and `fieldOwnerComponentId`; MESSAGING / EVENT_BUS links carry
+  `viaChannel`. This is how cross-entrypoint pipelines (consumer → cache → scheduler
+  → channel → consumer) are made explicit in the graph.
+- `HAS_SEGMENT` — PipelineChain → DataFlowPath, one edge per segment.  Carries
+  `segmentIndex` (0-based traversal order). For non-root segments it also carries
+  `linkKind`, `incomingSinkId` (the upstream `DataFlowSink` vertex that bridged into
+  this segment), and either `viaField` + `fieldOwnerComponentId` (STORE handoff) or
+  `viaChannel` (MESSAGING / EVENT_BUS handoff). Together with `LINKS_TO` this lets a
+  graph consumer reconstruct the full chain without calling `render_pipeline`.
 
 Example — graph summary:
 
@@ -616,6 +691,25 @@ Example — list cross-entrypoint pipeline links (consumer store → producer/sc
 ```json
 { "action": "find_edges", "label": "LINKS_TO" }
 ```
+
+Example — find every pipeline chain that crosses a messaging boundary:
+
+```json
+{ "action": "find_edges", "label": "HAS_SEGMENT", "filters": { "linkKind": "messaging" } }
+```
+
+Example — list all materialised pipeline chains (one node per chain):
+
+```json
+{ "action": "find_nodes", "label": "PipelineChain" }
+```
+
+Example — walk a single chain from its root: take the chain node, follow
+`HAS_SEGMENT` edges in `segmentIndex` order; for each non-root segment the edge
+property `incomingSinkId` points at the upstream `DataFlowSink` vertex (which is
+already wired with `REACHES` / `ON_FIELD` / `AT_COMPONENT` / `LINKS_TO` edges).
+This is the same data `render_pipeline` consumes — so a graph-only client gets
+parity with the tool, including the boundary kind and channel/field metadata.
 
 Example — find every messaging entrypoint bound to an in-memory channel:
 

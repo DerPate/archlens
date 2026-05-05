@@ -46,7 +46,7 @@ For step-by-step install instructions and example MCP client configurations (Cla
 - `infer_containers`
 - `render_mermaid_flowchart`
 - `get_runtime_flow`
-- `render_mermaid_sequence`
+- `render_call_flow`
 - `render_source_overview`
 - `render_dependency_map`
 - `render_component_dependency_diagram`
@@ -55,6 +55,9 @@ For step-by-step install instructions and example MCP client configurations (Cla
 - `query_architecture_graph`
 - `explain_architecture`
 - `trace_data_flow`
+- `detect_use_cases`
+- `render_use_case_timeline`
+- `render_pipeline`
 
 See `docs/TOOLS.md` for arguments and example payloads.
 

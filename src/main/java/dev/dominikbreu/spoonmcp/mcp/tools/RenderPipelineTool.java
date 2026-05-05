@@ -1,0 +1,126 @@
+package dev.dominikbreu.spoonmcp.mcp.tools;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder;
+import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Chain;
+import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Segment;
+import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
+import dev.dominikbreu.spoonmcp.model.DataFlowPath;
+import dev.dominikbreu.spoonmcp.model.DataFlowSink;
+import dev.dominikbreu.spoonmcp.model.Entrypoint;
+import dev.dominikbreu.spoonmcp.renderer.MermaidPipelineRenderer;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * MCP tool that renders end-to-end pipeline chains stitched across entrypoints by
+ * traversing {@link DataFlowSink#linkedPathIds}.
+ */
+public class RenderPipelineTool {
+
+    private final ModelCache cache;
+    private final PipelineGraphBuilder builder = new PipelineGraphBuilder();
+    private final MermaidPipelineRenderer renderer = new MermaidPipelineRenderer();
+
+    public RenderPipelineTool(ModelCache cache) {
+        this.cache = cache;
+    }
+
+    public String execute(JsonNode args) {
+        try {
+            ArchitectureModel model = cache.load();
+            if (model == null) return "No workspace indexed yet. Call index_workspace first.";
+            if (model.callEdges.isEmpty()) {
+                return "No call-graph data available. Re-index the workspace to enable pipeline rendering.";
+            }
+
+            int maxDepth  = getInt(args, "maxDepth", 8);
+            int maxChains = getInt(args, "maxChains", 5);
+            String epFilter      = getString(args, "entrypointName");
+            String channelFilter = getString(args, "channel");
+
+            List<Chain> chains = builder.build(model, maxDepth);
+            if (chains.isEmpty()) {
+                return diagnostic(model);
+            }
+
+            List<Chain> filtered = new ArrayList<>();
+            for (Chain c : chains) {
+                if (epFilter != null && !rootMatches(c, epFilter)) continue;
+                if (channelFilter != null && !chainHasChannel(c, channelFilter)) continue;
+                filtered.add(c);
+                if (filtered.size() >= maxChains) break;
+            }
+
+            if (filtered.isEmpty()) {
+                return "No pipeline chains matched the given filters.";
+            }
+
+            StringBuilder out = new StringBuilder();
+            for (int i = 0; i < filtered.size(); i++) {
+                Chain c = filtered.get(i);
+                Segment root = c.segments.get(0);
+                String rootEpId = root.entrypoint != null ? root.entrypoint.id : root.path.entrypointId;
+                out.append("%% chain ").append(i + 1).append(": root=").append(rootEpId)
+                   .append(" segments=").append(c.segments.size()).append("\n");
+                out.append(renderer.render(c, model));
+                if (i < filtered.size() - 1) out.append("\n");
+            }
+            return out.toString();
+        } catch (Exception e) {
+            return "Error rendering pipeline: " + e.getMessage();
+        }
+    }
+
+    private boolean rootMatches(Chain c, String filter) {
+        if (c.segments.isEmpty()) return false;
+        Segment root = c.segments.get(0);
+        Entrypoint ep = root.entrypoint;
+        String lower = filter.toLowerCase();
+        if (ep == null) return root.path.entrypointId.toLowerCase().contains(lower);
+        if (ep.name != null && ep.name.toLowerCase().contains(lower)) return true;
+        if (ep.path != null && ep.path.toLowerCase().contains(lower)) return true;
+        if (ep.channelName != null && ep.channelName.toLowerCase().contains(lower)) return true;
+        return ep.id != null && ep.id.toLowerCase().contains(lower);
+    }
+
+    private boolean chainHasChannel(Chain c, String filter) {
+        String lower = filter.toLowerCase();
+        for (Segment s : c.segments) {
+            if (s.incomingSink != null
+                    && s.incomingSink.channel != null
+                    && s.incomingSink.channel.toLowerCase().contains(lower)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String diagnostic(ArchitectureModel model) {
+        int totalPaths = model.dataFlowPaths.size();
+        int linked = 0;
+        for (DataFlowPath p : model.dataFlowPaths) {
+            for (DataFlowSink s : p.sinks) {
+                if (s.linkedPathIds != null && !s.linkedPathIds.isEmpty()) { linked++; break; }
+            }
+        }
+        return "No pipeline chains: " + totalPaths + " data-flow path(s) present, "
+            + linked + " carry linkedPathIds. Either no path links to another (e.g. channel "
+            + "names unresolved or no consumer indexed for the produced channel), or store/messaging "
+            + "stitching in DataFlowTracer found no matching readers/consumers.";
+    }
+
+    private String getString(JsonNode n, String f) {
+        if (n == null) return null;
+        JsonNode v = n.get(f);
+        return (v != null && !v.isNull()) ? v.asText() : null;
+    }
+
+    private int getInt(JsonNode n, String f, int def) {
+        if (n == null) return def;
+        JsonNode v = n.get(f);
+        return (v != null && !v.isNull()) ? v.asInt(def) : def;
+    }
+}
