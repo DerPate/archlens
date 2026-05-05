@@ -46,12 +46,12 @@ distributions:
     type: SINGLE_JAR
     stereotype: CLI
     artifacts:
-      - path: target/spoon-mcp-server-{{projectVersion}}.jar
+      - path: target/spoon-mcp-server.jar
         transform: spoon-mcp-server/spoon-mcp-server-{{projectEffectiveVersion}}.jar
 
 files:
   artifacts:
-    - path: target/spoon-mcp-server-{{projectVersion}}-sources.jar
+    - path: target/spoon-mcp-server-sources.jar
       transform: spoon-mcp-server-{{projectEffectiveVersion}}-sources.jar
-    - path: target/spoon-mcp-server-{{projectVersion}}-javadoc.jar
+    - path: target/spoon-mcp-server-javadoc.jar
       transform: spoon-mcp-server-{{projectEffectiveVersion}}-javadoc.jar
