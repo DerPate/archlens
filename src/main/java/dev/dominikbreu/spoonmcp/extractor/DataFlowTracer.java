@@ -88,6 +88,7 @@ public class DataFlowTracer {
         }
 
         linkStoreSinksToFieldReaders(result, model, callAdj, reads);
+        linkMessagingSinksToChannelConsumers(result, model);
         return result;
     }
 
@@ -130,6 +131,43 @@ public class DataFlowTracer {
                 for (String rid : readerIds) {
                     if (!rid.equals(p.id) && !s.linkedPathIds.contains(rid)) {
                         s.linkedPathIds.add(rid);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * For each MESSAGING sink that carries a channel name, find every path whose entrypoint
+     * is a MESSAGING_CONSUMER on the same channel and record it in {@link DataFlowSink#linkedPathIds}.
+     * This stitches producer → channel → consumer across entrypoint boundaries.
+     */
+    private void linkMessagingSinksToChannelConsumers(List<DataFlowPath> paths,
+                                                       ArchitectureModel model) {
+        // channel → paths whose entrypoint is a consumer on that channel
+        Map<String, List<String>> consumerPathsByChannel = new HashMap<>();
+        Map<String, String> entrypointIdToChannel = new HashMap<>();
+        for (Entrypoint ep : model.entrypoints) {
+            if (ep.type == EntrypointType.MESSAGING_CONSUMER && ep.channelName != null) {
+                entrypointIdToChannel.put(ep.id, ep.channelName);
+            }
+        }
+        for (DataFlowPath p : paths) {
+            String ch = entrypointIdToChannel.get(p.entrypointId);
+            if (ch != null) {
+                consumerPathsByChannel.computeIfAbsent(ch, k -> new ArrayList<>()).add(p.id);
+            }
+        }
+
+        for (DataFlowPath p : paths) {
+            for (DataFlowSink s : p.sinks) {
+                if ((s.kind != DataFlowSink.Kind.MESSAGING && s.kind != DataFlowSink.Kind.EVENT_BUS)
+                        || s.channel == null) continue;
+                List<String> consumers = consumerPathsByChannel.get(s.channel);
+                if (consumers == null) continue;
+                for (String cid : consumers) {
+                    if (!cid.equals(p.id) && !s.linkedPathIds.contains(cid)) {
+                        s.linkedPathIds.add(cid);
                     }
                 }
             }
@@ -182,8 +220,10 @@ public class DataFlowTracer {
         boolean isEntrypointBodyForOutbound = depth == 0 && !"*".equals(trackedName);
         if (isEntrypointBodyForOutbound) {
             for (OutboundSinkSite site : outbound.getOrDefault(compId + "#" + method, List.of())) {
-                path.sinks.add(new DataFlowSink(
-                    site.kind, site.componentId, compName, site.calleeMethod, site.source));
+                DataFlowSink sink = new DataFlowSink(
+                    site.kind, site.componentId, compName, site.calleeMethod, site.source);
+                sink.channel = site.channel;
+                path.sinks.add(sink);
             }
         }
 

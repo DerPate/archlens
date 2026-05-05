@@ -321,6 +321,15 @@ public class CallGraphExtractor {
             if (qn == null || qn.isEmpty()) continue;
 
             DataFlowSink.Kind kind = classifyOutboundCallee(qn);
+            String channel = null;
+            if (kind == null) {
+                String[] kindAndChannel = classifyMessagingFieldTarget(inv);
+                if (kindAndChannel != null) {
+                    kind    = kindAndChannel[0].equals("messaging") ? DataFlowSink.Kind.MESSAGING
+                                                                    : DataFlowSink.Kind.EVENT_BUS;
+                    channel = kindAndChannel[1];
+                }
+            }
             if (kind == null) continue;
 
             String id = "outbound:" + fromComp.id + "#" + methodName + ":" + (index++);
@@ -329,6 +338,7 @@ public class CallGraphExtractor {
             OutboundSinkSite site = new OutboundSinkSite();
             site.id                  = id;
             site.kind                = kind;
+            site.channel             = channel;
             site.componentId         = fromComp.id;
             site.method              = methodName;
             site.calleeQualifiedName = qn;
@@ -339,6 +349,33 @@ public class CallGraphExtractor {
             site.source = new SourceInfo(file, line, "invocation", 0.85);
             model.outboundSinkSites.add(site);
         }
+    }
+
+    /** Returns [kindString, channelOrNull] when the invocation target is an Emitter/EventBus field, else null. */
+    private static String[] classifyMessagingFieldTarget(CtInvocation<?> inv) {
+        if (!(inv.getTarget() instanceof CtFieldRead<?> fr)) return null;
+        var fieldType = fr.getVariable().getType();
+        if (fieldType == null) return null;
+        String simple = fieldType.getSimpleName();
+        String kindStr;
+        if      (EMITTER_TYPES.contains(simple))   kindStr = "messaging";
+        else if (EVENT_BUS_TYPES.contains(simple)) kindStr = "event-bus";
+        else return null;
+        String channel = extractChannelAnnotation(fr);
+        return new String[]{kindStr, channel};
+    }
+
+    private static String extractChannelAnnotation(CtFieldRead<?> fr) {
+        var fieldDecl = fr.getVariable().getFieldDeclaration();
+        if (fieldDecl == null) return null;
+        for (var ann : fieldDecl.getAnnotations()) {
+            var annType = ann.getAnnotationType();
+            if (annType == null) continue;
+            if (!"Channel".equals(annType.getSimpleName())) continue;
+            var val = ann.getValues().get("value");
+            if (val != null) return val.toString().replaceAll("^\"|\"$", "");
+        }
+        return null;
     }
 
     private static DataFlowSink.Kind classifyOutboundCallee(String calleeQualifiedName) {

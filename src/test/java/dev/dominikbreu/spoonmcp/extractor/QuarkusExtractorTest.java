@@ -60,8 +60,9 @@ class QuarkusExtractorTest extends ExtractorTestBase {
         // OrderResource, OrderService, OrderRepository, Order, OrderCleanupScheduler,
         // BillingClient, KafkaService, MqttService,
         // KafkaClientService, PahoMqttClientService, HiveMqClientService,
-        // EventsResource (SSE), GreeterService (gRPC)
-        assertThat(model.components).hasSize(13);
+        // EventsResource (SSE), GreeterService (gRPC), CachingConsumer,
+        // OrderIngest, OrderBuffer, OrderForwarder, OrderNextStage
+        assertThat(model.components).hasSize(18);
     }
 
     @Test
@@ -129,7 +130,7 @@ class QuarkusExtractorTest extends ExtractorTestBase {
         List<Entrypoint> scheduled = model.entrypoints.stream()
             .filter(e -> e.type == EntrypointType.SCHEDULER)
             .toList();
-        assertThat(scheduled).hasSize(2); // cleanup + dailyReport
+        assertThat(scheduled).hasSize(3); // cleanup + dailyReport + OrderForwarder.forward
     }
 
     @Test
