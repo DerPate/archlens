@@ -1,5 +1,8 @@
 package dev.dominikbreu.spoonmcp.cache;
 
+import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder;
+import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Chain;
+import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Segment;
 import dev.dominikbreu.spoonmcp.model.AppEntry;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
@@ -7,22 +10,12 @@ import dev.dominikbreu.spoonmcp.model.Container;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Dependency;
-import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder;
-import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Chain;
-import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Segment;
 import dev.dominikbreu.spoonmcp.model.DeploymentEntry;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.InterfaceEntry;
 import dev.dominikbreu.spoonmcp.model.RuntimeFlow;
 import dev.dominikbreu.spoonmcp.model.RuntimeFlowStep;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
-import org.apache.tinkerpop.gremlin.structure.Direction;
-import org.apache.tinkerpop.gremlin.structure.Edge;
-import org.apache.tinkerpop.gremlin.structure.Graph;
-import org.apache.tinkerpop.gremlin.structure.T;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
-
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -36,6 +29,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.T;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 
 /**
  * Embedded property-graph projection of an {@link ArchitectureModel}.
@@ -73,18 +72,18 @@ public class ArchitectureGraph {
         sourceModel.deployments.forEach(this::addDeployment);
         sourceModel.runtimeFlows.forEach(this::addRuntimeFlow);
 
-        sourceModel.applications.forEach(app -> app.componentIds.forEach(componentId ->
-            addEdge(app.id, componentId, "OWNS", Map.of("source", "application.componentIds"))));
-        sourceModel.entrypoints.forEach(entrypoint ->
-            addEdge(entrypoint.id, entrypoint.componentId, "STARTS_AT", Map.of("source", "entrypoint.componentId")));
-        sourceModel.interfaces.forEach(interfaceEntry ->
-            addEdge(interfaceEntry.id, interfaceEntry.componentId, "EXPOSES", Map.of("source", "interface.componentId")));
+        sourceModel.applications.forEach(app -> app.componentIds.forEach(
+                componentId -> addEdge(app.id, componentId, "OWNS", Map.of("source", "application.componentIds"))));
+        sourceModel.entrypoints.forEach(entrypoint -> addEdge(
+                entrypoint.id, entrypoint.componentId, "STARTS_AT", Map.of("source", "entrypoint.componentId")));
+        sourceModel.interfaces.forEach(interfaceEntry -> addEdge(
+                interfaceEntry.id, interfaceEntry.componentId, "EXPOSES", Map.of("source", "interface.componentId")));
         sourceModel.containers.forEach(container -> container.componentIds.forEach(componentId ->
-            addEdge(container.id, componentId, "CONTAINS", Map.of("source", "container.componentIds"))));
-        sourceModel.deployments.forEach(deployment -> deployment.appIds.forEach(appId ->
-            addEdge(deployment.id, appId, "DEPLOYS", Map.of("source", "deployment.appIds"))));
+                addEdge(container.id, componentId, "CONTAINS", Map.of("source", "container.componentIds"))));
+        sourceModel.deployments.forEach(deployment -> deployment.appIds.forEach(
+                appId -> addEdge(deployment.id, appId, "DEPLOYS", Map.of("source", "deployment.appIds"))));
         sourceModel.dependencies.forEach(dependency ->
-            addEdge(dependency.fromId, dependency.toId, "DEPENDS_ON", dependencyProperties(dependency)));
+                addEdge(dependency.fromId, dependency.toId, "DEPENDS_ON", dependencyProperties(dependency)));
         sourceModel.runtimeFlows.forEach(this::addRuntimeFlowEdges);
         sourceModel.dataFlowPaths.forEach(this::addDataFlowPath);
         sourceModel.dataFlowPaths.forEach(this::addDataFlowEdges);
@@ -113,7 +112,8 @@ public class ArchitectureGraph {
             edgeCounts.merge(edge.label(), 1, Integer::sum);
         }
 
-        int nodeCount = labelCounts.values().stream().mapToInt(Integer::intValue).sum();
+        int nodeCount =
+                labelCounts.values().stream().mapToInt(Integer::intValue).sum();
         int edgeCount = edgeCounts.values().stream().mapToInt(Integer::intValue).sum();
         return new GraphSummary(nodeCount, edgeCount, labelCounts, edgeCounts);
     }
@@ -138,7 +138,8 @@ public class ArchitectureGraph {
                 continue;
             }
             GraphNode node = toNode(vertex);
-            if ((normalizedQuery == null || node.matches(normalizedQuery)) && matchesFilters(node.properties(), filters)) {
+            if ((normalizedQuery == null || node.matches(normalizedQuery))
+                    && matchesFilters(node.properties(), filters)) {
                 nodes.add(node);
             }
         }
@@ -160,18 +161,21 @@ public class ArchitectureGraph {
             return List.of();
         }
 
-        Direction graphDirection = switch (normalizeBlank(direction) == null ? "both" : direction.toLowerCase(Locale.ROOT)) {
-            case "in", "incoming" -> Direction.IN;
-            case "out", "outgoing" -> Direction.OUT;
-            default -> Direction.BOTH;
-        };
+        Direction graphDirection =
+                switch (normalizeBlank(direction) == null ? "both" : direction.toLowerCase(Locale.ROOT)) {
+                    case "in", "incoming" -> Direction.IN;
+                    case "out", "outgoing" -> Direction.OUT;
+                    default -> Direction.BOTH;
+                };
 
         List<GraphEdge> edges = new ArrayList<>();
         Iterator<Edge> iterator = vertex.edges(graphDirection);
         while (iterator.hasNext()) {
             edges.add(toEdge(iterator.next()));
         }
-        edges.sort(Comparator.comparing(GraphEdge::label).thenComparing(GraphEdge::fromId).thenComparing(GraphEdge::toId));
+        edges.sort(Comparator.comparing(GraphEdge::label)
+                .thenComparing(GraphEdge::fromId)
+                .thenComparing(GraphEdge::toId));
         return edges.stream().limit(normalizeLimit(limit)).toList();
     }
 
@@ -197,7 +201,9 @@ public class ArchitectureGraph {
                 edges.add(graphEdge);
             }
         }
-        edges.sort(Comparator.comparing(GraphEdge::label).thenComparing(GraphEdge::fromId).thenComparing(GraphEdge::toId));
+        edges.sort(Comparator.comparing(GraphEdge::label)
+                .thenComparing(GraphEdge::fromId)
+                .thenComparing(GraphEdge::toId));
         return edges.stream().limit(normalizeLimit(limit)).toList();
     }
 
@@ -281,7 +287,10 @@ public class ArchitectureGraph {
             }
         }
         seen.remove(targetId);
-        return seen.stream().limit(resultLimit).map(id -> toNode(verticesById.get(id))).toList();
+        return seen.stream()
+                .limit(resultLimit)
+                .map(id -> toNode(verticesById.get(id)))
+                .toList();
     }
 
     /**
@@ -388,14 +397,16 @@ public class ArchitectureGraph {
         set(vertex, "kind", "dataFlowPath");
         set(vertex, "entrypointId", path.entrypointId);
         set(vertex, "trackedParam", path.trackedParam);
-        set(vertex, "paramType", path.paramType);
         set(vertex, "stepCount", path.steps.size());
         set(vertex, "sinkCount", path.sinks.size());
     }
 
     private void addDataFlowEdges(DataFlowPath path) {
-        addEdge(path.entrypointId, path.id, "ORIGINATES",
-            Map.of("trackedParam", Objects.toString(path.trackedParam, "")));
+        addEdge(
+                path.entrypointId,
+                path.id,
+                "ORIGINATES",
+                Map.of("trackedParam", Objects.toString(path.trackedParam, "")));
 
         for (int i = 0; i < path.sinks.size(); i++) {
             DataFlowSink sink = path.sinks.get(i);
@@ -410,15 +421,16 @@ public class ArchitectureGraph {
             set(sinkVertex, "fieldOwnerComponentId", sink.fieldOwnerComponentId);
             setSource(sinkVertex, sink.source);
 
-            addEdge(path.id, sinkId, "REACHES",
-                Map.of("sinkKind", sink.kind != null ? sink.kind.value() : ""));
+            addEdge(path.id, sinkId, "REACHES", Map.of("sinkKind", sink.kind != null ? sink.kind.value() : ""));
 
             if (sink.kind == DataFlowSink.Kind.STORE && sink.fieldOwnerComponentId != null) {
-                addEdge(sinkId, sink.fieldOwnerComponentId, "ON_FIELD",
-                    Map.of("fieldName", Objects.toString(sink.fieldName, "")));
+                addEdge(
+                        sinkId,
+                        sink.fieldOwnerComponentId,
+                        "ON_FIELD",
+                        Map.of("fieldName", Objects.toString(sink.fieldName, "")));
             } else if (sink.componentId != null) {
-                addEdge(sinkId, sink.componentId, "AT_COMPONENT",
-                    Map.of("method", Objects.toString(sink.method, "")));
+                addEdge(sinkId, sink.componentId, "AT_COMPONENT", Map.of("method", Objects.toString(sink.method, "")));
             }
         }
     }
@@ -543,7 +555,10 @@ public class ArchitectureGraph {
             set(vertex, "fanIn", fanIn);
             set(vertex, "fanOut", fanOut);
             set(vertex, "degree", fanIn + fanOut);
-            set(vertex, "entrypointReachable", entrypointReachable.contains(vertex.id().toString()));
+            set(
+                    vertex,
+                    "entrypointReachable",
+                    entrypointReachable.contains(vertex.id().toString()));
             if ("Component".equals(vertex.label())) {
                 int ownedEntrypoints = countEdges(vertex, Direction.IN, "STARTS_AT");
                 set(vertex, "ownedEntrypointCount", ownedEntrypoints);
@@ -556,9 +571,9 @@ public class ArchitectureGraph {
         Set<String> reachable = new LinkedHashSet<>();
         ArrayDeque<String> queue = new ArrayDeque<>();
         verticesById.values().stream()
-            .filter(vertex -> "Entrypoint".equals(vertex.label()))
-            .map(vertex -> vertex.id().toString())
-            .forEach(queue::addLast);
+                .filter(vertex -> "Entrypoint".equals(vertex.label()))
+                .map(vertex -> vertex.id().toString())
+                .forEach(queue::addLast);
         while (!queue.isEmpty()) {
             String nodeId = queue.removeFirst();
             if (!reachable.add(nodeId)) {
@@ -569,10 +584,15 @@ public class ArchitectureGraph {
             while (edges.hasNext()) {
                 Edge edge = edges.next();
                 String label = edge.label();
-                if ("STARTS_AT".equals(label) || "DEPENDS_ON".equals(label) || "VISITS".equals(label)
-                    || "ORIGINATES".equals(label) || "REACHES".equals(label)
-                    || "LINKS_TO".equals(label) || "ON_FIELD".equals(label) || "AT_COMPONENT".equals(label)
-                    || "HAS_SEGMENT".equals(label)) {
+                if ("STARTS_AT".equals(label)
+                        || "DEPENDS_ON".equals(label)
+                        || "VISITS".equals(label)
+                        || "ORIGINATES".equals(label)
+                        || "REACHES".equals(label)
+                        || "LINKS_TO".equals(label)
+                        || "ON_FIELD".equals(label)
+                        || "AT_COMPONENT".equals(label)
+                        || "HAS_SEGMENT".equals(label)) {
                     queue.addLast(edge.inVertex().id().toString());
                 }
             }
@@ -623,15 +643,18 @@ public class ArchitectureGraph {
 
     private GraphNode toNode(Vertex vertex) {
         Map<String, Object> properties = properties(vertex);
-        return new GraphNode(vertex.id().toString(), vertex.label(), Objects.toString(properties.get("name"), ""), properties);
+        return new GraphNode(
+                vertex.id().toString(), vertex.label(), Objects.toString(properties.get("name"), ""), properties);
     }
 
     private GraphEdge toEdge(Edge edge) {
-        return new GraphEdge(edge.outVertex().id().toString(), edge.inVertex().id().toString(), edge.label(), properties(edge));
+        return new GraphEdge(
+                edge.outVertex().id().toString(), edge.inVertex().id().toString(), edge.label(), properties(edge));
     }
 
     private GraphPath toPath(PathState state) {
-        List<GraphNode> nodes = state.nodeIds.stream().map(id -> toNode(verticesById.get(id))).toList();
+        List<GraphNode> nodes =
+                state.nodeIds.stream().map(id -> toNode(verticesById.get(id))).toList();
         return new GraphPath(nodes, state.edgeLabels);
     }
 
@@ -684,15 +707,21 @@ public class ArchitectureGraph {
             return false;
         }
         String actualText = actual.toString();
-        if (expected.startsWith("<=") || expected.startsWith(">=") || expected.startsWith("<") || expected.startsWith(">")) {
+        if (expected.startsWith("<=")
+                || expected.startsWith(">=")
+                || expected.startsWith("<")
+                || expected.startsWith(">")) {
             return matchesNumeric(actualText, expected);
         }
-        return actualText.equalsIgnoreCase(expected) || actualText.toLowerCase(Locale.ROOT).contains(expected.toLowerCase(Locale.ROOT));
+        return actualText.equalsIgnoreCase(expected)
+                || actualText.toLowerCase(Locale.ROOT).contains(expected.toLowerCase(Locale.ROOT));
     }
 
     private boolean matchesNumeric(String actualText, String expected) {
         try {
-            String operator = expected.startsWith("<=") || expected.startsWith(">=") ? expected.substring(0, 2) : expected.substring(0, 1);
+            String operator = expected.startsWith("<=") || expected.startsWith(">=")
+                    ? expected.substring(0, 2)
+                    : expected.substring(0, 1);
             double expectedNumber = Double.parseDouble(expected.substring(operator.length()));
             double actualNumber = Double.parseDouble(actualText);
             return switch (operator) {
@@ -712,9 +741,9 @@ public class ArchitectureGraph {
             return null;
         }
         return model.components.stream()
-            .filter(component -> componentId.equals(component.id))
-            .findFirst()
-            .orElse(null);
+                .filter(component -> componentId.equals(component.id))
+                .findFirst()
+                .orElse(null);
     }
 
     private String packageName(String qualifiedName) {
@@ -749,10 +778,10 @@ public class ArchitectureGraph {
     private boolean isRuntimeRelevant(Dependency dependency) {
         String kind = Objects.toString(dependency.kind, "").toLowerCase(Locale.ROOT);
         return kind.contains("injection")
-            || kind.contains("method")
-            || kind.contains("event")
-            || kind.contains("client")
-            || kind.contains("message");
+                || kind.contains("method")
+                || kind.contains("event")
+                || kind.contains("client")
+                || kind.contains("message");
     }
 
     private boolean isCondensable(Dependency dependency) {
@@ -762,8 +791,9 @@ public class ArchitectureGraph {
     }
 
     private boolean isUtilityLike(Component component) {
-        return component != null && component.type != null
-            && ("UTILITY".equals(component.type.name()) || "UNKNOWN".equals(component.type.name()));
+        return component != null
+                && component.type != null
+                && ("UTILITY".equals(component.type.name()) || "UNKNOWN".equals(component.type.name()));
     }
 
     private String normalizeBlank(String value) {
@@ -796,14 +826,14 @@ public class ArchitectureGraph {
         boolean matches(String query) {
             String needle = query.toLowerCase(Locale.ROOT);
             if (id.toLowerCase(Locale.ROOT).contains(needle)
-                || label.toLowerCase(Locale.ROOT).contains(needle)
-                || name.toLowerCase(Locale.ROOT).contains(needle)) {
+                    || label.toLowerCase(Locale.ROOT).contains(needle)
+                    || name.toLowerCase(Locale.ROOT).contains(needle)) {
                 return true;
             }
             return properties.values().stream()
-                .filter(Objects::nonNull)
-                .map(value -> value.toString().toLowerCase(Locale.ROOT))
-                .anyMatch(value -> value.contains(needle));
+                    .filter(Objects::nonNull)
+                    .map(value -> value.toString().toLowerCase(Locale.ROOT))
+                    .anyMatch(value -> value.contains(needle));
         }
     }
 
