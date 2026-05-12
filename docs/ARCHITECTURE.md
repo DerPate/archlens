@@ -730,3 +730,35 @@ flowchart LR
 - `comp:dev.dominikbreu.spoonmcp.model.InterfaceEntry` -> `comp:dev.dominikbreu.spoonmcp.model.SourceInfo` (field-reference, type-relation, evidence-score=0.6)
 - `comp:dev.dominikbreu.spoonmcp.model.OutboundSinkSite` -> `comp:dev.dominikbreu.spoonmcp.model.SourceInfo` (field-reference, type-relation, evidence-score=0.6)
 - `comp:dev.dominikbreu.spoonmcp.model.UseCase` -> `comp:dev.dominikbreu.spoonmcp.model.EntrypointType` (field-reference, type-relation, evidence-score=0.6)
+
+---
+
+## Known Limitations
+
+These are analysis boundaries in the current implementation. Each item has a corresponding
+backlog entry in `docs/superpowers/specs/2026-05-12-tier1-4-polish-design.md`.
+
+### G7 — Nested field / JSON-tree reads
+
+The tracer tracks a single variable name per call-graph hop. A method-chain like
+`req.getOrder().getId()` collapses to tracking `req`. If `req` itself is never
+passed directly to a sink, the path terminates before it reaches persistence or
+messaging — even if `req.getOrder()` eventually does.
+
+A fix requires a tracked-field-path DSL: instead of tracking `"req"` the tracer
+would track `"req.order.id"` and match the chain against field writes/reads at each
+hop. This is a non-trivial change to `DataFlowStep`, `CallEdge.paramMapping`, and
+`DataFlowTracer.dfs`. Not planned for 1.1.0.
+
+### G9 — Lambda / closure-wrapped invocations
+
+When a tracked parameter is passed into a lambda argument (e.g.
+`executor.submit(() -> repo.save(order))`), `CallGraphExtractor` descends into the
+lambda body but records no `paramMapping` for the closure-captured variable. The
+tracer therefore does not propagate tracking into the lambda.
+
+A fix requires `CallGraphExtractor.buildParamMapping` to detect closure captures —
+variables referenced inside a `CtLambda` that are declared in the enclosing scope —
+and synthesise a mapping entry. A prerequisite investigation: confirm whether Spoon's
+`CtLambda` exposes readable closure-capture metadata or whether a variable-reference
+walk is needed. Not planned for 1.1.0.
