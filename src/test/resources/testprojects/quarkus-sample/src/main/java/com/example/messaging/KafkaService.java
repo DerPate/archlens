@@ -10,6 +10,8 @@ import org.eclipse.microprofile.reactive.messaging.Outgoing;
 @ApplicationScoped
 public class KafkaService {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(KafkaService.class);
+
     @Inject
     @Channel("audit-log")
     Emitter<String> auditEmitter;
