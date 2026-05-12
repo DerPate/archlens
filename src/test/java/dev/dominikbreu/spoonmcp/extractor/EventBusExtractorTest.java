@@ -39,4 +39,13 @@ class EventBusExtractorTest extends ExtractorTestBase {
                 .first()
                 .satisfies(e -> assertThat(e.parameters).containsExactly("message"));
     }
+
+    @Test
+    void detectsVertxConsumerHandlerChainForm() {
+        assertThat(model.entrypoints)
+                .as("VertxBusHandlerConsumer.register must emit an EVENT_BUS_CONSUMER via handler() chain")
+                .anyMatch(e -> e.type == EntrypointType.EVENT_BUS_CONSUMER
+                        && e.componentId.contains("VertxBusHandlerConsumer")
+                        && "item.events".equals(e.channelName));
+    }
 }
