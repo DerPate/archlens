@@ -524,7 +524,9 @@ Arguments:
 
 Requires `index_workspace` to have been called first. Chain quality depends on
 `DataFlowSink.linkedPathIds` being populated by `DataFlowTracer` — i.e. channel
-names and field names must be resolvable from source. When no chains are found
+names and field names must be resolvable from source. When a sink carries no
+`linkedPathIds` the diagram ends at that sink node and no forwarding arc is drawn;
+this is correct behaviour, not a rendering error. When no chains are found at all
 the tool returns a single-line diagnostic explaining how many paths exist and
 how many carry `linkedPathIds`.
 
