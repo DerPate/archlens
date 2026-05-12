@@ -1,13 +1,13 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.DataFlowPath;
+import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import spoon.reflect.CtModel;
-
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class CallGraphExtractorTest extends ExtractorTestBase {
 
@@ -25,27 +25,27 @@ class CallGraphExtractorTest extends ExtractorTestBase {
     @Test
     void extractsEdgeFromResourceToService() {
         assertThat(model.callEdges)
-            .as("OrderResource.get -> OrderService.find edge")
-            .anySatisfy(e -> {
-                assertThat(e.fromComponentId).isEqualTo("comp:com.example.api.OrderResource");
-                assertThat(e.fromMethod).isEqualTo("get");
-                assertThat(e.toComponentId).isEqualTo("comp:com.example.service.OrderService");
-                assertThat(e.toMethod).isEqualTo("find");
-                assertThat(e.callKind).isEqualTo("direct");
-            });
+                .as("OrderResource.get -> OrderService.find edge")
+                .anySatisfy(e -> {
+                    assertThat(e.fromComponentId).isEqualTo("comp:com.example.api.OrderResource");
+                    assertThat(e.fromMethod).isEqualTo("get");
+                    assertThat(e.toComponentId).isEqualTo("comp:com.example.service.OrderService");
+                    assertThat(e.toMethod).isEqualTo("find");
+                    assertThat(e.callKind).isEqualTo("direct");
+                });
     }
 
     @Test
     void extractsEdgeFromServiceToRepository() {
         assertThat(model.callEdges)
-            .as("OrderService.find -> OrderRepository.findById edge")
-            .anySatisfy(e -> {
-                assertThat(e.fromComponentId).isEqualTo("comp:com.example.service.OrderService");
-                assertThat(e.fromMethod).isEqualTo("find");
-                assertThat(e.toComponentId).isEqualTo("comp:com.example.repository.OrderRepository");
-                assertThat(e.toMethod).isEqualTo("findById");
-                assertThat(e.callKind).isEqualTo("direct");
-            });
+                .as("OrderService.find -> OrderRepository.findById edge")
+                .anySatisfy(e -> {
+                    assertThat(e.fromComponentId).isEqualTo("comp:com.example.service.OrderService");
+                    assertThat(e.fromMethod).isEqualTo("find");
+                    assertThat(e.toComponentId).isEqualTo("comp:com.example.repository.OrderRepository");
+                    assertThat(e.toMethod).isEqualTo("findById");
+                    assertThat(e.callKind).isEqualTo("direct");
+                });
     }
 
     @Test
@@ -57,25 +57,24 @@ class CallGraphExtractorTest extends ExtractorTestBase {
     @Test
     void doesNotRecordIntraComponentCalls() {
         assertThat(model.callEdges)
-            .as("no self-referential edges")
-            .noneMatch(e -> e.fromComponentId.equals(e.toComponentId));
+                .as("no self-referential edges")
+                .noneMatch(e -> e.fromComponentId.equals(e.toComponentId));
     }
 
     @Test
     void noEdgesFromUnknownComponents() {
         var compIds = model.components.stream().map(c -> c.id).toList();
-        assertThat(model.callEdges)
-            .allSatisfy(e -> {
-                assertThat(compIds).contains(e.fromComponentId);
-                assertThat(compIds).contains(e.toComponentId);
-            });
+        assertThat(model.callEdges).allSatisfy(e -> {
+            assertThat(compIds).contains(e.fromComponentId);
+            assertThat(compIds).contains(e.toComponentId);
+        });
     }
 
     @Test
     void edgeSourceIsPopulated() {
         assertThat(model.callEdges)
-            .as("all edges have source info")
-            .allSatisfy(e -> assertThat(e.source).isNotNull());
+                .as("all edges have source info")
+                .allSatisfy(e -> assertThat(e.source).isNotNull());
     }
 
     @Test
@@ -84,13 +83,13 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         // — argument is a CtConditional wrapping CtVariableRead 'id', so buildParamMapping
         // descends into it and flags the callee param as synthesised.
         assertThat(model.callEdges)
-            .as("OrderService.findTernary -> OrderRepository.findById has synthesised mapping")
-            .anySatisfy(e -> {
-                assertThat(e.fromMethod).isEqualTo("findTernary");
-                assertThat(e.toMethod).isEqualTo("findById");
-                assertThat(e.paramMapping).containsEntry("id", "id");
-                assertThat(e.syntheticParamMappings).contains("id");
-            });
+                .as("OrderService.findTernary -> OrderRepository.findById has synthesised mapping")
+                .anySatisfy(e -> {
+                    assertThat(e.fromMethod).isEqualTo("findTernary");
+                    assertThat(e.toMethod).isEqualTo("findById");
+                    assertThat(e.paramMapping).containsEntry("id", "id");
+                    assertThat(e.syntheticParamMappings).contains("id");
+                });
     }
 
     @Test
@@ -98,26 +97,26 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         // findWrapped calls orderRepository.findById(Long.valueOf(String.valueOf(raw)))
         // — argument is a nested CtInvocation, descend should reach 'raw'.
         assertThat(model.callEdges)
-            .as("OrderService.findWrapped -> OrderRepository.findById has synthesised mapping")
-            .anySatisfy(e -> {
-                assertThat(e.fromMethod).isEqualTo("findWrapped");
-                assertThat(e.toMethod).isEqualTo("findById");
-                assertThat(e.paramMapping).containsEntry("raw", "id");
-                assertThat(e.syntheticParamMappings).contains("id");
-            });
+                .as("OrderService.findWrapped -> OrderRepository.findById has synthesised mapping")
+                .anySatisfy(e -> {
+                    assertThat(e.fromMethod).isEqualTo("findWrapped");
+                    assertThat(e.toMethod).isEqualTo("findById");
+                    assertThat(e.paramMapping).containsEntry("raw", "id");
+                    assertThat(e.syntheticParamMappings).contains("id");
+                });
     }
 
     @Test
     void scansOutboundFileSinkSites() {
         assertThat(model.outboundSinkSites)
-            .as("OrderRepository.archive uses java.nio.file.Files → FILE_OUTBOUND site")
-            .anySatisfy(s -> {
-                assertThat(s.componentId).contains("OrderRepository");
-                assertThat(s.method).isEqualTo("archive");
-                assertThat(s.calleeQualifiedName).startsWith("java.nio.file.Files");
-                assertThat(s.calleeMethod).isEqualTo("writeString");
-                assertThat(s.kind.name()).isEqualTo("FILE_OUTBOUND");
-            });
+                .as("OrderRepository.archive uses java.nio.file.Files → FILE_OUTBOUND site")
+                .anySatisfy(s -> {
+                    assertThat(s.componentId).contains("OrderRepository");
+                    assertThat(s.method).isEqualTo("archive");
+                    assertThat(s.calleeQualifiedName).startsWith("java.nio.file.Files");
+                    assertThat(s.calleeMethod).isEqualTo("writeString");
+                    assertThat(s.kind.name()).isEqualTo("FILE_OUTBOUND");
+                });
     }
 
     @Test
@@ -127,13 +126,13 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         // is not a known component, so extractFromMethod cannot emit a CallEdge —
         // extractOutboundSinkSites must produce a MESSAGING OutboundSinkSite instead.
         assertThat(model.outboundSinkSites)
-            .as("KafkaService.publishAudit -> Emitter.send is a MESSAGING sink")
-            .anySatisfy(s -> {
-                assertThat(s.componentId).contains("KafkaService");
-                assertThat(s.method).isEqualTo("publishAudit");
-                assertThat(s.calleeMethod).isEqualTo("send");
-                assertThat(s.kind).isEqualTo(DataFlowSink.Kind.MESSAGING);
-            });
+                .as("KafkaService.publishAudit -> Emitter.send is a MESSAGING sink")
+                .anySatisfy(s -> {
+                    assertThat(s.componentId).contains("KafkaService");
+                    assertThat(s.method).isEqualTo("publishAudit");
+                    assertThat(s.calleeMethod).isEqualTo("send");
+                    assertThat(s.kind).isEqualTo(DataFlowSink.Kind.MESSAGING);
+                });
     }
 
     @Test
@@ -151,49 +150,60 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         List<DataFlowPath> paths = new DataFlowTracer().trace(model);
 
         DataFlowPath consumerPath = paths.stream()
-            .filter(p -> p.entrypointId.contains("OrderIngest")
-                      && p.entrypointId.contains("#consume"))
-            .findFirst().orElseThrow(() ->
-                new AssertionError("no data-flow path traced from OrderIngest.consume"));
+                .filter(p -> p.entrypointId.contains("OrderIngest") && p.entrypointId.contains("#consume"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("no data-flow path traced from OrderIngest.consume"));
 
         DataFlowPath schedulerPath = paths.stream()
-            .filter(p -> p.entrypointId.contains("OrderForwarder")
-                      && p.entrypointId.contains("#forward"))
-            .findFirst().orElseThrow(() ->
-                new AssertionError("no data-flow path traced from OrderForwarder.forward"));
+                .filter(p -> p.entrypointId.contains("OrderForwarder") && p.entrypointId.contains("#forward"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("no data-flow path traced from OrderForwarder.forward"));
 
         DataFlowSink storeSink = consumerPath.sinks.stream()
-            .filter(s -> s.kind == DataFlowSink.Kind.STORE
-                      && "cache".equals(s.fieldName)
-                      && s.fieldOwnerComponentId != null
-                      && s.fieldOwnerComponentId.contains("OrderBuffer"))
-            .findFirst().orElseThrow(() ->
-                new AssertionError("OrderIngest.consume did not emit a STORE sink on OrderBuffer.cache"));
+                .filter(s -> s.kind == DataFlowSink.Kind.STORE
+                        && "cache".equals(s.fieldName)
+                        && s.fieldOwnerComponentId != null
+                        && s.fieldOwnerComponentId.contains("OrderBuffer"))
+                .findFirst()
+                .orElseThrow(
+                        () -> new AssertionError("OrderIngest.consume did not emit a STORE sink on OrderBuffer.cache"));
 
         DataFlowSink messagingSink = schedulerPath.sinks.stream()
-            .filter(s -> s.kind == DataFlowSink.Kind.MESSAGING && "send".equals(s.method))
-            .findFirst().orElseThrow(() ->
-                new AssertionError("OrderForwarder.forward did not emit a MESSAGING sink via Emitter.send"));
+                .filter(s -> s.kind == DataFlowSink.Kind.MESSAGING && "send".equals(s.method))
+                .findFirst()
+                .orElseThrow(() ->
+                        new AssertionError("OrderForwarder.forward did not emit a MESSAGING sink via Emitter.send"));
 
         assertThat(messagingSink.channel)
-            .as("MESSAGING sink must carry the channel name from @Channel annotation")
-            .isEqualTo("orders-out");
+                .as("MESSAGING sink must carry the channel name from @Channel annotation")
+                .isEqualTo("orders-out");
 
         DataFlowPath nextStagePath = paths.stream()
-            .filter(p -> p.entrypointId.contains("OrderNextStage")
-                      && p.entrypointId.contains("#process"))
-            .findFirst().orElse(null);
+                .filter(p -> p.entrypointId.contains("OrderNextStage") && p.entrypointId.contains("#process"))
+                .findFirst()
+                .orElse(null);
         // OrderNextStage.process has no parameters and no call edges → no path with sinks,
         // so only assert the link if a path was traced.
         if (nextStagePath != null) {
             assertThat(messagingSink.linkedPathIds)
-                .as("MESSAGING sink on 'orders-out' must link to OrderNextStage consumer path")
-                .contains(nextStagePath.id);
+                    .as("MESSAGING sink on 'orders-out' must link to OrderNextStage consumer path")
+                    .contains(nextStagePath.id);
         }
 
         assertThat(storeSink.linkedPathIds)
-            .as("STORE sink on OrderBuffer.cache must link to the OrderForwarder reader path")
-            .contains(schedulerPath.id);
+                .as("STORE sink on OrderBuffer.cache must link to the OrderForwarder reader path")
+                .contains(schedulerPath.id);
+    }
+
+    @Test
+    void loggerFieldIsExcludedFromSharedStateSeeding() {
+        // KafkaService has a Logger field ('log') added to the quarkus-sample fixture.
+        // Logger is in SHARED_STATE_TYPE_DENYLIST, so buildSharedStateFieldSet must
+        // exclude it — the tracer must not produce any path seeded from 'log'.
+        List<DataFlowPath> paths = new DataFlowTracer().trace(model);
+        assertThat(paths)
+                .as("no DataFlowPath should be seeded from a Logger field")
+                .noneMatch(p -> p.entrypointId.contains("KafkaService") && "log".equals(p.trackedParam));
     }
 
     @Test
@@ -211,12 +221,12 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         // a local HashMap, not a direct CtVariableRead of the tracked param.
         // extractFieldAccesses must still emit a WRITE FieldAccess for this.
         assertThat(model.fieldAccesses)
-            .as("CachingConsumer.handle -> WRITE to 'cache'")
-            .anySatisfy(fa -> {
-                assertThat(fa.componentId).contains("CachingConsumer");
-                assertThat(fa.method).isEqualTo("handle");
-                assertThat(fa.kind).isEqualTo(FieldAccess.Kind.WRITE);
-                assertThat(fa.fieldName).isEqualTo("cache");
-            });
+                .as("CachingConsumer.handle -> WRITE to 'cache'")
+                .anySatisfy(fa -> {
+                    assertThat(fa.componentId).contains("CachingConsumer");
+                    assertThat(fa.method).isEqualTo("handle");
+                    assertThat(fa.kind).isEqualTo(FieldAccess.Kind.WRITE);
+                    assertThat(fa.fieldName).isEqualTo("cache");
+                });
     }
 }
