@@ -1,12 +1,11 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
-import dev.dominikbreu.spoonmcp.model.*;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.dominikbreu.spoonmcp.model.*;
 import java.util.List;
 import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 class DataFlowTracerTest {
 
@@ -18,10 +17,8 @@ class DataFlowTracerTest {
     void tracesThroughServiceToRepositorySink() {
         ArchitectureModel model = buildModel();
 
-        addCallEdge(model, "comp:OrderResource", "create", "comp:OrderService", "create",
-                    Map.of("order", "order"));
-        addCallEdge(model, "comp:OrderService", "create", "comp:OrderRepository", "save",
-                    Map.of("order", "entity"));
+        addCallEdge(model, "comp:OrderResource", "create", "comp:OrderService", "create", Map.of("order", "order"));
+        addCallEdge(model, "comp:OrderService", "create", "comp:OrderRepository", "save", Map.of("order", "entity"));
 
         List<DataFlowPath> paths = tracer.trace(model);
 
@@ -39,16 +36,15 @@ class DataFlowTracerTest {
     void tracksParameterRenameAcrossHops() {
         ArchitectureModel model = buildModel();
 
-        addCallEdge(model, "comp:OrderResource", "create", "comp:OrderService", "create",
-                    Map.of("order", "dto"));
-        addCallEdge(model, "comp:OrderService", "create", "comp:OrderRepository", "save",
-                    Map.of("dto", "entity"));
+        addCallEdge(model, "comp:OrderResource", "create", "comp:OrderService", "create", Map.of("order", "dto"));
+        addCallEdge(model, "comp:OrderService", "create", "comp:OrderRepository", "save", Map.of("dto", "entity"));
 
         List<DataFlowPath> paths = tracer.trace(model);
 
         DataFlowPath path = paths.stream()
-            .filter(p -> p.trackedParam.equals("order"))
-            .findFirst().orElseThrow();
+                .filter(p -> p.trackedParam.equals("order"))
+                .findFirst()
+                .orElseThrow();
 
         List<String> localNames = path.steps.stream().map(s -> s.localName).toList();
         assertThat(localNames).containsSequence("order", "dto");
@@ -58,52 +54,65 @@ class DataFlowTracerTest {
     void classifiesMessagingCallKindAsSink() {
         ArchitectureModel model = buildModel();
 
-        addCallEdgeWithKind(model, "comp:OrderResource", "create", "comp:OrderService", "create",
-                            Map.of("order", "order"), "direct");
-        addCallEdgeWithKind(model, "comp:OrderService", "create", "comp:OrderService", "emit",
-                            Map.of(), "messaging");
+        addCallEdgeWithKind(
+                model,
+                "comp:OrderResource",
+                "create",
+                "comp:OrderService",
+                "create",
+                Map.of("order", "order"),
+                "direct");
+        addCallEdgeWithKind(model, "comp:OrderService", "create", "comp:OrderService", "emit", Map.of(), "messaging");
 
         List<DataFlowPath> paths = tracer.trace(model);
 
-        assertThat(paths).anySatisfy(p -> p.sinks.stream()
-            .anyMatch(s -> s.kind == DataFlowSink.Kind.MESSAGING));
+        assertThat(paths).anySatisfy(p -> p.sinks.stream().anyMatch(s -> s.kind == DataFlowSink.Kind.MESSAGING));
     }
 
     @Test
     void classifiesEventBusCallKindAsSink() {
         ArchitectureModel model = buildModel();
 
-        addCallEdgeWithKind(model, "comp:OrderResource", "create", "comp:OrderService", "publish",
-                            Map.of("order", "event"), "event-bus");
+        addCallEdgeWithKind(
+                model,
+                "comp:OrderResource",
+                "create",
+                "comp:OrderService",
+                "publish",
+                Map.of("order", "event"),
+                "event-bus");
 
         List<DataFlowPath> paths = tracer.trace(model);
 
-        assertThat(paths).anySatisfy(p ->
-            p.sinks.stream().anyMatch(s -> s.kind == DataFlowSink.Kind.EVENT_BUS));
+        assertThat(paths).anySatisfy(p -> p.sinks.stream().anyMatch(s -> s.kind == DataFlowSink.Kind.EVENT_BUS));
     }
 
     @Test
     void omitsPathsWithNoSinks() {
         ArchitectureModel model = buildModel();
         // only edges between service-tier components, no sink types
-        addCallEdge(model, "comp:OrderResource", "create", "comp:OrderService", "create",
-                    Map.of("order", "order"));
+        addCallEdge(model, "comp:OrderResource", "create", "comp:OrderService", "create", Map.of("order", "order"));
 
         List<DataFlowPath> paths = tracer.trace(model);
 
         assertThat(paths).noneMatch(p -> p.trackedParam.equals("order") && p.sinks.isEmpty() == false);
         // path should simply be absent (no sinks found)
-        assertThat(paths.stream().filter(p -> p.trackedParam.equals("order")).toList()).isEmpty();
+        assertThat(paths.stream().filter(p -> p.trackedParam.equals("order")).toList())
+                .isEmpty();
     }
 
     @Test
     void doesNotLoopOnCyclicCallGraph() {
         ArchitectureModel model = buildModel();
 
-        addCallEdge(model, "comp:OrderResource", "create", "comp:OrderService", "create",
-                    Map.of("order", "order"));
-        addCallEdge(model, "comp:OrderService", "create", "comp:OrderResource", "create",
-                    Map.of("order", "order")); // cycle back
+        addCallEdge(model, "comp:OrderResource", "create", "comp:OrderService", "create", Map.of("order", "order"));
+        addCallEdge(
+                model,
+                "comp:OrderService",
+                "create",
+                "comp:OrderResource",
+                "create",
+                Map.of("order", "order")); // cycle back
 
         // must terminate without exception
         List<DataFlowPath> paths = tracer.trace(model);
@@ -131,10 +140,8 @@ class DataFlowTracerTest {
         // ep.parameters intentionally left empty
         model.entrypoints.add(ep);
 
-        addCallEdge(model, "comp:JobScheduler", "runJob", "comp:OrderService", "process",
-                    Map.of());
-        addCallEdge(model, "comp:OrderService", "process", "comp:OrderRepository", "save",
-                    Map.of());
+        addCallEdge(model, "comp:JobScheduler", "runJob", "comp:OrderService", "process", Map.of());
+        addCallEdge(model, "comp:OrderService", "process", "comp:OrderRepository", "save", Map.of());
 
         List<DataFlowPath> paths = tracer.trace(model);
 
@@ -164,13 +171,13 @@ class DataFlowTracerTest {
         model.entrypoints.add(ep);
 
         FieldAccess fw = new FieldAccess();
-        fw.kind                  = FieldAccess.Kind.WRITE;
-        fw.componentId           = "comp:SnapshotIngestor";
+        fw.kind = FieldAccess.Kind.WRITE;
+        fw.componentId = "comp:SnapshotIngestor";
         fw.fieldOwnerComponentId = "comp:SnapshotIngestor";
-        fw.method                = "consume";
-        fw.fieldName             = "snapshots";
-        fw.sourceVarName         = "payload";
-        fw.id                    = "field:comp:SnapshotIngestor#consume@snapshots:write";
+        fw.method = "consume";
+        fw.fieldName = "snapshots";
+        fw.sourceVarName = "payload";
+        fw.id = "field:comp:SnapshotIngestor#consume@snapshots:write";
         model.fieldAccesses.add(fw);
 
         List<DataFlowPath> paths = tracer.trace(model);
@@ -197,21 +204,21 @@ class DataFlowTracerTest {
         model.components.add(comp("DeviceStateDataService", ComponentType.SERVICE));
 
         Entrypoint ep = new Entrypoint();
-        ep.id          = "ep:ingest";
-        ep.name        = "ingest";
-        ep.type        = EntrypointType.MESSAGING_CONSUMER;
+        ep.id = "ep:ingest";
+        ep.name = "ingest";
+        ep.type = EntrypointType.MESSAGING_CONSUMER;
         ep.componentId = "comp:DeviceStateDataService";
         ep.parameters.add("deviceSnapshot");
         model.entrypoints.add(ep);
 
         FieldAccess fw = new FieldAccess();
-        fw.kind                  = FieldAccess.Kind.WRITE;
-        fw.componentId           = "comp:DeviceStateDataService";
+        fw.kind = FieldAccess.Kind.WRITE;
+        fw.componentId = "comp:DeviceStateDataService";
         fw.fieldOwnerComponentId = "comp:DeviceStateDataService";
-        fw.method                = "ingest";
-        fw.fieldName             = "store";
-        fw.sourceVarName         = "device"; // derived local var, not the raw param name
-        fw.id                    = "field:comp:DeviceStateDataService#ingest@store:write";
+        fw.method = "ingest";
+        fw.fieldName = "store";
+        fw.sourceVarName = "device"; // derived local var, not the raw param name
+        fw.id = "field:comp:DeviceStateDataService#ingest@store:write";
         model.fieldAccesses.add(fw);
 
         List<DataFlowPath> paths = tracer.trace(model);
@@ -231,7 +238,7 @@ class DataFlowTracerTest {
     void schedulerReadingCacheSeedsTrackingFromFieldName() {
         ArchitectureModel model = new ArchitectureModel("test");
         model.components.add(comp("StateScheduler", ComponentType.SCHEDULER));
-        model.components.add(comp("MqttClient",     ComponentType.HTTP_CLIENT));
+        model.components.add(comp("MqttClient", ComponentType.HTTP_CLIENT));
 
         Component mqtt = model.components.get(1);
         mqtt.stereotypes = List.of("messaging");
@@ -244,16 +251,15 @@ class DataFlowTracerTest {
         model.entrypoints.add(ep);
 
         FieldAccess fr = new FieldAccess();
-        fr.kind                  = FieldAccess.Kind.READ;
-        fr.componentId           = "comp:StateScheduler";
+        fr.kind = FieldAccess.Kind.READ;
+        fr.componentId = "comp:StateScheduler";
         fr.fieldOwnerComponentId = "comp:StateScheduler";
-        fr.method                = "tick";
-        fr.fieldName             = "snapshots";
-        fr.id                    = "field:comp:StateScheduler#tick@snapshots:read";
+        fr.method = "tick";
+        fr.fieldName = "snapshots";
+        fr.id = "field:comp:StateScheduler#tick@snapshots:read";
         model.fieldAccesses.add(fr);
 
-        addCallEdgeWithKind(model, "comp:StateScheduler", "tick", "comp:MqttClient", "publish",
-                            Map.of(), "messaging");
+        addCallEdgeWithKind(model, "comp:StateScheduler", "tick", "comp:MqttClient", "publish", Map.of(), "messaging");
 
         List<DataFlowPath> paths = tracer.trace(model);
 
@@ -273,59 +279,61 @@ class DataFlowTracerTest {
         // The consumer's STORE sink should carry the producer path id in linkedPathIds.
         ArchitectureModel model = new ArchitectureModel("test");
         model.components.add(comp("SnapshotIngestor", ComponentType.SERVICE));
-        model.components.add(comp("StatePublisher",   ComponentType.SCHEDULER));
-        model.components.add(comp("MqttClient",       ComponentType.HTTP_CLIENT));
+        model.components.add(comp("StatePublisher", ComponentType.SCHEDULER));
+        model.components.add(comp("MqttClient", ComponentType.HTTP_CLIENT));
         model.components.get(2).stereotypes = List.of("messaging");
 
         Entrypoint consumer = new Entrypoint();
-        consumer.id          = "ep:consume";
-        consumer.name        = "consume";
-        consumer.type        = EntrypointType.MESSAGING_CONSUMER;
+        consumer.id = "ep:consume";
+        consumer.name = "consume";
+        consumer.type = EntrypointType.MESSAGING_CONSUMER;
         consumer.componentId = "comp:SnapshotIngestor";
         consumer.parameters.add("payload");
         model.entrypoints.add(consumer);
 
         Entrypoint producer = new Entrypoint();
-        producer.id          = "ep:tick";
-        producer.name        = "tick";
-        producer.type        = EntrypointType.MESSAGING_PRODUCER;
+        producer.id = "ep:tick";
+        producer.name = "tick";
+        producer.type = EntrypointType.MESSAGING_PRODUCER;
         producer.componentId = "comp:StatePublisher";
         model.entrypoints.add(producer);
 
         FieldAccess fw = new FieldAccess();
-        fw.kind                  = FieldAccess.Kind.WRITE;
-        fw.componentId           = "comp:SnapshotIngestor";
+        fw.kind = FieldAccess.Kind.WRITE;
+        fw.componentId = "comp:SnapshotIngestor";
         fw.fieldOwnerComponentId = "comp:SnapshotIngestor";
-        fw.method                = "consume";
-        fw.fieldName             = "snapshots";
-        fw.sourceVarName         = "payload";
-        fw.id                    = "field:comp:SnapshotIngestor#consume@snapshots:write";
+        fw.method = "consume";
+        fw.fieldName = "snapshots";
+        fw.sourceVarName = "payload";
+        fw.id = "field:comp:SnapshotIngestor#consume@snapshots:write";
         model.fieldAccesses.add(fw);
 
         FieldAccess fr = new FieldAccess();
-        fr.kind                  = FieldAccess.Kind.READ;
-        fr.componentId           = "comp:StatePublisher";
+        fr.kind = FieldAccess.Kind.READ;
+        fr.componentId = "comp:StatePublisher";
         fr.fieldOwnerComponentId = "comp:SnapshotIngestor";
-        fr.method                = "tick";
-        fr.fieldName             = "snapshots";
-        fr.id                    = "field:comp:StatePublisher#tick@snapshots:read";
+        fr.method = "tick";
+        fr.fieldName = "snapshots";
+        fr.id = "field:comp:StatePublisher#tick@snapshots:read";
         model.fieldAccesses.add(fr);
 
-        addCallEdgeWithKind(model, "comp:StatePublisher", "tick", "comp:MqttClient", "publish",
-                            Map.of(), "messaging");
+        addCallEdgeWithKind(model, "comp:StatePublisher", "tick", "comp:MqttClient", "publish", Map.of(), "messaging");
 
         List<DataFlowPath> paths = tracer.trace(model);
 
         DataFlowPath consumerPath = paths.stream()
-            .filter(p -> p.entrypointId.equals("ep:consume"))
-            .findFirst().orElseThrow();
+                .filter(p -> p.entrypointId.equals("ep:consume"))
+                .findFirst()
+                .orElseThrow();
         DataFlowPath producerPath = paths.stream()
-            .filter(p -> p.entrypointId.equals("ep:tick"))
-            .findFirst().orElseThrow();
+                .filter(p -> p.entrypointId.equals("ep:tick"))
+                .findFirst()
+                .orElseThrow();
 
         DataFlowSink storeSink = consumerPath.sinks.stream()
-            .filter(s -> s.kind == DataFlowSink.Kind.STORE)
-            .findFirst().orElseThrow();
+                .filter(s -> s.kind == DataFlowSink.Kind.STORE)
+                .findFirst()
+                .orElseThrow();
         assertThat(storeSink.linkedPathIds).contains(producerPath.id);
     }
 
@@ -339,28 +347,27 @@ class DataFlowTracerTest {
         // miss store→producer pipelines flowing through shared state.
         ArchitectureModel model = new ArchitectureModel("test");
         model.components.add(comp("StatePublisher", ComponentType.SCHEDULER));
-        model.components.add(comp("MqttClient",     ComponentType.HTTP_CLIENT));
+        model.components.add(comp("MqttClient", ComponentType.HTTP_CLIENT));
         model.components.get(1).stereotypes = List.of("messaging");
 
         Entrypoint ep = new Entrypoint();
-        ep.id          = "ep:publish";
-        ep.name        = "publish";
-        ep.type        = EntrypointType.MESSAGING_PRODUCER;
+        ep.id = "ep:publish";
+        ep.name = "publish";
+        ep.type = EntrypointType.MESSAGING_PRODUCER;
         ep.componentId = "comp:StatePublisher";
         ep.parameters.add("trigger"); // declared param — but not what reaches the sink
         model.entrypoints.add(ep);
 
         FieldAccess fr = new FieldAccess();
-        fr.kind                  = FieldAccess.Kind.READ;
-        fr.componentId           = "comp:StatePublisher";
+        fr.kind = FieldAccess.Kind.READ;
+        fr.componentId = "comp:StatePublisher";
         fr.fieldOwnerComponentId = "comp:StatePublisher";
-        fr.method                = "publish";
-        fr.fieldName             = "snapshots";
-        fr.id                    = "field:comp:StatePublisher#publish@snapshots:read";
+        fr.method = "publish";
+        fr.fieldName = "snapshots";
+        fr.id = "field:comp:StatePublisher#publish@snapshots:read";
         model.fieldAccesses.add(fr);
 
-        addCallEdgeWithKind(model, "comp:StatePublisher", "publish", "comp:MqttClient", "send",
-                            Map.of(), "messaging");
+        addCallEdgeWithKind(model, "comp:StatePublisher", "publish", "comp:MqttClient", "send", Map.of(), "messaging");
 
         List<DataFlowPath> paths = tracer.trace(model);
 
@@ -384,29 +391,29 @@ class DataFlowTracerTest {
         model.components.add(comp("Pump", ComponentType.SCHEDULER));
 
         Entrypoint ep = new Entrypoint();
-        ep.id          = "ep:pump";
-        ep.name        = "pump";
-        ep.type        = EntrypointType.SCHEDULER;
+        ep.id = "ep:pump";
+        ep.name = "pump";
+        ep.type = EntrypointType.SCHEDULER;
         ep.componentId = "comp:Pump";
         model.entrypoints.add(ep);
 
         FieldAccess fr = new FieldAccess();
-        fr.kind                  = FieldAccess.Kind.READ;
-        fr.componentId           = "comp:Pump";
+        fr.kind = FieldAccess.Kind.READ;
+        fr.componentId = "comp:Pump";
         fr.fieldOwnerComponentId = "comp:Pump";
-        fr.method                = "pump";
-        fr.fieldName             = "inbox";
-        fr.id                    = "field:comp:Pump#pump@inbox:read";
+        fr.method = "pump";
+        fr.fieldName = "inbox";
+        fr.id = "field:comp:Pump#pump@inbox:read";
         model.fieldAccesses.add(fr);
 
         FieldAccess fw = new FieldAccess();
-        fw.kind                  = FieldAccess.Kind.WRITE;
-        fw.componentId           = "comp:Pump";
+        fw.kind = FieldAccess.Kind.WRITE;
+        fw.componentId = "comp:Pump";
         fw.fieldOwnerComponentId = "comp:Pump";
-        fw.method                = "pump";
-        fw.fieldName             = "outbox";
-        fw.sourceFieldName       = "inbox";
-        fw.id                    = "field:comp:Pump#pump@outbox:write";
+        fw.method = "pump";
+        fw.fieldName = "outbox";
+        fw.sourceFieldName = "inbox";
+        fw.id = "field:comp:Pump#pump@outbox:write";
         model.fieldAccesses.add(fw);
 
         List<DataFlowPath> paths = tracer.trace(model);
@@ -427,18 +434,17 @@ class DataFlowTracerTest {
         ArchitectureModel model = buildModel();
 
         CallEdge fetch = new CallEdge();
-        fetch.id              = "call:comp:OrderResource#create->comp:OrderService#lookup";
+        fetch.id = "call:comp:OrderResource#create->comp:OrderService#lookup";
         fetch.fromComponentId = "comp:OrderResource";
-        fetch.fromMethod      = "create";
-        fetch.toComponentId   = "comp:OrderService";
-        fetch.toMethod        = "lookup";
-        fetch.callKind        = "direct";
-        fetch.assignedToVar   = "loaded";
-        fetch.returnsTracked  = true;
+        fetch.fromMethod = "create";
+        fetch.toComponentId = "comp:OrderService";
+        fetch.toMethod = "lookup";
+        fetch.callKind = "direct";
+        fetch.assignedToVar = "loaded";
+        fetch.returnsTracked = true;
         model.callEdges.add(fetch);
 
-        addCallEdge(model, "comp:OrderResource", "create", "comp:OrderRepository", "save",
-                    Map.of("loaded", "entity"));
+        addCallEdge(model, "comp:OrderResource", "create", "comp:OrderRepository", "save", Map.of("loaded", "entity"));
 
         List<DataFlowPath> paths = tracer.trace(model);
 
@@ -455,12 +461,12 @@ class DataFlowTracerTest {
         ArchitectureModel model = buildModel();
 
         CallEdge edge = new CallEdge();
-        edge.id              = "call:comp:OrderResource#create->comp:OrderRepository#save";
+        edge.id = "call:comp:OrderResource#create->comp:OrderRepository#save";
         edge.fromComponentId = "comp:OrderResource";
-        edge.fromMethod      = "create";
-        edge.toComponentId   = "comp:OrderRepository";
-        edge.toMethod        = "save";
-        edge.callKind        = "direct";
+        edge.fromMethod = "create";
+        edge.toComponentId = "comp:OrderRepository";
+        edge.toMethod = "save";
+        edge.callKind = "direct";
         edge.paramMapping.put("order", "entity");
         edge.killedTrackedNames.add("order"); // 'order' was reassigned before this call
         model.callEdges.add(edge);
@@ -468,9 +474,9 @@ class DataFlowTracerTest {
         List<DataFlowPath> paths = tracer.trace(model);
 
         // No persistence sink for 'order' because tracking was dropped.
-        assertThat(paths).noneMatch(p ->
-            "order".equals(p.trackedParam)
-            && p.sinks.stream().anyMatch(s -> s.kind == DataFlowSink.Kind.PERSISTENCE));
+        assertThat(paths)
+                .noneMatch(p -> "order".equals(p.trackedParam)
+                        && p.sinks.stream().anyMatch(s -> s.kind == DataFlowSink.Kind.PERSISTENCE));
     }
 
     // ── G6: outbound sink sites (Files / S3 SDK) ────────────────────────────────
@@ -489,17 +495,47 @@ class DataFlowTracerTest {
         model.entrypoints.add(ep);
 
         OutboundSinkSite site = new OutboundSinkSite();
-        site.id                  = "outbound:comp:Reporter#writeReport:0";
-        site.kind                = DataFlowSink.Kind.FILE_OUTBOUND;
-        site.componentId         = "comp:Reporter";
-        site.method              = "writeReport";
+        site.id = "outbound:comp:Reporter#writeReport:0";
+        site.kind = DataFlowSink.Kind.FILE_OUTBOUND;
+        site.componentId = "comp:Reporter";
+        site.method = "writeReport";
         site.calleeQualifiedName = "java.nio.file.Files";
-        site.calleeMethod        = "writeString";
+        site.calleeMethod = "writeString";
         model.outboundSinkSites.add(site);
 
         List<DataFlowPath> paths = tracer.trace(model);
-        assertThat(paths).anySatisfy(p -> p.sinks.stream()
-            .anyMatch(s -> s.kind == DataFlowSink.Kind.FILE_OUTBOUND));
+        assertThat(paths).anySatisfy(p -> p.sinks.stream().anyMatch(s -> s.kind == DataFlowSink.Kind.FILE_OUTBOUND));
+    }
+
+    @Test
+    void fileOutboundSinkCarriesCalleeQualifiedName() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("Reporter", ComponentType.REST_RESOURCE));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:write";
+        ep.name = "writeReport";
+        ep.type = EntrypointType.REST_ENDPOINT;
+        ep.componentId = "comp:Reporter";
+        ep.parameters.add("payload");
+        model.entrypoints.add(ep);
+
+        OutboundSinkSite site = new OutboundSinkSite();
+        site.id = "outbound:comp:Reporter#writeReport:0";
+        site.kind = DataFlowSink.Kind.FILE_OUTBOUND;
+        site.componentId = "comp:Reporter";
+        site.method = "writeReport";
+        site.calleeQualifiedName = "java.nio.file.Files";
+        site.calleeMethod = "writeString";
+        model.outboundSinkSites.add(site);
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        assertThat(paths)
+                .anySatisfy(p -> assertThat(p.sinks).anySatisfy(s -> {
+                    assertThat(s.kind).isEqualTo(DataFlowSink.Kind.FILE_OUTBOUND);
+                    assertThat(s.calleeQualifiedName).isEqualTo("java.nio.file.Files");
+                }));
     }
 
     // ── G6: object-storage / file-outbound classification ──────────────────────
@@ -520,13 +556,11 @@ class DataFlowTracerTest {
         ep.parameters.add("payload");
         model.entrypoints.add(ep);
 
-        addCallEdge(model, "comp:Resource", "upload", "comp:S3Client", "putObject",
-                    Map.of("payload", "body"));
+        addCallEdge(model, "comp:Resource", "upload", "comp:S3Client", "putObject", Map.of("payload", "body"));
 
         List<DataFlowPath> paths = tracer.trace(model);
 
-        assertThat(paths).anySatisfy(p -> p.sinks.stream()
-            .anyMatch(s -> s.kind == DataFlowSink.Kind.OBJECT_STORAGE));
+        assertThat(paths).anySatisfy(p -> p.sinks.stream().anyMatch(s -> s.kind == DataFlowSink.Kind.OBJECT_STORAGE));
     }
 
     // ── integration: real quarkus-sample ────────────────────────────────────────
@@ -537,9 +571,9 @@ class DataFlowTracerTest {
         List<DataFlowPath> paths = tracer.trace(model);
 
         assertThat(paths)
-            .as("at least one persistence sink should be found in quarkus-sample")
-            .anySatisfy(p -> assertThat(p.sinks)
-                .anySatisfy(s -> assertThat(s.kind).isEqualTo(DataFlowSink.Kind.PERSISTENCE)));
+                .as("at least one persistence sink should be found in quarkus-sample")
+                .anySatisfy(p -> assertThat(p.sinks)
+                        .anySatisfy(s -> assertThat(s.kind).isEqualTo(DataFlowSink.Kind.PERSISTENCE)));
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────────
@@ -547,8 +581,8 @@ class DataFlowTracerTest {
     private static ArchitectureModel buildModel() {
         ArchitectureModel model = new ArchitectureModel("test");
 
-        model.components.add(comp("OrderResource",   ComponentType.REST_RESOURCE));
-        model.components.add(comp("OrderService",    ComponentType.SERVICE));
+        model.components.add(comp("OrderResource", ComponentType.REST_RESOURCE));
+        model.components.add(comp("OrderService", ComponentType.SERVICE));
         model.components.add(comp("OrderRepository", ComponentType.REPOSITORY));
 
         Entrypoint ep = new Entrypoint();
@@ -571,18 +605,24 @@ class DataFlowTracerTest {
         return c;
     }
 
-    private static void addCallEdge(ArchitectureModel model,
-                                     String fromComp, String fromMethod,
-                                     String toComp, String toMethod,
-                                     Map<String, String> paramMapping) {
+    private static void addCallEdge(
+            ArchitectureModel model,
+            String fromComp,
+            String fromMethod,
+            String toComp,
+            String toMethod,
+            Map<String, String> paramMapping) {
         addCallEdgeWithKind(model, fromComp, fromMethod, toComp, toMethod, paramMapping, "direct");
     }
 
-    private static void addCallEdgeWithKind(ArchitectureModel model,
-                                             String fromComp, String fromMethod,
-                                             String toComp, String toMethod,
-                                             Map<String, String> paramMapping,
-                                             String callKind) {
+    private static void addCallEdgeWithKind(
+            ArchitectureModel model,
+            String fromComp,
+            String fromMethod,
+            String toComp,
+            String toMethod,
+            Map<String, String> paramMapping,
+            String callKind) {
         CallEdge e = new CallEdge();
         e.id = "call:" + fromComp + "#" + fromMethod + "->" + toComp + "#" + toMethod;
         e.fromComponentId = fromComp;
