@@ -1,13 +1,12 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import dev.dominikbreu.spoonmcp.model.*;
+import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import spoon.reflect.CtModel;
-
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class QuarkusExtractorTest extends ExtractorTestBase {
 
@@ -61,17 +60,18 @@ class QuarkusExtractorTest extends ExtractorTestBase {
         // BillingClient, KafkaService, MqttService,
         // KafkaClientService, PahoMqttClientService, HiveMqClientService,
         // EventsResource (SSE), GreeterService (gRPC), CachingConsumer,
-        // OrderIngest, OrderBuffer, OrderForwarder, OrderNextStage
-        assertThat(model.components).hasSize(18);
+        // OrderIngest, OrderBuffer, OrderForwarder, OrderNextStage,
+        // ChatResource (WebSocket)
+        assertThat(model.components).hasSize(19);
     }
 
     @Test
     void componentsHaveCorrectTechnology() {
         model.components.stream()
-            .filter(c -> c.type != ComponentType.ENTITY && c.type != ComponentType.HTTP_CLIENT)
-            .filter(c -> !c.stereotypes.contains("grpc") && !c.stereotypes.contains("websocket"))
-            .forEach(c -> assertThat(c.technology)
-                .as("technology of %s", c.name).isEqualTo("quarkus"));
+                .filter(c -> c.type != ComponentType.ENTITY && c.type != ComponentType.HTTP_CLIENT)
+                .filter(c -> !c.stereotypes.contains("grpc") && !c.stereotypes.contains("websocket"))
+                .forEach(c ->
+                        assertThat(c.technology).as("technology of %s", c.name).isEqualTo("quarkus"));
     }
 
     @Test
@@ -82,22 +82,20 @@ class QuarkusExtractorTest extends ExtractorTestBase {
 
     @Test
     void componentsHaveSourceInfo() {
-        model.components.forEach(c ->
-            assertThat(c.source).as("source info for %s", c.name).isNotNull());
+        model.components.forEach(
+                c -> assertThat(c.source).as("source info for %s", c.name).isNotNull());
     }
 
     @Test
     void componentsHaveQualifiedName() {
         model.components.forEach(c ->
-            assertThat(c.qualifiedName)
-                .as("qualifiedName for %s", c.name)
-                .startsWith("com.example"));
+                assertThat(c.qualifiedName).as("qualifiedName for %s", c.name).startsWith("com.example"));
     }
 
     @Test
     void componentsBelongToApp() {
-        model.components.forEach(c ->
-            assertThat(c.module).as("module of %s", c.name).isEqualTo(QUARKUS_APP_ID));
+        model.components.forEach(
+                c -> assertThat(c.module).as("module of %s", c.name).isEqualTo(QUARKUS_APP_ID));
     }
 
     // ── entrypoint detection ─────────────────────────────────────────────────
@@ -120,67 +118,66 @@ class QuarkusExtractorTest extends ExtractorTestBase {
     @Test
     void detectsListEndpoint() {
         List<Entrypoint> gets = model.entrypoints.stream()
-            .filter(e -> e.type == EntrypointType.REST_ENDPOINT && "GET".equals(e.httpMethod))
-            .toList();
+                .filter(e -> e.type == EntrypointType.REST_ENDPOINT && "GET".equals(e.httpMethod))
+                .toList();
         assertThat(gets).hasSizeGreaterThanOrEqualTo(2);
     }
 
     @Test
     void detectsScheduledEntrypoints() {
         List<Entrypoint> scheduled = model.entrypoints.stream()
-            .filter(e -> e.type == EntrypointType.SCHEDULER)
-            .toList();
+                .filter(e -> e.type == EntrypointType.SCHEDULER)
+                .toList();
         assertThat(scheduled).hasSize(3); // cleanup + dailyReport + OrderForwarder.forward
     }
 
     @Test
     void detectsSseEndpoint() {
         assertThat(model.entrypoints)
-            .anyMatch(e -> e.type == EntrypointType.SSE_ENDPOINT
-                && "stream".equals(e.name)
-                && "/events/stream".equals(e.path));
+                .anyMatch(e -> e.type == EntrypointType.SSE_ENDPOINT
+                        && "stream".equals(e.name)
+                        && "/events/stream".equals(e.path));
     }
 
     @Test
     void detectsGrpcMethodEntrypoints() {
         List<Entrypoint> grpc = model.entrypoints.stream()
-            .filter(e -> e.type == EntrypointType.GRPC_METHOD)
-            .toList();
+                .filter(e -> e.type == EntrypointType.GRPC_METHOD)
+                .toList();
         assertThat(grpc).extracting(e -> e.name).contains("sayHello", "sayGoodbye");
     }
 
     @Test
     void entrypointsHaveComponentLink() {
         model.entrypoints.forEach(ep ->
-            assertThat(ep.componentId).as("componentId for %s", ep.name).isNotEmpty());
+                assertThat(ep.componentId).as("componentId for %s", ep.name).isNotEmpty());
     }
 
     @Test
     void restEndpointsHaveHttpMethod() {
         model.entrypoints.stream()
-            .filter(e -> e.type == EntrypointType.REST_ENDPOINT)
-            .forEach(ep -> assertThat(ep.httpMethod)
-                .as("httpMethod for %s", ep.name).isNotEmpty());
+                .filter(e -> e.type == EntrypointType.REST_ENDPOINT)
+                .forEach(ep -> assertThat(ep.httpMethod)
+                        .as("httpMethod for %s", ep.name)
+                        .isNotEmpty());
     }
 
     @Test
     void restEndpointsHavePath() {
         model.entrypoints.stream()
-            .filter(e -> e.type == EntrypointType.REST_ENDPOINT)
-            .forEach(ep -> assertThat(ep.path)
-                .as("path for %s", ep.name).startsWith("/"));
+                .filter(e -> e.type == EntrypointType.REST_ENDPOINT)
+                .forEach(ep -> assertThat(ep.path).as("path for %s", ep.name).startsWith("/"));
     }
 
     @Test
     void restEndpointsAreAlsoStoredAsInterfaces() {
-        assertThat(model.interfaces)
-            .anyMatch(i -> i.type.equals("rest_endpoint") && i.path.equals("/orders/{id}"));
+        assertThat(model.interfaces).anyMatch(i -> i.type.equals("rest_endpoint") && i.path.equals("/orders/{id}"));
     }
 
     @Test
     void restClientOperationsAreStoredAsInterfaces() {
         assertThat(model.interfaces)
-            .anyMatch(i -> i.type.equals("rest_client_operation") && i.path.equals("/billing/{orderId}"));
+                .anyMatch(i -> i.type.equals("rest_client_operation") && i.path.equals("/billing/{orderId}"));
     }
 
     // ── messaging detection ─────────────────────────────────────────────────
@@ -188,49 +185,41 @@ class QuarkusExtractorTest extends ExtractorTestBase {
     @Test
     void detectsMessagingConsumerOnIncoming() {
         assertThat(model.entrypoints)
-            .anyMatch(e -> e.type == EntrypointType.MESSAGING_CONSUMER
-                && "orders-in".equals(e.channelName));
+                .anyMatch(e -> e.type == EntrypointType.MESSAGING_CONSUMER && "orders-in".equals(e.channelName));
     }
 
     @Test
     void detectsMessagingProducerOnOutgoing() {
         assertThat(model.entrypoints)
-            .anyMatch(e -> e.type == EntrypointType.MESSAGING_PRODUCER
-                && "orders-out".equals(e.channelName));
+                .anyMatch(e -> e.type == EntrypointType.MESSAGING_PRODUCER && "orders-out".equals(e.channelName));
     }
 
     @Test
     void detectsMessagingProducerOnEmitterChannel() {
         assertThat(model.entrypoints)
-            .anyMatch(e -> e.type == EntrypointType.MESSAGING_PRODUCER
-                && "audit-log".equals(e.channelName));
+                .anyMatch(e -> e.type == EntrypointType.MESSAGING_PRODUCER && "audit-log".equals(e.channelName));
     }
 
     @Test
     void detectsMqttIncomingChannel() {
         assertThat(model.entrypoints)
-            .anyMatch(e -> e.type == EntrypointType.MESSAGING_CONSUMER
-                && "device-events".equals(e.channelName));
+                .anyMatch(e -> e.type == EntrypointType.MESSAGING_CONSUMER && "device-events".equals(e.channelName));
     }
 
     @Test
     void messagingEntrypointsHaveUnknownBrokerWithoutResolver() {
         model.entrypoints.stream()
-            .filter(e -> e.type == EntrypointType.MESSAGING_CONSUMER
-                || e.type == EntrypointType.MESSAGING_PRODUCER)
-            .forEach(e -> assertThat(e.broker)
-                .as("broker for channel %s", e.channelName)
-                .isEqualTo(MessagingBroker.UNKNOWN));
+                .filter(e -> e.type == EntrypointType.MESSAGING_CONSUMER || e.type == EntrypointType.MESSAGING_PRODUCER)
+                .forEach(e -> assertThat(e.broker)
+                        .as("broker for channel %s", e.channelName)
+                        .isEqualTo(MessagingBroker.UNKNOWN));
     }
 
     @Test
     void messagingChannelsAreStoredAsInterfaces() {
-        assertThat(model.interfaces)
-            .anyMatch(i -> "messaging_consumer".equals(i.type) && "orders-in".equals(i.path));
-        assertThat(model.interfaces)
-            .anyMatch(i -> "messaging_producer".equals(i.type) && "orders-out".equals(i.path));
-        assertThat(model.interfaces)
-            .anyMatch(i -> "messaging_producer".equals(i.type) && "audit-log".equals(i.path));
+        assertThat(model.interfaces).anyMatch(i -> "messaging_consumer".equals(i.type) && "orders-in".equals(i.path));
+        assertThat(model.interfaces).anyMatch(i -> "messaging_producer".equals(i.type) && "orders-out".equals(i.path));
+        assertThat(model.interfaces).anyMatch(i -> "messaging_producer".equals(i.type) && "audit-log".equals(i.path));
     }
 
     @Test
@@ -252,88 +241,88 @@ class QuarkusExtractorTest extends ExtractorTestBase {
     @Test
     void resolvesKafkaProducerTopicFromConstantField() {
         assertThat(model.interfaces)
-            .anyMatch(i -> "messaging_producer".equals(i.type)
-                && i.broker == MessagingBroker.KAFKA
-                && "orders.events".equals(i.path));
+                .anyMatch(i -> "messaging_producer".equals(i.type)
+                        && i.broker == MessagingBroker.KAFKA
+                        && "orders.events".equals(i.path));
     }
 
     // Kafka consumer.subscribe(List.of("a","b")) → one finding per literal in the collection
     @Test
     void resolvesKafkaConsumerTopicsFromListOf() {
         assertThat(model.interfaces)
-            .anyMatch(i -> "messaging_consumer".equals(i.type)
-                && i.broker == MessagingBroker.KAFKA
-                && "orders.commands".equals(i.path));
+                .anyMatch(i -> "messaging_consumer".equals(i.type)
+                        && i.broker == MessagingBroker.KAFKA
+                        && "orders.commands".equals(i.path));
         assertThat(model.interfaces)
-            .anyMatch(i -> "messaging_consumer".equals(i.type)
-                && i.broker == MessagingBroker.KAFKA
-                && "orders.replies".equals(i.path));
+                .anyMatch(i -> "messaging_consumer".equals(i.type)
+                        && i.broker == MessagingBroker.KAFKA
+                        && "orders.replies".equals(i.path));
     }
 
     // Paho publish(CONSTANT, ...) → resolved from static-final field
     @Test
     void resolvesPahoPublishTopicFromConstantField() {
         assertThat(model.interfaces)
-            .anyMatch(i -> "messaging_producer".equals(i.type)
-                && i.broker == MessagingBroker.MQTT
-                && "device/state".equals(i.path));
+                .anyMatch(i -> "messaging_producer".equals(i.type)
+                        && i.broker == MessagingBroker.MQTT
+                        && "device/state".equals(i.path));
     }
 
     // Paho subscribe(localVar, qos) where localVar = "..." literal → resolved from local-var initializer
     @Test
     void resolvesPahoSubscribeTopicFromLocalVariable() {
         assertThat(model.interfaces)
-            .anyMatch(i -> "messaging_consumer".equals(i.type)
-                && i.broker == MessagingBroker.MQTT
-                && "orders/updated".equals(i.path));
+                .anyMatch(i -> "messaging_consumer".equals(i.type)
+                        && i.broker == MessagingBroker.MQTT
+                        && "orders/updated".equals(i.path));
     }
 
     // Paho subscribe(methodParam, qos) → unresolved
     @Test
     void unresolvableTopicMarkedUnresolved() {
         assertThat(model.interfaces)
-            .anyMatch(i -> "messaging_consumer".equals(i.type)
-                && i.broker == MessagingBroker.MQTT
-                && "(unresolved)".equals(i.path));
+                .anyMatch(i -> "messaging_consumer".equals(i.type)
+                        && i.broker == MessagingBroker.MQTT
+                        && "(unresolved)".equals(i.path));
     }
 
     // HiveMQ fluent: publishWith().topic("..").send() → MESSAGING_PRODUCER
     @Test
     void resolvesHiveMqFluentPublishTopic() {
         assertThat(model.interfaces)
-            .anyMatch(i -> "messaging_producer".equals(i.type)
-                && i.broker == MessagingBroker.MQTT
-                && "device/telemetry".equals(i.path));
+                .anyMatch(i -> "messaging_producer".equals(i.type)
+                        && i.broker == MessagingBroker.MQTT
+                        && "device/telemetry".equals(i.path));
     }
 
     // HiveMQ fluent through toAsync(): hivemq5.toAsync().publishWith().topic("..").send()
     @Test
     void resolvesHiveMqFluentPublishThroughToAsync() {
         assertThat(model.interfaces)
-            .anyMatch(i -> "messaging_producer".equals(i.type)
-                && i.broker == MessagingBroker.MQTT
-                && "device/control".equals(i.path));
+                .anyMatch(i -> "messaging_producer".equals(i.type)
+                        && i.broker == MessagingBroker.MQTT
+                        && "device/control".equals(i.path));
     }
 
     // HiveMQ fluent subscribe: subscribeWith().topicFilter("..").send() → MESSAGING_CONSUMER
     @Test
     void resolvesHiveMqFluentSubscribeTopic() {
         assertThat(model.interfaces)
-            .anyMatch(i -> "messaging_consumer".equals(i.type)
-                && i.broker == MessagingBroker.MQTT
-                && "device/+".equals(i.path));
+                .anyMatch(i -> "messaging_consumer".equals(i.type)
+                        && i.broker == MessagingBroker.MQTT
+                        && "device/+".equals(i.path));
     }
 
     // When call-site findings exist for a field, no field-level "messaging_client" fallback is emitted
     @Test
     void fieldLevelFallbackSuppressedWhenCallSitesExist() {
         assertThat(model.interfaces)
-            .filteredOn(i -> i.componentId != null
-                && (i.componentId.endsWith("HiveMqClientService")
-                    || i.componentId.endsWith("PahoMqttClientService")
-                    || i.componentId.endsWith("KafkaClientService")))
-            .filteredOn(i -> "messaging_client".equals(i.type))
-            .isEmpty();
+                .filteredOn(i -> i.componentId != null
+                        && (i.componentId.endsWith("HiveMqClientService")
+                                || i.componentId.endsWith("PahoMqttClientService")
+                                || i.componentId.endsWith("KafkaClientService")))
+                .filteredOn(i -> "messaging_client".equals(i.type))
+                .isEmpty();
     }
 
     // ── REST client service name ────────────────────────────────────────────
@@ -341,39 +330,47 @@ class QuarkusExtractorTest extends ExtractorTestBase {
     @Test
     void restClientInterfaceCarriesConfigKeyAsServiceName() {
         assertThat(model.interfaces)
-            .filteredOn(i -> "rest_client".equals(i.type))
-            .extracting(i -> i.externalServiceName)
-            .contains("billing");
+                .filteredOn(i -> "rest_client".equals(i.type))
+                .extracting(i -> i.externalServiceName)
+                .contains("billing");
     }
 
     @Test
     void restClientOperationsCarryServiceName() {
         assertThat(model.interfaces)
-            .filteredOn(i -> "rest_client_operation".equals(i.type))
-            .extracting(i -> i.externalServiceName)
-            .contains("billing");
+                .filteredOn(i -> "rest_client_operation".equals(i.type))
+                .extracting(i -> i.externalServiceName)
+                .contains("billing");
+    }
+
+    @Test
+    void detectsWebSocketEndpointEntrypoints() {
+        assertThat(model.entrypoints)
+                .as("ChatResource.onMessage must be detected as WEBSOCKET_ENDPOINT")
+                .anyMatch(e -> e.type == EntrypointType.WEBSOCKET_ENDPOINT && e.componentId.contains("ChatResource"));
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private void assertHasComponentOfType(ComponentType type, String name) {
         assertThat(model.components)
-            .as("component [%s] %s", type, name)
-            .anyMatch(c -> c.type == type && c.name.equals(name));
+                .as("component [%s] %s", type, name)
+                .anyMatch(c -> c.type == type && c.name.equals(name));
     }
 
     private void assertHasRestEndpoint(String httpMethod, String pathSuffix) {
         assertThat(model.entrypoints)
-            .as("%s endpoint ending with %s", httpMethod, pathSuffix)
-            .anyMatch(e -> e.type == EntrypointType.REST_ENDPOINT
-                && httpMethod.equals(e.httpMethod)
-                && e.path != null && e.path.endsWith(pathSuffix));
+                .as("%s endpoint ending with %s", httpMethod, pathSuffix)
+                .anyMatch(e -> e.type == EntrypointType.REST_ENDPOINT
+                        && httpMethod.equals(e.httpMethod)
+                        && e.path != null
+                        && e.path.endsWith(pathSuffix));
     }
 
     private Component componentByName(String name) {
         return model.components.stream()
-            .filter(c -> c.name.equals(name))
-            .findFirst()
-            .orElseThrow(() -> new AssertionError("component not found: " + name));
+                .filter(c -> c.name.equals(name))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("component not found: " + name));
     }
 }
