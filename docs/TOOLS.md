@@ -630,11 +630,14 @@ Useful graph properties include:
 - Interface nodes: `interfaceType`, `path`, `module`, `technology`. Messaging interfaces
   additionally expose `broker` (incl. `IN_MEMORY`) and `topic` on the underlying
   JSON model; surface them via `find_nodes` filters.
-- DataFlowPath nodes (label `DataFlowPath`): `entrypointId`, `trackedParam`, `paramType`,
+- DataFlowPath nodes (label `DataFlowPath`): `entrypointId`, `trackedParam`,
   `stepCount`, `sinkCount`.
 - DataFlowSink nodes (label `DataFlowSink`): `sinkKind` (`persistence`, `messaging`,
-  `http-outbound`, `event-bus`, `store`, `unknown`), `pathId`, `componentId`, `method`,
-  `fieldName`, `fieldOwnerComponentId`.
+  `http-outbound`, `event-bus`, `store`, `file-outbound`, `object-storage`, `unknown`),
+  `pathId`, `componentId`, `method`, `fieldName`, `fieldOwnerComponentId`,
+  `calleeQualifiedName` (fully-qualified declaring type of the outbound callee, e.g.
+  `java.nio.file.Files`; null for non-outbound kinds), `calleeMethod` (method name on
+  the callee, e.g. `writeString`; null for non-outbound kinds).
 - PipelineChain nodes (label `PipelineChain`): one vertex per end-to-end pipeline
   produced by stitching `DataFlowSink.linkedPathIds` forward across entrypoint
   boundaries. Properties: `segmentCount`, `rootEntrypointId`, `linkKinds`
