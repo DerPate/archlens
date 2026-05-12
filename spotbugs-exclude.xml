@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+
+    <!--
+        ArchitectureGraph inner records and ModelCache return their internal maps/lists directly.
+        These are read-only data containers consumed immediately by callers — defensive copies
+        would add allocation cost with no safety benefit.
+    -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+        <Or>
+            <Class name="~dev\.dominikbreu\.spoonmcp\.cache\.ArchitectureGraph\$.*"/>
+            <Class name="dev.dominikbreu.spoonmcp.cache.ModelCache"/>
+        </Or>
+    </Match>
+
+    <!--
+        Public fields on model classes (Entrypoint, Component, FieldAccess, etc.) are written
+        by extractors and read by Jackson for JSON serialisation. SpotBugs cannot track
+        reflection-based reads, so it incorrectly flags them as unread.
+    -->
+    <Match>
+        <Bug pattern="URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"/>
+    </Match>
+
+    <!--
+        Best-effort parsers that must not block the main analysis on any input error.
+        AnsibleMerger / DockerComposeMerger: SnakeYAML + file I/O can throw a wide variety
+        of runtime and checked exceptions on malformed input.
+        SpoonScanner.readMavenModel: Maven XPP3 parser throws both IOException and
+        XmlPullParserException; catching Exception is the pragmatic choice here.
+    -->
+    <Match>
+        <Bug pattern="REC_CATCH_EXCEPTION"/>
+        <Or>
+            <Class name="dev.dominikbreu.spoonmcp.merger.AnsibleMerger"/>
+            <Class name="dev.dominikbreu.spoonmcp.merger.DockerComposeMerger"/>
+            <Class name="dev.dominikbreu.spoonmcp.scanner.SpoonScanner"/>
+        </Or>
+    </Match>
+
+</FindBugsFilter>
