@@ -346,8 +346,10 @@ class QuarkusExtractorTest extends ExtractorTestBase {
     @Test
     void detectsWebSocketEndpointEntrypoints() {
         assertThat(model.entrypoints)
-                .as("ChatResource.onMessage must be detected as WEBSOCKET_ENDPOINT")
-                .anyMatch(e -> e.type == EntrypointType.WEBSOCKET_ENDPOINT && e.componentId.contains("ChatResource"));
+                .as("ChatResource.onMessage must be detected as WEBSOCKET_ENDPOINT with path /chat/{id}")
+                .anyMatch(e -> e.type == EntrypointType.WEBSOCKET_ENDPOINT
+                        && e.componentId.endsWith("ChatResource")
+                        && "/chat/{id}".equals(e.path));
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
