@@ -535,6 +535,7 @@ class DataFlowTracerTest {
                 .anySatisfy(p -> assertThat(p.sinks).anySatisfy(s -> {
                     assertThat(s.kind).isEqualTo(DataFlowSink.Kind.FILE_OUTBOUND);
                     assertThat(s.calleeQualifiedName).isEqualTo("java.nio.file.Files");
+                    assertThat(s.method).isEqualTo("writeString");
                 }));
     }
 
