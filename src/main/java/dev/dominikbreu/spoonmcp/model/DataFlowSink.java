@@ -34,11 +34,15 @@ public class DataFlowSink {
 
         private final String wireValue;
 
-        Kind(String wireValue) { this.wireValue = wireValue; }
+        Kind(String wireValue) {
+            this.wireValue = wireValue;
+        }
 
         /** Returns the canonical wire/display string (e.g. {@code "http-outbound"}). */
         @JsonValue
-        public String value() { return wireValue; }
+        public String value() {
+            return wireValue;
+        }
 
         /** Deserialises from a wire string; unrecognised values map to {@link #UNKNOWN}. */
         @JsonCreator
@@ -49,7 +53,9 @@ public class DataFlowSink {
         }
 
         @Override
-        public String toString() { return wireValue; }
+        public String toString() {
+            return wireValue;
+        }
     }
 
     /** Sink category. */
@@ -73,24 +79,31 @@ public class DataFlowSink {
     public java.util.List<String> linkedPathIds = new java.util.ArrayList<>();
     /** For {@code messaging} / {@code event-bus} sinks: the channel/topic name, or null. */
     public String channel;
+    /** Fully-qualified declaring type of the outbound callee (e.g. {@code java.nio.file.Files},
+     *  {@code software.amazon.awssdk.services.s3.S3Client}). Null for non-outbound sink kinds. */
+    public String calleeQualifiedName;
 
     /** Creates an empty sink for JSON deserialization. */
     public DataFlowSink() {}
 
-    public DataFlowSink(Kind kind, String componentId, String componentName,
-                        String method, SourceInfo source) {
-        this.kind          = kind;
-        this.componentId   = componentId;
+    public DataFlowSink(Kind kind, String componentId, String componentName, String method, SourceInfo source) {
+        this.kind = kind;
+        this.componentId = componentId;
         this.componentName = componentName;
-        this.method        = method;
-        this.source        = source;
+        this.method = method;
+        this.source = source;
     }
 
-    public DataFlowSink(Kind kind, String componentId, String componentName,
-                        String method, SourceInfo source,
-                        String fieldName, String fieldOwnerComponentId) {
+    public DataFlowSink(
+            Kind kind,
+            String componentId,
+            String componentName,
+            String method,
+            SourceInfo source,
+            String fieldName,
+            String fieldOwnerComponentId) {
         this(kind, componentId, componentName, method, source);
-        this.fieldName             = fieldName;
+        this.fieldName = fieldName;
         this.fieldOwnerComponentId = fieldOwnerComponentId;
     }
 }
