@@ -4,7 +4,6 @@ import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -23,13 +22,25 @@ import java.util.Set;
  */
 public class PipelineGraphBuilder {
 
+    /** Creates a builder. */
+    public PipelineGraphBuilder() {}
+
     /** One pipeline phase: a path plus the sink that bridged the previous phase. */
     public static final class Segment {
+        /** The data-flow path for this phase. */
         public final DataFlowPath path;
         /** Sink in the previous segment that linked to this segment, or null for the root. */
         public final DataFlowSink incomingSink;
+        /** Entrypoint that owns this phase's path. */
         public final Entrypoint entrypoint;
 
+        /**
+         * Creates a segment.
+         *
+         * @param path          data-flow path for this phase
+         * @param incomingSink  sink from the previous segment, or null for the root
+         * @param entrypoint    entrypoint that owns this path
+         */
         public Segment(DataFlowPath path, DataFlowSink incomingSink, Entrypoint entrypoint) {
             this.path = path;
             this.incomingSink = incomingSink;
@@ -39,7 +50,11 @@ public class PipelineGraphBuilder {
 
     /** Ordered list of segments forming a single pipeline. */
     public static final class Chain {
+        /** Segments in traversal order; first element is always the root. */
         public final List<Segment> segments = new ArrayList<>();
+
+        /** Creates an empty chain. */
+        public Chain() {}
     }
 
     /**
@@ -78,14 +93,15 @@ public class PipelineGraphBuilder {
         return chains;
     }
 
-    private void extend(List<Segment> prefix,
-                        DataFlowPath current,
-                        DataFlowSink incomingSink,
-                        Map<String, DataFlowPath> pathById,
-                        Map<String, Entrypoint> epById,
-                        List<Chain> out,
-                        int maxDepth,
-                        LinkedHashSet<String> stack) {
+    private void extend(
+            List<Segment> prefix,
+            DataFlowPath current,
+            DataFlowSink incomingSink,
+            Map<String, DataFlowPath> pathById,
+            Map<String, Entrypoint> epById,
+            List<Chain> out,
+            int maxDepth,
+            LinkedHashSet<String> stack) {
         if (current == null) return;
         if (stack.contains(current.id)) {
             // cycle — emit chain up to here

@@ -16,10 +16,21 @@ public class RenderCallFlowTool {
     private final RuntimeFlowInferrer inferrer = new RuntimeFlowInferrer();
     private final MermaidCallFlowRenderer renderer = new MermaidCallFlowRenderer();
 
+    /**
+     * Creates the tool.
+     *
+     * @param cache shared model cache
+     */
     public RenderCallFlowTool(ModelCache cache) {
         this.cache = cache;
     }
 
+    /**
+     * Renders a Mermaid call-flow diagram for the requested entrypoint.
+     *
+     * @param args tool arguments ({@code entrypointId} or {@code entrypointName}, optional {@code maxDepth})
+     * @return Mermaid diagram string, or an error message
+     */
     public String execute(JsonNode args) {
         try {
             ArchitectureModel model = cache.load();
@@ -43,13 +54,15 @@ public class RenderCallFlowTool {
 
     private RuntimeFlow findStoredFlow(String ref, int maxDepth, ArchitectureModel model) {
         return model.runtimeFlows.stream()
-            .filter(f -> maxDepth >= Math.max(0, f.steps.size() - 1))
-            .filter(f -> f.entrypointId.equals(ref)
-                || f.entrypointId.toLowerCase().contains(ref.toLowerCase())
-                || model.entrypoints.stream().anyMatch(e -> e.id.equals(f.entrypointId)
-                    && e.name != null && e.name.toLowerCase().contains(ref.toLowerCase())))
-            .findFirst()
-            .orElse(null);
+                .filter(f -> maxDepth >= Math.max(0, f.steps.size() - 1))
+                .filter(f -> f.entrypointId.equals(ref)
+                        || f.entrypointId.toLowerCase().contains(ref.toLowerCase())
+                        || model.entrypoints.stream()
+                                .anyMatch(e -> e.id.equals(f.entrypointId)
+                                        && e.name != null
+                                        && e.name.toLowerCase().contains(ref.toLowerCase())))
+                .findFirst()
+                .orElse(null);
     }
 
     private String getString(JsonNode n, String f) {

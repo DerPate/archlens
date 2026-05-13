@@ -1,7 +1,6 @@
 package dev.dominikbreu.spoonmcp.model;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.LinkedHashMap;
@@ -51,7 +50,11 @@ public class UseCaseNamingConfig {
         return mapper.readValue(new File(path), UseCaseNamingConfig.class);
     }
 
-    /** Returns an empty config with no name mappings. */
+    /**
+     * Returns an empty config with no name mappings.
+     *
+     * @return new empty {@link UseCaseNamingConfig}
+     */
     public static UseCaseNamingConfig empty() {
         return new UseCaseNamingConfig();
     }

@@ -11,7 +11,12 @@ package dev.dominikbreu.spoonmcp.model;
  */
 public class FieldAccess {
     /** Access kind. */
-    public enum Kind { READ, WRITE }
+    public enum Kind {
+        /** Field value is read. */
+        READ,
+        /** Field value is written. */
+        WRITE
+    }
 
     /** Stable identifier: {@code field:<componentId>#<method>@<fieldName>:<kind>}. */
     public String id;

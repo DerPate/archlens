@@ -1,6 +1,10 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.MessagingBroker;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import spoon.reflect.code.CtConstructorCall;
 import spoon.reflect.code.CtExpression;
 import spoon.reflect.code.CtFieldRead;
@@ -11,11 +15,6 @@ import spoon.reflect.declaration.CtElement;
 import spoon.reflect.declaration.CtField;
 import spoon.reflect.declaration.CtType;
 import spoon.reflect.declaration.CtVariable;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Resolves the broker topics referenced by raw Kafka and MQTT client field usages
@@ -45,8 +44,8 @@ public class MessagingCallSiteResolver {
     private static final Set<String> MQTT_SUBSCRIBE_METHODS = Set.of("subscribe", "unsubscribe");
     private static final Set<String> KAFKA_SEND_METHODS = Set.of("send");
     private static final Set<String> KAFKA_SUBSCRIBE_METHODS = Set.of("subscribe");
-    private static final Set<String> COLLECTION_FACTORY_METHODS = Set.of(
-        "of", "asList", "singletonList", "singleton", "unmodifiableList");
+    private static final Set<String> COLLECTION_FACTORY_METHODS =
+            Set.of("of", "asList", "singletonList", "singleton", "unmodifiableList");
     private static final Set<String> FLUENT_TOPIC_SETTERS = Set.of("topic", "topicFilter");
     private static final String FLUENT_PUBLISH_ENTRY = "publishWith";
     private static final String FLUENT_SUBSCRIBE_ENTRY = "subscribeWith";
@@ -98,12 +97,10 @@ public class MessagingCallSiteResolver {
     private Finding directCallFinding(CtInvocation<?> inv, String methodName, TrackedField tf, String fieldName) {
         if (tf.broker() == MessagingBroker.MQTT) {
             if (MQTT_PUBLISH_METHODS.contains(methodName)) {
-                return new Finding(fieldName, MessagingBroker.MQTT, Role.PRODUCER,
-                    resolveStringArg(inv, 0), line(inv));
+                return new Finding(fieldName, MessagingBroker.MQTT, Role.PRODUCER, resolveStringArg(inv, 0), line(inv));
             }
             if (MQTT_SUBSCRIBE_METHODS.contains(methodName)) {
-                return new Finding(fieldName, MessagingBroker.MQTT, Role.CONSUMER,
-                    resolveStringArg(inv, 0), line(inv));
+                return new Finding(fieldName, MessagingBroker.MQTT, Role.CONSUMER, resolveStringArg(inv, 0), line(inv));
             }
         }
         if (tf.broker() == MessagingBroker.KAFKA) {
@@ -115,10 +112,13 @@ public class MessagingCallSiteResolver {
         return null;
     }
 
-    private List<Finding> directCallFindings(CtInvocation<?> inv, String methodName, TrackedField tf, String fieldName) {
+    private List<Finding> directCallFindings(
+            CtInvocation<?> inv, String methodName, TrackedField tf, String fieldName) {
         List<Finding> out = new ArrayList<>();
-        if (tf.broker() == MessagingBroker.KAFKA && tf.role() == Role.CONSUMER
-            && KAFKA_SUBSCRIBE_METHODS.contains(methodName) && !inv.getArguments().isEmpty()) {
+        if (tf.broker() == MessagingBroker.KAFKA
+                && tf.role() == Role.CONSUMER
+                && KAFKA_SUBSCRIBE_METHODS.contains(methodName)
+                && !inv.getArguments().isEmpty()) {
             List<String> topics = resolveCollectionOfStrings(inv.getArguments().get(0));
             if (topics.isEmpty()) {
                 out.add(new Finding(fieldName, MessagingBroker.KAFKA, Role.CONSUMER, UNRESOLVED, line(inv)));
@@ -188,7 +188,10 @@ public class MessagingCallSiteResolver {
                 for (CtExpression<?> a : inv.getArguments()) {
                     String s = resolveString(a);
                     if (s != null) out.add(s);
-                    else { out.clear(); return out; }
+                    else {
+                        out.clear();
+                        return out;
+                    }
                 }
             }
         }
@@ -199,13 +202,15 @@ public class MessagingCallSiteResolver {
         if (expr instanceof CtLiteral<?> lit && lit.getValue() instanceof String s) return s;
         if (expr instanceof CtFieldRead<?> fr && fr.getVariable() != null) {
             CtField<?> declared = fr.getVariable().getFieldDeclaration();
-            if (declared != null && declared.getDefaultExpression() instanceof CtLiteral<?> lit
-                && lit.getValue() instanceof String s) return s;
+            if (declared != null
+                    && declared.getDefaultExpression() instanceof CtLiteral<?> lit
+                    && lit.getValue() instanceof String s) return s;
         }
         if (expr instanceof CtVariableRead<?> vr && vr.getVariable() != null) {
             CtVariable<?> declared = vr.getVariable().getDeclaration();
-            if (declared != null && declared.getDefaultExpression() instanceof CtLiteral<?> lit
-                && lit.getValue() instanceof String s) return s;
+            if (declared != null
+                    && declared.getDefaultExpression() instanceof CtLiteral<?> lit
+                    && lit.getValue() instanceof String s) return s;
         }
         return null;
     }
@@ -215,18 +220,38 @@ public class MessagingCallSiteResolver {
         return pos != null && pos.isValidPosition() ? pos.getLine() : 0;
     }
 
-    /** Information about a tracked client field — broker and role hint (PRODUCER/CONSUMER for Kafka, null for MQTT). */
+    /**
+     * Information about a tracked client field — broker and role hint (PRODUCER/CONSUMER for Kafka, null for MQTT).
+     *
+     * @param broker the messaging broker resolved for this field
+     * @param role   producer/consumer role hint; may be null for brokers where direction is not inferrable
+     */
     public record TrackedField(MessagingBroker broker, Role role) {}
 
-    /** A resolved or unresolved call site referencing a tracked client field. */
+    /**
+     * A resolved or unresolved call site referencing a tracked client field.
+     *
+     * @param fieldName name of the injected client field
+     * @param broker    messaging broker for the call site
+     * @param role      producer/consumer role
+     * @param topic     resolved topic/channel name; null if not determinable
+     * @param line      source line number of the call site
+     */
     public record Finding(String fieldName, MessagingBroker broker, Role role, String topic, int line) {}
 
     /** Role determined from method name or fluent entry method. */
-    public enum Role { PRODUCER, CONSUMER }
+    public enum Role {
+        /** Call site sends messages. */
+        PRODUCER,
+        /** Call site receives messages. */
+        CONSUMER
+    }
 
     private static final class TypeFilter<T extends CtInvocation<?>>
-        extends spoon.reflect.visitor.filter.AbstractFilter<T> {
+            extends spoon.reflect.visitor.filter.AbstractFilter<T> {
         @SuppressWarnings({"rawtypes", "unchecked"})
-        TypeFilter() { super((Class) CtInvocation.class); }
+        TypeFilter() {
+            super((Class) CtInvocation.class);
+        }
     }
 }
