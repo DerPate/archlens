@@ -1,15 +1,15 @@
 package dev.dominikbreu.spoonmcp.scanner;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
 import spoon.Launcher;
 import spoon.reflect.CtModel;
-
-import java.io.File;
-import java.io.FileReader;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 
 /**
  * Builds Spoon models for Maven or plain Java project roots.
@@ -78,8 +78,8 @@ public class SpoonScanner {
      */
     public List<String> readMavenModules(File projectRoot) {
         return readMavenModel(projectRoot)
-            .<List<String>>map(model -> new ArrayList<>(model.getModules()))
-            .orElseGet(List::of);
+                .<List<String>>map(model -> new ArrayList<>(model.getModules()))
+                .orElseGet(List::of);
     }
 
     /**
@@ -90,15 +90,16 @@ public class SpoonScanner {
      */
     public String readPackagingType(File projectRoot) {
         return readMavenModel(projectRoot)
-            .map(Model::getPackaging)
-            .filter(p -> p != null && !p.isBlank())
-            .orElse("jar");
+                .map(Model::getPackaging)
+                .filter(p -> p != null && !p.isBlank())
+                .orElse("jar");
     }
 
     private Optional<Model> readMavenModel(File projectRoot) {
         File pom = new File(projectRoot, "pom.xml");
         if (!pom.exists()) return Optional.empty();
-        try (FileReader reader = new FileReader(pom)) {
+        try (InputStreamReader reader =
+                new InputStreamReader(new FileInputStream(pom), java.nio.charset.StandardCharsets.UTF_8)) {
             return Optional.of(new MavenXpp3Reader().read(reader));
         } catch (Exception ignored) {
             return Optional.empty();

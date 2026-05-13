@@ -45,20 +45,21 @@ public class GetRuntimeFlowTool {
             RuntimeFlow resolvedFlow = findStoredFlow(ref, maxDepth, model);
             if (resolvedFlow == null) resolvedFlow = inferrer.infer(ref, maxDepth, model);
             if (resolvedFlow == null) {
-                return "Entrypoint not found: " + ref + "\n\nAvailable entrypoints:\n"
-                    + listEntrypoints(model);
+                return "Entrypoint not found: " + ref + "\n\nAvailable entrypoints:\n" + listEntrypoints(model);
             }
             final RuntimeFlow flow = resolvedFlow;
 
             Entrypoint ep = model.entrypoints.stream()
-                .filter(e -> e.id.equals(flow.entrypointId))
-                .findFirst().orElse(null);
+                    .filter(e -> e.id.equals(flow.entrypointId))
+                    .findFirst()
+                    .orElse(null);
 
             StringBuilder sb = new StringBuilder();
             sb.append("Runtime flow for: ");
             if (ep != null) {
                 sb.append("[").append(ep.type).append("] ").append(ep.name);
-                if (ep.httpMethod != null) sb.append(" [").append(ep.httpMethod).append("] ").append(ep.path);
+                if (ep.httpMethod != null)
+                    sb.append(" [").append(ep.httpMethod).append("] ").append(ep.path);
             } else {
                 sb.append(flow.entrypointId);
             }
@@ -69,9 +70,15 @@ public class GetRuntimeFlowTool {
             } else {
                 sb.append("Flow (").append(flow.steps.size()).append(" steps):\n");
                 for (RuntimeFlowStep step : flow.steps) {
-                    sb.append("  ").append(step.order + 1).append(". [")
-                      .append(step.componentType).append("] ").append(step.componentName)
-                      .append(" (id=").append(step.componentId).append(")\n");
+                    sb.append("  ")
+                            .append(step.order + 1)
+                            .append(". [")
+                            .append(step.componentType)
+                            .append("] ")
+                            .append(step.componentName)
+                            .append(" (id=")
+                            .append(step.componentId)
+                            .append(")\n");
                 }
             }
 
@@ -91,13 +98,15 @@ public class GetRuntimeFlowTool {
 
     private RuntimeFlow findStoredFlow(String ref, int maxDepth, ArchitectureModel model) {
         return model.runtimeFlows.stream()
-            .filter(f -> maxDepth >= Math.max(0, f.steps.size() - 1))
-            .filter(f -> f.entrypointId.equals(ref)
-                || f.entrypointId.toLowerCase().contains(ref.toLowerCase())
-                || model.entrypoints.stream().anyMatch(e -> e.id.equals(f.entrypointId)
-                    && e.name != null && e.name.toLowerCase().contains(ref.toLowerCase())))
-            .findFirst()
-            .orElse(null);
+                .filter(f -> maxDepth >= Math.max(0, f.steps.size() - 1))
+                .filter(f -> f.entrypointId.equals(ref)
+                        || f.entrypointId.toLowerCase().contains(ref.toLowerCase())
+                        || model.entrypoints.stream()
+                                .anyMatch(e -> e.id.equals(f.entrypointId)
+                                        && e.name != null
+                                        && e.name.toLowerCase().contains(ref.toLowerCase())))
+                .findFirst()
+                .orElse(null);
     }
 
     private String getString(JsonNode n, String f) {

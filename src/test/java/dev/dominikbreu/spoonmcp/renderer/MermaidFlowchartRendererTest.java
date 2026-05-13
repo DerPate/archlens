@@ -1,13 +1,12 @@
 package dev.dominikbreu.spoonmcp.renderer;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import dev.dominikbreu.spoonmcp.extractor.ContainerInferrer;
 import dev.dominikbreu.spoonmcp.model.*;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class MermaidFlowchartRendererTest {
 
@@ -25,10 +24,10 @@ class MermaidFlowchartRendererTest {
         app.packagingType = "jar";
         model.applications.add(app);
 
-        Component resource   = comp("comp:Resource",   ComponentType.REST_RESOURCE, "app:orders", "quarkus");
-        Component service    = comp("comp:Service",    ComponentType.SERVICE,        "app:orders", "quarkus");
-        Component repository = comp("comp:Repository", ComponentType.REPOSITORY,     "app:orders", "quarkus");
-        Component entity     = comp("comp:Entity",     ComponentType.ENTITY,         "app:orders", "jpa");
+        Component resource = comp("comp:Resource", ComponentType.REST_RESOURCE, "app:orders", "quarkus");
+        Component service = comp("comp:Service", ComponentType.SERVICE, "app:orders", "quarkus");
+        Component repository = comp("comp:Repository", ComponentType.REPOSITORY, "app:orders", "quarkus");
+        Component entity = comp("comp:Entity", ComponentType.ENTITY, "app:orders", "jpa");
         model.components.addAll(List.of(resource, service, repository, entity));
 
         app.componentIds.addAll(List.of(resource.id, service.id, repository.id, entity.id));
@@ -63,8 +62,10 @@ class MermaidFlowchartRendererTest {
     @Test
     void systemLevelRendersExternalRestApi() {
         ExternalSystem rest = new ExternalSystem();
-        rest.id = "ext:rest:billing"; rest.name = "billing";
-        rest.kind = "REST_API"; rest.technology = "microprofile-rest-client";
+        rest.id = "ext:rest:billing";
+        rest.name = "billing";
+        rest.kind = "REST_API";
+        rest.technology = "microprofile-rest-client";
         model.externalSystems.add(rest);
         Dependency d = dep("comp:Service", "ext:rest:billing");
         d.kind = "rest-client";
@@ -81,8 +82,10 @@ class MermaidFlowchartRendererTest {
     @Test
     void systemLevelRendersExternalMessageBroker() {
         ExternalSystem kafka = new ExternalSystem();
-        kafka.id = "ext:messaging:kafka"; kafka.name = "Kafka";
-        kafka.kind = "MESSAGE_BROKER"; kafka.technology = "kafka";
+        kafka.id = "ext:messaging:kafka";
+        kafka.name = "Kafka";
+        kafka.kind = "MESSAGE_BROKER";
+        kafka.technology = "kafka";
         model.externalSystems.add(kafka);
         Dependency d = dep("comp:Service", "ext:messaging:kafka");
         d.kind = "messaging";
@@ -99,8 +102,10 @@ class MermaidFlowchartRendererTest {
     @Test
     void systemLevelOmitsUnreferencedExternalSystems() {
         ExternalSystem ghost = new ExternalSystem();
-        ghost.id = "ext:rest:ghost"; ghost.name = "ghost";
-        ghost.kind = "REST_API"; ghost.technology = "microprofile-rest-client";
+        ghost.id = "ext:rest:ghost";
+        ghost.name = "ghost";
+        ghost.kind = "REST_API";
+        ghost.technology = "microprofile-rest-client";
         model.externalSystems.add(ghost);
 
         String out = renderer.render(model, null, "system");
@@ -111,8 +116,10 @@ class MermaidFlowchartRendererTest {
     @Test
     void systemLevelRespectsAppFilter() {
         AppEntry other = new AppEntry();
-        other.id = "app:other"; other.name = "other";
-        other.technology = "quarkus"; other.packagingType = "jar";
+        other.id = "app:other";
+        other.name = "other";
+        other.technology = "quarkus";
+        other.packagingType = "jar";
         model.applications.add(other);
 
         Component otherSvc = comp("comp:OtherSvc", ComponentType.SERVICE, "app:other", "quarkus");
@@ -120,8 +127,10 @@ class MermaidFlowchartRendererTest {
         other.componentIds.add(otherSvc.id);
 
         ExternalSystem ext = new ExternalSystem();
-        ext.id = "ext:rest:thirdparty"; ext.name = "thirdparty";
-        ext.kind = "REST_API"; ext.technology = "microprofile-rest-client";
+        ext.id = "ext:rest:thirdparty";
+        ext.name = "thirdparty";
+        ext.kind = "REST_API";
+        ext.technology = "microprofile-rest-client";
         model.externalSystems.add(ext);
         Dependency d = dep("comp:OtherSvc", "ext:rest:thirdparty");
         d.kind = "rest-client";
@@ -223,8 +232,8 @@ class MermaidFlowchartRendererTest {
 
     @Test
     void defaultLevelIsComponent() {
-        String withNull  = renderer.render(model, null, null);
-        String withComp  = renderer.render(model, null, "component");
+        String withNull = renderer.render(model, null, null);
+        String withComp = renderer.render(model, null, "component");
         assertThat(withNull).isEqualTo(withComp);
     }
 
@@ -234,21 +243,29 @@ class MermaidFlowchartRendererTest {
         ArchitectureModel m = new ArchitectureModel("test");
 
         AppEntry war = new AppEntry();
-        war.id = "app:war-app"; war.name = "war-app";
-        war.technology = "javaee"; war.packagingType = "war";
+        war.id = "app:war-app";
+        war.name = "war-app";
+        war.technology = "javaee";
+        war.packagingType = "war";
         war.role = "deployment_unit";
         m.applications.add(war);
 
         AppEntry core = new AppEntry();
-        core.id = "app:core"; core.name = "core";
-        core.technology = "javaee"; core.packagingType = "jar";
-        core.role = "internal_module"; core.parentAppId = "app:war-app";
+        core.id = "app:core";
+        core.name = "core";
+        core.technology = "javaee";
+        core.packagingType = "jar";
+        core.role = "internal_module";
+        core.parentAppId = "app:war-app";
         m.applications.add(core);
 
         AppEntry util = new AppEntry();
-        util.id = "app:util"; util.name = "util";
-        util.technology = "javaee"; util.packagingType = "jar";
-        util.role = "technical_library"; util.parentAppId = "app:war-app";
+        util.id = "app:util";
+        util.name = "util";
+        util.technology = "javaee";
+        util.packagingType = "jar";
+        util.role = "technical_library";
+        util.parentAppId = "app:war-app";
         m.applications.add(util);
 
         return m;

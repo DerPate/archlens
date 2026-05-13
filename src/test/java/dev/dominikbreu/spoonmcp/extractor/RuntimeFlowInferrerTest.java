@@ -1,11 +1,10 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
-import dev.dominikbreu.spoonmcp.model.*;
-import org.junit.jupiter.api.Test;
-
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
+
+import dev.dominikbreu.spoonmcp.model.*;
+import java.util.List;
+import org.junit.jupiter.api.Test;
 
 class RuntimeFlowInferrerTest {
 
@@ -143,10 +142,7 @@ class RuntimeFlowInferrerTest {
         mqttClient.stereotypes = new java.util.ArrayList<>(List.of("client", "messaging"));
         Component service = comp("OrderService", ComponentType.SERVICE);
         m.components.addAll(List.of(consumer, mqttClient, service));
-        m.dependencies.addAll(List.of(
-            dep(consumer.id, mqttClient.id),
-            dep(consumer.id, service.id)
-        ));
+        m.dependencies.addAll(List.of(dep(consumer.id, mqttClient.id), dep(consumer.id, service.id)));
         Entrypoint ep = new Entrypoint();
         ep.id = "ep:MQTTConsumer#handle";
         ep.name = "handle";
@@ -189,14 +185,11 @@ class RuntimeFlowInferrerTest {
     /** Resource –inject–> Service –inject–> Repository, with one GET entrypoint on Resource */
     private static ArchitectureModel threeLayerModel() {
         ArchitectureModel m = new ArchitectureModel("test");
-        Component resource   = comp("Resource",   ComponentType.REST_RESOURCE);
-        Component service    = comp("Service",    ComponentType.SERVICE);
+        Component resource = comp("Resource", ComponentType.REST_RESOURCE);
+        Component service = comp("Service", ComponentType.SERVICE);
         Component repository = comp("Repository", ComponentType.REPOSITORY);
         m.components.addAll(List.of(resource, service, repository));
-        m.dependencies.addAll(List.of(
-            dep(resource.id, service.id),
-            dep(service.id, repository.id)
-        ));
+        m.dependencies.addAll(List.of(dep(resource.id, service.id), dep(service.id, repository.id)));
         m.entrypoints.add(ep("ep:Resource#getOrder", "getOrder", resource.id, "GET", "/orders/{id}"));
         return m;
     }
@@ -205,8 +198,8 @@ class RuntimeFlowInferrerTest {
     private static ArchitectureModel modelWithUtility() {
         ArchitectureModel m = new ArchitectureModel("test");
         Component resource = comp("Resource", ComponentType.REST_RESOURCE);
-        Component mapper   = comp("Mapper",   ComponentType.UTILITY);
-        Component service  = comp("Service",  ComponentType.SERVICE);
+        Component mapper = comp("Mapper", ComponentType.UTILITY);
+        Component service = comp("Service", ComponentType.SERVICE);
         m.components.addAll(List.of(resource, mapper, service));
         m.dependencies.addAll(List.of(dep(resource.id, mapper.id), dep(mapper.id, service.id)));
         m.entrypoints.add(ep("ep:Resource#doSomething", "doSomething", resource.id, "GET", "/items"));

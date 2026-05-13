@@ -1,11 +1,10 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
-import dev.dominikbreu.spoonmcp.model.*;
-import org.junit.jupiter.api.Test;
-
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
+
+import dev.dominikbreu.spoonmcp.model.*;
+import java.util.List;
+import org.junit.jupiter.api.Test;
 
 class UseCaseDetectorTest {
 
@@ -80,11 +79,11 @@ class UseCaseDetectorTest {
         List<UseCase> useCases = detector.detect(model, UseCaseNamingConfig.empty());
 
         UseCase getOrder = useCases.stream()
-            .filter(u -> u.entrypointId.equals("ep:getOrder"))
-            .findFirst().orElseThrow();
+                .filter(u -> u.entrypointId.equals("ep:getOrder"))
+                .findFirst()
+                .orElseThrow();
 
-        assertThat(getOrder.componentIds).contains(
-            "comp:OrderResource", "comp:OrderService", "comp:OrderRepository");
+        assertThat(getOrder.componentIds).contains("comp:OrderResource", "comp:OrderService", "comp:OrderRepository");
     }
 
     @Test
@@ -93,7 +92,10 @@ class UseCaseDetectorTest {
         UseCaseNamingConfig config = new UseCaseNamingConfig();
         config.names.put("ep:getOrder", "Retrieve Order Details");
         List<UseCase> useCases = detector.detect(model, config);
-        UseCase uc = useCases.stream().filter(u -> u.entrypointId.equals("ep:getOrder")).findFirst().orElseThrow();
+        UseCase uc = useCases.stream()
+                .filter(u -> u.entrypointId.equals("ep:getOrder"))
+                .findFirst()
+                .orElseThrow();
         assertThat(uc.name).isEqualTo("Retrieve Order Details");
     }
 
@@ -101,7 +103,10 @@ class UseCaseDetectorTest {
     void detectFallsBackToDerivedNameWithoutConfig() {
         ArchitectureModel model = buildSimpleModel();
         List<UseCase> useCases = detector.detect(model, UseCaseNamingConfig.empty());
-        UseCase uc = useCases.stream().filter(u -> u.entrypointId.equals("ep:getOrder")).findFirst().orElseThrow();
+        UseCase uc = useCases.stream()
+                .filter(u -> u.entrypointId.equals("ep:getOrder"))
+                .findFirst()
+                .orElseThrow();
         assertThat(uc.name).isEqualTo("GET Get Order");
     }
 
@@ -114,13 +119,18 @@ class UseCaseDetectorTest {
         addCallEdge(model, "comp:OrderService", "find", "comp:OrderRepository", "findById");
 
         List<UseCase> useCases = detector.detect(model, UseCaseNamingConfig.empty());
-        UseCase uc = useCases.stream().filter(u -> u.entrypointId.equals("ep:getOrder")).findFirst().orElseThrow();
+        UseCase uc = useCases.stream()
+                .filter(u -> u.entrypointId.equals("ep:getOrder"))
+                .findFirst()
+                .orElseThrow();
 
         assertThat(uc.methodChain).isNotEmpty();
-        assertThat(uc.methodChain).anySatisfy(step ->
-            assertThat(step).contains("OrderResource.getOrder").contains("OrderService.find"));
-        assertThat(uc.methodChain).anySatisfy(step ->
-            assertThat(step).contains("OrderService.find").contains("OrderRepository.findById"));
+        assertThat(uc.methodChain)
+                .anySatisfy(step ->
+                        assertThat(step).contains("OrderResource.getOrder").contains("OrderService.find"));
+        assertThat(uc.methodChain)
+                .anySatisfy(
+                        step -> assertThat(step).contains("OrderService.find").contains("OrderRepository.findById"));
     }
 
     @Test
@@ -147,8 +157,8 @@ class UseCaseDetectorTest {
     private static ArchitectureModel buildSimpleModel() {
         ArchitectureModel model = new ArchitectureModel("test");
 
-        Component resource   = comp("OrderResource",   ComponentType.REST_RESOURCE);
-        Component service    = comp("OrderService",    ComponentType.SERVICE);
+        Component resource = comp("OrderResource", ComponentType.REST_RESOURCE);
+        Component service = comp("OrderService", ComponentType.SERVICE);
         Component repository = comp("OrderRepository", ComponentType.REPOSITORY);
         model.components.addAll(List.of(resource, service, repository));
 
@@ -190,9 +200,8 @@ class UseCaseDetectorTest {
         return d;
     }
 
-    private static void addCallEdge(ArchitectureModel model,
-                                     String fromComp, String fromMethod,
-                                     String toComp, String toMethod) {
+    private static void addCallEdge(
+            ArchitectureModel model, String fromComp, String fromMethod, String toComp, String toMethod) {
         CallEdge e = new CallEdge();
         e.id = "call:" + fromComp + "#" + fromMethod + "->" + toComp + "#" + toMethod;
         e.fromComponentId = fromComp;

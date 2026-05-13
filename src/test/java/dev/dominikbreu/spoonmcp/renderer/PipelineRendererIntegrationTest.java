@@ -1,5 +1,7 @@
 package dev.dominikbreu.spoonmcp.renderer;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Chain;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
@@ -10,11 +12,8 @@ import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.DataFlowStep;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 /**
  * Tests {@link PipelineGraphBuilder} and {@link MermaidPipelineRenderer} on a synthetic
@@ -80,14 +79,20 @@ class PipelineRendererIntegrationTest {
     void rendererAndBuilderHardcodeNoFixtureNames() throws Exception {
         // 6. Defensive check that no component, channel, or field name from the fixture
         // (or any test scenario) leaks into the renderer/builder source.
-        java.nio.file.Path renderer = java.nio.file.Paths.get(
-            "src/main/java/dev/dominikbreu/spoonmcp/renderer/MermaidPipelineRenderer.java");
-        java.nio.file.Path builder = java.nio.file.Paths.get(
-            "src/main/java/dev/dominikbreu/spoonmcp/extractor/PipelineGraphBuilder.java");
+        java.nio.file.Path renderer =
+                java.nio.file.Paths.get("src/main/java/dev/dominikbreu/spoonmcp/renderer/MermaidPipelineRenderer.java");
+        java.nio.file.Path builder =
+                java.nio.file.Paths.get("src/main/java/dev/dominikbreu/spoonmcp/extractor/PipelineGraphBuilder.java");
         String rendererSrc = java.nio.file.Files.readString(renderer);
-        String builderSrc  = java.nio.file.Files.readString(builder);
-        for (String forbidden : List.of("RecordStore", "RecordDispatcher", "Cache.records",
-                                          "recordsInternal", "internal", "Ingestor", "Processor")) {
+        String builderSrc = java.nio.file.Files.readString(builder);
+        for (String forbidden : List.of(
+                "RecordStore",
+                "RecordDispatcher",
+                "Cache.records",
+                "recordsInternal",
+                "internal",
+                "Ingestor",
+                "Processor")) {
             // Only fail on word-boundary matches inside identifiers, not e.g. "internal" in javadoc.
             // Plain contains is sufficient because these are component identifiers we'd never use
             // in renderer code if the implementation is generic.
@@ -95,7 +100,9 @@ class PipelineRendererIntegrationTest {
             // The renderer has class names like "messaging" — the forbidden list above are all
             // distinct tokens; this is a coarse but effective signal.
             if (!"internal".equals(forbidden)) {
-                assertThat(rendererSrc).as("renderer must not hardcode %s", forbidden).doesNotContain(forbidden);
+                assertThat(rendererSrc)
+                        .as("renderer must not hardcode %s", forbidden)
+                        .doesNotContain(forbidden);
             }
         }
     }
@@ -106,18 +113,16 @@ class PipelineRendererIntegrationTest {
         ArchitectureModel m = new ArchitectureModel("synthetic");
 
         m.components.addAll(List.of(
-            comp("comp:Ingestor",  "Ingestor",  ComponentType.MESSAGE_DRIVEN_BEAN),
-            comp("comp:Cache",     "Cache",     ComponentType.SERVICE),
-            comp("comp:Scheduler", "Scheduler", ComponentType.SCHEDULER),
-            comp("comp:Processor", "Processor", ComponentType.MESSAGE_DRIVEN_BEAN),
-            comp("comp:Broker",    "Broker",    ComponentType.HTTP_CLIENT)
-        ));
+                comp("comp:Ingestor", "Ingestor", ComponentType.MESSAGE_DRIVEN_BEAN),
+                comp("comp:Cache", "Cache", ComponentType.SERVICE),
+                comp("comp:Scheduler", "Scheduler", ComponentType.SCHEDULER),
+                comp("comp:Processor", "Processor", ComponentType.MESSAGE_DRIVEN_BEAN),
+                comp("comp:Broker", "Broker", ComponentType.HTTP_CLIENT)));
 
         m.entrypoints.addAll(List.of(
-            ep("ep:ingest",   "consume",      EntrypointType.MESSAGING_CONSUMER, "external", "comp:Ingestor"),
-            ep("ep:schedule", "tick",         EntrypointType.SCHEDULER,           null,       "comp:Scheduler"),
-            ep("ep:process",  "process",      EntrypointType.MESSAGING_CONSUMER, "internal", "comp:Processor")
-        ));
+                ep("ep:ingest", "consume", EntrypointType.MESSAGING_CONSUMER, "external", "comp:Ingestor"),
+                ep("ep:schedule", "tick", EntrypointType.SCHEDULER, null, "comp:Scheduler"),
+                ep("ep:process", "process", EntrypointType.MESSAGING_CONSUMER, "internal", "comp:Processor")));
 
         // Path 1: ingestor → STORE(Cache.records)
         DataFlowPath p1 = path("df:ingest", "ep:ingest", "snapshot");

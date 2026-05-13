@@ -38,3 +38,6 @@ replay_pid*
 Thumbs.db
 
 /.env
+
+# Superpowers design specs (local only, not tracked in git)
+docs/superpowers/

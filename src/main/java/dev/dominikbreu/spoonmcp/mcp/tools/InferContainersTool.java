@@ -5,7 +5,6 @@ import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.Container;
-
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -40,13 +39,12 @@ public class InferContainersTool {
             String appFilter = getString(args, "appId");
 
             List<Container> containers = model.containers.stream()
-                .filter(c -> appFilter == null || (c.appId != null && c.appId.contains(appFilter)))
-                .collect(Collectors.toList());
+                    .filter(c -> appFilter == null || (c.appId != null && c.appId.contains(appFilter)))
+                    .collect(Collectors.toList());
 
             if (containers.isEmpty()) return "No containers found. Re-run index_workspace to build containers.";
 
-            Map<String, Component> compById = model.components.stream()
-                .collect(Collectors.toMap(c -> c.id, c -> c));
+            Map<String, Component> compById = model.components.stream().collect(Collectors.toMap(c -> c.id, c -> c));
 
             StringBuilder sb = new StringBuilder();
             sb.append("Containers (").append(containers.size()).append("):\n\n");
@@ -64,7 +62,11 @@ public class InferContainersTool {
                 for (String cid : c.componentIds) {
                     Component comp = compById.get(cid);
                     if (comp != null) {
-                        sb.append("      - [").append(comp.type).append("] ").append(comp.name).append("\n");
+                        sb.append("      - [")
+                                .append(comp.type)
+                                .append("] ")
+                                .append(comp.name)
+                                .append("\n");
                     }
                 }
                 sb.append("\n");

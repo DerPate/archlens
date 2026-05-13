@@ -2,12 +2,11 @@ package dev.dominikbreu.spoonmcp.merger;
 
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.DeploymentEntry;
-import org.yaml.snakeyaml.Yaml;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.List;
 import java.util.Map;
+import org.yaml.snakeyaml.Yaml;
 
 /**
  * Merges Docker Compose service definitions into the architecture model as DeploymentEntry records.
@@ -56,14 +55,10 @@ public class DockerComposeMerger {
                     // depends_on
                     Object depsObj = service.get("depends_on");
                     switch (depsObj) {
-                        case List<?> deps -> deps.stream()
-                            .map(String::valueOf)
-                            .forEach(de.dependsOn::add);
-                        case Map<?, ?> deps -> deps.keySet().stream()
-                            .map(String::valueOf)
-                            .forEach(de.dependsOn::add);
-                        case null, default -> {
-                        }
+                        case List<?> deps -> deps.stream().map(String::valueOf).forEach(de.dependsOn::add);
+                        case Map<?, ?> deps ->
+                            deps.keySet().stream().map(String::valueOf).forEach(de.dependsOn::add);
+                        case null, default -> {}
                     }
 
                     // link appIds by matching service name to known app names
@@ -78,12 +73,14 @@ public class DockerComposeMerger {
 
                 model.deployments.add(de);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
     }
 
     private File resolveComposeFile(File dir) {
-        for (String name : List.of("docker-compose.yml", "docker-compose.yaml",
-                                   "compose.yml", "compose.yaml")) {
+        for (String name : List.of(
+                "docker-compose.yml", "docker-compose.yaml",
+                "compose.yml", "compose.yaml")) {
             File f = new File(dir, name);
             if (f.exists()) return f;
         }

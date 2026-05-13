@@ -3,7 +3,6 @@ package dev.dominikbreu.spoonmcp.extractor;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Container;
-
 import java.util.*;
 
 /**
@@ -35,9 +34,7 @@ public class ContainerInferrer {
                 c.name = containerName;
                 c.appId = comp.module;
                 c.technology = comp.technology;
-                c.derivedFrom = "java".equals(comp.technology)
-                    ? "package-convention"
-                    : "stereotype-convention";
+                c.derivedFrom = "java".equals(comp.technology) ? "package-convention" : "stereotype-convention";
                 return c;
             });
             container.componentIds.add(comp.id);

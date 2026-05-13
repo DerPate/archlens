@@ -1,6 +1,8 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.*;
+import java.util.*;
+import java.util.stream.Collectors;
 import spoon.reflect.code.CtExpression;
 import spoon.reflect.code.CtInvocation;
 import spoon.reflect.code.CtLambda;
@@ -8,9 +10,6 @@ import spoon.reflect.code.CtLiteral;
 import spoon.reflect.declaration.*;
 import spoon.reflect.reference.CtTypeReference;
 import spoon.reflect.visitor.filter.TypeFilter;
-
-import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Detects CDI event bus patterns across JAR modules.
@@ -29,21 +28,16 @@ import java.util.stream.Collectors;
  */
 public class EventBusExtractor {
 
-    private static final Set<String> OBSERVES_ANNOTATIONS = Set.of(
-        "javax.enterprise.event.Observes",
-        "jakarta.enterprise.event.Observes",
-        "Observes"
-    );
+    private static final Set<String> OBSERVES_ANNOTATIONS =
+            Set.of("javax.enterprise.event.Observes", "jakarta.enterprise.event.Observes", "Observes");
 
-    private static final Set<String> CONSUME_EVENT_ANNOTATIONS = Set.of(
-        "io.quarkus.vertx.ConsumeEvent",
-        "ConsumeEvent"
-    );
+    private static final Set<String> CONSUME_EVENT_ANNOTATIONS =
+            Set.of("io.quarkus.vertx.ConsumeEvent", "ConsumeEvent");
 
     private static final Set<String> CDI_EVENT_TYPES = Set.of(
-        "Event",      // javax.enterprise.event.Event / jakarta.enterprise.event.Event
-        "EventBus"    // io.quarkus.vertx.core.runtime.context.EventBus / io.vertx.mutiny.core.eventbus.EventBus
-    );
+            "Event", // javax.enterprise.event.Event / jakarta.enterprise.event.Event
+            "EventBus" // io.quarkus.vertx.core.runtime.context.EventBus / io.vertx.mutiny.core.eventbus.EventBus
+            );
 
     // event simple name → list of component IDs that fire it
     private final Map<String, List<String>> producersByEventType = new LinkedHashMap<>();
@@ -63,8 +57,7 @@ public class EventBusExtractor {
      * @param appId owning application identifier
      */
     public void extract(Collection<CtType<?>> types, ArchitectureModel model, String appId) {
-        Set<String> existingIds = model.components.stream()
-            .map(c -> c.id).collect(Collectors.toSet());
+        Set<String> existingIds = model.components.stream().map(c -> c.id).collect(Collectors.toSet());
 
         for (CtType<?> type : types) {
             detectProducer(type, model, appId, existingIds);
@@ -82,12 +75,13 @@ public class EventBusExtractor {
      * {@code channelName = addr} and the lambda's first parameter copied into the
      * entrypoint's parameters list so the data-flow tracer can follow it.
      */
-    private void detectVertxEventBusConsumer(CtType<?> type, ArchitectureModel model,
-                                              String appId, Set<String> existingIds) {
+    private void detectVertxEventBusConsumer(
+            CtType<?> type, ArchitectureModel model, String appId, Set<String> existingIds) {
         for (CtMethod<?> method : type.getMethods()) {
             for (CtInvocation<?> inv : method.getElements(new TypeFilter<>(CtInvocation.class))) {
                 if (!"consumer".equals(inv.getExecutable().getSimpleName())) continue;
-                CtTypeReference<?> targetType = inv.getTarget() != null ? inv.getTarget().getType() : null;
+                CtTypeReference<?> targetType =
+                        inv.getTarget() != null ? inv.getTarget().getType() : null;
                 if (targetType == null) continue;
                 if (!"EventBus".equals(targetType.getSimpleName())) continue;
                 if (inv.getArguments().isEmpty()) continue;
@@ -97,23 +91,28 @@ public class EventBusExtractor {
                 if (address == null || lambda == null) continue;
 
                 String paramName = lambda.getParameters().isEmpty()
-                    ? "message"
-                    : lambda.getParameters().get(0).getSimpleName();
+                        ? "message"
+                        : lambda.getParameters().get(0).getSimpleName();
 
                 String compId = "comp:" + type.getQualifiedName();
-                Component comp = findOrCreateComponent(compId, type, appId,
-                    ComponentType.CDI_EVENT_CONSUMER, "event-bus-consumer", model, existingIds);
+                Component comp = findOrCreateComponent(
+                        compId,
+                        type,
+                        appId,
+                        ComponentType.CDI_EVENT_CONSUMER,
+                        "event-bus-consumer",
+                        model,
+                        existingIds);
 
-                String epId = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName()
-                            + ":eventbus:" + address;
+                String epId = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + ":eventbus:" + address;
                 if (model.entrypoints.stream().anyMatch(e -> e.id.equals(epId))) continue;
 
                 Entrypoint ep = new Entrypoint();
-                ep.id          = epId;
-                ep.type        = EntrypointType.EVENT_BUS_CONSUMER;
-                ep.name        = method.getSimpleName();
+                ep.id = epId;
+                ep.type = EntrypointType.EVENT_BUS_CONSUMER;
+                ep.name = method.getSimpleName();
                 ep.channelName = address;
-                ep.path        = address;
+                ep.path = address;
                 ep.componentId = comp.id;
                 ep.parameters.add(paramName);
                 ep.source = new SourceInfo(getFile(inv), getLine(inv), "invocation", 0.9);
@@ -150,9 +149,7 @@ public class EventBusExtractor {
      * @param model architecture model to update
      */
     public void linkCrossModuleEvents(ArchitectureModel model) {
-        int depCounter = model.dependencies.size();
-        Set<String> existingDepIds = model.dependencies.stream()
-            .map(d -> d.id).collect(Collectors.toSet());
+        Set<String> existingDepIds = model.dependencies.stream().map(d -> d.id).collect(Collectors.toSet());
 
         for (Map.Entry<String, List<String>> entry : producersByEventType.entrySet()) {
             String eventType = entry.getKey();
@@ -180,8 +177,7 @@ public class EventBusExtractor {
 
     // ── producer detection ────────────────────────────────────────────────────
 
-    private void detectProducer(CtType<?> type, ArchitectureModel model, String appId,
-                                Set<String> existingIds) {
+    private void detectProducer(CtType<?> type, ArchitectureModel model, String appId, Set<String> existingIds) {
         List<String> firedEventTypes = new ArrayList<>();
 
         for (CtField<?> field : type.getFields()) {
@@ -200,30 +196,31 @@ public class EventBusExtractor {
         if (firedEventTypes.isEmpty()) return;
 
         String compId = "comp:" + type.getQualifiedName();
-        Component comp = findOrCreateComponent(compId, type, appId, ComponentType.CDI_EVENT_PRODUCER,
-            "cdi-event-producer", model, existingIds);
+        Component comp = findOrCreateComponent(
+                compId, type, appId, ComponentType.CDI_EVENT_PRODUCER, "cdi-event-producer", model, existingIds);
 
         for (String eventType : firedEventTypes) {
-            producersByEventType.computeIfAbsent(eventType, k -> new ArrayList<>())
-                .add(comp.id);
+            producersByEventType
+                    .computeIfAbsent(eventType, k -> new ArrayList<>())
+                    .add(comp.id);
         }
     }
 
     // ── consumer detection ────────────────────────────────────────────────────
 
-    private void detectConsumer(CtType<?> type, ArchitectureModel model, String appId,
-                                Set<String> existingIds) {
+    private void detectConsumer(CtType<?> type, ArchitectureModel model, String appId, Set<String> existingIds) {
         for (CtMethod<?> method : type.getMethods()) {
             String eventType = detectObservesParameter(method);
             if (eventType == null) eventType = detectConsumeEventAnnotation(method);
             if (eventType == null) continue;
 
             String compId = "comp:" + type.getQualifiedName();
-            Component comp = findOrCreateComponent(compId, type, appId, ComponentType.CDI_EVENT_CONSUMER,
-                "cdi-event-consumer", model, existingIds);
+            Component comp = findOrCreateComponent(
+                    compId, type, appId, ComponentType.CDI_EVENT_CONSUMER, "cdi-event-consumer", model, existingIds);
 
-            consumersByEventType.computeIfAbsent(eventType, k -> new ArrayList<>())
-                .add(comp.id);
+            consumersByEventType
+                    .computeIfAbsent(eventType, k -> new ArrayList<>())
+                    .add(comp.id);
 
             // Create entrypoint for the observer method
             String epId = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + ":observer";
@@ -243,9 +240,11 @@ public class EventBusExtractor {
     /** Returns the event type simple name if a parameter is annotated with @Observes, else null. */
     private String detectObservesParameter(CtMethod<?> method) {
         for (CtParameter<?> param : method.getParameters()) {
-            boolean hasObserves = param.getAnnotations().stream().anyMatch(a ->
-                OBSERVES_ANNOTATIONS.contains(a.getAnnotationType().getSimpleName())
-                    || OBSERVES_ANNOTATIONS.contains(a.getAnnotationType().getQualifiedName()));
+            boolean hasObserves = param.getAnnotations().stream()
+                    .anyMatch(a ->
+                            OBSERVES_ANNOTATIONS.contains(a.getAnnotationType().getSimpleName())
+                                    || OBSERVES_ANNOTATIONS.contains(
+                                            a.getAnnotationType().getQualifiedName()));
             if (hasObserves) return param.getType().getSimpleName();
         }
         return null;
@@ -256,7 +255,8 @@ public class EventBusExtractor {
         for (var ann : method.getAnnotations()) {
             String sn = ann.getAnnotationType().getSimpleName();
             if (CONSUME_EVENT_ANNOTATIONS.contains(sn)
-                    || CONSUME_EVENT_ANNOTATIONS.contains(ann.getAnnotationType().getQualifiedName())) {
+                    || CONSUME_EVENT_ANNOTATIONS.contains(
+                            ann.getAnnotationType().getQualifiedName())) {
                 // @ConsumeEvent("address") or @ConsumeEvent — use method name as event type fallback
                 try {
                     var val = ann.getValue("value");
@@ -264,7 +264,8 @@ public class EventBusExtractor {
                         String addr = val.toString().replace("\"", "");
                         return addr.isEmpty() ? method.getSimpleName() : addr;
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
                 return method.getSimpleName();
             }
         }
@@ -277,12 +278,16 @@ public class EventBusExtractor {
      * Returns the existing component if already registered, or creates and registers a new one.
      * If the component already exists with a different type, adds the stereotype without changing the type.
      */
-    private Component findOrCreateComponent(String compId, CtType<?> type, String appId,
-                                            ComponentType newType, String stereotype,
-                                            ArchitectureModel model, Set<String> existingIds) {
-        Optional<Component> existing = model.components.stream()
-            .filter(c -> c.id.equals(compId))
-            .findFirst();
+    private Component findOrCreateComponent(
+            String compId,
+            CtType<?> type,
+            String appId,
+            ComponentType newType,
+            String stereotype,
+            ArchitectureModel model,
+            Set<String> existingIds) {
+        Optional<Component> existing =
+                model.components.stream().filter(c -> c.id.equals(compId)).findFirst();
 
         if (existing.isPresent()) {
             Component c = existing.get();
@@ -303,9 +308,9 @@ public class EventBusExtractor {
         existingIds.add(compId);
         model.components.add(c);
         model.applications.stream()
-            .filter(a -> a.id.equals(appId))
-            .findFirst()
-            .ifPresent(a -> a.componentIds.add(compId));
+                .filter(a -> a.id.equals(appId))
+                .findFirst()
+                .ifPresent(a -> a.componentIds.add(compId));
 
         return c;
     }

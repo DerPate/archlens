@@ -3,7 +3,6 @@ package dev.dominikbreu.spoonmcp.mcp.tools;
 import com.fasterxml.jackson.databind.JsonNode;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.model.*;
-
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -38,10 +37,11 @@ public class ExplainArchitectureTool {
             String appFilter = getString(args, "appId");
 
             List<AppEntry> apps = model.applications.stream()
-                .filter(a -> appFilter == null || a.id.contains(appFilter) || a.name.contains(appFilter))
-                .collect(Collectors.toList());
+                    .filter(a -> appFilter == null || a.id.contains(appFilter) || a.name.contains(appFilter))
+                    .collect(Collectors.toList());
 
-            if (apps.isEmpty()) return "No applications found" + (appFilter != null ? " matching '" + appFilter + "'" : "") + ".";
+            if (apps.isEmpty())
+                return "No applications found" + (appFilter != null ? " matching '" + appFilter + "'" : "") + ".";
 
             StringBuilder sb = new StringBuilder();
             sb.append("# Architecture Summary\n\n");
@@ -56,40 +56,41 @@ public class ExplainArchitectureTool {
                 sb.append("- Root: ").append(app.rootPath).append("\n");
 
                 List<Component> comps = model.components.stream()
-                    .filter(c -> app.componentIds.contains(c.id))
-                    .collect(Collectors.toList());
+                        .filter(c -> app.componentIds.contains(c.id))
+                        .collect(Collectors.toList());
 
-                Map<String, List<Component>> byType = comps.stream()
-                    .collect(Collectors.groupingBy(c -> c.type.name()));
+                Map<String, List<Component>> byType = comps.stream().collect(Collectors.groupingBy(c -> c.type.name()));
 
                 sb.append("- Components (").append(comps.size()).append("):\n");
-                byType.forEach((type, cs) ->
-                    sb.append("  - ").append(type).append(": ")
-                      .append(cs.stream().map(c -> c.name).collect(Collectors.joining(", ")))
-                      .append("\n"));
+                byType.forEach((type, cs) -> sb.append("  - ")
+                        .append(type)
+                        .append(": ")
+                        .append(cs.stream().map(c -> c.name).collect(Collectors.joining(", ")))
+                        .append("\n"));
 
                 List<Entrypoint> eps = model.entrypoints.stream()
-                    .filter(e -> comps.stream().anyMatch(c -> c.id.equals(e.componentId)))
-                    .collect(Collectors.toList());
+                        .filter(e -> comps.stream().anyMatch(c -> c.id.equals(e.componentId)))
+                        .collect(Collectors.toList());
 
                 if (!eps.isEmpty()) {
                     sb.append("- Entrypoints (").append(eps.size()).append("):\n");
                     for (Entrypoint ep : eps) {
                         sb.append("  - [").append(ep.type).append("] ");
-                        if (ep.httpMethod != null) sb.append(ep.httpMethod).append(" ").append(ep.path);
+                        if (ep.httpMethod != null)
+                            sb.append(ep.httpMethod).append(" ").append(ep.path);
                         else sb.append(ep.name);
                         sb.append(" (").append(ep.id).append(")\n");
                     }
                 }
 
                 List<Container> containers = model.containers.stream()
-                    .filter(c -> app.id.equals(c.appId))
-                    .collect(Collectors.toList());
+                        .filter(c -> app.id.equals(c.appId))
+                        .collect(Collectors.toList());
 
                 if (!containers.isEmpty()) {
-                    sb.append("- Layers: ").append(
-                        containers.stream().map(c -> c.name).collect(Collectors.joining(", ")))
-                      .append("\n");
+                    sb.append("- Layers: ")
+                            .append(containers.stream().map(c -> c.name).collect(Collectors.joining(", ")))
+                            .append("\n");
                 }
 
                 sb.append("\n");
@@ -97,20 +98,25 @@ public class ExplainArchitectureTool {
 
             // Dependencies summary
             List<Dependency> deps = model.dependencies.stream()
-                .filter(d -> {
-                    boolean fromVisible = apps.stream().anyMatch(a -> a.componentIds.contains(d.fromId));
-                    boolean toVisible = apps.stream().anyMatch(a -> a.componentIds.contains(d.toId));
-                    return fromVisible && toVisible;
-                })
-                .collect(Collectors.toList());
+                    .filter(d -> {
+                        boolean fromVisible = apps.stream().anyMatch(a -> a.componentIds.contains(d.fromId));
+                        boolean toVisible = apps.stream().anyMatch(a -> a.componentIds.contains(d.toId));
+                        return fromVisible && toVisible;
+                    })
+                    .collect(Collectors.toList());
 
             if (!deps.isEmpty()) {
                 sb.append("## Dependencies (").append(deps.size()).append(")\n\n");
                 for (Dependency dep : deps) {
                     String fromName = componentName(dep.fromId, model);
                     String toName = componentName(dep.toId, model);
-                    sb.append("- ").append(fromName).append(" → ").append(toName)
-                      .append(" [").append(dep.kind).append("]\n");
+                    sb.append("- ")
+                            .append(fromName)
+                            .append(" → ")
+                            .append(toName)
+                            .append(" [")
+                            .append(dep.kind)
+                            .append("]\n");
                 }
                 sb.append("\n");
             }
@@ -134,10 +140,10 @@ public class ExplainArchitectureTool {
 
     private String componentName(String id, ArchitectureModel model) {
         return model.components.stream()
-            .filter(c -> c.id.equals(id))
-            .findFirst()
-            .map(c -> c.name)
-            .orElse(id);
+                .filter(c -> c.id.equals(id))
+                .findFirst()
+                .map(c -> c.name)
+                .orElse(id);
     }
 
     private String getString(JsonNode n, String f) {

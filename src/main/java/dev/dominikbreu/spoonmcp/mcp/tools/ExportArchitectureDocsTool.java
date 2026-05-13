@@ -9,7 +9,6 @@ import dev.dominikbreu.spoonmcp.renderer.MermaidDependencyMapRenderer;
 import dev.dominikbreu.spoonmcp.renderer.MermaidDependencySliceRenderer;
 import dev.dominikbreu.spoonmcp.renderer.MermaidFlowchartRenderer;
 import dev.dominikbreu.spoonmcp.renderer.MermaidSourceOverviewRenderer;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
@@ -59,8 +58,8 @@ public class ExportArchitectureDocsTool {
             Files.writeString(output, markdown);
 
             return "Exported architecture docs to " + output.toAbsolutePath()
-                + "\nComponents: " + model.components.size()
-                + "\nDependencies: " + model.dependencies.size();
+                    + "\nComponents: " + model.components.size()
+                    + "\nDependencies: " + model.dependencies.size();
         } catch (Exception e) {
             return "Error exporting architecture docs: " + e.getMessage();
         }
@@ -96,13 +95,14 @@ public class ExportArchitectureDocsTool {
 
         sb.append("## Components By Type\n\n");
         Map<String, List<Component>> byType = model.components.stream()
-            .sorted(Comparator.comparing(component -> component.name))
-            .collect(Collectors.groupingBy(component -> String.valueOf(component.type)));
+                .sorted(Comparator.comparing(component -> component.name))
+                .collect(Collectors.groupingBy(component -> String.valueOf(component.type)));
         for (Map.Entry<String, List<Component>> entry : byType.entrySet()) {
             sb.append("### ").append(entry.getKey()).append("\n\n");
             for (Component component : entry.getValue()) {
                 sb.append("- `").append(component.qualifiedName).append("`");
-                if (component.technology != null) sb.append(" (").append(component.technology).append(")");
+                if (component.technology != null)
+                    sb.append(" (").append(component.technology).append(")");
                 sb.append("\n");
             }
             sb.append("\n");
@@ -114,11 +114,18 @@ public class ExportArchitectureDocsTool {
 
         sb.append("## Dependency Details\n\n");
         for (Dependency dependency : model.dependencies) {
-            sb.append("- `").append(dependency.fromId).append("` -> `")
-                .append(dependency.toId).append("`")
-                .append(" (").append(dependency.kind).append(", ")
-                .append(dependency.derivedFrom).append(", evidence-score=")
-                .append(dependency.confidence).append(")\n");
+            sb.append("- `")
+                    .append(dependency.fromId)
+                    .append("` -> `")
+                    .append(dependency.toId)
+                    .append("`")
+                    .append(" (")
+                    .append(dependency.kind)
+                    .append(", ")
+                    .append(dependency.derivedFrom)
+                    .append(", evidence-score=")
+                    .append(dependency.confidence)
+                    .append(")\n");
         }
         return sb.toString();
     }

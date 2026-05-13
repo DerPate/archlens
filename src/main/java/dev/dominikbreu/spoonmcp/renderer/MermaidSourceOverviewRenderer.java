@@ -3,7 +3,6 @@ package dev.dominikbreu.spoonmcp.renderer;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.Dependency;
-
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -29,7 +28,7 @@ public class MermaidSourceOverviewRenderer {
     public String render(ArchitectureModel model, int maxComponentsPerPackage) {
         int maxPerPackage = maxComponentsPerPackage <= 0 ? 25 : maxComponentsPerPackage;
         Map<String, List<Component>> byPackage = model.components.stream()
-            .collect(Collectors.groupingBy(this::packageName, LinkedHashMap::new, Collectors.toList()));
+                .collect(Collectors.groupingBy(this::packageName, LinkedHashMap::new, Collectors.toList()));
 
         Map<String, String> componentToPackageNode = new LinkedHashMap<>();
         StringBuilder sb = new StringBuilder("flowchart TD\n");
@@ -37,23 +36,34 @@ public class MermaidSourceOverviewRenderer {
         for (Map.Entry<String, List<Component>> entry : byPackage.entrySet()) {
             String pkg = entry.getKey();
             String packageNode = nodeId("pkg:" + pkg);
-            sb.append("    subgraph ").append(packageNode).append("[\"").append(escape(pkg)).append("\"]\n");
+            sb.append("    subgraph ")
+                    .append(packageNode)
+                    .append("[\"")
+                    .append(escape(pkg))
+                    .append("\"]\n");
 
             int rendered = 0;
             for (Component component : entry.getValue()) {
                 if (rendered >= maxPerPackage) break;
                 String compNode = nodeId(component.id);
                 componentToPackageNode.put(component.id, compNode);
-                sb.append("        ").append(compNode)
-                    .append("[\"").append(escape(component.name)).append("\\n")
-                    .append(escape(String.valueOf(component.type))).append("\"]\n");
+                sb.append("        ")
+                        .append(compNode)
+                        .append("[\"")
+                        .append(escape(component.name))
+                        .append("\\n")
+                        .append(escape(String.valueOf(component.type)))
+                        .append("\"]\n");
                 rendered++;
             }
 
             int omitted = entry.getValue().size() - rendered;
             if (omitted > 0) {
-                sb.append("        ").append(nodeId("omitted:" + pkg))
-                    .append("[\"... ").append(omitted).append(" more\"]\n");
+                sb.append("        ")
+                        .append(nodeId("omitted:" + pkg))
+                        .append("[\"... ")
+                        .append(omitted)
+                        .append(" more\"]\n");
             }
             sb.append("    end\n");
         }

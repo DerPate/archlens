@@ -2,12 +2,11 @@ package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Dependency;
+import java.util.*;
 import spoon.reflect.CtModel;
 import spoon.reflect.declaration.CtElement;
 import spoon.reflect.declaration.CtField;
 import spoon.reflect.declaration.CtType;
-
-import java.util.*;
 
 /**
  * Extracts injection-based dependencies between known components from the Spoon model.
@@ -18,16 +17,16 @@ public class DependencyExtractor {
     private final DependencyEvidenceScorer evidenceScorer = new DependencyEvidenceScorer();
 
     private static final Set<String> INJECT_ANNOTATIONS = Set.of(
-        "javax.inject.Inject", "jakarta.inject.Inject",
-        "javax.ejb.EJB", "jakarta.ejb.EJB",
-        "javax.annotation.Resource", "jakarta.annotation.Resource",
-        "org.springframework.beans.factory.annotation.Autowired"
-    );
+            "javax.inject.Inject",
+            "jakarta.inject.Inject",
+            "javax.ejb.EJB",
+            "jakarta.ejb.EJB",
+            "javax.annotation.Resource",
+            "jakarta.annotation.Resource",
+            "org.springframework.beans.factory.annotation.Autowired");
 
-    private static final Set<String> PERSISTENCE_CONTEXT = Set.of(
-        "javax.persistence.PersistenceContext",
-        "jakarta.persistence.PersistenceContext"
-    );
+    private static final Set<String> PERSISTENCE_CONTEXT =
+            Set.of("javax.persistence.PersistenceContext", "jakarta.persistence.PersistenceContext");
 
     /** Creates a dependency extractor using the default evidence scorer. */
     public DependencyExtractor() {}
@@ -51,11 +50,8 @@ public class DependencyExtractor {
                 String targetQN = field.getType().getQualifiedName();
                 String toId = "comp:" + targetQN;
                 if (componentsById.containsKey(toId) && !fromId.equals(toId)) {
-                    double confidence = evidenceScorer.score(
-                        componentsById.get(fromId),
-                        componentsById.get(toId),
-                        isInjected
-                    );
+                    double confidence =
+                            evidenceScorer.score(componentsById.get(fromId), componentsById.get(toId), isInjected);
                     if (isInjected) {
                         addDep(model, fromId, toId, "injection", "annotation", confidence);
                     } else {
@@ -85,11 +81,11 @@ public class DependencyExtractor {
 
     private boolean hasAnn(CtElement element, Set<String> names) {
         Set<String> sn = names.stream()
-            .map(n -> n.substring(n.lastIndexOf('.') + 1))
-            .collect(java.util.stream.Collectors.toSet());
-        return element.getAnnotations().stream().anyMatch(a ->
-            names.contains(a.getAnnotationType().getQualifiedName())
-                || sn.contains(a.getAnnotationType().getSimpleName()));
+                .map(n -> n.substring(n.lastIndexOf('.') + 1))
+                .collect(java.util.stream.Collectors.toSet());
+        return element.getAnnotations().stream()
+                .anyMatch(a -> names.contains(a.getAnnotationType().getQualifiedName())
+                        || sn.contains(a.getAnnotationType().getSimpleName()));
     }
 
     private void dedup(ArchitectureModel model) {

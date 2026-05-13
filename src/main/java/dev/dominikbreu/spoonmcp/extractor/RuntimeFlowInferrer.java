@@ -1,7 +1,6 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.*;
-
 import java.util.*;
 
 /**
@@ -16,9 +15,7 @@ import java.util.*;
  */
 public class RuntimeFlowInferrer {
 
-    private static final Set<ComponentType> SKIP_TYPES = Set.of(
-        ComponentType.UTILITY, ComponentType.UNKNOWN
-    );
+    private static final Set<ComponentType> SKIP_TYPES = Set.of(ComponentType.UTILITY, ComponentType.UNKNOWN);
 
     /** Creates a runtime flow inferrer using default component filtering. */
     public RuntimeFlowInferrer() {}
@@ -36,8 +33,8 @@ public class RuntimeFlowInferrer {
         if (ep == null) return null;
 
         return model.callEdges.isEmpty()
-            ? inferFromDependencies(ep, maxDepth, model)
-            : inferFromCallGraph(ep, maxDepth, model);
+                ? inferFromDependencies(ep, maxDepth, model)
+                : inferFromCallGraph(ep, maxDepth, model);
     }
 
     // ── call-graph DFS ────────────────────────────────────────────────────────
@@ -45,31 +42,46 @@ public class RuntimeFlowInferrer {
     private RuntimeFlow inferFromCallGraph(Entrypoint ep, int maxDepth, ArchitectureModel model) {
         Map<String, List<CallEdge>> adj = new HashMap<>();
         for (CallEdge edge : model.callEdges) {
-            adj.computeIfAbsent(edge.fromComponentId + "#" + edge.fromMethod,
-                                k -> new ArrayList<>()).add(edge);
+            adj.computeIfAbsent(edge.fromComponentId + "#" + edge.fromMethod, k -> new ArrayList<>())
+                    .add(edge);
         }
         Map<String, Component> compById = buildCompById(model);
 
         RuntimeFlow flow = new RuntimeFlow();
-        flow.id           = "flow:" + ep.id;
+        flow.id = "flow:" + ep.id;
         flow.entrypointId = ep.id;
 
-        Set<String> visitedKeys  = new LinkedHashSet<>();
+        Set<String> visitedKeys = new LinkedHashSet<>();
         Set<String> visitedComps = new LinkedHashSet<>();
 
-        dfsCallGraph(ep.componentId, ep.name, entrypointVia(ep), null,
-                     0, maxDepth, adj, compById, visitedKeys, visitedComps, flow);
+        dfsCallGraph(
+                ep.componentId,
+                ep.name,
+                entrypointVia(ep),
+                null,
+                0,
+                maxDepth,
+                adj,
+                compById,
+                visitedKeys,
+                visitedComps,
+                flow);
 
         return flow;
     }
 
-    private void dfsCallGraph(String compId, String method, String via, String fromCompId,
-                               int depth, int maxDepth,
-                               Map<String, List<CallEdge>> adj,
-                               Map<String, Component> compById,
-                               Set<String> visitedKeys,
-                               Set<String> visitedComps,
-                               RuntimeFlow flow) {
+    private void dfsCallGraph(
+            String compId,
+            String method,
+            String via,
+            String fromCompId,
+            int depth,
+            int maxDepth,
+            Map<String, List<CallEdge>> adj,
+            Map<String, Component> compById,
+            Set<String> visitedKeys,
+            Set<String> visitedComps,
+            RuntimeFlow flow) {
         String key = compId + "#" + method;
         if (visitedKeys.contains(key) || depth > maxDepth) return;
         visitedKeys.add(key);
@@ -82,8 +94,7 @@ public class RuntimeFlowInferrer {
         if (!visitedComps.contains(compId)) {
             visitedComps.add(compId);
             if (visible) {
-                flow.steps.add(new RuntimeFlowStep(
-                    flow.steps.size(), compId, comp.name, comp.type.name(), via));
+                flow.steps.add(new RuntimeFlowStep(flow.steps.size(), compId, comp.name, comp.type.name(), via));
             }
         }
 
@@ -95,8 +106,18 @@ public class RuntimeFlowInferrer {
             Component target = compById.get(edge.toComponentId);
             if (isRawMessagingClient(target)) continue;
             if (target != null && SKIP_TYPES.contains(target.type)) continue;
-            dfsCallGraph(edge.toComponentId, edge.toMethod, edge.toMethod, compId,
-                         depth + 1, maxDepth, adj, compById, visitedKeys, visitedComps, flow);
+            dfsCallGraph(
+                    edge.toComponentId,
+                    edge.toMethod,
+                    edge.toMethod,
+                    compId,
+                    depth + 1,
+                    maxDepth,
+                    adj,
+                    compById,
+                    visitedKeys,
+                    visitedComps,
+                    flow);
         }
     }
 
@@ -107,7 +128,7 @@ public class RuntimeFlowInferrer {
         Map<String, Component> compById = buildCompById(model);
 
         RuntimeFlow flow = new RuntimeFlow();
-        flow.id           = "flow:" + ep.id;
+        flow.id = "flow:" + ep.id;
         flow.entrypointId = ep.id;
 
         Set<String> visited = new LinkedHashSet<>();
@@ -115,13 +136,13 @@ public class RuntimeFlowInferrer {
         Map<String, Integer> depths = new HashMap<>();
         Map<String, String> viaForNode = new HashMap<>();
 
-        queue.add(new String[]{ep.componentId, null});
+        queue.add(new String[] {ep.componentId, null});
         depths.put(ep.componentId, 0);
         viaForNode.put(ep.componentId, entrypointVia(ep));
 
         while (!queue.isEmpty()) {
             String[] entry = queue.poll();
-            String compId     = entry[0];
+            String compId = entry[0];
             String fromCompId = entry[1];
 
             if (visited.contains(compId)) continue;
@@ -137,19 +158,19 @@ public class RuntimeFlowInferrer {
             boolean visible = comp != null && !SKIP_TYPES.contains(comp.type);
             if (visible) {
                 String via = viaForNode.getOrDefault(compId, "call");
-                flow.steps.add(new RuntimeFlowStep(
-                    flow.steps.size(), compId, comp.name, comp.type.name(), via));
+                flow.steps.add(new RuntimeFlowStep(flow.steps.size(), compId, comp.name, comp.type.name(), via));
                 if (fromCompId != null) {
                     flow.edges.add(new RuntimeFlow.FlowEdge(fromCompId, compId, via));
                 }
             }
 
-            for (Map.Entry<String, String> next : adj.getOrDefault(compId, Map.of()).entrySet()) {
+            for (Map.Entry<String, String> next :
+                    adj.getOrDefault(compId, Map.of()).entrySet()) {
                 String nextId = next.getKey();
                 if (!visited.contains(nextId)) {
                     depths.put(nextId, depth + 1);
                     viaForNode.put(nextId, next.getValue());
-                    queue.add(new String[]{nextId, visible ? compId : fromCompId});
+                    queue.add(new String[] {nextId, visible ? compId : fromCompId});
                 }
             }
         }
@@ -173,8 +194,10 @@ public class RuntimeFlowInferrer {
      */
     public Entrypoint findEntrypoint(String ref, ArchitectureModel model) {
         for (Entrypoint ep : model.entrypoints) {
-            if (ep.id.equals(ref) || ep.name.equals(ref)
-                    || ep.id.contains(ref) || (ep.path != null && ep.path.equals(ref))) {
+            if (ep.id.equals(ref)
+                    || ep.name.equals(ref)
+                    || ep.id.contains(ref)
+                    || (ep.path != null && ep.path.equals(ref))) {
                 return ep;
             }
         }
@@ -183,9 +206,9 @@ public class RuntimeFlowInferrer {
 
     private boolean isRawMessagingClient(Component comp) {
         return comp != null
-            && comp.type == ComponentType.HTTP_CLIENT
-            && comp.stereotypes != null
-            && comp.stereotypes.contains("messaging");
+                && comp.type == ComponentType.HTTP_CLIENT
+                && comp.stereotypes != null
+                && comp.stereotypes.contains("messaging");
     }
 
     private Map<String, Component> buildCompById(ArchitectureModel model) {

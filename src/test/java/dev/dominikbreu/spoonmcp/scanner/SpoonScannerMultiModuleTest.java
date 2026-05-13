@@ -1,12 +1,11 @@
 package dev.dominikbreu.spoonmcp.scanner;
 
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
 import java.net.URL;
 import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 class SpoonScannerMultiModuleTest {
 
@@ -42,9 +41,7 @@ class SpoonScannerMultiModuleTest {
     void scanMultiModuleProjectFindsTypesFromAllModules() throws Exception {
         File root = projectPath("multimodule-sample");
         var model = scanner.scan(List.of(root.getAbsolutePath()));
-        var typeNames = model.getAllTypes().stream()
-            .map(t -> t.getSimpleName())
-            .toList();
+        var typeNames = model.getAllTypes().stream().map(t -> t.getSimpleName()).toList();
         assertThat(typeNames).contains("ProductResource");
         assertThat(typeNames).contains("ProductService");
         assertThat(typeNames).contains("Product");

@@ -1,5 +1,7 @@
 package dev.dominikbreu.spoonmcp.cache;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import dev.dominikbreu.spoonmcp.model.AppEntry;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
@@ -10,12 +12,9 @@ import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
 import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 class ArchitectureGraphTest {
 
@@ -44,8 +43,9 @@ class ArchitectureGraphTest {
 
         assertThat(nodes).extracting(ArchitectureGraph.GraphNode::id).containsExactly("comp:OrderService");
         assertThat(paths).hasSize(1);
-        assertThat(paths.getFirst().nodes()).extracting(ArchitectureGraph.GraphNode::id)
-            .containsExactly("entry:orders", "comp:OrderService", "comp:OrderRepository");
+        assertThat(paths.getFirst().nodes())
+                .extracting(ArchitectureGraph.GraphNode::id)
+                .containsExactly("entry:orders", "comp:OrderService", "comp:OrderRepository");
         assertThat(paths.getFirst().edgeLabels()).containsExactly("STARTS_AT", "DEPENDS_ON");
     }
 
@@ -56,8 +56,7 @@ class ArchitectureGraphTest {
 
         List<ArchitectureGraph.GraphNode> impacted = graph.impactedBy("comp:OrderRepository", 3, 10);
 
-        assertThat(impacted).extracting(ArchitectureGraph.GraphNode::id)
-            .contains("comp:OrderService", "entry:orders");
+        assertThat(impacted).extracting(ArchitectureGraph.GraphNode::id).contains("comp:OrderService", "entry:orders");
     }
 
     @Test
@@ -66,28 +65,24 @@ class ArchitectureGraphTest {
         graph.rebuild(model());
 
         List<ArchitectureGraph.GraphNode> reachableServices = graph.findNodes(
-            "Component",
-            null,
-            Map.of("entrypointReachable", "true", "packageName", "com.example"),
-            10);
-        List<ArchitectureGraph.GraphEdge> strongDependencies = graph.findEdges(
-            "DEPENDS_ON",
-            Map.of("confidence", ">=0.8", "isRuntimeRelevant", "true"),
-            10);
+                "Component", null, Map.of("entrypointReachable", "true", "packageName", "com.example"), 10);
+        List<ArchitectureGraph.GraphEdge> strongDependencies =
+                graph.findEdges("DEPENDS_ON", Map.of("confidence", ">=0.8", "isRuntimeRelevant", "true"), 10);
 
-        assertThat(reachableServices).extracting(ArchitectureGraph.GraphNode::id)
-            .contains("comp:OrderService", "comp:OrderRepository");
+        assertThat(reachableServices)
+                .extracting(ArchitectureGraph.GraphNode::id)
+                .contains("comp:OrderService", "comp:OrderRepository");
         ArchitectureGraph.GraphNode serviceNode = reachableServices.stream()
-            .filter(node -> "comp:OrderService".equals(node.id()))
-            .findFirst()
-            .orElseThrow();
+                .filter(node -> "comp:OrderService".equals(node.id()))
+                .findFirst()
+                .orElseThrow();
         assertThat(serviceNode.properties())
-            .containsEntry("fanOut", 1)
-            .containsEntry("sourceFile", "src/OrderService.java");
+                .containsEntry("fanOut", 1)
+                .containsEntry("sourceFile", "src/OrderService.java");
         assertThat(strongDependencies).hasSize(1);
         assertThat(strongDependencies.getFirst().properties())
-            .containsEntry("kind", "injection")
-            .containsEntry("isCrossModule", false);
+                .containsEntry("kind", "injection")
+                .containsEntry("isCrossModule", false);
     }
 
     @Test
@@ -98,30 +93,35 @@ class ArchitectureGraphTest {
         // producer ep:tick reads it. The graph should expose ORIGINATES, REACHES,
         // ON_FIELD, and a LINKS_TO edge from the store sink to the producer's path.
         Entrypoint producerEp = new Entrypoint();
-        producerEp.id          = "ep:tick";
-        producerEp.name        = "tick";
-        producerEp.type        = EntrypointType.MESSAGING_PRODUCER;
+        producerEp.id = "ep:tick";
+        producerEp.name = "tick";
+        producerEp.type = EntrypointType.MESSAGING_PRODUCER;
         producerEp.componentId = "comp:OrderService";
         model.entrypoints.add(producerEp);
 
         DataFlowPath consumerPath = new DataFlowPath();
-        consumerPath.id           = "df:entry:orders#order";
+        consumerPath.id = "df:entry:orders#order";
         consumerPath.entrypointId = "entry:orders";
         consumerPath.trackedParam = "order";
 
         DataFlowSink storeSink = new DataFlowSink(
-            DataFlowSink.Kind.STORE, "comp:OrderService", "OrderService", "create",
-            null, "snapshots", "comp:OrderService");
+                DataFlowSink.Kind.STORE,
+                "comp:OrderService",
+                "OrderService",
+                "create",
+                null,
+                "snapshots",
+                "comp:OrderService");
         storeSink.linkedPathIds.add("df:ep:tick#snapshots");
         consumerPath.sinks.add(storeSink);
         model.dataFlowPaths.add(consumerPath);
 
         DataFlowPath producerPath = new DataFlowPath();
-        producerPath.id           = "df:ep:tick#snapshots";
+        producerPath.id = "df:ep:tick#snapshots";
         producerPath.entrypointId = "ep:tick";
         producerPath.trackedParam = "snapshots";
         DataFlowSink msgSink = new DataFlowSink(
-            DataFlowSink.Kind.MESSAGING, "comp:OrderRepository", "OrderRepository", "publish", null);
+                DataFlowSink.Kind.MESSAGING, "comp:OrderRepository", "OrderRepository", "publish", null);
         producerPath.sinks.add(msgSink);
         model.dataFlowPaths.add(producerPath);
 
@@ -139,8 +139,8 @@ class ArchitectureGraphTest {
         assertThat(linkEdges).hasSize(1);
         assertThat(linkEdges.getFirst().toId()).isEqualTo("df:ep:tick#snapshots");
         assertThat(linkEdges.getFirst().properties())
-            .containsEntry("viaField", "snapshots")
-            .containsEntry("fieldOwnerComponentId", "comp:OrderService");
+                .containsEntry("viaField", "snapshots")
+                .containsEntry("fieldOwnerComponentId", "comp:OrderService");
     }
 
     @Test
@@ -149,33 +149,33 @@ class ArchitectureGraphTest {
 
         // Producer ep:tick → MESSAGING(internal) → consumer ep:process
         Entrypoint producerEp = new Entrypoint();
-        producerEp.id          = "ep:tick";
-        producerEp.name        = "tick";
-        producerEp.type        = EntrypointType.SCHEDULER;
+        producerEp.id = "ep:tick";
+        producerEp.name = "tick";
+        producerEp.type = EntrypointType.SCHEDULER;
         producerEp.componentId = "comp:OrderService";
         model.entrypoints.add(producerEp);
 
         Entrypoint consumerEp = new Entrypoint();
-        consumerEp.id          = "ep:process";
-        consumerEp.name        = "process";
-        consumerEp.type        = EntrypointType.MESSAGING_CONSUMER;
+        consumerEp.id = "ep:process";
+        consumerEp.name = "process";
+        consumerEp.type = EntrypointType.MESSAGING_CONSUMER;
         consumerEp.channelName = "internal";
         consumerEp.componentId = "comp:OrderRepository";
         model.entrypoints.add(consumerEp);
 
         DataFlowPath producerPath = new DataFlowPath();
-        producerPath.id           = "df:ep:tick#snap";
+        producerPath.id = "df:ep:tick#snap";
         producerPath.entrypointId = "ep:tick";
         producerPath.trackedParam = "snap";
-        DataFlowSink msgSink = new DataFlowSink(
-            DataFlowSink.Kind.MESSAGING, "comp:OrderService", "OrderService", "send", null);
+        DataFlowSink msgSink =
+                new DataFlowSink(DataFlowSink.Kind.MESSAGING, "comp:OrderService", "OrderService", "send", null);
         msgSink.channel = "internal";
         msgSink.linkedPathIds.add("df:ep:process#entry");
         producerPath.sinks.add(msgSink);
         model.dataFlowPaths.add(producerPath);
 
         DataFlowPath consumerPath = new DataFlowPath();
-        consumerPath.id           = "df:ep:process#entry";
+        consumerPath.id = "df:ep:process#entry";
         consumerPath.entrypointId = "ep:process";
         consumerPath.trackedParam = "entry";
         model.dataFlowPaths.add(consumerPath);
@@ -186,28 +186,29 @@ class ArchitectureGraphTest {
         // 1. MESSAGING LINKS_TO edge with viaChannel + linkKind
         List<ArchitectureGraph.GraphEdge> linkEdges = graph.findEdges("LINKS_TO", Map.of(), 10);
         assertThat(linkEdges)
-            .anyMatch(e -> "df:ep:process#entry".equals(e.toId())
-                && "messaging".equals(e.properties().get("linkKind"))
-                && "internal".equals(e.properties().get("viaChannel")));
+                .anyMatch(e -> "df:ep:process#entry".equals(e.toId())
+                        && "messaging".equals(e.properties().get("linkKind"))
+                        && "internal".equals(e.properties().get("viaChannel")));
 
         // 2. PipelineChain node materialised with segmentCount and rootEntrypointId
         assertThat(graph.summary().labels()).containsEntry("PipelineChain", 1);
         List<ArchitectureGraph.GraphNode> chains = graph.findNodes("PipelineChain", null, Map.of(), 10);
         assertThat(chains).hasSize(1);
         assertThat(chains.getFirst().properties())
-            .containsEntry("segmentCount", 2)
-            .containsEntry("rootEntrypointId", "ep:tick")
-            .containsEntry("linkKinds", "messaging");
+                .containsEntry("segmentCount", 2)
+                .containsEntry("rootEntrypointId", "ep:tick")
+                .containsEntry("linkKinds", "messaging");
 
         // 3. HAS_SEGMENT edges in order, with linkKind/viaChannel on the bridging segment
         List<ArchitectureGraph.GraphEdge> segEdges = graph.findEdges("HAS_SEGMENT", Map.of(), 10);
         assertThat(segEdges).hasSize(2);
         assertThat(segEdges)
-            .anyMatch(e -> "df:ep:tick#snap".equals(e.toId()) && Integer.valueOf(0).equals(e.properties().get("segmentIndex")))
-            .anyMatch(e -> "df:ep:process#entry".equals(e.toId())
-                && Integer.valueOf(1).equals(e.properties().get("segmentIndex"))
-                && "messaging".equals(e.properties().get("linkKind"))
-                && "internal".equals(e.properties().get("viaChannel")));
+                .anyMatch(e -> "df:ep:tick#snap".equals(e.toId())
+                        && Integer.valueOf(0).equals(e.properties().get("segmentIndex")))
+                .anyMatch(e -> "df:ep:process#entry".equals(e.toId())
+                        && Integer.valueOf(1).equals(e.properties().get("segmentIndex"))
+                        && "messaging".equals(e.properties().get("linkKind"))
+                        && "internal".equals(e.properties().get("viaChannel")));
     }
 
     private ArchitectureModel model() {

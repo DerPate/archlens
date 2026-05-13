@@ -1,7 +1,6 @@
 package dev.dominikbreu.spoonmcp.renderer;
 
 import dev.dominikbreu.spoonmcp.model.*;
-
 import java.util.List;
 
 /**
@@ -50,12 +49,19 @@ public class MermaidUseCaseTimelineRenderer {
                 RuntimeFlowStep step = steps.get(i);
                 String taskLabel = taskLabel(step);
                 String style = (i == 0) ? "active, " : "";
-                sb.append("    ").append(pad(taskLabel, 36))
-                  .append(":").append(style).append(i).append(", 1\n");
+                sb.append("    ")
+                        .append(pad(taskLabel, 36))
+                        .append(":")
+                        .append(style)
+                        .append(i)
+                        .append(", 1\n");
             }
             if (steps.size() > limit) {
-                sb.append("    ... (").append(steps.size() - limit).append(" more steps) :crit, ")
-                  .append(limit).append(", 1\n");
+                sb.append("    ... (")
+                        .append(steps.size() - limit)
+                        .append(" more steps) :crit, ")
+                        .append(limit)
+                        .append(", 1\n");
             }
         }
 
@@ -88,7 +94,8 @@ public class MermaidUseCaseTimelineRenderer {
 
     private Entrypoint findEntrypoint(RuntimeFlow flow, ArchitectureModel model) {
         return model.entrypoints.stream()
-            .filter(e -> e.id.equals(flow.entrypointId))
-            .findFirst().orElse(null);
+                .filter(e -> e.id.equals(flow.entrypointId))
+                .findFirst()
+                .orElse(null);
     }
 }

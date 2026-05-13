@@ -3,7 +3,6 @@ package dev.dominikbreu.spoonmcp.renderer;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.Dependency;
-
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,7 +39,8 @@ public class MermaidDependencySliceRenderer {
 
         Map<String, List<Dependency>> outgoing = new HashMap<>();
         for (Dependency dependency : model.dependencies) {
-            outgoing.computeIfAbsent(dependency.fromId, ignored -> new ArrayList<>()).add(dependency);
+            outgoing.computeIfAbsent(dependency.fromId, ignored -> new ArrayList<>())
+                    .add(dependency);
         }
 
         int maxDepth = Math.max(1, depth);
@@ -74,15 +74,21 @@ public class MermaidDependencySliceRenderer {
         StringBuilder sb = new StringBuilder("flowchart LR\n");
         for (String componentId : visibleComponents) {
             Component component = byId.get(componentId);
-            String label = component != null
-                ? component.name + "\\n" + component.type
-                : componentId;
-            sb.append("    ").append(nodeId(componentId)).append("[\"").append(escape(label)).append("\"]\n");
+            String label = component != null ? component.name + "\\n" + component.type : componentId;
+            sb.append("    ")
+                    .append(nodeId(componentId))
+                    .append("[\"")
+                    .append(escape(label))
+                    .append("\"]\n");
         }
         for (Dependency dependency : visibleDependencies) {
-            sb.append("    ").append(nodeId(dependency.fromId))
-                .append(" -->|").append(escape(dependency.kind)).append("| ")
-                .append(nodeId(dependency.toId)).append("\n");
+            sb.append("    ")
+                    .append(nodeId(dependency.fromId))
+                    .append(" -->|")
+                    .append(escape(dependency.kind))
+                    .append("| ")
+                    .append(nodeId(dependency.toId))
+                    .append("\n");
         }
         return sb.toString();
     }
@@ -90,12 +96,12 @@ public class MermaidDependencySliceRenderer {
     private Component findComponent(ArchitectureModel model, String ref) {
         if (ref == null || ref.isBlank()) return null;
         return model.components.stream()
-            .filter(component -> component.id.equals(ref)
-                || component.name.equals(ref)
-                || component.id.contains(ref)
-                || component.qualifiedName != null && component.qualifiedName.contains(ref))
-            .findFirst()
-            .orElse(null);
+                .filter(component -> component.id.equals(ref)
+                        || component.name.equals(ref)
+                        || component.id.contains(ref)
+                        || component.qualifiedName != null && component.qualifiedName.contains(ref))
+                .findFirst()
+                .orElse(null);
     }
 
     private String nodeId(String input) {

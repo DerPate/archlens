@@ -3,7 +3,6 @@ package dev.dominikbreu.spoonmcp.mcp.tools;
 import com.fasterxml.jackson.databind.JsonNode;
 import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,28 +37,28 @@ public class QueryArchitectureGraphTool {
             String action = text(args, "action", "summary");
             return switch (action) {
                 case "summary" -> renderSummary(graph.summary());
-                case "find_nodes" -> renderNodes(graph.findNodes(
-                    text(args, "label", null),
-                    text(args, "query", null),
-                    filters(args),
-                    integer(args, "limit", 25)));
-                case "find_edges" -> renderEdges(graph.findEdges(
-                    text(args, "label", null),
-                    filters(args),
-                    integer(args, "limit", 25)));
-                case "neighborhood" -> renderEdges(graph.neighborhood(
-                    requiredText(args, "nodeId"),
-                    text(args, "direction", "both"),
-                    integer(args, "limit", 25)));
-                case "paths" -> renderPaths(graph.paths(
-                    requiredText(args, "fromId"),
-                    requiredText(args, "toId"),
-                    integer(args, "maxDepth", 5),
-                    integer(args, "limit", 10)));
-                case "impacted_by" -> renderNodes(graph.impactedBy(
-                    requiredText(args, "nodeId"),
-                    integer(args, "maxDepth", 3),
-                    integer(args, "limit", 25)));
+                case "find_nodes" ->
+                    renderNodes(graph.findNodes(
+                            text(args, "label", null),
+                            text(args, "query", null),
+                            filters(args),
+                            integer(args, "limit", 256)));
+                case "find_edges" ->
+                    renderEdges(graph.findEdges(text(args, "label", null), filters(args), integer(args, "limit", 256)));
+                case "neighborhood" ->
+                    renderEdges(graph.neighborhood(
+                            requiredText(args, "nodeId"),
+                            text(args, "direction", "both"),
+                            integer(args, "limit", 256)));
+                case "paths" ->
+                    renderPaths(graph.paths(
+                            requiredText(args, "fromId"),
+                            requiredText(args, "toId"),
+                            integer(args, "maxDepth", 5),
+                            integer(args, "limit", 256)));
+                case "impacted_by" ->
+                    renderNodes(graph.impactedBy(
+                            requiredText(args, "nodeId"), integer(args, "maxDepth", 3), integer(args, "limit", 256)));
                 default -> "Unknown graph action: " + action;
             };
         } catch (Exception e) {
@@ -69,7 +68,9 @@ public class QueryArchitectureGraphTool {
 
     private String renderSummary(ArchitectureGraph.GraphSummary summary) {
         StringBuilder sb = new StringBuilder();
-        sb.append("Architecture graph (backend: ").append(cache.getBackend().name().toLowerCase()).append(")\n");
+        sb.append("Architecture graph (backend: ")
+                .append(cache.getBackend().name().toLowerCase())
+                .append(")\n");
         sb.append("Nodes: ").append(summary.nodeCount()).append("\n");
         appendCounts(sb, "Node labels", summary.labels());
         sb.append("Edges: ").append(summary.edgeCount()).append("\n");
@@ -83,7 +84,8 @@ public class QueryArchitectureGraphTool {
             sb.append("- none\n");
             return;
         }
-        counts.forEach((label, count) -> sb.append("- ").append(label).append(": ").append(count).append("\n"));
+        counts.forEach((label, count) ->
+                sb.append("- ").append(label).append(": ").append(count).append("\n"));
     }
 
     private String renderNodes(List<ArchitectureGraph.GraphNode> nodes) {
@@ -97,10 +99,24 @@ public class QueryArchitectureGraphTool {
             if (node.name() != null && !node.name().isBlank()) {
                 sb.append(" ").append(node.name());
             }
-            appendInterestingProperties(sb, node.properties(),
-                "type", "path", "module", "technology", "qualifiedName", "packageName",
-                "sourceFile", "sourceLine", "confidence", "fanIn", "fanOut", "degree",
-                "ownedEntrypointCount", "architecturalWeight", "entrypointReachable");
+            appendInterestingProperties(
+                    sb,
+                    node.properties(),
+                    "type",
+                    "path",
+                    "module",
+                    "technology",
+                    "qualifiedName",
+                    "packageName",
+                    "sourceFile",
+                    "sourceLine",
+                    "confidence",
+                    "fanIn",
+                    "fanOut",
+                    "degree",
+                    "ownedEntrypointCount",
+                    "architecturalWeight",
+                    "entrypointReachable");
             sb.append("\n");
         }
         return sb.toString();
@@ -113,10 +129,25 @@ public class QueryArchitectureGraphTool {
         StringBuilder sb = new StringBuilder();
         sb.append("Graph edges:\n");
         for (ArchitectureGraph.GraphEdge edge : edges) {
-            sb.append("- ").append(edge.fromId()).append(" -[").append(edge.label()).append("]-> ").append(edge.toId());
-            appendInterestingProperties(sb, edge.properties(),
-                "kind", "derivedFrom", "confidence", "source", "via",
-                "isRuntimeRelevant", "isCondensable", "isCrossModule", "fromModule", "toModule");
+            sb.append("- ")
+                    .append(edge.fromId())
+                    .append(" -[")
+                    .append(edge.label())
+                    .append("]-> ")
+                    .append(edge.toId());
+            appendInterestingProperties(
+                    sb,
+                    edge.properties(),
+                    "kind",
+                    "derivedFrom",
+                    "confidence",
+                    "source",
+                    "via",
+                    "isRuntimeRelevant",
+                    "isCondensable",
+                    "isCrossModule",
+                    "fromModule",
+                    "toModule");
             sb.append("\n");
         }
         return sb.toString();
@@ -129,7 +160,8 @@ public class QueryArchitectureGraphTool {
         StringBuilder sb = new StringBuilder();
         sb.append("Graph paths:\n");
         for (ArchitectureGraph.GraphPath path : paths) {
-            List<String> nodeIds = path.nodes().stream().map(ArchitectureGraph.GraphNode::id).toList();
+            List<String> nodeIds =
+                    path.nodes().stream().map(ArchitectureGraph.GraphNode::id).toList();
             sb.append("- ").append(String.join(" -> ", nodeIds));
             if (!path.edgeLabels().isEmpty()) {
                 sb.append(" (").append(String.join(", ", path.edgeLabels())).append(")");
@@ -141,9 +173,9 @@ public class QueryArchitectureGraphTool {
 
     private void appendInterestingProperties(StringBuilder sb, Map<String, Object> properties, String... keys) {
         String suffix = java.util.Arrays.stream(keys)
-            .filter(properties::containsKey)
-            .map(key -> key + "=" + properties.get(key))
-            .collect(Collectors.joining(", "));
+                .filter(properties::containsKey)
+                .map(key -> key + "=" + properties.get(key))
+                .collect(Collectors.joining(", "));
         if (!suffix.isBlank()) {
             sb.append(" {").append(suffix).append("}");
         }

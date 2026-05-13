@@ -1,15 +1,14 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
-import dev.dominikbreu.spoonmcp.model.MessagingBroker;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.dominikbreu.spoonmcp.model.MessagingBroker;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class MessagingConfigResolverTest {
 
@@ -19,11 +18,12 @@ class MessagingConfigResolverTest {
     void readsConnectorsFromProperties(@TempDir Path tmp) throws Exception {
         Path resources = tmp.resolve("src/main/resources");
         Files.createDirectories(resources);
-        Files.writeString(resources.resolve("application.properties"),
-            "mp.messaging.incoming.orders-in.connector=smallrye-kafka\n" +
-            "mp.messaging.outgoing.audit-log.connector=smallrye-kafka\n" +
-            "mp.messaging.incoming.device-events.connector=smallrye-mqtt\n" +
-            "quarkus.http.port=8080\n");
+        Files.writeString(
+                resources.resolve("application.properties"),
+                "mp.messaging.incoming.orders-in.connector=smallrye-kafka\n"
+                        + "mp.messaging.outgoing.audit-log.connector=smallrye-kafka\n"
+                        + "mp.messaging.incoming.device-events.connector=smallrye-mqtt\n"
+                        + "quarkus.http.port=8080\n");
 
         Map<String, MessagingConfigResolver.ChannelConfig> result = resolver.resolve(tmp.toFile());
 
@@ -37,15 +37,15 @@ class MessagingConfigResolverTest {
     void readsConnectorsFromYaml(@TempDir Path tmp) throws Exception {
         Path resources = tmp.resolve("src/main/resources");
         Files.createDirectories(resources);
-        Files.writeString(resources.resolve("application.yaml"),
-            "mp:\n" +
-            "  messaging:\n" +
-            "    incoming:\n" +
-            "      orders-in:\n" +
-            "        connector: smallrye-kafka\n" +
-            "    outgoing:\n" +
-            "      audit-log:\n" +
-            "        connector: smallrye-rabbitmq\n");
+        Files.writeString(
+                resources.resolve("application.yaml"),
+                "mp:\n" + "  messaging:\n"
+                        + "    incoming:\n"
+                        + "      orders-in:\n"
+                        + "        connector: smallrye-kafka\n"
+                        + "    outgoing:\n"
+                        + "      audit-log:\n"
+                        + "        connector: smallrye-rabbitmq\n");
 
         Map<String, MessagingConfigResolver.ChannelConfig> result = resolver.resolve(tmp.toFile());
 
@@ -57,12 +57,12 @@ class MessagingConfigResolverTest {
     void readsConnectorsFromYml(@TempDir Path tmp) throws Exception {
         Path resources = tmp.resolve("src/main/resources");
         Files.createDirectories(resources);
-        Files.writeString(resources.resolve("application.yml"),
-            "mp:\n" +
-            "  messaging:\n" +
-            "    incoming:\n" +
-            "      pulsar-events:\n" +
-            "        connector: smallrye-pulsar\n");
+        Files.writeString(
+                resources.resolve("application.yml"),
+                "mp:\n" + "  messaging:\n"
+                        + "    incoming:\n"
+                        + "      pulsar-events:\n"
+                        + "        connector: smallrye-pulsar\n");
 
         Map<String, MessagingConfigResolver.ChannelConfig> result = resolver.resolve(tmp.toFile());
 
@@ -73,8 +73,9 @@ class MessagingConfigResolverTest {
     void unknownConnectorMapsToUnknown(@TempDir Path tmp) throws Exception {
         Path resources = tmp.resolve("src/main/resources");
         Files.createDirectories(resources);
-        Files.writeString(resources.resolve("application.properties"),
-            "mp.messaging.incoming.weird.connector=some-future-connector\n");
+        Files.writeString(
+                resources.resolve("application.properties"),
+                "mp.messaging.incoming.weird.connector=some-future-connector\n");
 
         Map<String, MessagingConfigResolver.ChannelConfig> result = resolver.resolve(tmp.toFile());
 
@@ -91,9 +92,10 @@ class MessagingConfigResolverTest {
     void resolvesKafkaTopicAlongsideConnector(@TempDir Path tmp) throws Exception {
         Path resources = tmp.resolve("src/main/resources");
         Files.createDirectories(resources);
-        Files.writeString(resources.resolve("application.properties"),
-            "mp.messaging.incoming.snapshots.connector=smallrye-kafka\n" +
-            "mp.messaging.incoming.snapshots.topic=device_snapshots\n");
+        Files.writeString(
+                resources.resolve("application.properties"),
+                "mp.messaging.incoming.snapshots.connector=smallrye-kafka\n"
+                        + "mp.messaging.incoming.snapshots.topic=device_snapshots\n");
 
         Map<String, MessagingConfigResolver.ChannelConfig> result = resolver.resolve(tmp.toFile());
 
@@ -105,9 +107,10 @@ class MessagingConfigResolverTest {
     void resolvesAmqpAddressAsTopic(@TempDir Path tmp) throws Exception {
         Path resources = tmp.resolve("src/main/resources");
         Files.createDirectories(resources);
-        Files.writeString(resources.resolve("application.properties"),
-            "mp.messaging.outgoing.audit.connector=smallrye-amqp\n" +
-            "mp.messaging.outgoing.audit.address=audit.events\n");
+        Files.writeString(
+                resources.resolve("application.properties"),
+                "mp.messaging.outgoing.audit.connector=smallrye-amqp\n"
+                        + "mp.messaging.outgoing.audit.address=audit.events\n");
 
         Map<String, MessagingConfigResolver.ChannelConfig> result = resolver.resolve(tmp.toFile());
 
@@ -119,12 +122,13 @@ class MessagingConfigResolverTest {
     void readsAllSupportedBrokers(@TempDir Path tmp) throws Exception {
         Path resources = tmp.resolve("src/main/resources");
         Files.createDirectories(resources);
-        Files.writeString(resources.resolve("application.properties"),
-            "mp.messaging.incoming.k.connector=smallrye-kafka\n" +
-            "mp.messaging.incoming.m.connector=smallrye-mqtt\n" +
-            "mp.messaging.incoming.a.connector=smallrye-amqp\n" +
-            "mp.messaging.incoming.r.connector=smallrye-rabbitmq\n" +
-            "mp.messaging.incoming.p.connector=smallrye-pulsar\n");
+        Files.writeString(
+                resources.resolve("application.properties"),
+                "mp.messaging.incoming.k.connector=smallrye-kafka\n"
+                        + "mp.messaging.incoming.m.connector=smallrye-mqtt\n"
+                        + "mp.messaging.incoming.a.connector=smallrye-amqp\n"
+                        + "mp.messaging.incoming.r.connector=smallrye-rabbitmq\n"
+                        + "mp.messaging.incoming.p.connector=smallrye-pulsar\n");
 
         Map<String, MessagingConfigResolver.ChannelConfig> result = resolver.resolve(tmp.toFile());
 

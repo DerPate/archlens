@@ -2,11 +2,10 @@ package dev.dominikbreu.spoonmcp.merger;
 
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.DeploymentEntry;
-import org.yaml.snakeyaml.Yaml;
-
 import java.io.*;
 import java.nio.file.Files;
 import java.util.*;
+import org.yaml.snakeyaml.Yaml;
 
 /**
  * Merges Ansible inventory and playbook definitions into the architecture model.
@@ -36,7 +35,10 @@ public class AnsibleMerger {
     private void mergeInventory(File dir, ArchitectureModel model) {
         for (String name : List.of("inventory", "hosts", "inventory.ini", "hosts.ini")) {
             File f = new File(dir, name);
-            if (f.exists()) { parseIniInventory(f, model); return; }
+            if (f.exists()) {
+                parseIniInventory(f, model);
+                return;
+            }
         }
         // Try inventory/ subdirectory
         File inventoryDir = new File(dir, "inventory");
@@ -81,14 +83,15 @@ public class AnsibleMerger {
             }
 
             model.deployments.addAll(groups.values());
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
     }
 
     // ── playbooks ────────────────────────────────────────────────────────────
 
     private void mergePlaybooks(File dir, ArchitectureModel model) {
-        File[] yamls = dir.listFiles(f ->
-            f.isFile() && (f.getName().endsWith(".yml") || f.getName().endsWith(".yaml")));
+        File[] yamls = dir.listFiles(
+                f -> f.isFile() && (f.getName().endsWith(".yml") || f.getName().endsWith(".yaml")));
         if (yamls == null) return;
         for (File f : yamls) {
             parsePlaybook(f, model);
@@ -116,19 +119,21 @@ public class AnsibleMerger {
 
                 if (rolesObj instanceof List<?> roles) {
                     for (Object roleEntry : roles) {
-                        String roleName = switch (roleEntry) {
-                            case Map<?, ?> roleMap -> {
-                                Object role = roleMap.get("role");
-                                yield String.valueOf(role != null ? role : roleEntry);
-                            }
-                            default -> String.valueOf(roleEntry);
-                        };
+                        String roleName =
+                                switch (roleEntry) {
+                                    case Map<?, ?> roleMap -> {
+                                        Object role = roleMap.get("role");
+                                        yield String.valueOf(role != null ? role : roleEntry);
+                                    }
+                                    default -> String.valueOf(roleEntry);
+                                };
                         de.roles.add(roleName);
                     }
                 }
 
                 model.deployments.add(de);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
     }
 }

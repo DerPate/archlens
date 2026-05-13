@@ -37,13 +37,19 @@ public class ListAppsTool {
             StringBuilder sb = new StringBuilder();
             sb.append("Applications (").append(model.applications.size()).append("):\n\n");
             for (AppEntry app : model.applications) {
-                sb.append("- ").append(app.name)
-                  .append("\n  id:          ").append(app.id)
-                  .append("\n  technology:  ").append(app.technology)
-                  .append("\n  packaging:   ").append(app.packagingType)
-                  .append("\n  root:        ").append(app.rootPath)
-                  .append("\n  components:  ").append(app.componentIds.size())
-                  .append("\n\n");
+                sb.append("- ")
+                        .append(app.name)
+                        .append("\n  id:          ")
+                        .append(app.id)
+                        .append("\n  technology:  ")
+                        .append(app.technology)
+                        .append("\n  packaging:   ")
+                        .append(app.packagingType)
+                        .append("\n  root:        ")
+                        .append(app.rootPath)
+                        .append("\n  components:  ")
+                        .append(app.componentIds.size())
+                        .append("\n\n");
             }
             sb.append("Total components: ").append(model.components.size()).append("\n");
             sb.append("Total entrypoints: ").append(model.entrypoints.size()).append("\n");

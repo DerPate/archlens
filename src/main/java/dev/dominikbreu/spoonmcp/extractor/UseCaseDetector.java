@@ -1,7 +1,6 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.*;
-
 import java.util.*;
 
 /**
@@ -33,7 +32,7 @@ public class UseCaseDetector {
 
         boolean hasCallGraph = !model.callEdges.isEmpty();
         Map<String, List<CallEdge>> callAdj = buildCallAdj(model.callEdges);
-        Map<String, List<String>>  depAdj  = buildDepAdj(model.dependencies);
+        Map<String, List<String>> depAdj = buildDepAdj(model.dependencies);
 
         List<UseCase> result = new ArrayList<>();
         for (Entrypoint ep : model.entrypoints) {
@@ -42,25 +41,27 @@ public class UseCaseDetector {
         return result;
     }
 
-    private UseCase buildUseCase(Entrypoint ep, ArchitectureModel model,
-                                  Map<String, Component> compById,
-                                  boolean hasCallGraph,
-                                  Map<String, List<CallEdge>> callAdj,
-                                  Map<String, List<String>> depAdj,
-                                  UseCaseNamingConfig config) {
+    private UseCase buildUseCase(
+            Entrypoint ep,
+            ArchitectureModel model,
+            Map<String, Component> compById,
+            boolean hasCallGraph,
+            Map<String, List<CallEdge>> callAdj,
+            Map<String, List<String>> depAdj,
+            UseCaseNamingConfig config) {
         UseCase uc = new UseCase();
-        uc.id           = "usecase:" + ep.id;
+        uc.id = "usecase:" + ep.id;
         uc.entrypointId = ep.id;
-        uc.type         = ep.type;
+        uc.type = ep.type;
         uc.channelOrPath = ep.channelName != null ? ep.channelName : ep.path;
         uc.name = config.resolveName(ep.id, deriveName(ep));
 
-        Set<String> visitedKeys  = new LinkedHashSet<>();
+        Set<String> visitedKeys = new LinkedHashSet<>();
         Set<String> visitedComps = new LinkedHashSet<>();
 
         if (hasCallGraph) {
-            collectCallChain(ep.componentId, ep.name, 0, 5,
-                             callAdj, compById, visitedKeys, visitedComps, uc.methodChain);
+            collectCallChain(
+                    ep.componentId, ep.name, 0, 5, callAdj, compById, visitedKeys, visitedComps, uc.methodChain);
         } else {
             collectDepChain(ep.componentId, 0, 5, depAdj, compById, visitedComps);
         }
@@ -69,12 +70,16 @@ public class UseCaseDetector {
         return uc;
     }
 
-    private void collectCallChain(String compId, String method, int depth, int maxDepth,
-                                   Map<String, List<CallEdge>> adj,
-                                   Map<String, Component> compById,
-                                   Set<String> visitedKeys,
-                                   Set<String> visitedComps,
-                                   List<String> chain) {
+    private void collectCallChain(
+            String compId,
+            String method,
+            int depth,
+            int maxDepth,
+            Map<String, List<CallEdge>> adj,
+            Map<String, Component> compById,
+            Set<String> visitedKeys,
+            Set<String> visitedComps,
+            List<String> chain) {
         String key = compId + "#" + method;
         if (visitedKeys.contains(key) || depth > maxDepth) return;
         visitedKeys.add(key);
@@ -87,15 +92,26 @@ public class UseCaseDetector {
             Component toComp = compById.get(edge.toComponentId);
             String toName = toComp != null ? toComp.name : edge.toComponentId;
             chain.add(fromName + "." + edge.fromMethod + " → " + toName + "." + edge.toMethod);
-            collectCallChain(edge.toComponentId, edge.toMethod, depth + 1, maxDepth,
-                             adj, compById, visitedKeys, visitedComps, chain);
+            collectCallChain(
+                    edge.toComponentId,
+                    edge.toMethod,
+                    depth + 1,
+                    maxDepth,
+                    adj,
+                    compById,
+                    visitedKeys,
+                    visitedComps,
+                    chain);
         }
     }
 
-    private void collectDepChain(String compId, int depth, int maxDepth,
-                                  Map<String, List<String>> adj,
-                                  Map<String, Component> compById,
-                                  Set<String> visitedComps) {
+    private void collectDepChain(
+            String compId,
+            int depth,
+            int maxDepth,
+            Map<String, List<String>> adj,
+            Map<String, Component> compById,
+            Set<String> visitedComps) {
         if (visitedComps.contains(compId) || depth > maxDepth) return;
         visitedComps.add(compId);
         for (String nextId : adj.getOrDefault(compId, List.of())) {
@@ -117,10 +133,8 @@ public class UseCaseDetector {
                 String method = ep.httpMethod != null ? ep.httpMethod + " " : "";
                 yield method + camelToTitle(ep.name);
             }
-            case MESSAGING_CONSUMER -> "Process " + camelToTitle(
-                ep.channelName != null ? ep.channelName : ep.name);
-            case MESSAGING_PRODUCER -> "Publish " + camelToTitle(
-                ep.channelName != null ? ep.channelName : ep.name);
+            case MESSAGING_CONSUMER -> "Process " + camelToTitle(ep.channelName != null ? ep.channelName : ep.name);
+            case MESSAGING_PRODUCER -> "Publish " + camelToTitle(ep.channelName != null ? ep.channelName : ep.name);
             case SCHEDULER -> "Scheduled: " + camelToTitle(ep.name);
             case CDI_EVENT_OBSERVER -> "On Event: " + (ep.path != null ? ep.path : ep.name);
             case JMS_CONSUMER -> "Consume " + camelToTitle(ep.name);
@@ -130,8 +144,7 @@ public class UseCaseDetector {
 
     private String camelToTitle(String s) {
         if (s == null || s.isEmpty()) return s != null ? s : "";
-        String spaced = s.replaceAll("[-_]", " ")
-                         .replaceAll("([a-z])([A-Z])", "$1 $2");
+        String spaced = s.replaceAll("[-_]", " ").replaceAll("([a-z])([A-Z])", "$1 $2");
         String[] words = spaced.split("\\s+");
         StringBuilder sb = new StringBuilder();
         for (String w : words) {
@@ -148,8 +161,8 @@ public class UseCaseDetector {
     private Map<String, List<CallEdge>> buildCallAdj(List<CallEdge> edges) {
         Map<String, List<CallEdge>> adj = new HashMap<>();
         for (CallEdge e : edges) {
-            adj.computeIfAbsent(e.fromComponentId + "#" + e.fromMethod,
-                                k -> new ArrayList<>()).add(e);
+            adj.computeIfAbsent(e.fromComponentId + "#" + e.fromMethod, k -> new ArrayList<>())
+                    .add(e);
         }
         return adj;
     }

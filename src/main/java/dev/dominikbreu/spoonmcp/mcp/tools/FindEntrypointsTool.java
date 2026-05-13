@@ -5,7 +5,6 @@ import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
-
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -40,9 +39,9 @@ public class FindEntrypointsTool {
             String typeFilter = getString(args, "type");
 
             List<Entrypoint> eps = model.entrypoints.stream()
-                .filter(ep -> appId == null || ep.componentId.contains(appId))
-                .filter(ep -> typeFilter == null || matchesType(ep.type, typeFilter))
-                .collect(Collectors.toList());
+                    .filter(ep -> appId == null || ep.componentId.contains(appId))
+                    .filter(ep -> typeFilter == null || matchesType(ep.type, typeFilter))
+                    .collect(Collectors.toList());
 
             if (eps.isEmpty()) return "No entrypoints found matching the given criteria.";
 
@@ -55,10 +54,15 @@ public class FindEntrypointsTool {
                 sb.append("\n");
                 sb.append("  Component: ").append(ep.componentId).append("\n");
                 if (ep.source != null) {
-                    sb.append("  Source: ").append(ep.source.file)
-                      .append(":").append(ep.source.line)
-                      .append(" [").append(ep.source.derivedFrom)
-                      .append(", confidence=").append(ep.source.confidence).append("]\n");
+                    sb.append("  Source: ")
+                            .append(ep.source.file)
+                            .append(":")
+                            .append(ep.source.line)
+                            .append(" [")
+                            .append(ep.source.derivedFrom)
+                            .append(", confidence=")
+                            .append(ep.source.confidence)
+                            .append("]\n");
                 }
                 sb.append("\n");
             }
