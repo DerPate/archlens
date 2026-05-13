@@ -10,8 +10,8 @@ import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.renderer.MermaidPipelineRenderer;
-
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
@@ -36,9 +36,9 @@ public class RenderPipelineTool {
                 return "No call-graph data available. Re-index the workspace to enable pipeline rendering.";
             }
 
-            int maxDepth  = getInt(args, "maxDepth", 8);
+            int maxDepth = getInt(args, "maxDepth", 8);
             int maxChains = getInt(args, "maxChains", 5);
-            String epFilter      = getString(args, "entrypointName");
+            String epFilter = getString(args, "entrypointName");
             String channelFilter = getString(args, "channel");
 
             List<Chain> chains = builder.build(model, maxDepth);
@@ -46,13 +46,13 @@ public class RenderPipelineTool {
                 return diagnostic(model);
             }
 
-            List<Chain> filtered = new ArrayList<>();
+            List<Chain> candidates = new ArrayList<>();
             for (Chain c : chains) {
                 if (epFilter != null && !rootMatches(c, epFilter)) continue;
                 if (channelFilter != null && !chainHasChannel(c, channelFilter)) continue;
-                filtered.add(c);
-                if (filtered.size() >= maxChains) break;
+                candidates.add(c);
             }
+            List<Chain> filtered = selectDiverse(candidates, maxChains);
 
             if (filtered.isEmpty()) {
                 return "No pipeline chains matched the given filters.";
@@ -63,8 +63,13 @@ public class RenderPipelineTool {
                 Chain c = filtered.get(i);
                 Segment root = c.segments.get(0);
                 String rootEpId = root.entrypoint != null ? root.entrypoint.id : root.path.entrypointId;
-                out.append("%% chain ").append(i + 1).append(": root=").append(rootEpId)
-                   .append(" segments=").append(c.segments.size()).append("\n");
+                out.append("%% chain ")
+                        .append(i + 1)
+                        .append(": root=")
+                        .append(rootEpId)
+                        .append(" segments=")
+                        .append(c.segments.size())
+                        .append("\n");
                 out.append(renderer.render(c, model));
                 if (i < filtered.size() - 1) out.append("\n");
             }
@@ -98,18 +103,56 @@ public class RenderPipelineTool {
         return false;
     }
 
+    /**
+     * Selects up to {@code maxChains} chains using a best-effort round-robin across
+     * distinct root entrypoints. Groups are ordered by first appearance in
+     * {@code candidates}; within each group chains are taken in insertion order.
+     */
+    List<Chain> selectDiverse(List<Chain> candidates, int maxChains) {
+        if (candidates.isEmpty() || maxChains <= 0) return List.of();
+        LinkedHashMap<String, List<Chain>> byRoot = new LinkedHashMap<>();
+        for (Chain c : candidates) {
+            byRoot.computeIfAbsent(rootEntrypointId(c), k -> new ArrayList<>()).add(c);
+        }
+        List<List<Chain>> groups = new ArrayList<>(byRoot.values());
+        int[] idx = new int[groups.size()];
+        List<Chain> result = new ArrayList<>(Math.min(maxChains, candidates.size()));
+        boolean progress = true;
+        while (result.size() < maxChains && progress) {
+            progress = false;
+            for (int g = 0; g < groups.size() && result.size() < maxChains; g++) {
+                if (idx[g] < groups.get(g).size()) {
+                    result.add(groups.get(g).get(idx[g]++));
+                    progress = true;
+                }
+            }
+        }
+        return result;
+    }
+
+    private String rootEntrypointId(Chain c) {
+        if (c.segments.isEmpty()) return "";
+        Segment seg = c.segments.get(0);
+        if (seg.entrypoint != null && seg.entrypoint.id != null) return seg.entrypoint.id;
+        DataFlowPath root = seg.path;
+        return root.entrypointId != null ? root.entrypointId : root.id;
+    }
+
     private String diagnostic(ArchitectureModel model) {
         int totalPaths = model.dataFlowPaths.size();
         int linked = 0;
         for (DataFlowPath p : model.dataFlowPaths) {
             for (DataFlowSink s : p.sinks) {
-                if (s.linkedPathIds != null && !s.linkedPathIds.isEmpty()) { linked++; break; }
+                if (s.linkedPathIds != null && !s.linkedPathIds.isEmpty()) {
+                    linked++;
+                    break;
+                }
             }
         }
         return "No pipeline chains: " + totalPaths + " data-flow path(s) present, "
-            + linked + " carry linkedPathIds. Either no path links to another (e.g. channel "
-            + "names unresolved or no consumer indexed for the produced channel), or store/messaging "
-            + "stitching in DataFlowTracer found no matching readers/consumers.";
+                + linked + " carry linkedPathIds. Either no path links to another (e.g. channel "
+                + "names unresolved or no consumer indexed for the produced channel), or store/messaging "
+                + "stitching in DataFlowTracer found no matching readers/consumers.";
     }
 
     private String getString(JsonNode n, String f) {
