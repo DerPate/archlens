@@ -6,16 +6,15 @@ import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
-import spoon.reflect.declaration.CtElement;
-import spoon.reflect.declaration.CtMethod;
-import spoon.reflect.declaration.CtType;
-import spoon.reflect.declaration.ModifierKind;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import spoon.reflect.declaration.CtElement;
+import spoon.reflect.declaration.CtMethod;
+import spoon.reflect.declaration.CtType;
+import spoon.reflect.declaration.ModifierKind;
 
 /**
  * Conservative fallback extractor for plain Java projects without framework annotations.
@@ -46,9 +45,9 @@ public class GenericJavaExtractor {
 
             model.components.add(component);
             model.applications.stream()
-                .filter(app -> app.id.equals(appId))
-                .findFirst()
-                .ifPresent(app -> app.componentIds.add(component.id));
+                    .filter(app -> app.id.equals(appId))
+                    .findFirst()
+                    .ifPresent(app -> app.componentIds.add(component.id));
 
             extractMainEntrypoint(type, component, model);
         }
@@ -70,20 +69,20 @@ public class GenericJavaExtractor {
 
     private boolean isMainMethod(CtMethod<?> method) {
         return "main".equals(method.getSimpleName())
-            && method.isStatic()
-            && method.getModifiers().contains(ModifierKind.PUBLIC)
-            && "void".equals(method.getType().getSimpleName())
-            && method.getParameters().size() == 1
-            && method.getParameters().get(0).getType().toString().contains("String");
+                && method.isStatic()
+                && method.getModifiers().contains(ModifierKind.PUBLIC)
+                && "void".equals(method.getType().getSimpleName())
+                && method.getParameters().size() == 1
+                && method.getParameters().get(0).getType().toString().contains("String");
     }
 
     private boolean isApplicationType(CtType<?> type) {
         if (type.isAnonymous() || type.isLocalType() || type.isShadow()) return false;
         String qualifiedName = type.getQualifiedName();
         return qualifiedName != null
-            && !qualifiedName.isBlank()
-            && !qualifiedName.contains("$")
-            && !"package-info".equals(type.getSimpleName());
+                && !qualifiedName.isBlank()
+                && !qualifiedName.contains("$")
+                && !"package-info".equals(type.getSimpleName());
     }
 
     private Component toComponent(CtType<?> type, String appId) {
@@ -115,9 +114,12 @@ public class GenericJavaExtractor {
         if (simpleName.endsWith("renderer")) {
             return ComponentType.SERVICE;
         }
-        if (simpleName.endsWith("tool") || simpleName.endsWith("extractor")
-                || simpleName.endsWith("merger") || simpleName.endsWith("scanner")
-                || simpleName.endsWith("cache") || simpleName.endsWith("server")) {
+        if (simpleName.endsWith("tool")
+                || simpleName.endsWith("extractor")
+                || simpleName.endsWith("merger")
+                || simpleName.endsWith("scanner")
+                || simpleName.endsWith("cache")
+                || simpleName.endsWith("server")) {
             return ComponentType.SERVICE;
         }
         if (qualifiedName.contains(".util.") || simpleName.endsWith("utils")) {
@@ -135,9 +137,7 @@ public class GenericJavaExtractor {
         if (packageEnd > 0) {
             String packageName = qualifiedName.substring(0, packageEnd);
             int segmentStart = packageName.lastIndexOf('.');
-            stereotypes.add(segmentStart >= 0
-                ? packageName.substring(segmentStart + 1)
-                : packageName);
+            stereotypes.add(segmentStart >= 0 ? packageName.substring(segmentStart + 1) : packageName);
         }
         return stereotypes;
     }

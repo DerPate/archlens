@@ -1,16 +1,14 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Container;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 class ContainerInferrerTest {
 
@@ -61,37 +59,36 @@ class ContainerInferrerTest {
     @Test
     void allEjbTypesGoToServiceContainer() {
         List<Component> comps = List.of(
-            comp("SL", ComponentType.EJB_STATELESS, "app1"),
-            comp("SF", ComponentType.EJB_STATEFUL,  "app1"),
-            comp("SI", ComponentType.EJB_SINGLETON, "app1")
-        );
+                comp("SL", ComponentType.EJB_STATELESS, "app1"),
+                comp("SF", ComponentType.EJB_STATEFUL, "app1"),
+                comp("SI", ComponentType.EJB_SINGLETON, "app1"));
         List<Container> containers = inferrer.infer(comps);
-        Container svc = containers.stream().filter(c -> c.name.equals("service")).findFirst().orElseThrow();
+        Container svc = containers.stream()
+                .filter(c -> c.name.equals("service"))
+                .findFirst()
+                .orElseThrow();
         assertThat(svc.componentIds).containsExactlyInAnyOrder("SL", "SF", "SI");
     }
 
     @Test
     void createsDistinctContainersPerApp() {
         List<Component> comps = List.of(
-            comp("Resource1", ComponentType.REST_RESOURCE, "app1"),
-            comp("Resource2", ComponentType.REST_RESOURCE, "app2")
-        );
+                comp("Resource1", ComponentType.REST_RESOURCE, "app1"),
+                comp("Resource2", ComponentType.REST_RESOURCE, "app2"));
         List<Container> containers = inferrer.infer(comps);
-        List<Container> apiContainers = containers.stream()
-            .filter(c -> c.name.equals("api"))
-            .toList();
+        List<Container> apiContainers =
+                containers.stream().filter(c -> c.name.equals("api")).toList();
         assertThat(apiContainers).hasSize(2);
         assertThat(apiContainers.stream().map(c -> c.appId).collect(Collectors.toSet()))
-            .containsExactlyInAnyOrder("app1", "app2");
+                .containsExactlyInAnyOrder("app1", "app2");
     }
 
     @Test
     void containerIdIsUnique() {
         List<Component> comps = List.of(
-            comp("R", ComponentType.REST_RESOURCE, "app1"),
-            comp("S", ComponentType.SERVICE,       "app1"),
-            comp("P", ComponentType.REPOSITORY,    "app1")
-        );
+                comp("R", ComponentType.REST_RESOURCE, "app1"),
+                comp("S", ComponentType.SERVICE, "app1"),
+                comp("P", ComponentType.REPOSITORY, "app1"));
         List<Container> containers = inferrer.infer(comps);
         long unique = containers.stream().map(c -> c.id).distinct().count();
         assertThat(unique).isEqualTo(containers.size());
@@ -106,10 +103,8 @@ class ContainerInferrerTest {
 
     @Test
     void multipleComponentsOfSameTypeShareContainer() {
-        List<Component> comps = List.of(
-            comp("S1", ComponentType.SERVICE, "app1"),
-            comp("S2", ComponentType.SERVICE, "app1")
-        );
+        List<Component> comps =
+                List.of(comp("S1", ComponentType.SERVICE, "app1"), comp("S2", ComponentType.SERVICE, "app1"));
         List<Container> containers = inferrer.infer(comps);
         assertThat(containers).hasSize(1);
         assertThat(containers.get(0).componentIds).containsExactlyInAnyOrder("S1", "S2");

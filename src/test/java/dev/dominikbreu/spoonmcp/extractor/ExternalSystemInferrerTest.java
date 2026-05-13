@@ -1,5 +1,7 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
@@ -8,8 +10,6 @@ import dev.dominikbreu.spoonmcp.model.EntrypointType;
 import dev.dominikbreu.spoonmcp.model.InterfaceEntry;
 import dev.dominikbreu.spoonmcp.model.MessagingBroker;
 import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class ExternalSystemInferrerTest {
 
@@ -24,12 +24,12 @@ class ExternalSystemInferrerTest {
         inferrer.infer(model);
 
         assertThat(model.externalSystems)
-            .extracting(s -> s.id, s -> s.kind, s -> s.name)
-            .containsExactly(tuple("ext:rest:billing", "REST_API", "billing"));
+                .extracting(s -> s.id, s -> s.kind, s -> s.name)
+                .containsExactly(tuple("ext:rest:billing", "REST_API", "billing"));
         assertThat(model.dependencies)
-            .anyMatch(d -> "comp:billingClient".equals(d.fromId)
-                && "ext:rest:billing".equals(d.toId)
-                && "rest-client".equals(d.kind));
+                .anyMatch(d -> "comp:billingClient".equals(d.fromId)
+                        && "ext:rest:billing".equals(d.toId)
+                        && "rest-client".equals(d.kind));
     }
 
     @Test
@@ -44,14 +44,12 @@ class ExternalSystemInferrerTest {
         inferrer.infer(model);
 
         assertThat(model.externalSystems)
-            .extracting(s -> s.id)
-            .containsExactlyInAnyOrder("ext:messaging:kafka", "ext:messaging:mqtt");
+                .extracting(s -> s.id)
+                .containsExactlyInAnyOrder("ext:messaging:kafka", "ext:messaging:mqtt");
         assertThat(model.dependencies)
-            .anyMatch(d -> "comp:KafkaService".equals(d.fromId)
-                && "ext:messaging:kafka".equals(d.toId));
+                .anyMatch(d -> "comp:KafkaService".equals(d.fromId) && "ext:messaging:kafka".equals(d.toId));
         assertThat(model.dependencies)
-            .anyMatch(d -> "comp:MqttService".equals(d.fromId)
-                && "ext:messaging:mqtt".equals(d.toId));
+                .anyMatch(d -> "comp:MqttService".equals(d.fromId) && "ext:messaging:mqtt".equals(d.toId));
     }
 
     @Test
@@ -71,8 +69,7 @@ class ExternalSystemInferrerTest {
 
         assertThat(model.externalSystems).extracting(s -> s.id).contains("ext:messaging:kafka");
         assertThat(model.dependencies)
-            .anyMatch(d -> "comp:OrderService".equals(d.fromId)
-                && "ext:messaging:kafka".equals(d.toId));
+                .anyMatch(d -> "comp:OrderService".equals(d.fromId) && "ext:messaging:kafka".equals(d.toId));
     }
 
     @Test
@@ -85,8 +82,7 @@ class ExternalSystemInferrerTest {
 
         assertThat(model.externalSystems).extracting(s -> s.id).contains("ext:messaging:mqtt");
         assertThat(model.dependencies)
-            .anyMatch(d -> "comp:MqttSvc".equals(d.fromId)
-                && "ext:messaging:mqtt".equals(d.toId));
+                .anyMatch(d -> "comp:MqttSvc".equals(d.fromId) && "ext:messaging:mqtt".equals(d.toId));
     }
 
     @Test
@@ -110,8 +106,8 @@ class ExternalSystemInferrerTest {
         inferrer.infer(model);
 
         long edges = model.dependencies.stream()
-            .filter(d -> "comp:Svc".equals(d.fromId) && "ext:messaging:kafka".equals(d.toId))
-            .count();
+                .filter(d -> "comp:Svc".equals(d.fromId) && "ext:messaging:kafka".equals(d.toId))
+                .count();
         assertThat(edges).isEqualTo(1);
     }
 
@@ -151,8 +147,8 @@ class ExternalSystemInferrerTest {
         model.interfaces.add(i);
     }
 
-    private void addMessagingInterface(ArchitectureModel model, String componentId, String type,
-                                       String channel, MessagingBroker broker) {
+    private void addMessagingInterface(
+            ArchitectureModel model, String componentId, String type, String channel, MessagingBroker broker) {
         InterfaceEntry i = new InterfaceEntry();
         i.id = "iface:" + componentId + ":" + type + ":" + channel;
         i.type = type;

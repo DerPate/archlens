@@ -2,13 +2,12 @@ package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.scanner.SpoonScanner;
-import spoon.Launcher;
-import spoon.reflect.CtModel;
-import spoon.reflect.declaration.CtType;
-
 import java.io.File;
 import java.nio.file.Files;
 import java.util.*;
+import spoon.Launcher;
+import spoon.reflect.CtModel;
+import spoon.reflect.declaration.CtType;
 
 /**
  * Coordinates source scanning, framework extraction, dependency extraction, and model enrichment.
@@ -77,8 +76,8 @@ public class ArchitectureExtractor {
         return model;
     }
 
-    private void applyMessagingBrokers(ArchitectureModel model, String appId,
-                                       Map<String, MessagingConfigResolver.ChannelConfig> resolved) {
+    private void applyMessagingBrokers(
+            ArchitectureModel model, String appId, Map<String, MessagingConfigResolver.ChannelConfig> resolved) {
         // Pass A: apply config-resolved broker + topic.
         for (Entrypoint ep : model.entrypoints) {
             if (!appId.equals(componentModule(model, ep.componentId))) continue;
@@ -144,9 +143,8 @@ public class ArchitectureExtractor {
      * JAR/WAR child of a WAR parent → role=internal_module, parentAppId set
      * Everything else → role=deployment_unit (standalone)
      */
-    private void resolveAndRegisterModules(File root, String parentWarAppId,
-                                           ArchitectureModel model,
-                                           Map<String, CtModel> ctModels) {
+    private void resolveAndRegisterModules(
+            File root, String parentWarAppId, ArchitectureModel model, Map<String, CtModel> ctModels) {
         List<String> submoduleNames = scanner.readMavenModules(root);
         String packagingType = detectPackagingType(root.getAbsolutePath());
 
@@ -179,9 +177,9 @@ public class ArchitectureExtractor {
             app.parentAppId = parentWarAppId;
             // Link this module to the parent WAR entry
             model.applications.stream()
-                .filter(a -> a.id.equals(parentWarAppId))
-                .findFirst()
-                .ifPresent(war -> war.componentIds.addAll(app.componentIds));
+                    .filter(a -> a.id.equals(parentWarAppId))
+                    .findFirst()
+                    .ifPresent(war -> war.componentIds.addAll(app.componentIds));
         } else {
             app.role = "deployment_unit";
         }
@@ -244,24 +242,27 @@ public class ArchitectureExtractor {
             try {
                 String content = Files.readString(pom.toPath()).toLowerCase();
                 if (content.contains("quarkus")) return "quarkus";
-                if (content.contains("wildfly") || content.contains("jboss")
-                        || content.contains("javaee") || content.contains("java-ee")) return "javaee";
-            } catch (Exception ignored) {}
+                if (content.contains("wildfly")
+                        || content.contains("jboss")
+                        || content.contains("javaee")
+                        || content.contains("java-ee")) return "javaee";
+            } catch (Exception ignored) {
+            }
         }
 
         long quarkusHints = types.stream()
-            .flatMap(t -> t.getAnnotations().stream())
-            .filter(a -> a.getAnnotationType().getQualifiedName().startsWith("io.quarkus"))
-            .count();
+                .flatMap(t -> t.getAnnotations().stream())
+                .filter(a -> a.getAnnotationType().getQualifiedName().startsWith("io.quarkus"))
+                .count();
         if (quarkusHints > 0) return "quarkus";
 
         long ejbHints = types.stream()
-            .flatMap(t -> t.getAnnotations().stream())
-            .filter(a -> {
-                String qn = a.getAnnotationType().getQualifiedName();
-                return qn.startsWith("javax.ejb") || qn.startsWith("jakarta.ejb");
-            })
-            .count();
+                .flatMap(t -> t.getAnnotations().stream())
+                .filter(a -> {
+                    String qn = a.getAnnotationType().getQualifiedName();
+                    return qn.startsWith("javax.ejb") || qn.startsWith("jakarta.ejb");
+                })
+                .count();
         if (ejbHints > 0) return "javaee";
 
         return "unknown";

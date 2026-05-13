@@ -1,7 +1,6 @@
 package dev.dominikbreu.spoonmcp.renderer;
 
 import dev.dominikbreu.spoonmcp.model.*;
-
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -51,29 +50,37 @@ public class MermaidCallFlowRenderer {
         // Component nodes with type-appropriate shapes
         for (RuntimeFlowStep step : steps) {
             String pid = pidMap.get(step.componentId);
-            ComponentType type = compById.containsKey(step.componentId)
-                ? compById.get(step.componentId).type : null;
-            sb.append("    ").append(pid)
-              .append(nodeShape(step.componentName, type)).append("\n");
+            ComponentType type = compById.containsKey(step.componentId) ? compById.get(step.componentId).type : null;
+            sb.append("    ")
+                    .append(pid)
+                    .append(nodeShape(step.componentName, type))
+                    .append("\n");
         }
         sb.append("\n");
 
         // Client → first step
         if (!steps.isEmpty()) {
             String label = entrypointLabel(ep);
-            sb.append("    Client -->|").append(escape(label)).append("| ")
-              .append(pidMap.get(steps.get(0).componentId)).append("\n");
+            sb.append("    Client -->|")
+                    .append(escape(label))
+                    .append("| ")
+                    .append(pidMap.get(steps.get(0).componentId))
+                    .append("\n");
         }
 
         // Forward edges — derived from the recorded call-graph topology
         for (RuntimeFlow.FlowEdge edge : flow.edges) {
             String fromPid = pidMap.get(edge.fromId);
-            String toPid   = pidMap.get(edge.toId);
+            String toPid = pidMap.get(edge.toId);
             if (fromPid == null || toPid == null) continue;
             String label = (edge.label != null && !edge.label.isBlank()) ? edge.label : "call";
-            sb.append("    ").append(fromPid)
-              .append(" -->|").append(escape(label)).append("| ")
-              .append(toPid).append("\n");
+            sb.append("    ")
+                    .append(fromPid)
+                    .append(" -->|")
+                    .append(escape(label))
+                    .append("| ")
+                    .append(toPid)
+                    .append("\n");
         }
 
         return sb.toString();
@@ -82,12 +89,11 @@ public class MermaidCallFlowRenderer {
     private String nodeShape(String name, ComponentType type) {
         if (type == null) return "[" + name + "]";
         return switch (type) {
-            case REPOSITORY                      -> "[(" + name + ")]";
-            case HTTP_CLIENT                     -> "[/" + name + "/]";
-            case MESSAGE_DRIVEN_BEAN, SCHEDULER  -> "([" + name + "])";
-            case CDI_EVENT_CONSUMER,
-                 CDI_EVENT_PRODUCER              -> "((" + name + "))";
-            default                              -> "[" + name + "]";
+            case REPOSITORY -> "[(" + name + ")]";
+            case HTTP_CLIENT -> "[/" + name + "/]";
+            case MESSAGE_DRIVEN_BEAN, SCHEDULER -> "([" + name + "])";
+            case CDI_EVENT_CONSUMER, CDI_EVENT_PRODUCER -> "((" + name + "))";
+            default -> "[" + name + "]";
         };
     }
 
@@ -100,8 +106,8 @@ public class MermaidCallFlowRenderer {
     }
 
     private Map<String, String> buildPidMap(List<RuntimeFlowStep> steps) {
-        Map<String, Long> freq = steps.stream()
-            .collect(Collectors.groupingBy(s -> sanitize(s.componentName), Collectors.counting()));
+        Map<String, Long> freq =
+                steps.stream().collect(Collectors.groupingBy(s -> sanitize(s.componentName), Collectors.counting()));
         Map<String, Integer> counter = new HashMap<>();
         Map<String, String> result = new LinkedHashMap<>();
         for (RuntimeFlowStep step : steps) {
@@ -129,8 +135,9 @@ public class MermaidCallFlowRenderer {
 
     private Entrypoint findEntrypoint(RuntimeFlow flow, ArchitectureModel model) {
         return model.entrypoints.stream()
-            .filter(e -> e.id.equals(flow.entrypointId))
-            .findFirst().orElse(null);
+                .filter(e -> e.id.equals(flow.entrypointId))
+                .findFirst()
+                .orElse(null);
     }
 
     private Map<String, Component> buildCompById(ArchitectureModel model) {

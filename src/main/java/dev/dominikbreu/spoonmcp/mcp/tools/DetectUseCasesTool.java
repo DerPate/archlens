@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.extractor.UseCaseDetector;
 import dev.dominikbreu.spoonmcp.model.*;
-
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -45,7 +44,7 @@ public class DetectUseCasesTool {
             if (config == null) return "Error: could not load naming config. Check the configFile path.";
 
             String filterModule = getString(args, "module");
-            int    maxDepth     = getInt(args, "maxDepth", 5);
+            int maxDepth = getInt(args, "maxDepth", 5);
 
             List<UseCase> useCases = detector.detect(model, config);
 
@@ -71,28 +70,28 @@ public class DetectUseCasesTool {
         }
     }
 
-    private List<UseCase> filterByModule(List<UseCase> useCases,
-                                          ArchitectureModel model, String module) {
+    private List<UseCase> filterByModule(List<UseCase> useCases, ArchitectureModel model, String module) {
         return useCases.stream()
-            .filter(uc -> {
-                Entrypoint ep = model.entrypoints.stream()
-                    .filter(e -> e.id.equals(uc.entrypointId))
-                    .findFirst().orElse(null);
-                if (ep == null) return false;
-                return model.components.stream()
-                    .filter(c -> c.id.equals(ep.componentId))
-                    .anyMatch(c -> module.equals(c.module)
-                               || (c.module != null && c.module.contains(module)));
-            })
-            .collect(Collectors.toList());
+                .filter(uc -> {
+                    Entrypoint ep = model.entrypoints.stream()
+                            .filter(e -> e.id.equals(uc.entrypointId))
+                            .findFirst()
+                            .orElse(null);
+                    if (ep == null) return false;
+                    return model.components.stream()
+                            .filter(c -> c.id.equals(ep.componentId))
+                            .anyMatch(c -> module.equals(c.module) || (c.module != null && c.module.contains(module)));
+                })
+                .collect(Collectors.toList());
     }
 
     private String format(List<UseCase> useCases, ArchitectureModel model, int maxDepth) {
         StringBuilder sb = new StringBuilder();
         sb.append("Detected ").append(useCases.size()).append(" use case(s)");
-        sb.append(model.callEdges.isEmpty()
-            ? " (injection-edge fallback — re-index for call-graph accuracy):\n\n"
-            : ":\n\n");
+        sb.append(
+                model.callEdges.isEmpty()
+                        ? " (injection-edge fallback — re-index for call-graph accuracy):\n\n"
+                        : ":\n\n");
 
         for (UseCase uc : useCases) {
             sb.append("## ").append(uc.name).append("\n");
@@ -101,7 +100,9 @@ public class DetectUseCasesTool {
             if (uc.channelOrPath != null) {
                 sb.append("  channel/path: ").append(uc.channelOrPath).append("\n");
             }
-            sb.append("  components:   ").append(resolveNames(uc.componentIds, model)).append("\n");
+            sb.append("  components:   ")
+                    .append(resolveNames(uc.componentIds, model))
+                    .append("\n");
             if (!uc.methodChain.isEmpty()) {
                 int shown = Math.min(uc.methodChain.size(), maxDepth * 2);
                 sb.append("  call chain:\n");
@@ -109,8 +110,7 @@ public class DetectUseCasesTool {
                     sb.append("    - ").append(uc.methodChain.get(i)).append("\n");
                 }
                 if (uc.methodChain.size() > shown) {
-                    sb.append("    ... (").append(uc.methodChain.size() - shown)
-                      .append(" more)\n");
+                    sb.append("    ... (").append(uc.methodChain.size() - shown).append(" more)\n");
                 }
             }
             sb.append("\n");
@@ -120,11 +120,12 @@ public class DetectUseCasesTool {
 
     private String resolveNames(List<String> componentIds, ArchitectureModel model) {
         return componentIds.stream()
-            .map(id -> model.components.stream()
-                .filter(c -> c.id.equals(id))
-                .map(c -> c.name)
-                .findFirst().orElse(id))
-            .collect(Collectors.joining(", "));
+                .map(id -> model.components.stream()
+                        .filter(c -> c.id.equals(id))
+                        .map(c -> c.name)
+                        .findFirst()
+                        .orElse(id))
+                .collect(Collectors.joining(", "));
     }
 
     private String getString(JsonNode n, String f) {

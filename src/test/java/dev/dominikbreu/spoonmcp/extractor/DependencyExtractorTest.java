@@ -1,13 +1,11 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import dev.dominikbreu.spoonmcp.model.*;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import spoon.reflect.CtModel;
-
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class DependencyExtractorTest extends ExtractorTestBase {
 
@@ -45,26 +43,27 @@ class DependencyExtractorTest extends ExtractorTestBase {
 
     @Test
     void quarkusDependenciesAreAnnotationDerived() {
-        quarkusModel.dependencies.forEach(d ->
-            assertThat(d.derivedFrom).as("derivedFrom for %s", d.id).isEqualTo("annotation"));
+        quarkusModel.dependencies.forEach(
+                d -> assertThat(d.derivedFrom).as("derivedFrom for %s", d.id).isEqualTo("annotation"));
     }
 
     @Test
     void quarkusDependenciesHaveHighConfidence() {
-        quarkusModel.dependencies.forEach(d ->
-            assertThat(d.confidence).as("confidence for %s", d.id).isGreaterThanOrEqualTo(0.9));
+        quarkusModel.dependencies.forEach(
+                d -> assertThat(d.confidence).as("confidence for %s", d.id).isGreaterThanOrEqualTo(0.9));
     }
 
     @Test
     void noDuplicateDependencies() {
-        long unique = quarkusModel.dependencies.stream().map(d -> d.id).distinct().count();
+        long unique =
+                quarkusModel.dependencies.stream().map(d -> d.id).distinct().count();
         assertThat(unique).isEqualTo(quarkusModel.dependencies.size());
     }
 
     @Test
     void dependencyKindIsInjection() {
-        quarkusModel.dependencies.forEach(d ->
-            assertThat(d.kind).as("kind for %s", d.id).isEqualTo("injection"));
+        quarkusModel.dependencies.forEach(
+                d -> assertThat(d.kind).as("kind for %s", d.id).isEqualTo("injection"));
     }
 
     // ── javaee ejb/resource injection ────────────────────────────────────────
@@ -76,24 +75,23 @@ class DependencyExtractorTest extends ExtractorTestBase {
 
     @Test
     void noSelfDependency() {
-        quarkusModel.dependencies.forEach(d ->
-            assertThat(d.fromId).as("no self-dep").isNotEqualTo(d.toId));
-        javaeeModel.dependencies.forEach(d ->
-            assertThat(d.fromId).as("no self-dep").isNotEqualTo(d.toId));
+        quarkusModel.dependencies.forEach(
+                d -> assertThat(d.fromId).as("no self-dep").isNotEqualTo(d.toId));
+        javaeeModel.dependencies.forEach(
+                d -> assertThat(d.fromId).as("no self-dep").isNotEqualTo(d.toId));
     }
 
     @Test
     void doesNotAddDependencyToNonComponent() {
         // EntityManager is not a known component — no dep to it
-        assertThat(javaeeModel.dependencies)
-            .noneMatch(d -> d.toId.contains("EntityManager"));
+        assertThat(javaeeModel.dependencies).noneMatch(d -> d.toId.contains("EntityManager"));
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private void assertHasDependency(ArchitectureModel m, String fromName, String toName) {
         assertThat(m.dependencies)
-            .as("dependency %s -> %s", fromName, toName)
-            .anyMatch(d -> d.fromId.contains(fromName) && d.toId.contains(toName));
+                .as("dependency %s -> %s", fromName, toName)
+                .anyMatch(d -> d.fromId.contains(fromName) && d.toId.contains(toName));
     }
 }

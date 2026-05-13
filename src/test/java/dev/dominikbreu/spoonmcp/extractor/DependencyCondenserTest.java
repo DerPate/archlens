@@ -1,14 +1,13 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 class DependencyCondenserTest {
 
@@ -20,14 +19,10 @@ class DependencyCondenserTest {
     @Test
     void shortcutsEdgeThroughSingleUtilityNode() {
         List<Component> comps = List.of(
-            comp("A", ComponentType.REST_RESOURCE),
-            comp("B", ComponentType.UTILITY),
-            comp("C", ComponentType.SERVICE)
-        );
-        List<Dependency> deps = List.of(
-            dep("A", "B"),
-            dep("B", "C")
-        );
+                comp("A", ComponentType.REST_RESOURCE),
+                comp("B", ComponentType.UTILITY),
+                comp("C", ComponentType.SERVICE));
+        List<Dependency> deps = List.of(dep("A", "B"), dep("B", "C"));
 
         List<Dependency> result = condenser.condense(deps, comps);
 
@@ -42,16 +37,12 @@ class DependencyCondenserTest {
     @Test
     void shortcutsChainOfMultipleUtilityNodes() {
         List<Component> comps = List.of(
-            comp("Controller", ComponentType.REST_RESOURCE),
-            comp("Mapper",     ComponentType.UTILITY),
-            comp("Validator",  ComponentType.UTILITY),
-            comp("Service",    ComponentType.SERVICE)
-        );
-        List<Dependency> deps = List.of(
-            dep("Controller", "Mapper"),
-            dep("Mapper",     "Validator"),
-            dep("Validator",  "Service")
-        );
+                comp("Controller", ComponentType.REST_RESOURCE),
+                comp("Mapper", ComponentType.UTILITY),
+                comp("Validator", ComponentType.UTILITY),
+                comp("Service", ComponentType.SERVICE));
+        List<Dependency> deps =
+                List.of(dep("Controller", "Mapper"), dep("Mapper", "Validator"), dep("Validator", "Service"));
 
         List<Dependency> result = condenser.condense(deps, comps);
 
@@ -65,10 +56,8 @@ class DependencyCondenserTest {
      */
     @Test
     void preservesDirectEdgeBetweenArchitecturalNodes() {
-        List<Component> comps = List.of(
-            comp("Service",    ComponentType.SERVICE),
-            comp("Repository", ComponentType.REPOSITORY)
-        );
+        List<Component> comps =
+                List.of(comp("Service", ComponentType.SERVICE), comp("Repository", ComponentType.REPOSITORY));
         List<Dependency> deps = List.of(dep("Service", "Repository"));
 
         List<Dependency> result = condenser.condense(deps, comps);
@@ -82,10 +71,9 @@ class DependencyCondenserTest {
     @Test
     void noChangeWhenNoUtilityNodes() {
         List<Component> comps = List.of(
-            comp("A", ComponentType.REST_RESOURCE),
-            comp("B", ComponentType.SERVICE),
-            comp("C", ComponentType.REPOSITORY)
-        );
+                comp("A", ComponentType.REST_RESOURCE),
+                comp("B", ComponentType.SERVICE),
+                comp("C", ComponentType.REPOSITORY));
         List<Dependency> deps = List.of(dep("A", "B"), dep("B", "C"));
 
         List<Dependency> result = condenser.condense(deps, comps);
@@ -100,10 +88,7 @@ class DependencyCondenserTest {
      */
     @Test
     void doesNotIntroduceSelfLoops() {
-        List<Component> comps = List.of(
-            comp("A", ComponentType.SERVICE),
-            comp("B", ComponentType.UTILITY)
-        );
+        List<Component> comps = List.of(comp("A", ComponentType.SERVICE), comp("B", ComponentType.UTILITY));
         List<Dependency> deps = List.of(dep("A", "B"), dep("B", "A"));
 
         List<Dependency> result = condenser.condense(deps, comps);
@@ -118,11 +103,10 @@ class DependencyCondenserTest {
     @Test
     void shortcutsFanOutFromUtilityNode() {
         List<Component> comps = List.of(
-            comp("A", ComponentType.REST_RESOURCE),
-            comp("M", ComponentType.UTILITY),
-            comp("B", ComponentType.SERVICE),
-            comp("C", ComponentType.REPOSITORY)
-        );
+                comp("A", ComponentType.REST_RESOURCE),
+                comp("M", ComponentType.UTILITY),
+                comp("B", ComponentType.SERVICE),
+                comp("C", ComponentType.REPOSITORY));
         List<Dependency> deps = List.of(dep("A", "M"), dep("M", "B"), dep("M", "C"));
 
         List<Dependency> result = condenser.condense(deps, comps);

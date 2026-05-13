@@ -1,11 +1,10 @@
 package dev.dominikbreu.spoonmcp.renderer;
 
-import dev.dominikbreu.spoonmcp.model.*;
-import org.junit.jupiter.api.Test;
-
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
+
+import dev.dominikbreu.spoonmcp.model.*;
+import java.util.List;
+import org.junit.jupiter.api.Test;
 
 class MermaidUseCaseTimelineRendererTest {
 
@@ -13,8 +12,7 @@ class MermaidUseCaseTimelineRendererTest {
 
     @Test
     void outputStartsWithGanttDirective() {
-        assertThat(renderer.render(List.of(flow("ep1", 3)), model(), 5))
-            .startsWith("gantt");
+        assertThat(renderer.render(List.of(flow("ep1", 3)), model(), 5)).startsWith("gantt");
     }
 
     @Test
@@ -28,7 +26,8 @@ class MermaidUseCaseTimelineRendererTest {
     void containsSectionForEachFlow() {
         List<RuntimeFlow> flows = List.of(flow("ep1", 2), flow("ep2", 2));
         String out = renderer.render(flows, model(), 5);
-        assertThat(out.lines().filter(l -> l.trim().startsWith("section")).count()).isEqualTo(2);
+        assertThat(out.lines().filter(l -> l.trim().startsWith("section")).count())
+                .isEqualTo(2);
     }
 
     @Test
@@ -63,8 +62,8 @@ class MermaidUseCaseTimelineRendererTest {
         String out = renderer.render(List.of(f), model(), 3);
         // Only 3 steps rendered as tasks + 1 overflow line
         long taskLines = out.lines()
-            .filter(l -> l.contains(":active,") || (l.contains(":") && l.contains(", 1")))
-            .count();
+                .filter(l -> l.contains(":active,") || (l.contains(":") && l.contains(", 1")))
+                .count();
         assertThat(taskLines).isEqualTo(4); // 3 steps + 1 overflow
     }
 
@@ -94,8 +93,9 @@ class MermaidUseCaseTimelineRendererTest {
         String out = renderer.render(List.of(f), m, 5);
         // Section label must not contain a colon (Mermaid syntax restriction)
         String sectionLine = out.lines()
-            .filter(l -> l.trim().startsWith("section"))
-            .findFirst().orElse("");
+                .filter(l -> l.trim().startsWith("section"))
+                .findFirst()
+                .orElse("");
         assertThat(sectionLine).doesNotContain("Scheduled:");
     }
 
@@ -120,8 +120,7 @@ class MermaidUseCaseTimelineRendererTest {
         return f;
     }
 
-    private Entrypoint ep(String id, String httpMethod, String path,
-                           String channelName, String componentId) {
+    private Entrypoint ep(String id, String httpMethod, String path, String channelName, String componentId) {
         Entrypoint ep = new Entrypoint();
         ep.id = id;
         ep.httpMethod = httpMethod;

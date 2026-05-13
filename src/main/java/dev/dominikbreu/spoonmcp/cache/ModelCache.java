@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
-
 import java.io.File;
 import java.io.IOException;
 
@@ -64,7 +63,9 @@ public class ModelCache {
     public void store(ArchitectureModel model) throws IOException {
         this.current = model;
         File dir = new File(cacheDir);
-        dir.mkdirs();
+        if (!dir.exists() && !dir.mkdirs()) {
+            throw new IOException("Failed to create cache directory: " + dir.getAbsolutePath());
+        }
         mapper.writeValue(new File(dir, MODEL_FILE), model);
         if (backend == CacheBackend.GRAPH) {
             graph.rebuild(model);

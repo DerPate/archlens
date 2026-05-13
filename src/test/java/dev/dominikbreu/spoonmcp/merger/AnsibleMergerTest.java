@@ -1,14 +1,13 @@
 package dev.dominikbreu.spoonmcp.merger;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.DeploymentEntry;
-import org.junit.jupiter.api.Test;
-
 import java.io.File;
 import java.net.URL;
 import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 class AnsibleMergerTest {
 
@@ -30,9 +29,11 @@ class AnsibleMergerTest {
         ArchitectureModel model = new ArchitectureModel("test");
         merger.merge(ansibleSampleDir(), model);
         assertThat(model.deployments.stream()
-            .filter(d -> "webservers".equals(d.name))
-            .findFirst().orElseThrow().type)
-            .isEqualTo("ansible-group");
+                        .filter(d -> "webservers".equals(d.name))
+                        .findFirst()
+                        .orElseThrow()
+                        .type)
+                .isEqualTo("ansible-group");
     }
 
     @Test
@@ -40,7 +41,9 @@ class AnsibleMergerTest {
         ArchitectureModel model = new ArchitectureModel("test");
         merger.merge(ansibleSampleDir(), model);
         DeploymentEntry web = model.deployments.stream()
-            .filter(d -> "webservers".equals(d.name)).findFirst().orElseThrow();
+                .filter(d -> "webservers".equals(d.name))
+                .findFirst()
+                .orElseThrow();
         assertThat(web.hosts).contains("web1.example.com", "web2.example.com");
     }
 
@@ -50,10 +53,10 @@ class AnsibleMergerTest {
         merger.merge(ansibleSampleDir(), model);
         // deploy.yml defines plays with roles
         List<DeploymentEntry> plays = model.deployments.stream()
-            .filter(d -> "ansible-host".equals(d.type)).toList();
+                .filter(d -> "ansible-host".equals(d.type))
+                .toList();
         assertThat(plays).isNotEmpty();
-        assertThat(plays.stream().flatMap(p -> p.roles.stream()).toList())
-            .contains("common");
+        assertThat(plays.stream().flatMap(p -> p.roles.stream()).toList()).contains("common");
     }
 
     @Test

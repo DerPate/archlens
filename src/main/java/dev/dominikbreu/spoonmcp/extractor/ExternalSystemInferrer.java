@@ -7,7 +7,6 @@ import dev.dominikbreu.spoonmcp.model.EntrypointType;
 import dev.dominikbreu.spoonmcp.model.ExternalSystem;
 import dev.dominikbreu.spoonmcp.model.InterfaceEntry;
 import dev.dominikbreu.spoonmcp.model.MessagingBroker;
-
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -77,8 +76,8 @@ public class ExternalSystemInferrer {
 
     private boolean isMessagingInterface(String type) {
         return "messaging_consumer".equals(type)
-            || "messaging_producer".equals(type)
-            || "messaging_client".equals(type);
+                || "messaging_producer".equals(type)
+                || "messaging_client".equals(type);
     }
 
     private ExternalSystem systemForBroker(Map<String, ExternalSystem> systemsById, MessagingBroker broker) {
@@ -105,8 +104,7 @@ public class ExternalSystemInferrer {
         };
     }
 
-    private void addDependency(ArchitectureModel model, Set<String> existing,
-                               String fromId, String toId, String kind) {
+    private void addDependency(ArchitectureModel model, Set<String> existing, String fromId, String toId, String kind) {
         if (fromId == null || toId == null) return;
         String id = "dep:" + fromId + "->" + toId + ":" + kind;
         if (!existing.add(id)) return;

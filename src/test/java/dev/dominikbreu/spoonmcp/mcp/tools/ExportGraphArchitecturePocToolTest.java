@@ -1,5 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.model.AppEntry;
@@ -8,13 +10,10 @@ import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class ExportGraphArchitecturePocToolTest {
 
@@ -27,7 +26,8 @@ class ExportGraphArchitecturePocToolTest {
         cache.store(model());
         ExportGraphArchitecturePocTool tool = new ExportGraphArchitecturePocTool(cache);
 
-        String result = tool.execute(mapper.readTree("""
+        String result =
+                tool.execute(mapper.readTree("""
             {"outputPath":"%s","focusComponent":"OrderService"}
             """.formatted(output.toString().replace("\\", "\\\\"))));
 

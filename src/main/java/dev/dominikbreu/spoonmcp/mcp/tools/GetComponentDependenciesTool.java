@@ -4,9 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.extractor.DependencyCondenser;
 import dev.dominikbreu.spoonmcp.model.*;
-
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * MCP tool that traverses dependencies around a selected component.
@@ -45,14 +43,14 @@ public class GetComponentDependenciesTool {
 
             final String finalRef = ref;
             Component root = model.components.stream()
-                .filter(c -> c.id.equals(finalRef) || c.name.equals(finalRef) || c.id.contains(finalRef))
-                .findFirst().orElse(null);
+                    .filter(c -> c.id.equals(finalRef) || c.name.equals(finalRef) || c.id.contains(finalRef))
+                    .findFirst()
+                    .orElse(null);
 
             if (root == null) return "Component not found: " + ref;
 
-            List<Dependency> deps = condensed
-                ? condenser.condense(model.dependencies, model.components)
-                : model.dependencies;
+            List<Dependency> deps =
+                    condensed ? condenser.condense(model.dependencies, model.components) : model.dependencies;
 
             // BFS up to depth
             Map<String, Component> byId = new HashMap<>();
@@ -86,18 +84,32 @@ public class GetComponentDependenciesTool {
             }
 
             if (result.isEmpty()) {
-                return "No dependencies found for component: " + root.name + " (depth=" + depth + ", condensed=" + condensed + ")";
+                return "No dependencies found for component: " + root.name + " (depth=" + depth + ", condensed="
+                        + condensed + ")";
             }
 
             StringBuilder sb = new StringBuilder();
-            sb.append("Dependencies for [").append(root.type).append("] ").append(root.name)
-              .append(" (depth=").append(depth).append(", condensed=").append(condensed).append("):\n\n");
+            sb.append("Dependencies for [")
+                    .append(root.type)
+                    .append("] ")
+                    .append(root.name)
+                    .append(" (depth=")
+                    .append(depth)
+                    .append(", condensed=")
+                    .append(condensed)
+                    .append("):\n\n");
             for (Dependency dep : result) {
                 Component to = byId.get(dep.toId);
                 String toLabel = to != null ? "[" + to.type + "] " + to.name : dep.toId;
-                sb.append("  -> ").append(toLabel)
-                  .append(" [").append(dep.kind).append(", ")
-                  .append(dep.derivedFrom).append(", evidence-score=").append(dep.confidence).append("]\n");
+                sb.append("  -> ")
+                        .append(toLabel)
+                        .append(" [")
+                        .append(dep.kind)
+                        .append(", ")
+                        .append(dep.derivedFrom)
+                        .append(", evidence-score=")
+                        .append(dep.confidence)
+                        .append("]\n");
             }
             return sb.toString();
         } catch (Exception e) {

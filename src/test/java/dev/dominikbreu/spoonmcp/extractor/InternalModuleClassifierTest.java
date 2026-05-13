@@ -1,18 +1,14 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
-import dev.dominikbreu.spoonmcp.model.AppEntry;
-import dev.dominikbreu.spoonmcp.model.ComponentType;
-import dev.dominikbreu.spoonmcp.model.SourceInfo;
-import org.junit.jupiter.api.Test;
-import spoon.Launcher;
-import spoon.reflect.CtModel;
-import spoon.reflect.declaration.CtType;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.dominikbreu.spoonmcp.model.AppEntry;
 import java.io.File;
 import java.net.URL;
 import java.util.Collection;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import spoon.Launcher;
+import spoon.reflect.declaration.CtType;
 
 class InternalModuleClassifierTest {
 
@@ -42,8 +38,7 @@ class InternalModuleClassifierTest {
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private Collection<CtType<?>> scanModule(String moduleName) throws Exception {
-        URL url = getClass().getClassLoader()
-            .getResource("testprojects/war-modules-sample/" + moduleName);
+        URL url = getClass().getClassLoader().getResource("testprojects/war-modules-sample/" + moduleName);
         assertThat(url).isNotNull();
         File root = new File(url.toURI());
         Launcher launcher = new Launcher();

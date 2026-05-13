@@ -6,7 +6,6 @@ import dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor;
 import dev.dominikbreu.spoonmcp.merger.DeploymentMerger;
 import dev.dominikbreu.spoonmcp.model.AppEntry;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -62,8 +61,13 @@ public class IndexWorkspaceTool {
             sb.append(".\n\n");
 
             for (AppEntry app : model.applications) {
-                sb.append("App: ").append(app.name)
-                  .append(" [").append(app.technology).append(", ").append(app.packagingType).append("]\n");
+                sb.append("App: ")
+                        .append(app.name)
+                        .append(" [")
+                        .append(app.technology)
+                        .append(", ")
+                        .append(app.packagingType)
+                        .append("]\n");
                 sb.append("  Root: ").append(app.rootPath).append("\n");
                 sb.append("  Components: ").append(app.componentIds.size()).append("\n");
             }

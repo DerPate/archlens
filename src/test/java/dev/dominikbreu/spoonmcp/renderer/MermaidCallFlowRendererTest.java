@@ -1,9 +1,9 @@
 package dev.dominikbreu.spoonmcp.renderer;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import dev.dominikbreu.spoonmcp.model.*;
 import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class MermaidCallFlowRendererTest {
 
@@ -187,8 +187,7 @@ class MermaidCallFlowRendererTest {
             s.via = "call";
             f.steps.add(s);
             if (i > 0) {
-                f.edges.add(new RuntimeFlow.FlowEdge(
-                    "comp:Comp" + (i - 1), "comp:Comp" + i, "call"));
+                f.edges.add(new RuntimeFlow.FlowEdge("comp:Comp" + (i - 1), "comp:Comp" + i, "call"));
             }
         }
         return f;

@@ -1,13 +1,12 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import dev.dominikbreu.spoonmcp.model.*;
+import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import spoon.reflect.CtModel;
-
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class JavaEEExtractorTest extends ExtractorTestBase {
 
@@ -68,8 +67,8 @@ class JavaEEExtractorTest extends ExtractorTestBase {
 
     @Test
     void componentsHaveSourceInfo() {
-        model.components.forEach(c ->
-            assertThat(c.source).as("source for %s", c.name).isNotNull());
+        model.components.forEach(
+                c -> assertThat(c.source).as("source for %s", c.name).isNotNull());
     }
 
     @Test
@@ -99,8 +98,8 @@ class JavaEEExtractorTest extends ExtractorTestBase {
     @Test
     void detectsMdbOnMessageAsJmsConsumer() {
         List<Entrypoint> jms = model.entrypoints.stream()
-            .filter(e -> e.type == EntrypointType.JMS_CONSUMER)
-            .toList();
+                .filter(e -> e.type == EntrypointType.JMS_CONSUMER)
+                .toList();
         assertThat(jms).hasSize(1);
         assertThat(jms.get(0).name).isEqualTo("onMessage");
         assertThat(jms.get(0).componentId).contains("NotificationMDB");
@@ -109,40 +108,42 @@ class JavaEEExtractorTest extends ExtractorTestBase {
     @Test
     void jmsEntrypointDerivedFromTypeRelation() {
         Entrypoint jms = model.entrypoints.stream()
-            .filter(e -> e.type == EntrypointType.JMS_CONSUMER)
-            .findFirst()
-            .orElseThrow();
+                .filter(e -> e.type == EntrypointType.JMS_CONSUMER)
+                .findFirst()
+                .orElseThrow();
         assertThat(jms.source.derivedFrom).isEqualTo("type-relation");
     }
 
     @Test
     void restEndpointsHaveSourceAnnotationDerivation() {
         model.entrypoints.stream()
-            .filter(e -> e.type == EntrypointType.REST_ENDPOINT)
-            .forEach(ep -> assertThat(ep.source.derivedFrom)
-                .as("derivedFrom for %s", ep.name).isEqualTo("annotation"));
+                .filter(e -> e.type == EntrypointType.REST_ENDPOINT)
+                .forEach(ep -> assertThat(ep.source.derivedFrom)
+                        .as("derivedFrom for %s", ep.name)
+                        .isEqualTo("annotation"));
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private void assertHasComponentOfType(ComponentType type, String name) {
         assertThat(model.components)
-            .as("component [%s] %s", type, name)
-            .anyMatch(c -> c.type == type && c.name.equals(name));
+                .as("component [%s] %s", type, name)
+                .anyMatch(c -> c.type == type && c.name.equals(name));
     }
 
     private void assertHasRestEndpoint(String method, String pathSuffix) {
         assertThat(model.entrypoints)
-            .as("%s %s", method, pathSuffix)
-            .anyMatch(e -> e.type == EntrypointType.REST_ENDPOINT
-                && method.equals(e.httpMethod)
-                && e.path != null && e.path.endsWith(pathSuffix));
+                .as("%s %s", method, pathSuffix)
+                .anyMatch(e -> e.type == EntrypointType.REST_ENDPOINT
+                        && method.equals(e.httpMethod)
+                        && e.path != null
+                        && e.path.endsWith(pathSuffix));
     }
 
     private Component componentByName(String name) {
         return model.components.stream()
-            .filter(c -> c.name.equals(name))
-            .findFirst()
-            .orElseThrow(() -> new AssertionError("component not found: " + name));
+                .filter(c -> c.name.equals(name))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("component not found: " + name));
     }
 }

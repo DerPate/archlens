@@ -1,42 +1,29 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.*;
+import java.util.*;
 import spoon.reflect.code.CtExpression;
 import spoon.reflect.code.CtLiteral;
 import spoon.reflect.declaration.*;
-
-import java.util.*;
 
 /**
  * Extracts Java EE and Jakarta EE components, entrypoints, and JPA entities from Spoon types.
  */
 public class JavaEEExtractor {
 
-    private static final Set<String> EJB_STATELESS = Set.of(
-        "javax.ejb.Stateless", "jakarta.ejb.Stateless"
-    );
-    private static final Set<String> EJB_STATEFUL = Set.of(
-        "javax.ejb.Stateful", "jakarta.ejb.Stateful"
-    );
-    private static final Set<String> EJB_SINGLETON = Set.of(
-        "javax.ejb.Singleton", "jakarta.ejb.Singleton"
-    );
-    private static final Set<String> MESSAGE_DRIVEN = Set.of(
-        "javax.ejb.MessageDriven", "jakarta.ejb.MessageDriven"
-    );
-    private static final Set<String> JAX_RS_PATH = Set.of(
-        "javax.ws.rs.Path", "jakarta.ws.rs.Path"
-    );
+    private static final Set<String> EJB_STATELESS = Set.of("javax.ejb.Stateless", "jakarta.ejb.Stateless");
+    private static final Set<String> EJB_STATEFUL = Set.of("javax.ejb.Stateful", "jakarta.ejb.Stateful");
+    private static final Set<String> EJB_SINGLETON = Set.of("javax.ejb.Singleton", "jakarta.ejb.Singleton");
+    private static final Set<String> MESSAGE_DRIVEN = Set.of("javax.ejb.MessageDriven", "jakarta.ejb.MessageDriven");
+    private static final Set<String> JAX_RS_PATH = Set.of("javax.ws.rs.Path", "jakarta.ws.rs.Path");
     private static final Set<String> HTTP_METHODS = Set.of(
-        "javax.ws.rs.GET", "jakarta.ws.rs.GET",
-        "javax.ws.rs.POST", "jakarta.ws.rs.POST",
-        "javax.ws.rs.PUT", "jakarta.ws.rs.PUT",
-        "javax.ws.rs.DELETE", "jakarta.ws.rs.DELETE",
-        "javax.ws.rs.PATCH", "jakarta.ws.rs.PATCH"
-    );
-    private static final Set<String> ENTITY_ANNOTATIONS = Set.of(
-        "javax.persistence.Entity", "jakarta.persistence.Entity"
-    );
+            "javax.ws.rs.GET", "jakarta.ws.rs.GET",
+            "javax.ws.rs.POST", "jakarta.ws.rs.POST",
+            "javax.ws.rs.PUT", "jakarta.ws.rs.PUT",
+            "javax.ws.rs.DELETE", "jakarta.ws.rs.DELETE",
+            "javax.ws.rs.PATCH", "jakarta.ws.rs.PATCH");
+    private static final Set<String> ENTITY_ANNOTATIONS =
+            Set.of("javax.persistence.Entity", "jakarta.persistence.Entity");
 
     /** Creates a Java EE extractor using built-in annotation rules. */
     public JavaEEExtractor() {}
@@ -59,9 +46,9 @@ public class JavaEEExtractor {
             existingIds.add(component.id);
             model.components.add(component);
             model.applications.stream()
-                .filter(a -> a.id.equals(appId))
-                .findFirst()
-                .ifPresent(a -> a.componentIds.add(component.id));
+                    .filter(a -> a.id.equals(appId))
+                    .findFirst()
+                    .ifPresent(a -> a.componentIds.add(component.id));
 
             extractEntrypoints(type, component, model);
         }
@@ -142,8 +129,8 @@ public class JavaEEExtractor {
         }
     }
 
-    private void addInterface(CtElement element, Component component, String type,
-                              String name, String path, ArchitectureModel model) {
+    private void addInterface(
+            CtElement element, Component component, String type, String name, String path, ArchitectureModel model) {
         String id = "iface:" + component.id.substring("comp:".length()) + ":" + type + ":" + name;
         if (model.interfaces.stream().anyMatch(i -> i.id.equals(id))) return;
         InterfaceEntry entry = new InterfaceEntry();
@@ -160,20 +147,20 @@ public class JavaEEExtractor {
 
     private boolean hasAnn(CtElement element, Set<String> names) {
         Set<String> sn = simpleNames(names);
-        return element.getAnnotations().stream().anyMatch(a ->
-            names.contains(a.getAnnotationType().getQualifiedName())
-                || sn.contains(a.getAnnotationType().getSimpleName()));
+        return element.getAnnotations().stream()
+                .anyMatch(a -> names.contains(a.getAnnotationType().getQualifiedName())
+                        || sn.contains(a.getAnnotationType().getSimpleName()));
     }
 
     private boolean annMatches(spoon.reflect.declaration.CtAnnotation<?> ann, Set<String> names) {
         return names.contains(ann.getAnnotationType().getQualifiedName())
-            || simpleNames(names).contains(ann.getAnnotationType().getSimpleName());
+                || simpleNames(names).contains(ann.getAnnotationType().getSimpleName());
     }
 
     private Set<String> simpleNames(Set<String> qualifiedNames) {
         return qualifiedNames.stream()
-            .map(n -> n.substring(n.lastIndexOf('.') + 1))
-            .collect(java.util.stream.Collectors.toSet());
+                .map(n -> n.substring(n.lastIndexOf('.') + 1))
+                .collect(java.util.stream.Collectors.toSet());
     }
 
     private String getHttpMethod(CtMethod<?> method) {

@@ -3,7 +3,6 @@ package dev.dominikbreu.spoonmcp.extractor;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Dependency;
-
 import java.util.*;
 
 /**
@@ -14,9 +13,7 @@ import java.util.*;
  */
 public class DependencyCondenser {
 
-    private static final Set<ComponentType> NON_ARCHITECTURAL = Set.of(
-        ComponentType.UTILITY, ComponentType.UNKNOWN
-    );
+    private static final Set<ComponentType> NON_ARCHITECTURAL = Set.of(ComponentType.UTILITY, ComponentType.UNKNOWN);
 
     /** Creates a dependency condenser using the built-in non-architectural component rules. */
     public DependencyCondenser() {}
@@ -29,9 +26,6 @@ public class DependencyCondenser {
      * @return condensed dependency list
      */
     public List<Dependency> condense(List<Dependency> dependencies, List<Component> components) {
-        Map<String, ComponentType> typeMap = new HashMap<>();
-        for (Component c : components) typeMap.put(c.id, c.type);
-
         Set<String> nonArch = new HashSet<>();
         for (Component c : components) {
             if (NON_ARCHITECTURAL.contains(c.type)) nonArch.add(c.id);

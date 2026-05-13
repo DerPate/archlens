@@ -1,7 +1,6 @@
 package dev.dominikbreu.spoonmcp.merger;
 
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
-
 import java.io.File;
 import java.util.List;
 

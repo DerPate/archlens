@@ -8,7 +8,6 @@ import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.DataFlowStep;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -43,7 +42,6 @@ public class MermaidPipelineRenderer {
         StringBuilder edges = new StringBuilder();
         StringBuilder styles = new StringBuilder();
 
-        Map<String, String> stepNodeIds = new HashMap<>();
         int boundaryCounter = 0;
         String previousLastNode = null;
         String previousSinkLabel = null;
@@ -57,71 +55,99 @@ public class MermaidPipelineRenderer {
                 boundaryCounter++;
                 String boundaryId = "B" + boundaryCounter;
                 String boundaryLabel = boundaryLabel(seg.incomingSink, compById);
-                sb.append("    ").append(boundaryId)
-                  .append(boundaryShape(seg.incomingSink, boundaryLabel)).append("\n");
+                sb.append("    ")
+                        .append(boundaryId)
+                        .append(boundaryShape(seg.incomingSink, boundaryLabel))
+                        .append("\n");
                 String cls = boundaryClass(seg.incomingSink.kind);
-                styles.append("    class ").append(boundaryId).append(' ').append(cls).append("\n");
+                styles.append("    class ")
+                        .append(boundaryId)
+                        .append(' ')
+                        .append(cls)
+                        .append("\n");
                 if (previousLastNode != null) {
-                    edges.append("    ").append(previousLastNode)
-                         .append(" -->|").append(escape(previousSinkLabel == null ? "" : previousSinkLabel))
-                         .append("| ").append(boundaryId).append("\n");
+                    edges.append("    ")
+                            .append(previousLastNode)
+                            .append(" -->|")
+                            .append(escape(previousSinkLabel == null ? "" : previousSinkLabel))
+                            .append("| ")
+                            .append(boundaryId)
+                            .append("\n");
                 }
                 String consumeLabel = ep != null && ep.name != null ? ep.name : "";
                 String firstStepNode = "S" + segIdx + "_0";
-                edges.append("    ").append(boundaryId)
-                     .append(" -->|").append(escape(consumeLabel)).append("| ")
-                     .append(firstStepNode).append("\n");
+                edges.append("    ")
+                        .append(boundaryId)
+                        .append(" -->|")
+                        .append(escape(consumeLabel))
+                        .append("| ")
+                        .append(firstStepNode)
+                        .append("\n");
             }
 
             // Entrypoint header step (segment header) — represents the entrypoint method itself.
             String headerNodeId = "S" + segIdx + "_0";
             String headerComponentName = ep != null && ep.componentId != null && compById.get(ep.componentId) != null
-                ? compById.get(ep.componentId).name
-                : (seg.path.steps.isEmpty() ? "?" : seg.path.steps.get(0).componentName);
+                    ? compById.get(ep.componentId).name
+                    : (seg.path.steps.isEmpty() ? "?" : seg.path.steps.get(0).componentName);
             ComponentType headerType = ep != null && ep.componentId != null && compById.get(ep.componentId) != null
-                ? compById.get(ep.componentId).type
-                : null;
+                    ? compById.get(ep.componentId).type
+                    : null;
             String headerLabel = headerComponentName + (ep != null && ep.name != null ? "." + ep.name : "");
-            sb.append("    ").append(headerNodeId)
-              .append(nodeShape(headerLabel, headerType)).append("\n");
-            stepNodeIds.put(seg.path.id + "#0", headerNodeId);
+            sb.append("    ")
+                    .append(headerNodeId)
+                    .append(nodeShape(headerLabel, headerType))
+                    .append("\n");
 
             String previousNodeInSeg = headerNodeId;
             for (int i = 0; i < seg.path.steps.size(); i++) {
                 DataFlowStep step = seg.path.steps.get(i);
                 String nodeId = "S" + segIdx + "_" + (i + 1);
-                ComponentType type = compById.containsKey(step.componentId)
-                    ? compById.get(step.componentId).type : null;
+                ComponentType type =
+                        compById.containsKey(step.componentId) ? compById.get(step.componentId).type : null;
                 String label = step.componentName + "." + step.method;
                 sb.append("    ").append(nodeId).append(nodeShape(label, type)).append("\n");
-                edges.append("    ").append(previousNodeInSeg)
-                     .append(" -->|").append(escape(step.method)).append("| ")
-                     .append(nodeId).append("\n");
+                edges.append("    ")
+                        .append(previousNodeInSeg)
+                        .append(" -->|")
+                        .append(escape(step.method))
+                        .append("| ")
+                        .append(nodeId)
+                        .append("\n");
                 previousNodeInSeg = nodeId;
             }
 
             // Emit terminal sinks of this segment that aren't the linking sink, as leaf nodes.
             int terminalCounter = 0;
             for (DataFlowSink s : seg.path.sinks) {
-                boolean isLink = (segIdx + 1 < chain.segments.size())
-                    && chain.segments.get(segIdx + 1).incomingSink == s;
+                boolean isLink =
+                        (segIdx + 1 < chain.segments.size()) && chain.segments.get(segIdx + 1).incomingSink == s;
                 if (isLink) continue;
                 terminalCounter++;
                 String termId = "T" + segIdx + "_" + terminalCounter;
-                String termLabel = (s.componentName != null ? s.componentName : "?")
-                    + (s.method != null ? "." + s.method : "");
-                sb.append("    ").append(termId)
-                  .append(terminalShape(s, termLabel)).append("\n");
-                styles.append("    class ").append(termId).append(' ')
-                      .append(terminalClass(s.kind)).append("\n");
-                edges.append("    ").append(previousNodeInSeg)
-                     .append(" -->|").append(escape(s.method == null ? "" : s.method))
-                     .append("| ").append(termId).append("\n");
+                String termLabel =
+                        (s.componentName != null ? s.componentName : "?") + (s.method != null ? "." + s.method : "");
+                sb.append("    ")
+                        .append(termId)
+                        .append(terminalShape(s, termLabel))
+                        .append("\n");
+                styles.append("    class ")
+                        .append(termId)
+                        .append(' ')
+                        .append(terminalClass(s.kind))
+                        .append("\n");
+                edges.append("    ")
+                        .append(previousNodeInSeg)
+                        .append(" -->|")
+                        .append(escape(s.method == null ? "" : s.method))
+                        .append("| ")
+                        .append(termId)
+                        .append("\n");
             }
 
             // Determine which sink (if any) links to the next segment.
-            DataFlowSink linkOut = (segIdx + 1 < chain.segments.size())
-                ? chain.segments.get(segIdx + 1).incomingSink : null;
+            DataFlowSink linkOut =
+                    (segIdx + 1 < chain.segments.size()) ? chain.segments.get(segIdx + 1).incomingSink : null;
             previousLastNode = previousNodeInSeg;
             previousSinkLabel = linkOut != null && linkOut.method != null ? linkOut.method : "";
         }
@@ -143,30 +169,29 @@ public class MermaidPipelineRenderer {
         String safe = escape(label);
         if (type == null) return "[\"" + safe + "\"]";
         return switch (type) {
-            case REPOSITORY                          -> "[(\"" + safe + "\")]";
-            case HTTP_CLIENT                         -> "[/\"" + safe + "\"/]";
-            case MESSAGE_DRIVEN_BEAN, SCHEDULER      -> "([\"" + safe + "\"])";
-            case CDI_EVENT_CONSUMER,
-                 CDI_EVENT_PRODUCER                  -> "((\"" + safe + "\"))";
-            default                                  -> "[\"" + safe + "\"]";
+            case REPOSITORY -> "[(\"" + safe + "\")]";
+            case HTTP_CLIENT -> "[/\"" + safe + "\"/]";
+            case MESSAGE_DRIVEN_BEAN, SCHEDULER -> "([\"" + safe + "\"])";
+            case CDI_EVENT_CONSUMER, CDI_EVENT_PRODUCER -> "((\"" + safe + "\"))";
+            default -> "[\"" + safe + "\"]";
         };
     }
 
     private String boundaryShape(DataFlowSink sink, String label) {
         String safe = escape(label);
         return switch (sink.kind) {
-            case STORE      -> "[(\"" + safe + "\")]";
-            case EVENT_BUS  -> "((\"" + safe + "\"))";
-            case MESSAGING  -> "(\"" + safe + "\")";
-            default         -> "[\"" + safe + "\"]";
+            case STORE -> "[(\"" + safe + "\")]";
+            case EVENT_BUS -> "((\"" + safe + "\"))";
+            case MESSAGING -> "(\"" + safe + "\")";
+            default -> "[\"" + safe + "\"]";
         };
     }
 
     private String boundaryLabel(DataFlowSink sink, Map<String, Component> compById) {
         if (sink.kind == DataFlowSink.Kind.STORE) {
             String owner = sink.fieldOwnerComponentId != null && compById.get(sink.fieldOwnerComponentId) != null
-                ? compById.get(sink.fieldOwnerComponentId).name
-                : (sink.componentName != null ? sink.componentName : "?");
+                    ? compById.get(sink.fieldOwnerComponentId).name
+                    : (sink.componentName != null ? sink.componentName : "?");
             return owner + "." + (sink.fieldName != null ? sink.fieldName : "?");
         }
         if (sink.kind == DataFlowSink.Kind.MESSAGING || sink.kind == DataFlowSink.Kind.EVENT_BUS) {
@@ -177,37 +202,37 @@ public class MermaidPipelineRenderer {
 
     private String boundaryClass(DataFlowSink.Kind kind) {
         return switch (kind) {
-            case STORE     -> "store";
+            case STORE -> "store";
             case MESSAGING -> "messaging";
             case EVENT_BUS -> "eventbus";
-            default        -> "store";
+            default -> "store";
         };
     }
 
     private String terminalShape(DataFlowSink sink, String label) {
         String safe = escape(label);
         return switch (sink.kind) {
-            case PERSISTENCE   -> "[(\"" + safe + "\")]";
+            case PERSISTENCE -> "[(\"" + safe + "\")]";
             case HTTP_OUTBOUND -> "[/\"" + safe + "\"/]";
             case OBJECT_STORAGE -> "[(\"" + safe + "\")]";
             case FILE_OUTBOUND -> "[\"" + safe + "\"]";
-            case MESSAGING     -> "(\"" + safe + "\")";
-            case EVENT_BUS     -> "((\"" + safe + "\"))";
-            case STORE         -> "[(\"" + safe + "\")]";
-            default            -> "[\"" + safe + "\"]";
+            case MESSAGING -> "(\"" + safe + "\")";
+            case EVENT_BUS -> "((\"" + safe + "\"))";
+            case STORE -> "[(\"" + safe + "\")]";
+            default -> "[\"" + safe + "\"]";
         };
     }
 
     private String terminalClass(DataFlowSink.Kind kind) {
         return switch (kind) {
-            case PERSISTENCE    -> "persistence";
-            case HTTP_OUTBOUND  -> "http";
+            case PERSISTENCE -> "persistence";
+            case HTTP_OUTBOUND -> "http";
             case OBJECT_STORAGE -> "object";
-            case FILE_OUTBOUND  -> "file";
-            case MESSAGING      -> "messaging";
-            case EVENT_BUS      -> "eventbus";
-            case STORE          -> "store";
-            default             -> "store";
+            case FILE_OUTBOUND -> "file";
+            case MESSAGING -> "messaging";
+            case EVENT_BUS -> "eventbus";
+            case STORE -> "store";
+            default -> "store";
         };
     }
 

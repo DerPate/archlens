@@ -3,7 +3,6 @@ package dev.dominikbreu.spoonmcp.renderer;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.Dependency;
-
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,14 +26,14 @@ public class MermaidDependencyMapRenderer {
      */
     public String render(ArchitectureModel model) {
         Map<String, Component> componentsById = model.components.stream()
-            .collect(Collectors.toMap(component -> component.id, component -> component, (left, right) -> left, LinkedHashMap::new));
+                .collect(Collectors.toMap(
+                        component -> component.id, component -> component, (left, right) -> left, LinkedHashMap::new));
 
         String commonPrefix = commonPackagePrefix(model.components);
 
         Map<String, GroupStats> groups = new TreeMap<>();
-        Map<EdgeKey, EdgeStats> edges = new TreeMap<>(Comparator
-            .comparing(EdgeKey::from)
-            .thenComparing(EdgeKey::to));
+        Map<EdgeKey, EdgeStats> edges =
+                new TreeMap<>(Comparator.comparing(EdgeKey::from).thenComparing(EdgeKey::to));
 
         for (Component component : model.components) {
             groups.computeIfAbsent(groupName(component, commonPrefix), ignored -> new GroupStats()).components++;
@@ -61,9 +60,13 @@ public class MermaidDependencyMapRenderer {
         for (Map.Entry<String, GroupStats> entry : groups.entrySet()) {
             String group = entry.getKey();
             GroupStats stats = entry.getValue();
-            sb.append("    ").append(nodeId(group))
-                .append("[\"").append(escape(group)).append("\\n")
-                .append(stats.components).append(" components");
+            sb.append("    ")
+                    .append(nodeId(group))
+                    .append("[\"")
+                    .append(escape(group))
+                    .append("\\n")
+                    .append(stats.components)
+                    .append(" components");
             if (stats.internalDependencies > 0) {
                 sb.append("\\n").append(stats.internalDependencies).append(" internal deps");
             }
@@ -73,11 +76,17 @@ public class MermaidDependencyMapRenderer {
         for (Map.Entry<EdgeKey, EdgeStats> entry : edges.entrySet()) {
             EdgeKey key = entry.getKey();
             EdgeStats stats = entry.getValue();
-            sb.append("    ").append(nodeId(key.from()))
-                .append(" -->|").append(stats.count).append(" ")
-                .append(stats.count == 1 ? "dep" : "deps")
-                .append(" / ").append(escape(stats.kindSummary()))
-                .append("| ").append(nodeId(key.to())).append("\n");
+            sb.append("    ")
+                    .append(nodeId(key.from()))
+                    .append(" -->|")
+                    .append(stats.count)
+                    .append(" ")
+                    .append(stats.count == 1 ? "dep" : "deps")
+                    .append(" / ")
+                    .append(escape(stats.kindSummary()))
+                    .append("| ")
+                    .append(nodeId(key.to()))
+                    .append("\n");
         }
 
         sb.append("    classDef core fill:#243746,stroke:#78a6c8,color:#f2f7fb\n");
@@ -85,7 +94,11 @@ public class MermaidDependencyMapRenderer {
         sb.append("    classDef data fill:#2f4235,stroke:#8bcf9f,color:#f5fff7\n");
         sb.append("    classDef default fill:#30343b,stroke:#9aa4b2,color:#f5f7fa\n");
         for (String group : groups.keySet()) {
-            sb.append("    class ").append(nodeId(group)).append(" ").append(className(group)).append("\n");
+            sb.append("    class ")
+                    .append(nodeId(group))
+                    .append(" ")
+                    .append(className(group))
+                    .append("\n");
         }
 
         return sb.toString();
@@ -107,8 +120,8 @@ public class MermaidDependencyMapRenderer {
         }
 
         String afterRoot = packageName.startsWith(rootPackage + ".")
-            ? packageName.substring(rootPackage.length() + 1)
-            : packageName;
+                ? packageName.substring(rootPackage.length() + 1)
+                : packageName;
 
         int dot = afterRoot.indexOf('.');
         String first = dot < 0 ? afterRoot : afterRoot.substring(0, dot);
@@ -130,11 +143,11 @@ public class MermaidDependencyMapRenderer {
     private String commonPackagePrefix(List<Component> components) {
         // Work on package names (strip simple class name from each qualified name)
         List<String> packages = components.stream()
-            .map(c -> c.qualifiedName)
-            .filter(q -> q != null && q.contains("."))
-            .map(q -> q.substring(0, q.lastIndexOf('.')))
-            .distinct()
-            .toList();
+                .map(c -> c.qualifiedName)
+                .filter(q -> q != null && q.contains("."))
+                .map(q -> q.substring(0, q.lastIndexOf('.')))
+                .distinct()
+                .toList();
         if (packages.isEmpty()) return "";
 
         String prefix = packages.get(0);
@@ -142,7 +155,10 @@ public class MermaidDependencyMapRenderer {
             // Shrink prefix until pkg equals it or starts with prefix + "."
             while (!pkg.equals(prefix) && !pkg.startsWith(prefix + ".")) {
                 int dot = prefix.lastIndexOf('.');
-                if (dot < 0) { prefix = ""; break; }
+                if (dot < 0) {
+                    prefix = "";
+                    break;
+                }
                 prefix = prefix.substring(0, dot);
             }
             if (prefix.isEmpty()) break;
@@ -184,8 +200,8 @@ public class MermaidDependencyMapRenderer {
 
         String kindSummary() {
             return kinds.entrySet().stream()
-                .map(entry -> entry.getKey() + "=" + entry.getValue())
-                .collect(Collectors.joining(", "));
+                    .map(entry -> entry.getKey() + "=" + entry.getValue())
+                    .collect(Collectors.joining(", "));
         }
     }
 }

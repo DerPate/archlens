@@ -43,9 +43,18 @@ class DependencyEvidenceScorer {
 
     private boolean architecturalTarget(ComponentType type) {
         return switch (type) {
-            case REST_RESOURCE, SERVICE, REPOSITORY, EJB_STATELESS, EJB_STATEFUL, EJB_SINGLETON,
-                 MESSAGE_DRIVEN_BEAN, SCHEDULER, HTTP_CLIENT, CDI_EVENT_CONSUMER,
-                 CDI_EVENT_PRODUCER, REMOTE_SERVICE -> true;
+            case REST_RESOURCE,
+                    SERVICE,
+                    REPOSITORY,
+                    EJB_STATELESS,
+                    EJB_STATEFUL,
+                    EJB_SINGLETON,
+                    MESSAGE_DRIVEN_BEAN,
+                    SCHEDULER,
+                    HTTP_CLIENT,
+                    CDI_EVENT_CONSUMER,
+                    CDI_EVENT_PRODUCER,
+                    REMOTE_SERVICE -> true;
             case ENTITY, UTILITY, UNKNOWN -> false;
         };
     }
