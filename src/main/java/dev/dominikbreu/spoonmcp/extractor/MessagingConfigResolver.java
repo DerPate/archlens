@@ -1,8 +1,6 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.MessagingBroker;
-import org.yaml.snakeyaml.Yaml;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,6 +11,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.yaml.snakeyaml.Yaml;
 
 /**
  * Resolves SmallRye Reactive Messaging channel configuration from
@@ -31,17 +30,14 @@ import java.util.regex.Pattern;
  */
 public class MessagingConfigResolver {
 
-    private static final Pattern CONNECTOR_KEY = Pattern.compile(
-        "^mp\\.messaging\\.(incoming|outgoing)\\.(.+)\\.connector$");
+    private static final Pattern CONNECTOR_KEY =
+            Pattern.compile("^mp\\.messaging\\.(incoming|outgoing)\\.(.+)\\.connector$");
 
     private static final Pattern DESTINATION_KEY = Pattern.compile(
-        "^mp\\.messaging\\.(incoming|outgoing)\\.(.+)\\.(topic|address|queue\\.name|exchange\\.name)$");
+            "^mp\\.messaging\\.(incoming|outgoing)\\.(.+)\\.(topic|address|queue\\.name|exchange\\.name)$");
 
-    private static final List<String> RESOURCE_FILES = List.of(
-        "application.properties",
-        "application.yaml",
-        "application.yml"
-    );
+    private static final List<String> RESOURCE_FILES =
+            List.of("application.properties", "application.yaml", "application.yml");
 
     /** Per-channel resolved configuration. */
     public static final class ChannelConfig {
@@ -50,9 +46,15 @@ public class MessagingConfigResolver {
         /** Broker-side destination name (topic / address / queue) when set; otherwise null. */
         public final String topic;
 
+        /**
+         * Creates a config entry.
+         *
+         * @param broker resolved broker; null is coerced to {@link MessagingBroker#UNKNOWN}
+         * @param topic  broker-side destination name; null when not configured
+         */
         public ChannelConfig(MessagingBroker broker, String topic) {
             this.broker = broker == null ? MessagingBroker.UNKNOWN : broker;
-            this.topic  = topic;
+            this.topic = topic;
         }
     }
 
@@ -75,9 +77,7 @@ public class MessagingConfigResolver {
             File file = new File(resources, name);
             if (!file.isFile()) continue;
             try {
-                Map<String, String> flat = name.endsWith(".properties")
-                    ? readProperties(file)
-                    : readYaml(file);
+                Map<String, String> flat = name.endsWith(".properties") ? readProperties(file) : readYaml(file);
                 collect(flat, brokers, topics);
             } catch (IOException ignored) {
             }
@@ -94,9 +94,7 @@ public class MessagingConfigResolver {
         return result;
     }
 
-    private void collect(Map<String, String> flat,
-                         Map<String, MessagingBroker> brokers,
-                         Map<String, String> topics) {
+    private void collect(Map<String, String> flat, Map<String, MessagingBroker> brokers, Map<String, String> topics) {
         for (Map.Entry<String, String> entry : flat.entrySet()) {
             Matcher cm = CONNECTOR_KEY.matcher(entry.getKey());
             if (cm.matches()) {

@@ -38,13 +38,22 @@ public class DataFlowSink {
             this.wireValue = wireValue;
         }
 
-        /** Returns the canonical wire/display string (e.g. {@code "http-outbound"}). */
+        /**
+         * Returns the canonical wire/display string (e.g. {@code "http-outbound"}).
+         *
+         * @return lower-case wire value
+         */
         @JsonValue
         public String value() {
             return wireValue;
         }
 
-        /** Deserialises from a wire string; unrecognised values map to {@link #UNKNOWN}. */
+        /**
+         * Deserialises from a wire string; unrecognised values map to {@link #UNKNOWN}.
+         *
+         * @param s wire string, may be null
+         * @return matching {@link Kind}, never null
+         */
         @JsonCreator
         public static Kind from(String s) {
             if (s == null) return UNKNOWN;
@@ -86,6 +95,15 @@ public class DataFlowSink {
     /** Creates an empty sink for JSON deserialization. */
     public DataFlowSink() {}
 
+    /**
+     * Creates a sink without store-specific fields.
+     *
+     * @param kind            sink category
+     * @param componentId     component identifier
+     * @param componentName   component display name
+     * @param method          method name at the call site
+     * @param source          source location
+     */
     public DataFlowSink(Kind kind, String componentId, String componentName, String method, SourceInfo source) {
         this.kind = kind;
         this.componentId = componentId;
@@ -94,6 +112,17 @@ public class DataFlowSink {
         this.source = source;
     }
 
+    /**
+     * Creates a {@link Kind#STORE} sink with field ownership metadata.
+     *
+     * @param kind                 sink category (typically {@link Kind#STORE})
+     * @param componentId          component identifier
+     * @param componentName        component display name
+     * @param method               method name at the call site
+     * @param source               source location
+     * @param fieldName            simple name of the field that receives the tracked value
+     * @param fieldOwnerComponentId id of the component declaring the field
+     */
     public DataFlowSink(
             Kind kind,
             String componentId,

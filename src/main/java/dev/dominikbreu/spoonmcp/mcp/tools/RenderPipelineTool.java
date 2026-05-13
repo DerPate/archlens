@@ -24,10 +24,21 @@ public class RenderPipelineTool {
     private final PipelineGraphBuilder builder = new PipelineGraphBuilder();
     private final MermaidPipelineRenderer renderer = new MermaidPipelineRenderer();
 
+    /**
+     * Creates the tool.
+     *
+     * @param cache shared model cache
+     */
     public RenderPipelineTool(ModelCache cache) {
         this.cache = cache;
     }
 
+    /**
+     * Renders a Mermaid pipeline diagram for the requested entrypoint or all pipelines.
+     *
+     * @param args tool arguments (optional {@code entrypointId})
+     * @return Mermaid diagram string, or an error message
+     */
     public String execute(JsonNode args) {
         try {
             ArchitectureModel model = cache.load();

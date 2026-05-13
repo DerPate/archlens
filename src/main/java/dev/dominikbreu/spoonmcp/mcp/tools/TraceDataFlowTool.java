@@ -3,7 +3,6 @@ package dev.dominikbreu.spoonmcp.mcp.tools;
 import com.fasterxml.jackson.databind.JsonNode;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.model.*;
-
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -18,10 +17,21 @@ public class TraceDataFlowTool {
 
     private final ModelCache cache;
 
+    /**
+     * Creates the tool.
+     *
+     * @param cache shared model cache
+     */
     public TraceDataFlowTool(ModelCache cache) {
         this.cache = cache;
     }
 
+    /**
+     * Traces data-flow paths from the requested entrypoint.
+     *
+     * @param args tool arguments ({@code entrypointId} or {@code entrypointName})
+     * @return formatted data-flow report, or an error message
+     */
     public String execute(JsonNode args) {
         try {
             ArchitectureModel model = cache.load();
@@ -33,38 +43,41 @@ public class TraceDataFlowTool {
 
             List<DataFlowPath> paths = model.dataFlowPaths;
 
-            String epFilter    = getString(args, "entrypointId");
-            String nameFilter  = getString(args, "entrypointName");
+            String epFilter = getString(args, "entrypointId");
+            String nameFilter = getString(args, "entrypointName");
             String paramFilter = getString(args, "param");
-            String sinkFilter  = getString(args, "sinkKind");
+            String sinkFilter = getString(args, "sinkKind");
 
             if (epFilter != null) {
                 paths = paths.stream()
-                    .filter(p -> p.entrypointId.equals(epFilter) || p.entrypointId.contains(epFilter))
-                    .collect(Collectors.toList());
+                        .filter(p -> p.entrypointId.equals(epFilter) || p.entrypointId.contains(epFilter))
+                        .collect(Collectors.toList());
             }
             if (nameFilter != null) {
                 String lower = nameFilter.toLowerCase();
                 paths = paths.stream()
-                    .filter(p -> {
-                        Entrypoint ep = model.entrypoints.stream()
-                            .filter(e -> e.id.equals(p.entrypointId)).findFirst().orElse(null);
-                        return ep != null && (ep.name.toLowerCase().contains(lower)
-                            || (ep.path != null && ep.path.toLowerCase().contains(lower)));
-                    })
-                    .collect(Collectors.toList());
+                        .filter(p -> {
+                            Entrypoint ep = model.entrypoints.stream()
+                                    .filter(e -> e.id.equals(p.entrypointId))
+                                    .findFirst()
+                                    .orElse(null);
+                            return ep != null
+                                    && (ep.name.toLowerCase().contains(lower)
+                                            || (ep.path != null
+                                                    && ep.path.toLowerCase().contains(lower)));
+                        })
+                        .collect(Collectors.toList());
             }
             if (paramFilter != null) {
                 paths = paths.stream()
-                    .filter(p -> p.trackedParam.equals(paramFilter)
-                              || p.trackedParam.contains(paramFilter))
-                    .collect(Collectors.toList());
+                        .filter(p -> p.trackedParam.equals(paramFilter) || p.trackedParam.contains(paramFilter))
+                        .collect(Collectors.toList());
             }
             if (sinkFilter != null) {
                 DataFlowSink.Kind filterKind = DataFlowSink.Kind.from(sinkFilter);
                 paths = paths.stream()
-                    .filter(p -> p.sinks.stream().anyMatch(s -> s.kind == filterKind))
-                    .collect(Collectors.toList());
+                        .filter(p -> p.sinks.stream().anyMatch(s -> s.kind == filterKind))
+                        .collect(Collectors.toList());
             }
 
             if (paths.isEmpty()) return "No data-flow paths found for the given filters.";
@@ -81,38 +94,56 @@ public class TraceDataFlowTool {
 
         for (DataFlowPath path : paths) {
             Entrypoint ep = model.entrypoints.stream()
-                .filter(e -> e.id.equals(path.entrypointId)).findFirst().orElse(null);
+                    .filter(e -> e.id.equals(path.entrypointId))
+                    .findFirst()
+                    .orElse(null);
 
             String epLabel = ep != null
-                ? (ep.httpMethod != null ? ep.httpMethod + " " : "") + (ep.path != null ? ep.path : ep.name)
-                : path.entrypointId;
+                    ? (ep.httpMethod != null ? ep.httpMethod + " " : "") + (ep.path != null ? ep.path : ep.name)
+                    : path.entrypointId;
 
-            sb.append("## ").append(epLabel).append(" → param: ").append(path.trackedParam).append("\n");
+            sb.append("## ")
+                    .append(epLabel)
+                    .append(" → param: ")
+                    .append(path.trackedParam)
+                    .append("\n");
             sb.append("  id: ").append(path.id).append("\n");
 
             if (!path.steps.isEmpty()) {
                 sb.append("  flow:\n");
                 for (DataFlowStep step : path.steps) {
-                    sb.append("    ").append(step.index + 1).append(". ")
-                      .append(step.componentName).append(".").append(step.method)
-                      .append(" (as '").append(step.localName).append("')\n");
+                    sb.append("    ")
+                            .append(step.index + 1)
+                            .append(". ")
+                            .append(step.componentName)
+                            .append(".")
+                            .append(step.method)
+                            .append(" (as '")
+                            .append(step.localName)
+                            .append("')\n");
                 }
             }
 
             if (!path.sinks.isEmpty()) {
                 sb.append("  sinks:\n");
                 for (DataFlowSink sink : path.sinks) {
-                    sb.append("    - [").append(sink.kind).append("] ")
-                      .append(sink.componentName).append(".").append(sink.method);
+                    sb.append("    - [")
+                            .append(sink.kind)
+                            .append("] ")
+                            .append(sink.componentName)
+                            .append(".")
+                            .append(sink.method);
                     if (sink.kind == DataFlowSink.Kind.STORE && sink.fieldName != null) {
                         sb.append("  field=").append(sink.fieldName);
                     }
-                    if (sink.source != null && sink.source.file != null
-                            && !sink.source.file.equals("unknown")) {
+                    if (sink.source != null && sink.source.file != null && !sink.source.file.equals("unknown")) {
                         String file = sink.source.file;
                         int slash = file.lastIndexOf('/');
-                        sb.append("  (").append(slash >= 0 ? file.substring(slash + 1) : file)
-                          .append(":").append(sink.source.line).append(")");
+                        sb.append("  (")
+                                .append(slash >= 0 ? file.substring(slash + 1) : file)
+                                .append(":")
+                                .append(sink.source.line)
+                                .append(")");
                     }
                     sb.append("\n");
                 }

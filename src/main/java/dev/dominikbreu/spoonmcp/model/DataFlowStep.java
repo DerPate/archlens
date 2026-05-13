@@ -18,12 +18,20 @@ public class DataFlowStep {
     /** Creates an empty step for JSON deserialization. */
     public DataFlowStep() {}
 
-    public DataFlowStep(int index, String componentId, String componentName,
-                        String method, String localName) {
-        this.index         = index;
-        this.componentId   = componentId;
+    /**
+     * Creates a step.
+     *
+     * @param index         zero-based position in the flow
+     * @param componentId   component identifier
+     * @param componentName component display name
+     * @param method        method name at this hop
+     * @param localName     name of the local variable holding the tracked value
+     */
+    public DataFlowStep(int index, String componentId, String componentName, String method, String localName) {
+        this.index = index;
+        this.componentId = componentId;
         this.componentName = componentName;
-        this.method        = method;
-        this.localName     = localName;
+        this.method = method;
+        this.localName = localName;
     }
 }
