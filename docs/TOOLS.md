@@ -18,6 +18,8 @@ tell an agent which tools to combine for common architecture tasks.
   data flow, and timeline views.
 - `find_pipeline(filter)`: look for cross-entrypoint or messaging/store-linked pipeline
   chains.
+- `architecture_view(app, view, maxNodes)`: render a projection-first architecture view
+  from the indexed graph using `render_architecture_view` (and optionally `export_likec4_model`).
 
 ---
 

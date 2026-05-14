@@ -15,8 +15,8 @@ final class ArchitectureRelevanceScorer {
     static Relevance score(Component component, Metrics metrics) {
         int noiseScore = noiseScore(component);
         String role = infrastructureRole(component, noiseScore);
-        int workflowBridgeScore = workflowBridgeScore(component, metrics);
         boolean businessRelevant = businessRelevant(component, noiseScore);
+        int workflowBridgeScore = workflowBridgeScore(component, metrics, businessRelevant);
         boolean workflowRelevant = businessRelevant
                 && (metrics.ownedEntrypointCount() > 0
                         || metrics.fanOut() > 0
@@ -86,16 +86,16 @@ final class ArchitectureRelevanceScorer {
         };
     }
 
-    private static int workflowBridgeScore(Component component, Metrics metrics) {
+    private static int workflowBridgeScore(Component component, Metrics metrics, boolean businessRelevant) {
         int score = 0;
         if (component != null && component.type == ComponentType.SCHEDULER) {
             score += 1;
         }
-        score += metrics.stateReadCount() * 2;
-        score += metrics.stateWriteCount() * 2;
+        score += metrics.crossStateReadCount();
+        score += metrics.crossStateWriteCount();
         score += metrics.stateHandoffInCount() * 3;
         score += metrics.stateHandoffOutCount() * 3;
-        return score;
+        return businessRelevant ? score : Math.min(score, 2);
     }
 
     private static boolean businessRelevant(Component component, int noiseScore) {
@@ -154,6 +154,8 @@ final class ArchitectureRelevanceScorer {
             int ownedEntrypointCount,
             int stateReadCount,
             int stateWriteCount,
+            int crossStateReadCount,
+            int crossStateWriteCount,
             int stateHandoffInCount,
             int stateHandoffOutCount) {}
 
