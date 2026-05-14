@@ -1,7 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import java.util.Map;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.renderer.MermaidDependencyMapRenderer;
 
@@ -28,7 +28,7 @@ public class RenderDependencyMapTool {
      * @param args unused JSON arguments
      * @return Mermaid diagram text or an error message
      */
-    public String execute(JsonNode args) {
+    public String execute(Map<String, Object> args) {
         try {
             ArchitectureModel model = cache.load();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";

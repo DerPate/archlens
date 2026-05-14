@@ -1,7 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import java.util.Map;
 import dev.dominikbreu.spoonmcp.model.*;
 import java.util.List;
 import java.util.Map;
@@ -29,12 +29,12 @@ public class ExplainArchitectureTool {
      * @param args JSON arguments, optionally including appId
      * @return Markdown-like architecture summary or an error message
      */
-    public String execute(JsonNode args) {
+    public String execute(Map<String, Object> args) {
         try {
             ArchitectureModel model = cache.load();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
 
-            String appFilter = getString(args, "appId");
+            String appFilter = ToolArgs.getString(args, "appId");
 
             List<AppEntry> apps = model.applications.stream()
                     .filter(a -> appFilter == null || a.id.contains(appFilter) || a.name.contains(appFilter))
@@ -146,9 +146,4 @@ public class ExplainArchitectureTool {
                 .orElse(id);
     }
 
-    private String getString(JsonNode n, String f) {
-        if (n == null) return null;
-        JsonNode v = n.get(f);
-        return (v != null && !v.isNull()) ? v.asText() : null;
-    }
 }

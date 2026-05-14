@@ -1,9 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +29,7 @@ public class QueryArchitectureGraphTool {
      * @param args JSON arguments with an action and action-specific options
      * @return graph query result
      */
-    public String execute(JsonNode args) {
+    public String execute(Map<String, Object> args) {
         try {
             ArchitectureGraph graph = cache.graph();
             String action = text(args, "action", "summary");
@@ -181,7 +179,7 @@ public class QueryArchitectureGraphTool {
         }
     }
 
-    private String requiredText(JsonNode args, String name) {
+    private String requiredText(Map<String, Object> args, String name) {
         String value = text(args, name, null);
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException("'" + name + "' is required.");
@@ -189,25 +187,20 @@ public class QueryArchitectureGraphTool {
         return value;
     }
 
-    private String text(JsonNode args, String name, String defaultValue) {
-        JsonNode node = args != null ? args.get(name) : null;
-        return node != null && !node.isNull() ? node.asText() : defaultValue;
+    private String text(Map<String, Object> args, String name, String defaultValue) {
+        return ToolArgs.getString(args, name, defaultValue);
     }
 
-    private int integer(JsonNode args, String name, int defaultValue) {
-        JsonNode node = args != null ? args.get(name) : null;
-        return node != null && node.canConvertToInt() ? node.asInt() : defaultValue;
+    private int integer(Map<String, Object> args, String name, int defaultValue) {
+        return ToolArgs.getInt(args, name, defaultValue);
     }
 
-    private Map<String, String> filters(JsonNode args) {
+    @SuppressWarnings("unchecked")
+    private Map<String, String> filters(Map<String, Object> args) {
         Map<String, String> filters = new LinkedHashMap<>();
-        JsonNode filterNode = args != null ? args.get("filters") : null;
-        if (filterNode != null && filterNode.isObject()) {
-            Iterator<Map.Entry<String, JsonNode>> fields = filterNode.fields();
-            while (fields.hasNext()) {
-                Map.Entry<String, JsonNode> field = fields.next();
-                filters.put(field.getKey(), field.getValue().asText());
-            }
+        Map<String, Object> filterNode = ToolArgs.getMap(args, "filters");
+        if (filterNode != null) {
+            filterNode.forEach((k, v) -> filters.put(k, v == null ? null : v.toString()));
         }
         addDirectFilter(args, filters, "type");
         addDirectFilter(args, filters, "technology");
@@ -220,10 +213,8 @@ public class QueryArchitectureGraphTool {
         return filters;
     }
 
-    private void addDirectFilter(JsonNode args, Map<String, String> filters, String name) {
-        JsonNode node = args != null ? args.get(name) : null;
-        if (node != null && !node.isNull()) {
-            filters.put(name, node.asText());
-        }
+    private void addDirectFilter(Map<String, Object> args, Map<String, String> filters, String name) {
+        String v = ToolArgs.getString(args, name);
+        if (v != null) filters.put(name, v);
     }
 }

@@ -1,7 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import java.util.Map;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
@@ -30,14 +30,14 @@ public class FindComponentsTool {
      * @param args JSON arguments including appId, type, or technology
      * @return formatted component list or an error message
      */
-    public String execute(JsonNode args) {
+    public String execute(Map<String, Object> args) {
         try {
             ArchitectureModel model = cache.load();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
 
-            String appId = getString(args, "appId");
-            String typeFilter = getString(args, "type");
-            String techFilter = getString(args, "technology");
+            String appId = ToolArgs.getString(args, "appId");
+            String typeFilter = ToolArgs.getString(args, "type");
+            String techFilter = ToolArgs.getString(args, "technology");
 
             List<Component> comps = model.components.stream()
                     .filter(c -> appId == null || (c.module != null && c.module.contains(appId)))
@@ -90,9 +90,4 @@ public class FindComponentsTool {
         }
     }
 
-    private String getString(JsonNode node, String field) {
-        if (node == null) return null;
-        JsonNode f = node.get(field);
-        return (f != null && !f.isNull()) ? f.asText() : null;
-    }
 }

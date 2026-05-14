@@ -1,7 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import java.util.Map;
 import dev.dominikbreu.spoonmcp.model.*;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -32,7 +32,7 @@ public class TraceDataFlowTool {
      * @param args tool arguments ({@code entrypointId} or {@code entrypointName})
      * @return formatted data-flow report, or an error message
      */
-    public String execute(JsonNode args) {
+    public String execute(Map<String, Object> args) {
         try {
             ArchitectureModel model = cache.load();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
@@ -43,10 +43,10 @@ public class TraceDataFlowTool {
 
             List<DataFlowPath> paths = model.dataFlowPaths;
 
-            String epFilter = getString(args, "entrypointId");
-            String nameFilter = getString(args, "entrypointName");
-            String paramFilter = getString(args, "param");
-            String sinkFilter = getString(args, "sinkKind");
+            String epFilter = ToolArgs.getString(args, "entrypointId");
+            String nameFilter = ToolArgs.getString(args, "entrypointName");
+            String paramFilter = ToolArgs.getString(args, "param");
+            String sinkFilter = ToolArgs.getString(args, "sinkKind");
 
             if (epFilter != null) {
                 paths = paths.stream()
@@ -153,9 +153,4 @@ public class TraceDataFlowTool {
         return sb.toString();
     }
 
-    private String getString(JsonNode n, String f) {
-        if (n == null) return null;
-        JsonNode v = n.get(f);
-        return (v != null && !v.isNull()) ? v.asText() : null;
-    }
 }

@@ -1,7 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import java.util.Map;
 import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.renderer.MermaidUseCaseTimelineRenderer;
 import java.util.List;
@@ -31,7 +31,7 @@ public class RenderUseCaseTimelineTool {
      * @param args tool arguments (optional {@code useCaseId})
      * @return Mermaid diagram string, or an error message
      */
-    public String execute(JsonNode args) {
+    public String execute(Map<String, Object> args) {
         try {
             ArchitectureModel model = cache.load();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
@@ -40,10 +40,10 @@ public class RenderUseCaseTimelineTool {
                 return "No runtime flows available. Re-index the workspace first.";
             }
 
-            String epIdFilter = getString(args, "entrypointId");
-            String epNameFilter = getString(args, "entrypointName");
-            int maxUseCases = getInt(args, "maxUseCases", 10);
-            int maxDepth = getInt(args, "maxDepth", 5);
+            String epIdFilter = ToolArgs.getString(args, "entrypointId");
+            String epNameFilter = ToolArgs.getString(args, "entrypointName");
+            int maxUseCases = ToolArgs.getInt(args, "maxUseCases", 10);
+            int maxDepth = ToolArgs.getInt(args, "maxDepth", 5);
 
             List<RuntimeFlow> flows = model.runtimeFlows;
 
@@ -81,15 +81,4 @@ public class RenderUseCaseTimelineTool {
         }
     }
 
-    private String getString(JsonNode n, String f) {
-        if (n == null) return null;
-        JsonNode v = n.get(f);
-        return (v != null && !v.isNull()) ? v.asText() : null;
-    }
-
-    private int getInt(JsonNode n, String f, int def) {
-        if (n == null) return def;
-        JsonNode v = n.get(f);
-        return (v != null && !v.isNull()) ? v.asInt(def) : def;
-    }
 }

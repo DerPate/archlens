@@ -5,7 +5,7 @@ Generated from the indexed `ArchitectureModel` by the MCP tool `export_architect
 ## Summary
 
 - Applications: 1
-- Components: 76
+- Components: 77
 - Entrypoints: 1
 - Interfaces: 0
 - Dependencies: 90
@@ -65,6 +65,7 @@ flowchart TD
         comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderPipelineTool["RenderPipelineTool\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderSourceOverviewTool["RenderSourceOverviewTool\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool["RenderUseCaseTimelineTool\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_mcp_tools_ToolArgs["ToolArgs\nUNKNOWN"]
         comp_dev_dominikbreu_spoonmcp_mcp_tools_TraceDataFlowTool["TraceDataFlowTool\nSERVICE"]
     end
     subgraph pkg_dev_dominikbreu_spoonmcp_merger["dev.dominikbreu.spoonmcp.merger"]
@@ -256,6 +257,7 @@ flowchart TD
             comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderPipelineTool["SERVICE\nRenderPipelineTool"]
             comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderSourceOverviewTool["SERVICE\nRenderSourceOverviewTool"]
             comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderUseCaseTimelineTool["SERVICE\nRenderUseCaseTimelineTool"]
+            comp_dev_dominikbreu_spoonmcp_mcp_tools_ToolArgs["UNKNOWN\nToolArgs"]
             comp_dev_dominikbreu_spoonmcp_mcp_tools_TraceDataFlowTool["SERVICE\nTraceDataFlowTool"]
         end
         subgraph container_app_spoon_mcp_server_deployment_merge["deployment-merge"]
@@ -402,7 +404,7 @@ flowchart TD
         container_app_spoon_mcp_server_cache["cache\n2 components"]
         container_app_spoon_mcp_server_extractor["extractor\n18 components"]
         container_app_spoon_mcp_server_mcp_server["mcp-server\n1 component"]
-        container_app_spoon_mcp_server_mcp_tools["mcp-tools\n20 components"]
+        container_app_spoon_mcp_server_mcp_tools["mcp-tools\n21 components"]
         container_app_spoon_mcp_server_deployment_merge["deployment-merge\n3 components"]
         container_app_spoon_mcp_server_model["model\n23 components"]
         container_app_spoon_mcp_server_renderer["renderer\n7 components"]
@@ -601,6 +603,7 @@ flowchart LR
 - `dev.dominikbreu.spoonmcp.extractor.MessagingConfigResolver` (java)
 - `dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder` (java)
 - `dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer` (java)
+- `dev.dominikbreu.spoonmcp.mcp.tools.ToolArgs` (java)
 - `dev.dominikbreu.spoonmcp.extractor.UseCaseDetector` (java)
 
 ## Dependency Map
@@ -610,7 +613,7 @@ flowchart LR
     dep_cache["cache\n2 components\n1 internal deps"]
     dep_extractor["extractor\n18 components\n14 internal deps"]
     dep_mcp["mcp\n1 components"]
-    dep_mcp_tools["mcp.tools\n20 components"]
+    dep_mcp_tools["mcp.tools\n21 components"]
     dep_merger["merger\n3 components\n2 internal deps"]
     dep_model["model\n23 components\n12 internal deps"]
     dep_renderer["renderer\n7 components"]
@@ -730,35 +733,3 @@ flowchart LR
 - `comp:dev.dominikbreu.spoonmcp.model.InterfaceEntry` -> `comp:dev.dominikbreu.spoonmcp.model.SourceInfo` (field-reference, type-relation, evidence-score=0.6)
 - `comp:dev.dominikbreu.spoonmcp.model.OutboundSinkSite` -> `comp:dev.dominikbreu.spoonmcp.model.SourceInfo` (field-reference, type-relation, evidence-score=0.6)
 - `comp:dev.dominikbreu.spoonmcp.model.UseCase` -> `comp:dev.dominikbreu.spoonmcp.model.EntrypointType` (field-reference, type-relation, evidence-score=0.6)
-
----
-
-## Known Limitations
-
-These are analysis boundaries in the current implementation. Each item has a corresponding
-backlog entry in `docs/superpowers/specs/2026-05-12-tier1-4-polish-design.md`.
-
-### G7 — Nested field / JSON-tree reads
-
-The tracer tracks a single variable name per call-graph hop. A method-chain like
-`req.getOrder().getId()` collapses to tracking `req`. If `req` itself is never
-passed directly to a sink, the path terminates before it reaches persistence or
-messaging — even if `req.getOrder()` eventually does.
-
-A fix requires a tracked-field-path DSL: instead of tracking `"req"` the tracer
-would track `"req.order.id"` and match the chain against field writes/reads at each
-hop. This is a non-trivial change to `DataFlowStep`, `CallEdge.paramMapping`, and
-`DataFlowTracer.dfs`. Not planned for 1.1.0.
-
-### G9 — Lambda / closure-wrapped invocations
-
-When a tracked parameter is passed into a lambda argument (e.g.
-`executor.submit(() -> repo.save(order))`), `CallGraphExtractor` descends into the
-lambda body but records no `paramMapping` for the closure-captured variable. The
-tracer therefore does not propagate tracking into the lambda.
-
-A fix requires `CallGraphExtractor.buildParamMapping` to detect closure captures —
-variables referenced inside a `CtLambda` that are declared in the enclosing scope —
-and synthesise a mapping entry. A prerequisite investigation: confirm whether Spoon's
-`CtLambda` exposes readable closure-capture metadata or whether a variable-reference
-walk is needed. Not planned for 1.1.0.

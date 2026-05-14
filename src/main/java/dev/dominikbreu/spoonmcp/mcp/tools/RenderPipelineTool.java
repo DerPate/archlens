@@ -1,7 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import java.util.Map;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Chain;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Segment;
@@ -39,7 +39,7 @@ public class RenderPipelineTool {
      * @param args tool arguments (optional {@code entrypointId})
      * @return Mermaid diagram string, or an error message
      */
-    public String execute(JsonNode args) {
+    public String execute(Map<String, Object> args) {
         try {
             ArchitectureModel model = cache.load();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
@@ -47,10 +47,10 @@ public class RenderPipelineTool {
                 return "No call-graph data available. Re-index the workspace to enable pipeline rendering.";
             }
 
-            int maxDepth = getInt(args, "maxDepth", 8);
-            int maxChains = getInt(args, "maxChains", 5);
-            String epFilter = getString(args, "entrypointName");
-            String channelFilter = getString(args, "channel");
+            int maxDepth = ToolArgs.getInt(args, "maxDepth", 8);
+            int maxChains = ToolArgs.getInt(args, "maxChains", 5);
+            String epFilter = ToolArgs.getString(args, "entrypointName");
+            String channelFilter = ToolArgs.getString(args, "channel");
 
             List<Chain> chains = builder.build(model, maxDepth);
             if (chains.isEmpty()) {
@@ -166,15 +166,4 @@ public class RenderPipelineTool {
                 + "stitching in DataFlowTracer found no matching readers/consumers.";
     }
 
-    private String getString(JsonNode n, String f) {
-        if (n == null) return null;
-        JsonNode v = n.get(f);
-        return (v != null && !v.isNull()) ? v.asText() : null;
-    }
-
-    private int getInt(JsonNode n, String f, int def) {
-        if (n == null) return def;
-        JsonNode v = n.get(f);
-        return (v != null && !v.isNull()) ? v.asInt(def) : def;
-    }
 }

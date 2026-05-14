@@ -1,7 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import java.util.Map;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
@@ -30,13 +30,13 @@ public class FindEntrypointsTool {
      * @param args JSON arguments including appId or type
      * @return formatted entrypoint list or an error message
      */
-    public String execute(JsonNode args) {
+    public String execute(Map<String, Object> args) {
         try {
             ArchitectureModel model = cache.load();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
 
-            String appId = getString(args, "appId");
-            String typeFilter = getString(args, "type");
+            String appId = ToolArgs.getString(args, "appId");
+            String typeFilter = ToolArgs.getString(args, "type");
 
             List<Entrypoint> eps = model.entrypoints.stream()
                     .filter(ep -> appId == null || ep.componentId.contains(appId))
@@ -80,9 +80,4 @@ public class FindEntrypointsTool {
         }
     }
 
-    private String getString(JsonNode node, String field) {
-        if (node == null) return null;
-        JsonNode f = node.get(field);
-        return (f != null && !f.isNull()) ? f.asText() : null;
-    }
 }

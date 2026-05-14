@@ -1,7 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import java.util.Map;
 import dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
@@ -31,16 +31,16 @@ public class GetRuntimeFlowTool {
      * @param args JSON arguments including entrypointId or entrypointName
      * @return formatted runtime flow or an error message
      */
-    public String execute(JsonNode args) {
+    public String execute(Map<String, Object> args) {
         try {
             ArchitectureModel model = cache.load();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
 
-            String ref = getString(args, "entrypointId");
-            if (ref == null) ref = getString(args, "entrypointName");
+            String ref = ToolArgs.getString(args, "entrypointId");
+            if (ref == null) ref = ToolArgs.getString(args, "entrypointName");
             if (ref == null) return "Error: provide 'entrypointId' or 'entrypointName'.";
 
-            int maxDepth = getInt(args, "maxDepth", 5);
+            int maxDepth = ToolArgs.getInt(args, "maxDepth", 5);
 
             RuntimeFlow resolvedFlow = findStoredFlow(ref, maxDepth, model);
             if (resolvedFlow == null) resolvedFlow = inferrer.infer(ref, maxDepth, model);
@@ -109,15 +109,4 @@ public class GetRuntimeFlowTool {
                 .orElse(null);
     }
 
-    private String getString(JsonNode n, String f) {
-        if (n == null) return null;
-        JsonNode v = n.get(f);
-        return (v != null && !v.isNull()) ? v.asText() : null;
-    }
-
-    private int getInt(JsonNode n, String f, int def) {
-        if (n == null) return def;
-        JsonNode v = n.get(f);
-        return (v != null && !v.isNull()) ? v.asInt(def) : def;
-    }
 }

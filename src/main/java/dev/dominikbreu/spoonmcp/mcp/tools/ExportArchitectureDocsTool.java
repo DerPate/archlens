@@ -1,7 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import java.util.Map;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.Dependency;
@@ -44,13 +44,13 @@ public class ExportArchitectureDocsTool {
      * @param args JSON arguments including outputPath and focusComponent
      * @return export status message
      */
-    public String execute(JsonNode args) {
+    public String execute(Map<String, Object> args) {
         try {
             ArchitectureModel model = cache.load();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
 
-            Path output = Path.of(getString(args, "outputPath", DEFAULT_OUTPUT.toString()));
-            String focus = getString(args, "focusComponent", "McpServer");
+            Path output = Path.of(ToolArgs.getString(args, "outputPath", DEFAULT_OUTPUT.toString()));
+            String focus = ToolArgs.getString(args, "focusComponent", "McpServer");
             String markdown = renderMarkdown(model, focus);
 
             Path parent = output.getParent();
@@ -130,9 +130,4 @@ public class ExportArchitectureDocsTool {
         return sb.toString();
     }
 
-    private String getString(JsonNode node, String field, String def) {
-        if (node == null) return def;
-        JsonNode value = node.get(field);
-        return value != null && !value.isNull() ? value.asText() : def;
-    }
 }

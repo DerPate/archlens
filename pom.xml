@@ -25,7 +25,8 @@
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spoon.version>11.3.0</spoon.version>
-        <jackson.version>2.17.2</jackson.version>
+        <jackson.version>3.0.3</jackson.version>
+        <jackson2.version>2.17.2</jackson2.version>
         <maven.model.version>3.9.15</maven.model.version>
         <slf4j.version>2.0.17</slf4j.version>
         <tinkerpop.version>3.8.1</tinkerpop.version>
@@ -40,13 +41,8 @@
             <version>${spoon.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
+            <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.datatype</groupId>
-            <artifactId>jackson-datatype-jsr310</artifactId>
             <version>${jackson.version}</version>
         </dependency>
         <dependency>
@@ -88,9 +84,14 @@
             <version>${tinkerpop.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
             <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.modelcontextprotocol.sdk</groupId>
+            <artifactId>mcp</artifactId>
+            <version>1.1.2</version>
         </dependency>
     </dependencies>
 

@@ -1,8 +1,7 @@
 package dev.dominikbreu.spoonmcp.cache;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import java.io.File;
 import java.io.IOException;
@@ -17,7 +16,7 @@ public class ModelCache {
     private static final String BACKEND_PROPERTY = "spoonmcp.cache.backend";
     private static final String BACKEND_ENV = "SPOON_MCP_CACHE_BACKEND";
 
-    private final ObjectMapper mapper;
+    private final JsonMapper mapper;
     private final String cacheDir;
     private final CacheBackend backend;
     private final ArchitectureGraph graph;
@@ -45,10 +44,9 @@ public class ModelCache {
      * @param backend cache backend mode
      */
     public ModelCache(String externalCachePath, CacheBackend backend) {
-        this.mapper = new ObjectMapper();
-        this.mapper.registerModule(new JavaTimeModule());
-        this.mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        this.mapper.enable(SerializationFeature.INDENT_OUTPUT);
+        this.mapper = JsonMapper.builder()
+                .enable(SerializationFeature.INDENT_OUTPUT)
+                .build();
         this.cacheDir = externalCachePath != null ? externalCachePath : DEFAULT_CACHE_DIR;
         this.backend = backend != null ? backend : CacheBackend.JSON;
         this.graph = new ArchitectureGraph();

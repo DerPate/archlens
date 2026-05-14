@@ -1,7 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import java.util.Map;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.renderer.MermaidDependencySliceRenderer;
 
@@ -28,31 +28,20 @@ public class RenderComponentDependencyDiagramTool {
      * @param args JSON arguments including componentId or name and depth
      * @return Mermaid diagram text or an error message
      */
-    public String execute(JsonNode args) {
+    public String execute(Map<String, Object> args) {
         try {
             ArchitectureModel model = cache.load();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
 
-            String ref = getString(args, "componentId");
-            if (ref == null) ref = getString(args, "name");
+            String ref = ToolArgs.getString(args, "componentId");
+            if (ref == null) ref = ToolArgs.getString(args, "name");
             if (ref == null) return "Error: provide 'componentId' or 'name'.";
 
-            int depth = getInt(args, "depth", 2);
+            int depth = ToolArgs.getInt(args, "depth", 2);
             return renderer.render(model, ref, depth);
         } catch (Exception e) {
             return "Error rendering dependency diagram: " + e.getMessage();
         }
     }
 
-    private String getString(JsonNode node, String field) {
-        if (node == null) return null;
-        JsonNode value = node.get(field);
-        return value != null && !value.isNull() ? value.asText() : null;
-    }
-
-    private int getInt(JsonNode node, String field, int def) {
-        if (node == null) return def;
-        JsonNode value = node.get(field);
-        return value != null && !value.isNull() ? value.asInt(def) : def;
-    }
 }
