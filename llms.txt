@@ -197,9 +197,16 @@ Prompts are workflow templates for clients and agents; they do not replace tools
   loggers, config classes, DTO-ish types, and `UNKNOWN` components as supporting
   infrastructure unless they also bridge entrypoints, sinks, state, messaging, or
   external systems.
+- Prefer projection tools before hand-drawing architecture diagrams:
+  `render_architecture_view` for Mermaid/C4-style component diagrams and
+  `export_likec4_model` when LikeC4-compatible context is useful. Treat these
+  outputs as graph projections. Do not add invented actors, components, or edges
+  unless clearly marked as interpretation outside the MCP graph.
 - Property graph state handoffs are first-class component edges:
   `WRITES_STATE`, `READS_STATE`, and `STATE_HANDOFF`. Use `STATE_HANDOFF` and
   `PipelineChain`/`LINKS_TO` before inferring workflow pivots from fan-in alone.
+  Self-only state reads/writes are local implementation detail and should not outrank
+  cross-component handoffs or workflow/business components.
 - Tool argument schemas in `McpServer.java` are the authoritative source — keep
   `docs/TOOLS.md` in sync when changing them.
 - Generated artifacts (`target/`, `.spoon-mcp-cache/`, `dependency-reduced-pom.xml`)
