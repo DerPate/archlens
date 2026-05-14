@@ -634,6 +634,8 @@ public class ArchitectureGraph {
                                 ownedEntrypoints,
                                 countEdges(vertex, Direction.OUT, "READS_STATE"),
                                 countEdges(vertex, Direction.OUT, "WRITES_STATE"),
+                                countCrossComponentStateEdges(vertex, "READS_STATE"),
+                                countCrossComponentStateEdges(vertex, "WRITES_STATE"),
                                 countEdges(vertex, Direction.IN, "STATE_HANDOFF"),
                                 countEdges(vertex, Direction.OUT, "STATE_HANDOFF")));
                 set(vertex, "ownedEntrypointCount", ownedEntrypoints);
@@ -689,6 +691,19 @@ public class ArchitectureGraph {
         while (edges.hasNext()) {
             edges.next();
             count++;
+        }
+        return count;
+    }
+
+    private int countCrossComponentStateEdges(Vertex vertex, String label) {
+        int count = 0;
+        String vertexId = vertex.id().toString();
+        Iterator<Edge> edges = vertex.edges(Direction.OUT, label);
+        while (edges.hasNext()) {
+            Edge edge = edges.next();
+            if (!vertexId.equals(edge.inVertex().id().toString())) {
+                count++;
+            }
         }
         return count;
     }

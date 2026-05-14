@@ -5,19 +5,13 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 cd "$ROOT"
 mvn package -q
-JAR="$(ls "$ROOT"/target/spoon-mcp-server-*.jar | grep -v 'javadoc\|sources\|original' | head -1)"
 
 python3 - <<'PY'
 import json
 import subprocess
-import sys
-import glob
-import os
 
 root = "/home/dominik/spoon-mcp-server"
-jars = [j for j in glob.glob(f"{root}/target/spoon-mcp-server-*.jar")
-        if "javadoc" not in j and "sources" not in j and "original" not in j]
-jar = jars[0]
+jar = f"{root}/target/spoon-mcp-server.jar"
 proc = subprocess.Popen(
     ["java", "-jar", jar],
     stdin=subprocess.PIPE,
@@ -50,7 +44,10 @@ call("initialize", {
     "capabilities": {},
     "clientInfo": {"name": "self-test", "version": "1"}
 })
-call("notifications/initialized", {})
+
+# notifications/initialized is a one-way message — no id, no response
+proc.stdin.write(json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}}) + "\n")
+proc.stdin.flush()
 
 def tool(name, arguments):
     result = call("tools/call", {"name": name, "arguments": arguments})

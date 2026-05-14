@@ -131,6 +131,36 @@ class ArchitectureGraphTest {
     }
 
     @Test
+    void capsSelfStateNoiseForUnknownComponents() {
+        ArchitectureModel model = model();
+
+        Component graphInternals = component("ArchitectureGraph", ComponentType.UNKNOWN);
+        model.components.add(graphInternals);
+        for (int i = 0; i < 30; i++) {
+            model.fieldAccesses.add(fieldAccess(
+                    FieldAccess.Kind.READ,
+                    "comp:ArchitectureGraph",
+                    "method" + i,
+                    "comp:ArchitectureGraph",
+                    "verticesById"));
+        }
+
+        ArchitectureGraph graph = new ArchitectureGraph();
+        graph.rebuild(model);
+
+        ArchitectureGraph.GraphNode service = graph.findNodes("Component", "OrderService", Map.of(), 10).getFirst();
+        ArchitectureGraph.GraphNode internals = graph.findNodes("Component", "ArchitectureGraph", Map.of(), 10)
+                .getFirst();
+
+        assertThat(internals.properties())
+                .containsEntry("workflowRelevant", false)
+                .containsEntry("businessRelevant", false);
+        assertThat((Integer) internals.properties().get("workflowBridgeScore")).isLessThanOrEqualTo(2);
+        assertThat((Integer) internals.properties().get("architecturalWeight"))
+                .isLessThan((Integer) service.properties().get("architecturalWeight"));
+    }
+
+    @Test
     void projectsComponentLevelStateHandoffEdges() {
         ArchitectureModel model = model();
         model.components.add(component("StatePublisher", ComponentType.SCHEDULER));

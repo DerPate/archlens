@@ -112,9 +112,17 @@ public class ExportGraphArchitecturePocTool {
 
         sb.append("## High Signal Components\n\n");
         Comparator<ArchitectureGraph.GraphNode> signalOrder = Comparator.comparingInt(
-                        (ArchitectureGraph.GraphNode node) ->
-                                numeric(node.properties().get("architecturalWeight")))
+                        (ArchitectureGraph.GraphNode node) -> booleanRank(node.properties().get("workflowRelevant")))
                 .reversed()
+                .thenComparing(Comparator.comparingInt(
+                                (ArchitectureGraph.GraphNode node) ->
+                                        booleanRank(node.properties().get("businessRelevant")))
+                        .reversed())
+                .thenComparingInt(node -> numeric(node.properties().get("noiseScore")))
+                .thenComparing(Comparator.comparingInt(
+                                (ArchitectureGraph.GraphNode node) ->
+                                        numeric(node.properties().get("architecturalWeight")))
+                        .reversed())
                 .thenComparing(ArchitectureGraph.GraphNode::id);
         graph.findNodes("Component", null, Map.of(), 100).stream()
                 .sorted(signalOrder)
@@ -292,6 +300,13 @@ public class ExportGraphArchitecturePocTool {
         } catch (NumberFormatException e) {
             return 0;
         }
+    }
+
+    private int booleanRank(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool ? 1 : 0;
+        }
+        return Boolean.parseBoolean(Objects.toString(value, "false")) ? 1 : 0;
     }
 
     private double numericDouble(Object value) {

@@ -41,3 +41,8 @@ Thumbs.db
 
 # Superpowers design specs (local only, not tracked in git)
 docs/superpowers/
+
+# Generated architecture projection artifacts
+docs/ARCHITECTURE_PROJECTION.md
+docs/GENERATED_ARCHITECTURE.md
+docs/SOURCE_ARCHITECTURE_POC.md

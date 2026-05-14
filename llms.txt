@@ -114,6 +114,8 @@ Prompts are workflow templates for clients and agents; they do not replace tools
   views for an entrypoint/use case.
 - `find_pipeline(filter)`: look for cross-entrypoint or messaging/store-linked pipeline
   chains.
+- `architecture_view(app, view, maxNodes)`: render a projection-first component view from
+  the indexed graph via `render_architecture_view` and optionally `export_likec4_model`.
 
 ## Build & Run
 

@@ -8,6 +8,7 @@ import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Dependency;
+import dev.dominikbreu.spoonmcp.model.FieldAccess;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -34,6 +35,26 @@ class ExportGraphArchitecturePocToolTest {
         assertThat(Files.readString(output)).contains("Cross-Module Dependencies");
         assertThat(Files.readString(output)).contains("componentType");
         assertThat(Files.readString(output)).contains("query_architecture_graph");
+    }
+
+    @Test
+    void highSignalComponentsPreferWorkflowRelevantNodesOverInternalStateNoise(@TempDir Path tempDir)
+            throws Exception {
+        Path output = tempDir.resolve("SOURCE_ARCHITECTURE_POC.md");
+        ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.GRAPH);
+        ArchitectureModel model = model();
+        addNoisyInternalGraphComponent(model);
+        cache.store(model);
+        ExportGraphArchitecturePocTool tool = new ExportGraphArchitecturePocTool(cache);
+
+        tool.execute(Map.of("outputPath", output.toString(), "focusComponent", "OrderService"));
+
+        String markdown = Files.readString(output);
+        int serviceIndex = markdown.indexOf("`comp:OrderService`");
+        int graphIndex = markdown.indexOf("`comp:ArchitectureGraph`");
+        assertThat(serviceIndex).isPositive();
+        assertThat(graphIndex).isPositive();
+        assertThat(serviceIndex).isLessThan(graphIndex);
     }
 
     private ArchitectureModel model() {
@@ -73,5 +94,26 @@ class ExportGraphArchitecturePocToolTest {
         model.dependencies.add(dependency);
 
         return model;
+    }
+
+    private void addNoisyInternalGraphComponent(ArchitectureModel model) {
+        Component graph = new Component();
+        graph.id = "comp:ArchitectureGraph";
+        graph.name = "ArchitectureGraph";
+        graph.qualifiedName = "com.example.internal.ArchitectureGraph";
+        graph.type = ComponentType.UNKNOWN;
+        graph.module = "orders-service";
+        model.components.add(graph);
+
+        for (int i = 0; i < 30; i++) {
+            FieldAccess read = new FieldAccess();
+            read.id = "field:comp:ArchitectureGraph#method" + i + "@verticesById:read";
+            read.kind = FieldAccess.Kind.READ;
+            read.componentId = "comp:ArchitectureGraph";
+            read.method = "method" + i;
+            read.fieldOwnerComponentId = "comp:ArchitectureGraph";
+            read.fieldName = "verticesById";
+            model.fieldAccesses.add(read);
+        }
     }
 }
