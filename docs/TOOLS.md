@@ -1,6 +1,23 @@
-# MCP Tool Reference
+# MCP Tool And Prompt Reference
 
 The server exposes these tools through `tools/list` and `tools/call`.
+It also exposes reusable workflow prompts through `prompts/list` and `prompts/get`.
+
+## Workflow Prompts
+
+Prompts are not tool replacements. They are client-selectable workflow templates that
+tell an agent which tools to combine for common architecture tasks.
+
+- `analyze_workspace(path)`: index a workspace, list apps, find entrypoints/components,
+  and summarize the architecture.
+- `generate_architecture_docs(path, focusComponent)`: index a workspace and regenerate
+  `docs/ARCHITECTURE.md` plus `docs/SOURCE_ARCHITECTURE_POC.md`.
+- `investigate_component(component)`: inspect dependencies, graph neighborhood, and
+  change impact for a component.
+- `trace_use_case(entrypoint)`: follow an entrypoint through runtime flow, call flow,
+  data flow, and timeline views.
+- `find_pipeline(filter)`: look for cross-entrypoint or messaging/store-linked pipeline
+  chains.
 
 ---
 
@@ -395,6 +412,9 @@ transitively reads the same `(fieldOwnerComponentId, fieldName)`. This makes the
 consumer → cache → producer/scheduler hand-off explicit so agents do not need to match
 field names heuristically. The same relation is projected as a `LINKS_TO` edge in the
 property graph (see `query_architecture_graph`).
+Shared-state reads are also recorded when a scheduler or service calls a getter-like
+method on another component and that method returns the shared field directly or calls
+through it, for example `return cache` or `return cache.keySet()`.
 
 Requires call-graph data from `index_workspace`. Without it, the paths list will be empty.
 
@@ -623,11 +643,20 @@ Arguments:
 - `direction` string, optional. One of `in`, `out`, or `both` for `neighborhood`.
 - `maxDepth` integer, optional. Traversal depth for `paths` or `impacted_by`.
 - `limit` integer, optional. Maximum returned rows.
+- Common shorthand filters are also accepted as top-level args:
+  `type`, `technology`, `module`, `packageName`, `entrypointReachable`,
+  `workflowRelevant`, `businessRelevant`, `infrastructureRole`, `isCrossModule`,
+  `isRuntimeRelevant`, and `isCondensable`.
 
 Useful graph properties include:
 
 - Component nodes: `componentType`, `qualifiedName`, `packageName`, `module`, `technology`,
-  `sourceFile`, `sourceLine`, `confidence`, `fanIn`, `fanOut`, `entrypointReachable`.
+  `sourceFile`, `sourceLine`, `confidence`, `fanIn`, `fanOut`, `entrypointReachable`,
+  `architecturalWeight`, `workflowRelevant`, `businessRelevant`, `infrastructureRole`,
+  `noiseScore`, `workflowBridgeScore`. `architecturalWeight` is noise-aware: utility,
+  formatter/parser/mapper/logger/config, DTO-ish, and unknown components are downranked
+  even when their fan-in is high; workflow bridges, entrypoints, schedulers,
+  repositories, outbound clients, and state handoffs are promoted.
 - Entrypoint nodes: `entrypointType`, `protocol`, `httpMethod`, `path`, `componentId`.
 - Interface nodes: `interfaceType`, `path`, `module`, `technology`. Messaging interfaces
   additionally expose `broker` (incl. `IN_MEMORY`) and `topic` on the underlying
@@ -646,6 +675,10 @@ Useful graph properties include:
   (comma-separated handoff kinds in traversal order, e.g. `store,messaging`).
 - Dependency edges: `kind`, `derivedFrom`, `confidence`, `isRuntimeRelevant`,
   `isCondensable`, `isCrossModule`, `fromModule`, `toModule`, `weight`.
+- State edges: `WRITES_STATE` / `READS_STATE` carry `fieldName`,
+  `fieldOwnerComponentId`, `method`, and `accessKind`; `STATE_HANDOFF` carries
+  `fieldName`, `fieldOwnerComponentId`, `writerMethod`, `readerMethod`, and
+  `confidence`.
 
 Edge labels:
 
@@ -655,6 +688,11 @@ Edge labels:
 - `CONTAINS` — Container → Component
 - `DEPLOYS` — Deployment → Application
 - `DEPENDS_ON` — Component → Component (or Component → ExternalSystem)
+- `WRITES_STATE` — Component → Component declaring the shared-state field
+- `READS_STATE` — Component → Component declaring the shared-state field
+- `STATE_HANDOFF` — writer Component → reader Component when a write and read touch
+  the same `(fieldOwnerComponentId, fieldName)` shared state. This makes
+  consumer/cache/scheduler handoffs queryable without matching field names manually.
 - `STARTED_BY` / `HAS_STEP` / `VISITS` — RuntimeFlow / RuntimeFlowStep relationships
 - `ORIGINATES` — Entrypoint → DataFlowPath (carries `trackedParam`)
 - `REACHES` — DataFlowPath → DataFlowSink (carries `sinkKind`)
@@ -701,6 +739,18 @@ Example — find every pipeline chain that crosses a messaging boundary:
 
 ```json
 { "action": "find_edges", "label": "HAS_SEGMENT", "filters": { "linkKind": "messaging" } }
+```
+
+Example — list component-level shared-state handoffs:
+
+```json
+{ "action": "find_edges", "label": "STATE_HANDOFF" }
+```
+
+Example — find workflow-relevant components while excluding utility noise:
+
+```json
+{ "action": "find_nodes", "label": "Component", "filters": { "workflowRelevant": "true", "noiseScore": "<4" } }
 ```
 
 Example — list all materialised pipeline chains (one node per chain):

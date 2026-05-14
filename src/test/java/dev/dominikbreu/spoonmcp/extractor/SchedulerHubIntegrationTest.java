@@ -167,6 +167,19 @@ class SchedulerHubIntegrationTest extends ExtractorTestBase {
                         && "dispatchAll".equals(fa.method));
     }
 
+    @Test
+    void dispatchAllHasCrossComponentReadWhenGetterReturnsMethodCallOnCache() {
+        assertThat(model.fieldAccesses)
+                .as("cross-component field access: RecordDispatcher#dispatchAll reads RecordStore.records via activeItems")
+                .anyMatch(fa -> fa.kind == dev.dominikbreu.spoonmcp.model.FieldAccess.Kind.READ
+                        && fa.componentId.contains(DISPATCHER)
+                        && fa.fieldOwnerComponentId != null
+                        && fa.fieldOwnerComponentId.contains("RecordStore")
+                        && "records".equals(fa.fieldName)
+                        && "dispatchAll".equals(fa.method)
+                        && fa.id.contains("activeItems"));
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private void assertHasScheduledEntrypoint(String methodName) {

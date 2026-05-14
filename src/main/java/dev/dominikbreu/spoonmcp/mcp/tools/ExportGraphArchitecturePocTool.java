@@ -98,7 +98,8 @@ public class ExportGraphArchitecturePocTool {
         sb.append("- `componentType`, `type`, `name`, `simpleName`, `qualifiedName`, `packageName`\n");
         sb.append("- `module`, `technology`, `stereotypes`, `sourceFile`, `sourceLine`\n");
         sb.append("- `derivedFrom`, `confidence`, `fanIn`, `fanOut`, `degree`, `entrypointReachable`\n");
-        sb.append("- `ownedEntrypointCount`, `architecturalWeight` (= fanIn + fanOut + ownedEntrypointCount×2)\n\n");
+        sb.append("- `ownedEntrypointCount`, `architecturalWeight` (noise-aware workflow score)\n");
+        sb.append("- `workflowRelevant`, `businessRelevant`, `infrastructureRole`, `noiseScore`, `workflowBridgeScore`\n\n");
 
         sb.append("### Entrypoint Nodes\n\n");
         sb.append("- `kind=entrypoint`\n");
@@ -135,6 +136,11 @@ public class ExportGraphArchitecturePocTool {
                             "fanOut",
                             "ownedEntrypointCount",
                             "architecturalWeight",
+                            "workflowRelevant",
+                            "businessRelevant",
+                            "infrastructureRole",
+                            "noiseScore",
+                            "workflowBridgeScore",
                             "entrypointReachable");
                     sb.append("\n");
                 });

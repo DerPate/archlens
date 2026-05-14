@@ -12,6 +12,7 @@ import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.DeploymentEntry;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
+import dev.dominikbreu.spoonmcp.model.FieldAccess;
 import dev.dominikbreu.spoonmcp.model.InterfaceEntry;
 import dev.dominikbreu.spoonmcp.model.RuntimeFlow;
 import dev.dominikbreu.spoonmcp.model.RuntimeFlowStep;
@@ -84,6 +85,7 @@ public class ArchitectureGraph {
                 appId -> addEdge(deployment.id, appId, "DEPLOYS", Map.of("source", "deployment.appIds"))));
         sourceModel.dependencies.forEach(dependency ->
                 addEdge(dependency.fromId, dependency.toId, "DEPENDS_ON", dependencyProperties(dependency)));
+        addFieldAccessEdges(sourceModel);
         sourceModel.runtimeFlows.forEach(this::addRuntimeFlowEdges);
         sourceModel.dataFlowPaths.forEach(this::addDataFlowPath);
         sourceModel.dataFlowPaths.forEach(this::addDataFlowEdges);
@@ -547,6 +549,69 @@ public class ArchitectureGraph {
         return properties;
     }
 
+    private void addFieldAccessEdges(ArchitectureModel sourceModel) {
+        Map<String, List<FieldAccess>> readsByState = new LinkedHashMap<>();
+        Map<String, List<FieldAccess>> writesByState = new LinkedHashMap<>();
+        for (FieldAccess access : sourceModel.fieldAccesses) {
+            if (access.kind == null
+                    || access.componentId == null
+                    || access.fieldOwnerComponentId == null
+                    || access.fieldName == null) {
+                continue;
+            }
+            String edgeLabel = access.kind == FieldAccess.Kind.WRITE ? "WRITES_STATE" : "READS_STATE";
+            addEdge(access.componentId, access.fieldOwnerComponentId, edgeLabel, fieldAccessProperties(access));
+            String key = access.fieldOwnerComponentId + "@" + access.fieldName;
+            if (access.kind == FieldAccess.Kind.WRITE) {
+                writesByState.computeIfAbsent(key, ignored -> new ArrayList<>()).add(access);
+            } else if (access.kind == FieldAccess.Kind.READ) {
+                readsByState.computeIfAbsent(key, ignored -> new ArrayList<>()).add(access);
+            }
+        }
+
+        for (Map.Entry<String, List<FieldAccess>> entry : writesByState.entrySet()) {
+            List<FieldAccess> reads = readsByState.get(entry.getKey());
+            if (reads == null) {
+                continue;
+            }
+            for (FieldAccess write : entry.getValue()) {
+                for (FieldAccess read : reads) {
+                    if (Objects.equals(write.componentId, read.componentId)
+                            && Objects.equals(write.method, read.method)) {
+                        continue;
+                    }
+                    addEdge(write.componentId, read.componentId, "STATE_HANDOFF", stateHandoffProperties(write, read));
+                }
+            }
+        }
+    }
+
+    private Map<String, Object> fieldAccessProperties(FieldAccess access) {
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("fieldName", Objects.toString(access.fieldName, ""));
+        properties.put("fieldOwnerComponentId", Objects.toString(access.fieldOwnerComponentId, ""));
+        properties.put("method", Objects.toString(access.method, ""));
+        properties.put("accessKind", access.kind != null ? access.kind.name().toLowerCase(Locale.ROOT) : "");
+        properties.put("source", "field_access");
+        if (access.source != null) {
+            properties.put("sourceFile", Objects.toString(access.source.file, ""));
+            properties.put("sourceLine", access.source.line);
+            properties.put("confidence", access.source.confidence);
+        }
+        return properties;
+    }
+
+    private Map<String, Object> stateHandoffProperties(FieldAccess write, FieldAccess read) {
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("fieldName", Objects.toString(write.fieldName, ""));
+        properties.put("fieldOwnerComponentId", Objects.toString(write.fieldOwnerComponentId, ""));
+        properties.put("writerMethod", Objects.toString(write.method, ""));
+        properties.put("readerMethod", Objects.toString(read.method, ""));
+        properties.put("source", "field_access");
+        properties.put("confidence", 0.8);
+        return properties;
+    }
+
     private void computeDerivedProperties() {
         Set<String> entrypointReachable = reachableFromEntrypoints();
         for (Vertex vertex : verticesById.values()) {
@@ -561,8 +626,23 @@ public class ArchitectureGraph {
                     entrypointReachable.contains(vertex.id().toString()));
             if ("Component".equals(vertex.label())) {
                 int ownedEntrypoints = countEdges(vertex, Direction.IN, "STARTS_AT");
+                ArchitectureRelevanceScorer.Relevance relevance = ArchitectureRelevanceScorer.score(
+                        componentById(vertex.id().toString()),
+                        new ArchitectureRelevanceScorer.Metrics(
+                                fanIn,
+                                fanOut,
+                                ownedEntrypoints,
+                                countEdges(vertex, Direction.OUT, "READS_STATE"),
+                                countEdges(vertex, Direction.OUT, "WRITES_STATE"),
+                                countEdges(vertex, Direction.IN, "STATE_HANDOFF"),
+                                countEdges(vertex, Direction.OUT, "STATE_HANDOFF")));
                 set(vertex, "ownedEntrypointCount", ownedEntrypoints);
-                set(vertex, "architecturalWeight", fanIn + fanOut + (ownedEntrypoints * 2));
+                set(vertex, "workflowRelevant", relevance.workflowRelevant());
+                set(vertex, "businessRelevant", relevance.businessRelevant());
+                set(vertex, "infrastructureRole", relevance.infrastructureRole());
+                set(vertex, "noiseScore", relevance.noiseScore());
+                set(vertex, "workflowBridgeScore", relevance.workflowBridgeScore());
+                set(vertex, "architecturalWeight", relevance.architecturalWeight());
             }
         }
     }
@@ -590,6 +670,9 @@ public class ArchitectureGraph {
                         || "ORIGINATES".equals(label)
                         || "REACHES".equals(label)
                         || "LINKS_TO".equals(label)
+                        || "WRITES_STATE".equals(label)
+                        || "READS_STATE".equals(label)
+                        || "STATE_HANDOFF".equals(label)
                         || "ON_FIELD".equals(label)
                         || "AT_COMPONENT".equals(label)
                         || "HAS_SEGMENT".equals(label)) {

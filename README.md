@@ -11,6 +11,7 @@ It can index Java projects, identify applications and entry points, infer logica
 - Infer container-level groupings such as API, service, repository, domain, messaging, and scheduling.
 - Merge deployment hints from Docker Compose and Ansible assets.
 - Render Mermaid flowcharts and sequence diagrams from the extracted model.
+- Expose reusable MCP prompts for common architecture-analysis workflows.
 
 ## Requirements
 
@@ -24,15 +25,15 @@ mvn test
 mvn package
 ```
 
-The packaged server jar is written to `target/spoon-mcp-server-1.0.0-SNAPSHOT.jar`.
+The packaged server jar is written to `target/spoon-mcp-server.jar`.
 
 ## Run
 
 ```sh
-java -jar target/spoon-mcp-server-1.0.0-SNAPSHOT.jar
+java -jar target/spoon-mcp-server.jar
 ```
 
-The server reads JSON-RPC messages from stdin and writes responses to stdout. Configure your MCP client to launch the jar with the command above.
+The server reads JSON-RPC over stdio and writes responses to stdout. Stdio messages are newline-delimited JSON-RPC: one complete JSON object per physical line. Configure your MCP client to launch the jar with the command above.
 
 For step-by-step install instructions and example MCP client configurations (Claude Desktop, Claude Code, generic stdio clients), see [docs/INSTALL.md](docs/INSTALL.md).
 
@@ -61,6 +62,18 @@ For step-by-step install instructions and example MCP client configurations (Cla
 
 See `docs/TOOLS.md` for arguments and example payloads.
 
+## MCP Prompts
+
+The server also exposes workflow prompts through `prompts/list` and `prompts/get`:
+
+- `analyze_workspace`
+- `generate_architecture_docs`
+- `investigate_component`
+- `trace_use_case`
+- `find_pipeline`
+
+These prompts guide clients through multi-tool architecture workflows without duplicating every individual tool description.
+
 `trace_data_flow` records writes to shared state as `store` sinks, and links each
 `store` sink to downstream `DataFlowPath`s that read the same shared field via
 `linkedPathIds` — surfacing cross-entrypoint pipelines (e.g. `@Incoming` consumer →
@@ -82,7 +95,7 @@ Graph queries are available through a lazy embedded graph projection. To maintai
 projection eagerly during cache store/load, enable the graph backend:
 
 ```sh
-SPOON_MCP_CACHE_BACKEND=graph java -jar target/spoon-mcp-server-1.0.0-SNAPSHOT.jar
+SPOON_MCP_CACHE_BACKEND=graph java -jar target/spoon-mcp-server.jar
 ```
 
 The equivalent JVM property is `-Dspoonmcp.cache.backend=graph`.
