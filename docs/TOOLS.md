@@ -656,7 +656,9 @@ Useful graph properties include:
   `noiseScore`, `workflowBridgeScore`. `architecturalWeight` is noise-aware: utility,
   formatter/parser/mapper/logger/config, DTO-ish, and unknown components are downranked
   even when their fan-in is high; workflow bridges, entrypoints, schedulers,
-  repositories, outbound clients, and state handoffs are promoted.
+  repositories, outbound clients, and state handoffs are promoted. Self-only state
+  access is treated as local implementation detail; cross-component `STATE_HANDOFF`
+  evidence carries the workflow bridge signal.
 - Entrypoint nodes: `entrypointType`, `protocol`, `httpMethod`, `path`, `componentId`.
 - Interface nodes: `interfaceType`, `path`, `module`, `technology`. Messaging interfaces
   additionally expose `broker` (incl. `IN_MEMORY`) and `topic` on the underlying
@@ -753,6 +755,11 @@ Example — find workflow-relevant components while excluding utility noise:
 { "action": "find_nodes", "label": "Component", "filters": { "workflowRelevant": "true", "noiseScore": "<4" } }
 ```
 
+When reviewing generated graph POC docs, treat the "High Signal Components" section as
+a ranked starting point, not a complete architecture map. It sorts workflow- and
+business-relevant components ahead of supporting infrastructure, then uses
+`architecturalWeight` as a secondary signal.
+
 Example — list all materialised pipeline chains (one node per chain):
 
 ```json
@@ -797,3 +804,40 @@ Arguments:
 - `outputPath` string, optional. Default `docs/SOURCE_ARCHITECTURE_POC.md`.
 - `focusComponent` string, optional. Component used for the graph focus slice.
   Default `McpServer`.
+
+
+---
+
+## `render_architecture_view`
+
+Render a projection-first architecture view from the indexed graph.
+
+This tool does not create new architecture facts. It selects and groups facts already
+present in `ArchitectureModel` and `ArchitectureGraph`.
+
+Arguments:
+
+- `app` string, optional. Application name or id.
+- `view` string, optional. View kind. Currently `component`.
+- `maxNodes` integer, optional. Maximum selected component nodes. Default `18`.
+
+Use this before asking an agent to manually create C4-style diagrams. The view
+prioritizes `workflowRelevant`, `businessRelevant`, `workflowBridgeScore`,
+`STATE_HANDOFF`, entrypoint-adjacent components, repositories, schedulers, brokers,
+clients, and external systems. Utility-only fan-in is treated as supporting detail.
+
+---
+
+## `export_likec4_model`
+
+Export a projection of the indexed architecture graph as LikeC4-style text.
+
+This is an interoperability/export tool, not the canonical source of truth. The MCP
+graph remains the source-derived model. LikeC4 output is a projection that can be
+loaded into LikeC4 tooling or used as LLM context.
+
+Arguments:
+
+- `app` string, optional. Application name or id.
+- `view` string, optional. View kind. Currently `component`.
+- `maxNodes` integer, optional. Maximum selected component nodes. Default `18`.
