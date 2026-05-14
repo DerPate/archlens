@@ -8,6 +8,7 @@ import dev.dominikbreu.spoonmcp.model.AppEntry;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
+import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.FieldAccess;
 import java.util.List;
 import java.util.Map;
@@ -66,6 +67,38 @@ class ArchitectureViewProjectorTest {
                 "Expected STATE_HANDOFF edge from KafkaConsumerService to SchedulerJob");
     }
 
+    @Test
+    void dependsOnEdgesAppearForConstructorInjectionCodebases() {
+        ArchitectureModel model = new ArchitectureModel("injection-fixture");
+        AppEntry app = new AppEntry();
+        app.id = "app:injection";
+        app.name = "injection";
+
+        Component server = component("McpServer", ComponentType.SERVICE);
+        Component cache = component("ModelCache", ComponentType.SERVICE);
+        Component extractor = component("ArchitectureExtractor", ComponentType.SERVICE);
+
+        app.componentIds.addAll(List.of(server.id, cache.id, extractor.id));
+        model.applications.add(app);
+        model.components.addAll(List.of(server, cache, extractor));
+
+        Dependency d1 = dependency(server.id, cache.id, "injection");
+        Dependency d2 = dependency(server.id, extractor.id, "injection");
+        model.dependencies.addAll(List.of(d1, d2));
+
+        ArchitectureGraph graph = new ArchitectureGraph();
+        graph.rebuild(model);
+
+        ArchitectureViewProjection projection = new ArchitectureViewProjector()
+                .projectComponentView(graph, "app:injection", "Injection View", 10);
+
+        assertTrue(projection.edges().stream().anyMatch(e ->
+                        "DEPENDS_ON".equals(e.label()) && e.sourceId().contains("McpServer")),
+                "Expected DEPENDS_ON edges from McpServer; edges were: " + projection.edges());
+        assertTrue(projection.warnings().isEmpty() || !projection.edges().isEmpty(),
+                "Expected no empty-edge warning when DEPENDS_ON edges exist");
+    }
+
     // ── fixture ────────────────────────────────────────────────────────────────
 
     private static ArchitectureGraph componentViewFixture() {
@@ -118,6 +151,16 @@ class ArchitectureViewProjectorTest {
         c.qualifiedName = "com.example." + name;
         c.type = type;
         return c;
+    }
+
+    private static Dependency dependency(String fromId, String toId, String kind) {
+        Dependency d = new Dependency();
+        d.id = "dep:" + fromId + "->" + toId;
+        d.fromId = fromId;
+        d.toId = toId;
+        d.kind = kind;
+        d.confidence = 0.9;
+        return d;
     }
 
     private static FieldAccess fieldAccess(

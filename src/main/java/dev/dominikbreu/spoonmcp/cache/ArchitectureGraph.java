@@ -210,6 +210,38 @@ public class ArchitectureGraph {
     }
 
     /**
+     * Returns all edges whose source and target are both in the given set of node IDs.
+     *
+     * <p>Unlike {@link #findEdges}, this method is not capped and only traverses the
+     * outgoing edges of the specified vertices, making it efficient for projection queries.</p>
+     *
+     * @param nodeIds set of node identifiers to constrain both endpoints
+     * @param labels edge labels to include; empty set means all labels
+     * @return matching edges, one per unique (fromId, toId, label) triple
+     */
+    public synchronized List<GraphEdge> findEdgesBetween(Set<String> nodeIds, Set<String> labels) {
+        Map<String, GraphEdge> seen = new LinkedHashMap<>();
+        for (String nodeId : nodeIds) {
+            Vertex vertex = verticesById.get(nodeId);
+            if (vertex == null) continue;
+            Iterator<Edge> edges = vertex.edges(Direction.OUT);
+            while (edges.hasNext()) {
+                Edge edge = edges.next();
+                if (!labels.isEmpty() && !labels.contains(edge.label())) continue;
+                String toId = edge.inVertex().id().toString();
+                if (!nodeIds.contains(toId)) continue;
+                String key = edge.outVertex().id().toString() + "->" + toId + ":" + edge.label();
+                seen.putIfAbsent(key, toEdge(edge));
+            }
+        }
+        return seen.values().stream()
+                .sorted(Comparator.comparing(GraphEdge::label)
+                        .thenComparing(GraphEdge::fromId)
+                        .thenComparing(GraphEdge::toId))
+                .toList();
+    }
+
+    /**
      * Finds dependency-oriented paths between two graph nodes.
      *
      * @param fromId source graph node identifier
