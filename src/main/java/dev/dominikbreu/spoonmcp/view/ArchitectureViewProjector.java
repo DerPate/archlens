@@ -10,6 +10,9 @@ import java.util.Set;
 
 public final class ArchitectureViewProjector {
 
+    private static final Set<String> VIEW_RELATIONSHIPS = Set.of(
+            "DEPENDS_ON", "STATE_HANDOFF", "READS_STATE", "WRITES_STATE", "STARTS_AT", "STARTED_BY");
+
     public ArchitectureViewProjection projectComponentView(
             ArchitectureGraph graph,
             String scopeId,
@@ -29,11 +32,13 @@ public final class ArchitectureViewProjector {
                         node.properties()))
                 .toList();
 
-        List<String> selectedIds = nodes.stream().map(ArchitectureViewProjection.Node::id).toList();
+        Set<String> selectedIds = new HashSet<>(
+                nodes.stream().map(ArchitectureViewProjection.Node::id).toList());
 
-        List<ArchitectureViewProjection.Edge> edges = graph.findEdges(null, Map.of(), 500).stream()
-                .filter(edge -> selectedIds.contains(edge.fromId()) && selectedIds.contains(edge.toId()))
-                .filter(edge -> isViewRelationship(edge.label()))
+        List<ArchitectureViewProjection.Edge> edges = graph
+                .findEdgesBetween(selectedIds, VIEW_RELATIONSHIPS)
+                .stream()
+                .filter(edge -> !edge.fromId().equals(edge.toId()))
                 .map(edge -> new ArchitectureViewProjection.Edge(
                         edge.fromId(),
                         edge.toId(),
@@ -42,14 +47,14 @@ public final class ArchitectureViewProjector {
                 .toList();
 
         List<String> warnings = new ArrayList<>();
-        if (edges.stream().noneMatch(edge -> "STATE_HANDOFF".equals(edge.label()))) {
-            warnings.add("No STATE_HANDOFF edges were selected for this view");
+        if (edges.isEmpty()) {
+            warnings.add("No architectural edges found between the selected components");
         }
 
         return new ArchitectureViewProjection(ArchitectureViewKind.COMPONENT, title, scopeId, nodes, edges, warnings);
     }
 
-    // Resolves the set of component IDs belonging to this scope by following OWNS edges from the app node.
+    // Resolves component IDs belonging to this scope via OWNS edges from the app node.
     private static Set<String> resolveScope(ArchitectureGraph graph, String scopeId) {
         if (scopeId == null || scopeId.isBlank()) {
             return Set.of();
@@ -69,15 +74,6 @@ public final class ArchitectureViewProjector {
                 .thenComparingInt(node -> intProp(node, "noiseScore"))
                 .thenComparingInt(node -> intProp(node, "architecturalWeight")).reversed()
                 .thenComparing(node -> String.valueOf(node.properties().getOrDefault("name", node.id())));
-    }
-
-    private static boolean isViewRelationship(String label) {
-        return "DEPENDS_ON".equals(label)
-                || "STATE_HANDOFF".equals(label)
-                || "READS_STATE".equals(label)
-                || "WRITES_STATE".equals(label)
-                || "STARTS_AT".equals(label)
-                || "STARTED_BY".equals(label);
     }
 
     private static String relationshipTitle(String label, Map<String, Object> properties) {
