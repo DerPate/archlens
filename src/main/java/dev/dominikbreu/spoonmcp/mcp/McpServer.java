@@ -37,6 +37,8 @@ public class McpServer {
     private final TraceDataFlowTool traceDataFlowTool;
     private final RenderUseCaseTimelineTool useCaseTimelineTool;
     private final RenderPipelineTool pipelineTool;
+    private final RenderArchitectureViewTool renderArchitectureViewTool;
+    private final ExportLikeC4ModelTool exportLikeC4ModelTool;
 
     /** Creates the server with the default extractor, cache, and tool registry. */
     public McpServer() {
@@ -63,6 +65,8 @@ public class McpServer {
         this.traceDataFlowTool = new TraceDataFlowTool(cache);
         this.useCaseTimelineTool = new RenderUseCaseTimelineTool(cache);
         this.pipelineTool = new RenderPipelineTool(cache);
+        this.renderArchitectureViewTool = new RenderArchitectureViewTool(cache);
+        this.exportLikeC4ModelTool = new ExportLikeC4ModelTool(cache);
     }
 
     /**
@@ -263,6 +267,22 @@ public class McpServer {
                         .opt("maxDepth", "integer", "Max call-chain depth shown per use case (default 5)"),
                 detectUseCasesTool::execute));
 
+        specs.add(toolSpec(
+                "render_architecture_view",
+                "Render a projection-first architecture view from the indexed graph. Start with view=component for C4-style component views. Prioritizes workflow-relevant components over utility fan-in noise.",
+                schema().opt("app", "string", "Application name or id")
+                        .opt("view", "string", "View kind: component")
+                        .opt("maxNodes", "integer", "Maximum component nodes to include (default 18)"),
+                renderArchitectureViewTool::call));
+
+        specs.add(toolSpec(
+                "export_likec4_model",
+                "Export a projection of the indexed architecture graph as LikeC4-style model text. Useful for loading into LikeC4 tooling or providing structured LLM context.",
+                schema().opt("app", "string", "Application name or id")
+                        .opt("view", "string", "View kind: component")
+                        .opt("maxNodes", "integer", "Maximum component nodes to include (default 18)"),
+                exportLikeC4ModelTool::call));
+
         return specs;
     }
 
@@ -327,6 +347,19 @@ public class McpServer {
                         4. Call `trace_data_flow` with `entrypointName: "{entrypoint}"`.
                         5. Call `render_use_case_timeline` with `entrypointName: "{entrypoint}"`.
                         6. Explain the request path, component hops, data sinks, and any missing call-graph evidence.
+                        """),
+                promptSpec(
+                        "architecture_view",
+                        "Generate a projection-first architecture view from the indexed graph.",
+                        List.of(
+                                arg("app", "Application name or id", true),
+                                arg("view", "View kind: component", false),
+                                arg("maxNodes", "Maximum nodes", false)),
+                        """
+                        1. Call `render_architecture_view` with `app: "{app}"`, `view: "{view}"`, and `maxNodes: {maxNodes}`.
+                        2. If the user asks for LikeC4, call `export_likec4_model` with the same scope.
+                        3. Explain that the output is a projection of MCP graph facts, not a hand-authored architecture model.
+                        4. Do not invent actors, systems, components, or relationships unless the user explicitly asks for interpretive additions.
                         """),
                 promptSpec(
                         "find_pipeline",
