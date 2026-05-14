@@ -2,7 +2,6 @@ package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.model.AppEntry;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
@@ -12,12 +11,11 @@ import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class ExportGraphArchitecturePocToolTest {
-
-    private final ObjectMapper mapper = new ObjectMapper();
 
     @Test
     void exportsGraphCentricPocDocument(@TempDir Path tempDir) throws Exception {
@@ -26,10 +24,9 @@ class ExportGraphArchitecturePocToolTest {
         cache.store(model());
         ExportGraphArchitecturePocTool tool = new ExportGraphArchitecturePocTool(cache);
 
-        String result =
-                tool.execute(mapper.readTree("""
-            {"outputPath":"%s","focusComponent":"OrderService"}
-            """.formatted(output.toString().replace("\\", "\\\\"))));
+        String result = tool.execute(Map.of(
+                "outputPath", output.toString(),
+                "focusComponent", "OrderService"));
 
         assertThat(result).contains("Exported graph POC docs");
         assertThat(Files.readString(output)).contains("Generated Architecture Graph POC");

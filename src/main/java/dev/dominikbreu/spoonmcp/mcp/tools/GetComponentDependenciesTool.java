@@ -1,7 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import java.util.Map;
 import dev.dominikbreu.spoonmcp.extractor.DependencyCondenser;
 import dev.dominikbreu.spoonmcp.model.*;
 import java.util.*;
@@ -29,17 +29,17 @@ public class GetComponentDependenciesTool {
      * @param args JSON arguments including componentId or name, depth, and condensed
      * @return formatted dependency traversal or an error message
      */
-    public String execute(JsonNode args) {
+    public String execute(Map<String, Object> args) {
         try {
             ArchitectureModel model = cache.load();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
 
-            String ref = getString(args, "componentId");
-            if (ref == null) ref = getString(args, "name");
+            String ref = ToolArgs.getString(args, "componentId");
+            if (ref == null) ref = ToolArgs.getString(args, "name");
             if (ref == null) return "Error: provide 'componentId' or 'name'.";
 
-            int depth = getInt(args, "depth", 1);
-            boolean condensed = getBool(args, "condensed", true);
+            int depth = ToolArgs.getInt(args, "depth", 1);
+            boolean condensed = ToolArgs.getBool(args, "condensed", true);
 
             final String finalRef = ref;
             Component root = model.components.stream()
@@ -117,21 +117,4 @@ public class GetComponentDependenciesTool {
         }
     }
 
-    private String getString(JsonNode n, String f) {
-        if (n == null) return null;
-        JsonNode v = n.get(f);
-        return (v != null && !v.isNull()) ? v.asText() : null;
-    }
-
-    private int getInt(JsonNode n, String f, int def) {
-        if (n == null) return def;
-        JsonNode v = n.get(f);
-        return (v != null && !v.isNull()) ? v.asInt(def) : def;
-    }
-
-    private boolean getBool(JsonNode n, String f, boolean def) {
-        if (n == null) return def;
-        JsonNode v = n.get(f);
-        return (v != null && !v.isNull()) ? v.asBoolean(def) : def;
-    }
 }

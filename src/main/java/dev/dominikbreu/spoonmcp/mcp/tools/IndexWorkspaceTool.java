@@ -1,13 +1,12 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor;
 import dev.dominikbreu.spoonmcp.merger.DeploymentMerger;
 import dev.dominikbreu.spoonmcp.model.AppEntry;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * MCP tool that indexes project roots and stores the resulting architecture model.
@@ -35,13 +34,9 @@ public class IndexWorkspaceTool {
      * @param args JSON arguments containing a paths array
      * @return indexing summary or an error message
      */
-    public String execute(JsonNode args) {
+    public String execute(Map<String, Object> args) {
         try {
-            List<String> paths = new ArrayList<>();
-            JsonNode pathsNode = args != null ? args.get("paths") : null;
-            if (pathsNode != null && pathsNode.isArray()) {
-                for (JsonNode p : pathsNode) paths.add(p.asText());
-            }
+            List<String> paths = ToolArgs.getStringList(args, "paths");
             if (paths.isEmpty()) return "Error: 'paths' array is required.";
 
             ArchitectureModel model = extractor.extract(paths);

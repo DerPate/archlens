@@ -9,12 +9,11 @@ public class Main {
     private Main() {}
 
     /**
-     * Starts the MCP JSON-RPC loop on standard input and output.
+     * Starts the MCP server on standard input and output.
      *
      * @param args command-line arguments, currently unused
-     * @throws Exception if the server loop cannot be started
      */
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         new McpServer().run();
     }
 }

@@ -1,6 +1,6 @@
 package dev.dominikbreu.spoonmcp.model;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.IOException;
 import java.util.LinkedHashMap;

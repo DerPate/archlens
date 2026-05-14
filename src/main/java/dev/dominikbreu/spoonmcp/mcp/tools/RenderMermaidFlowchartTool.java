@@ -1,7 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import java.util.Map;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.renderer.MermaidFlowchartRenderer;
 
@@ -28,13 +28,13 @@ public class RenderMermaidFlowchartTool {
      * @param args JSON arguments including appId and level
      * @return Mermaid diagram text or an error message
      */
-    public String execute(JsonNode args) {
+    public String execute(Map<String, Object> args) {
         try {
             ArchitectureModel model = cache.load();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
 
-            String appId = getString(args, "appId");
-            String level = getString(args, "level");
+            String appId = ToolArgs.getString(args, "appId");
+            String level = ToolArgs.getString(args, "level");
             if (level == null) level = "component";
 
             return renderer.render(model, appId, level);
@@ -43,9 +43,4 @@ public class RenderMermaidFlowchartTool {
         }
     }
 
-    private String getString(JsonNode n, String f) {
-        if (n == null) return null;
-        JsonNode v = n.get(f);
-        return (v != null && !v.isNull()) ? v.asText() : null;
-    }
 }

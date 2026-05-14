@@ -1,7 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import java.util.Map;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.Container;
@@ -31,12 +31,12 @@ public class InferContainersTool {
      * @param args JSON arguments, optionally including appId
      * @return formatted container list or an error message
      */
-    public String execute(JsonNode args) {
+    public String execute(Map<String, Object> args) {
         try {
             ArchitectureModel model = cache.load();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
 
-            String appFilter = getString(args, "appId");
+            String appFilter = ToolArgs.getString(args, "appId");
 
             List<Container> containers = model.containers.stream()
                     .filter(c -> appFilter == null || (c.appId != null && c.appId.contains(appFilter)))
@@ -77,9 +77,4 @@ public class InferContainersTool {
         }
     }
 
-    private String getString(JsonNode n, String f) {
-        if (n == null) return null;
-        JsonNode v = n.get(f);
-        return (v != null && !v.isNull()) ? v.asText() : null;
-    }
 }

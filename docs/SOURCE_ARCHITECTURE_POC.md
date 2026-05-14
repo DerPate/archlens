@@ -5,13 +5,13 @@ Generated from the indexed `ArchitectureModel` and the embedded `ArchitectureGra
 ## Summary
 
 - Applications: 1
-- Components: 76
+- Components: 77
 - Entrypoints: 1
 - Interfaces: 0
 - Dependencies: 90
 - Runtime flows: 1
-- Graph nodes: 88
-- Graph edges: 244
+- Graph nodes: 89
+- Graph edges: 246
 - Cache backend: json
 
 ## Graph Metadata POC
@@ -24,7 +24,7 @@ Use the MCP tool `query_architecture_graph` to inspect the same metadata interac
 
 ### Node labels
 
-- Component: 76
+- Component: 77
 - Container: 9
 - Application: 1
 - RuntimeFlow: 1
@@ -32,9 +32,9 @@ Use the MCP tool `query_architecture_graph` to inspect the same metadata interac
 
 ### Edge labels
 
-- OWNS: 76
+- OWNS: 77
 - STARTS_AT: 1
-- CONTAINS: 76
+- CONTAINS: 77
 - DEPENDS_ON: 90
 - STARTED_BY: 1
 
@@ -61,18 +61,18 @@ Use the MCP tool `query_architecture_graph` to inspect the same metadata interac
 
 ## High Signal Components
 
-- `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` ModelCache {componentType=SERVICE, packageName=dev.dominikbreu.spoonmcp.cache, module=app:spoon-mcp-server, sourceFile=/home/dominik/git/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/cache/ModelCache.java, sourceLine=14, fanIn=20, fanOut=2, ownedEntrypointCount=0, architecturalWeight=22, entrypointReachable=false}
-- `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` McpServer {componentType=SERVICE, packageName=dev.dominikbreu.spoonmcp.mcp, module=app:spoon-mcp-server, sourceFile=/home/dominik/git/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/mcp/McpServer.java, sourceLine=19, fanIn=0, fanOut=20, ownedEntrypointCount=0, architecturalWeight=20, entrypointReachable=false}
-- `comp:dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor` ArchitectureExtractor {componentType=SERVICE, packageName=dev.dominikbreu.spoonmcp.extractor, module=app:spoon-mcp-server, sourceFile=/home/dominik/git/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/extractor/ArchitectureExtractor.java, sourceLine=16, fanIn=1, fanOut=13, ownedEntrypointCount=0, architecturalWeight=14, entrypointReachable=false}
-- `comp:dev.dominikbreu.spoonmcp.model.SourceInfo` SourceInfo {componentType=ENTITY, packageName=dev.dominikbreu.spoonmcp.model, module=app:spoon-mcp-server, sourceFile=/home/dominik/git/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/model/SourceInfo.java, sourceLine=6, fanIn=7, fanOut=0, ownedEntrypointCount=0, architecturalWeight=7, entrypointReachable=false}
-- `comp:dev.dominikbreu.spoonmcp.mcp.tools.ExportArchitectureDocsTool` ExportArchitectureDocsTool {componentType=SERVICE, packageName=dev.dominikbreu.spoonmcp.mcp.tools, module=app:spoon-mcp-server, sourceFile=/home/dominik/git/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/ExportArchitectureDocsTool.java, sourceLine=23, fanIn=1, fanOut=5, ownedEntrypointCount=0, architecturalWeight=6, entrypointReachable=false}
-- `comp:dev.dominikbreu.spoonmcp.mcp.tools.IndexWorkspaceTool` IndexWorkspaceTool {componentType=SERVICE, packageName=dev.dominikbreu.spoonmcp.mcp.tools, module=app:spoon-mcp-server, sourceFile=/home/dominik/git/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/IndexWorkspaceTool.java, sourceLine=16, fanIn=1, fanOut=3, ownedEntrypointCount=0, architecturalWeight=4, entrypointReachable=false}
-- `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderCallFlowTool` RenderCallFlowTool {componentType=SERVICE, packageName=dev.dominikbreu.spoonmcp.mcp.tools, module=app:spoon-mcp-server, sourceFile=/home/dominik/git/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderCallFlowTool.java, sourceLine=13, fanIn=1, fanOut=3, ownedEntrypointCount=0, architecturalWeight=4, entrypointReachable=false}
-- `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderPipelineTool` RenderPipelineTool {componentType=SERVICE, packageName=dev.dominikbreu.spoonmcp.mcp.tools, module=app:spoon-mcp-server, sourceFile=/home/dominik/git/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderPipelineTool.java, sourceLine=21, fanIn=1, fanOut=3, ownedEntrypointCount=0, architecturalWeight=4, entrypointReachable=false}
-- `comp:dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer` RuntimeFlowInferrer {componentType=UNKNOWN, packageName=dev.dominikbreu.spoonmcp.extractor, module=app:spoon-mcp-server, sourceFile=/home/dominik/git/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/extractor/RuntimeFlowInferrer.java, sourceLine=17, fanIn=3, fanOut=0, ownedEntrypointCount=0, architecturalWeight=3, entrypointReachable=false}
-- `comp:dev.dominikbreu.spoonmcp.mcp.tools.DetectUseCasesTool` DetectUseCasesTool {componentType=SERVICE, packageName=dev.dominikbreu.spoonmcp.mcp.tools, module=app:spoon-mcp-server, sourceFile=/home/dominik/git/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/DetectUseCasesTool.java, sourceLine=18, fanIn=1, fanOut=2, ownedEntrypointCount=0, architecturalWeight=3, entrypointReachable=false}
-- `comp:dev.dominikbreu.spoonmcp.mcp.tools.GetComponentDependenciesTool` GetComponentDependenciesTool {componentType=SERVICE, packageName=dev.dominikbreu.spoonmcp.mcp.tools, module=app:spoon-mcp-server, sourceFile=/home/dominik/git/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/GetComponentDependenciesTool.java, sourceLine=14, fanIn=1, fanOut=2, ownedEntrypointCount=0, architecturalWeight=3, entrypointReachable=false}
-- `comp:dev.dominikbreu.spoonmcp.mcp.tools.GetRuntimeFlowTool` GetRuntimeFlowTool {componentType=SERVICE, packageName=dev.dominikbreu.spoonmcp.mcp.tools, module=app:spoon-mcp-server, sourceFile=/home/dominik/git/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/GetRuntimeFlowTool.java, sourceLine=14, fanIn=1, fanOut=2, ownedEntrypointCount=0, architecturalWeight=3, entrypointReachable=false}
+- `comp:dev.dominikbreu.spoonmcp.cache.ModelCache` ModelCache {componentType=SERVICE, packageName=dev.dominikbreu.spoonmcp.cache, module=app:spoon-mcp-server, sourceFile=/home/dominik/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/cache/ModelCache.java, sourceLine=12, fanIn=20, fanOut=2, ownedEntrypointCount=0, architecturalWeight=22, entrypointReachable=false}
+- `comp:dev.dominikbreu.spoonmcp.mcp.McpServer` McpServer {componentType=SERVICE, packageName=dev.dominikbreu.spoonmcp.mcp, module=app:spoon-mcp-server, sourceFile=/home/dominik/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/mcp/McpServer.java, sourceLine=18, fanIn=0, fanOut=20, ownedEntrypointCount=0, architecturalWeight=20, entrypointReachable=false}
+- `comp:dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor` ArchitectureExtractor {componentType=SERVICE, packageName=dev.dominikbreu.spoonmcp.extractor, module=app:spoon-mcp-server, sourceFile=/home/dominik/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/extractor/ArchitectureExtractor.java, sourceLine=15, fanIn=1, fanOut=13, ownedEntrypointCount=0, architecturalWeight=14, entrypointReachable=false}
+- `comp:dev.dominikbreu.spoonmcp.model.SourceInfo` SourceInfo {componentType=ENTITY, packageName=dev.dominikbreu.spoonmcp.model, module=app:spoon-mcp-server, sourceFile=/home/dominik/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/model/SourceInfo.java, sourceLine=6, fanIn=7, fanOut=0, ownedEntrypointCount=0, architecturalWeight=7, entrypointReachable=false}
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.ExportArchitectureDocsTool` ExportArchitectureDocsTool {componentType=SERVICE, packageName=dev.dominikbreu.spoonmcp.mcp.tools, module=app:spoon-mcp-server, sourceFile=/home/dominik/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/ExportArchitectureDocsTool.java, sourceLine=22, fanIn=1, fanOut=5, ownedEntrypointCount=0, architecturalWeight=6, entrypointReachable=false}
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.IndexWorkspaceTool` IndexWorkspaceTool {componentType=SERVICE, packageName=dev.dominikbreu.spoonmcp.mcp.tools, module=app:spoon-mcp-server, sourceFile=/home/dominik/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/IndexWorkspaceTool.java, sourceLine=14, fanIn=1, fanOut=3, ownedEntrypointCount=0, architecturalWeight=4, entrypointReachable=false}
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderCallFlowTool` RenderCallFlowTool {componentType=SERVICE, packageName=dev.dominikbreu.spoonmcp.mcp.tools, module=app:spoon-mcp-server, sourceFile=/home/dominik/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderCallFlowTool.java, sourceLine=13, fanIn=1, fanOut=3, ownedEntrypointCount=0, architecturalWeight=4, entrypointReachable=false}
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.RenderPipelineTool` RenderPipelineTool {componentType=SERVICE, packageName=dev.dominikbreu.spoonmcp.mcp.tools, module=app:spoon-mcp-server, sourceFile=/home/dominik/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderPipelineTool.java, sourceLine=21, fanIn=1, fanOut=3, ownedEntrypointCount=0, architecturalWeight=4, entrypointReachable=false}
+- `comp:dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer` RuntimeFlowInferrer {componentType=UNKNOWN, packageName=dev.dominikbreu.spoonmcp.extractor, module=app:spoon-mcp-server, sourceFile=/home/dominik/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/extractor/RuntimeFlowInferrer.java, sourceLine=16, fanIn=3, fanOut=0, ownedEntrypointCount=0, architecturalWeight=3, entrypointReachable=false}
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.DetectUseCasesTool` DetectUseCasesTool {componentType=SERVICE, packageName=dev.dominikbreu.spoonmcp.mcp.tools, module=app:spoon-mcp-server, sourceFile=/home/dominik/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/DetectUseCasesTool.java, sourceLine=17, fanIn=1, fanOut=2, ownedEntrypointCount=0, architecturalWeight=3, entrypointReachable=false}
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.GetComponentDependenciesTool` GetComponentDependenciesTool {componentType=SERVICE, packageName=dev.dominikbreu.spoonmcp.mcp.tools, module=app:spoon-mcp-server, sourceFile=/home/dominik/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/GetComponentDependenciesTool.java, sourceLine=12, fanIn=1, fanOut=2, ownedEntrypointCount=0, architecturalWeight=3, entrypointReachable=false}
+- `comp:dev.dominikbreu.spoonmcp.mcp.tools.GetRuntimeFlowTool` GetRuntimeFlowTool {componentType=SERVICE, packageName=dev.dominikbreu.spoonmcp.mcp.tools, module=app:spoon-mcp-server, sourceFile=/home/dominik/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/GetRuntimeFlowTool.java, sourceLine=14, fanIn=1, fanOut=2, ownedEntrypointCount=0, architecturalWeight=3, entrypointReachable=false}
 
 ## Cross-Module Dependencies
 
@@ -93,7 +93,7 @@ Use the MCP tool `query_architecture_graph` to inspect the same metadata interac
 Focus component: `McpServer`
 
 - Node: `comp:dev.dominikbreu.spoonmcp.mcp.McpServer`
- {componentType=SERVICE, packageName=dev.dominikbreu.spoonmcp.mcp, module=app:spoon-mcp-server, sourceFile=/home/dominik/git/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/mcp/McpServer.java, sourceLine=19, confidence=0.55, fanIn=0, fanOut=20}
+ {componentType=SERVICE, packageName=dev.dominikbreu.spoonmcp.mcp, module=app:spoon-mcp-server, sourceFile=/home/dominik/spoon-mcp-server/src/main/java/dev/dominikbreu/spoonmcp/mcp/McpServer.java, sourceLine=18, confidence=0.55, fanIn=0, fanOut=20}
 - container:app:spoon-mcp-server:mcp-server -[CONTAINS]-> comp:dev.dominikbreu.spoonmcp.mcp.McpServer
 - comp:dev.dominikbreu.spoonmcp.mcp.McpServer -[DEPENDS_ON]-> comp:dev.dominikbreu.spoonmcp.mcp.tools.DetectUseCasesTool {kind=field-reference, confidence=0.65, isCrossModule=false, isRuntimeRelevant=false}
 - comp:dev.dominikbreu.spoonmcp.mcp.McpServer -[DEPENDS_ON]-> comp:dev.dominikbreu.spoonmcp.mcp.tools.ExplainArchitectureTool {kind=field-reference, confidence=0.65, isCrossModule=false, isRuntimeRelevant=false}

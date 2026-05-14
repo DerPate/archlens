@@ -2,18 +2,16 @@ package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import java.nio.file.Path;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class QueryArchitectureGraphToolTest {
-
-    private final ObjectMapper mapper = new ObjectMapper();
 
     @Test
     void returnsGraphSummary(@TempDir Path tempDir) throws Exception {
@@ -21,9 +19,7 @@ class QueryArchitectureGraphToolTest {
         cache.store(model());
         QueryArchitectureGraphTool tool = new QueryArchitectureGraphTool(cache);
 
-        String result = tool.execute(mapper.readTree("""
-            {"action":"summary"}
-            """));
+        String result = tool.execute(Map.of("action", "summary"));
 
         assertThat(result).contains("Architecture graph");
         assertThat(result).contains("Component: 1");
@@ -35,9 +31,7 @@ class QueryArchitectureGraphToolTest {
         cache.store(model());
         QueryArchitectureGraphTool tool = new QueryArchitectureGraphTool(cache);
 
-        String result = tool.execute(mapper.readTree("""
-            {"action":"find_nodes","label":"Component","query":"Payment"}
-            """));
+        String result = tool.execute(Map.of("action", "find_nodes", "label", "Component", "query", "Payment"));
 
         assertThat(result).contains("comp:PaymentService");
         assertThat(result).contains("SERVICE");
@@ -61,9 +55,10 @@ class QueryArchitectureGraphToolTest {
         cache.store(model);
         QueryArchitectureGraphTool tool = new QueryArchitectureGraphTool(cache);
 
-        String result = tool.execute(mapper.readTree("""
-            {"action":"find_edges","label":"DEPENDS_ON","filters":{"confidence":">=0.8","kind":"injection"}}
-            """));
+        String result = tool.execute(Map.of(
+                "action", "find_edges",
+                "label", "DEPENDS_ON",
+                "filters", Map.of("confidence", ">=0.8", "kind", "injection")));
 
         assertThat(result).contains("comp:PaymentService -[DEPENDS_ON]-> comp:PaymentRepository");
         assertThat(result).contains("isRuntimeRelevant=true");

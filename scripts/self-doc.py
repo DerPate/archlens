@@ -36,6 +36,14 @@ def call(proc, req_id, method, params=None):
     return resp.get("result")
 
 
+def notify(proc, method, params=None):
+    msg = {"jsonrpc": "2.0", "method": method}
+    if params is not None:
+        msg["params"] = params
+    proc.stdin.write((json.dumps(msg) + "\n").encode())
+    proc.stdin.flush()
+
+
 def main():
     proc = subprocess.Popen(
         ["java", "-jar", JAR],
@@ -52,6 +60,7 @@ def main():
             "capabilities": {},
             "clientInfo": {"name": "self-doc", "version": "1.0"},
         })
+        notify(proc, "notifications/initialized", {})
 
         print(f"→ index_workspace: {PROJECT_ROOT}")
         result = call(proc, 2, "tools/call", {
