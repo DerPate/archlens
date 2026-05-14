@@ -1,0 +1,65 @@
+version: 47
+jobs:
+- name: maven ci
+  steps:
+  - type: CheckoutStep
+    name: checkout code
+    cloneCredential:
+      type: DefaultCredential
+    withLfs: false
+    withSubmodules: false
+    condition: SUCCESSFUL
+    optional: false
+  - type: SetupCacheStep
+    name: set up maven cache
+    key: maven_repository
+    checksumFiles: '**/pom.xml'
+    paths:
+    - /root/.m2/repository
+    uploadStrategy: UPLOAD_IF_NOT_EXACT_MATCH
+    condition: SUCCESSFUL
+    optional: false
+  - type: CommandStep
+    name: run tests
+    runInContainer: true
+    image: maven
+    interpreter:
+      type: DefaultInterpreter
+      commands: |
+        mvn clean test
+    runAs: 0:0
+    useTTY: true
+    condition: SUCCESSFUL
+    optional: false
+  - type: CommandStep
+    name: detect build version
+    runInContainer: true
+    image: maven
+    interpreter:
+      type: DefaultInterpreter
+      commands: |-
+        echo "Detecting project version (may require some time while downloading maven dependencies)..."
+        mvn org.apache.maven.plugins:maven-help-plugin:3.1.0:evaluate -Dexpression=project.version -q -DforceStdout > buildVersion || { cat buildVersion; exit 1; }
+    runAs: 0:0
+    useTTY: true
+    condition: SUCCESSFUL
+    optional: false
+  - type: SetBuildVersionStep
+    name: set build version
+    buildVersion: '@file:buildVersion@'
+    condition: SUCCESSFUL
+    optional: false
+  - type: PublishJUnitReportStep
+    name: publish unit test report
+    reportName: Unit Test
+    filePatterns: '**/TEST-*.xml'
+    condition: ALWAYS
+    optional: false
+  triggers:
+  - type: BranchUpdateTrigger
+    userMatch: anyone
+  - type: PullRequestUpdateTrigger
+  retryCondition: never
+  maxRetries: 3
+  retryDelay: 30
+  timeout: 14400
