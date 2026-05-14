@@ -356,10 +356,11 @@ public class McpServer {
                                 arg("view", "View kind: component", false),
                                 arg("maxNodes", "Maximum nodes", false)),
                         """
-                        1. Call `render_architecture_view` with `app: "{app}"`, `view: "{view}"`, and `maxNodes: {maxNodes}`.
-                        2. If the user asks for LikeC4, call `export_likec4_model` with the same scope.
-                        3. Explain that the output is a projection of MCP graph facts, not a hand-authored architecture model.
-                        4. Do not invent actors, systems, components, or relationships unless the user explicitly asks for interpretive additions.
+                        1. If no workspace has been indexed yet, call `index_workspace` first.
+                        2. Call `render_architecture_view` with `app: "{app}"`, `view: "{view}"`, and `maxNodes: {maxNodes}` (default 18).
+                        3. If the output contains a %% Warnings section, report it to the user and suggest increasing maxNodes or re-indexing.
+                        4. If the user asks for LikeC4, call `export_likec4_model` with the same arguments.
+                        5. Explain that the output is a projection of source-derived graph facts — do not invent actors, components, or edges.
                         """),
                 promptSpec(
                         "find_pipeline",
