@@ -11,6 +11,7 @@ import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
+import dev.dominikbreu.spoonmcp.model.FieldAccess;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
 import java.util.List;
 import java.util.Map;
@@ -83,6 +84,92 @@ class ArchitectureGraphTest {
         assertThat(strongDependencies.getFirst().properties())
                 .containsEntry("kind", "injection")
                 .containsEntry("isCrossModule", false);
+    }
+
+    @Test
+    void downranksUtilityFanInBelowWorkflowComponents() {
+        ArchitectureModel model = model();
+
+        Component formatter = new Component();
+        formatter.id = "comp:TimestampFormatter";
+        formatter.name = "TimestampFormatter";
+        formatter.qualifiedName = "com.example.util.TimestampFormatter";
+        formatter.type = ComponentType.UTILITY;
+        model.components.add(formatter);
+
+        for (int i = 0; i < 8; i++) {
+            Component caller = new Component();
+            caller.id = "comp:Caller" + i;
+            caller.name = "Caller" + i;
+            caller.qualifiedName = "com.example.Caller" + i;
+            caller.type = ComponentType.SERVICE;
+            model.components.add(caller);
+
+            Dependency dependency = new Dependency();
+            dependency.id = "dep:caller" + i + "-formatter";
+            dependency.fromId = caller.id;
+            dependency.toId = formatter.id;
+            dependency.kind = "method-call";
+            dependency.confidence = 0.9;
+            model.dependencies.add(dependency);
+        }
+
+        ArchitectureGraph graph = new ArchitectureGraph();
+        graph.rebuild(model);
+
+        ArchitectureGraph.GraphNode service = graph.findNodes("Component", "OrderService", Map.of(), 10).getFirst();
+        ArchitectureGraph.GraphNode utility = graph.findNodes("Component", "TimestampFormatter", Map.of(), 10)
+                .getFirst();
+
+        assertThat(utility.properties())
+                .containsEntry("workflowRelevant", false)
+                .containsEntry("businessRelevant", false)
+                .containsEntry("infrastructureRole", "utility")
+                .containsEntry("noiseScore", 6);
+        assertThat((Integer) utility.properties().get("architecturalWeight"))
+                .isLessThan((Integer) service.properties().get("architecturalWeight"));
+    }
+
+    @Test
+    void projectsComponentLevelStateHandoffEdges() {
+        ArchitectureModel model = model();
+        model.components.add(component("StatePublisher", ComponentType.SCHEDULER));
+
+        FieldAccess write = fieldAccess(
+                FieldAccess.Kind.WRITE,
+                "comp:OrderService",
+                "consume",
+                "comp:OrderService",
+                "snapshots");
+        FieldAccess read = fieldAccess(
+                FieldAccess.Kind.READ,
+                "comp:StatePublisher",
+                "tick",
+                "comp:OrderService",
+                "snapshots");
+        model.fieldAccesses.add(write);
+        model.fieldAccesses.add(read);
+
+        ArchitectureGraph graph = new ArchitectureGraph();
+        graph.rebuild(model);
+
+        assertThat(graph.findEdges("WRITES_STATE", Map.of("fieldName", "snapshots"), 10))
+                .anyMatch(edge -> "comp:OrderService".equals(edge.fromId())
+                        && "comp:OrderService".equals(edge.toId()));
+        assertThat(graph.findEdges("READS_STATE", Map.of("fieldName", "snapshots"), 10))
+                .anyMatch(edge -> "comp:StatePublisher".equals(edge.fromId())
+                        && "comp:OrderService".equals(edge.toId()));
+        assertThat(graph.findEdges("STATE_HANDOFF", Map.of("fieldName", "snapshots"), 10))
+                .anyMatch(edge -> "comp:OrderService".equals(edge.fromId())
+                        && "comp:StatePublisher".equals(edge.toId())
+                        && "0.8".equals(edge.properties().get("confidence").toString()));
+
+        ArchitectureGraph.GraphNode publisher =
+                graph.findNodes("Component", "StatePublisher", Map.of(), 10).getFirst();
+        assertThat(publisher.properties())
+                .containsEntry("workflowRelevant", true)
+                .containsEntry("infrastructureRole", "scheduler");
+        assertThat((Integer) publisher.properties().get("workflowBridgeScore")).isGreaterThanOrEqualTo(3);
     }
 
     @Test
@@ -256,5 +343,26 @@ class ArchitectureGraphTest {
         model.dependencies.add(dependency);
 
         return model;
+    }
+
+    private static Component component(String name, ComponentType type) {
+        Component component = new Component();
+        component.id = "comp:" + name;
+        component.name = name;
+        component.qualifiedName = "com.example." + name;
+        component.type = type;
+        return component;
+    }
+
+    private static FieldAccess fieldAccess(
+            FieldAccess.Kind kind, String componentId, String method, String ownerComponentId, String fieldName) {
+        FieldAccess access = new FieldAccess();
+        access.kind = kind;
+        access.componentId = componentId;
+        access.method = method;
+        access.fieldOwnerComponentId = ownerComponentId;
+        access.fieldName = fieldName;
+        access.id = "field:" + componentId + "#" + method + "@" + fieldName + ":" + kind.name().toLowerCase();
+        return access;
     }
 }

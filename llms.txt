@@ -5,7 +5,7 @@ Protocol (MCP) server for static architecture analysis of Java workspaces. It us
 [Spoon](https://spoon.gforge.inria.fr/) to parse and model Java sources, then exposes
 architecture-oriented tools (component listing, dependency tracing, call graph extraction,
 use case detection, data-flow tracing, runtime flow extraction, Mermaid rendering, graph
-queries) over JSON-RPC on stdin/stdout.
+queries) and workflow prompts over JSON-RPC on stdin/stdout.
 
 The server is designed for consumption by LLM agents and MCP-capable clients
 (Claude Desktop, Claude Code, generic stdio MCP clients).
@@ -15,7 +15,7 @@ The server is designed for consumption by LLM agents and MCP-capable clients
 - Language / runtime: Java 21
 - Build tool: Maven 3.9+
 - Entry point: `dev.dominikbreu.spoonmcp.Main`
-- Packaging: shaded jar via `maven-shade-plugin` → `target/spoon-mcp-server-1.0.0-SNAPSHOT.jar`
+- Packaging: shaded jar via `maven-shade-plugin` → `target/spoon-mcp-server.jar`
 - Transport: stdio JSON-RPC 2.0 (MCP protocol version `2024-11-05`)
 - Cache: `.spoon-mcp-cache/` in the working directory (JSON by default, optional graph backend)
 - License: see `LICENSE`
@@ -24,7 +24,7 @@ The server is designed for consumption by LLM agents and MCP-capable clients
 
 - Project README: ./README.md
 - Install & client wiring (Linux/macOS/Windows): ./docs/INSTALL.md
-- MCP tool reference (arguments, examples): ./docs/TOOLS.md
+- MCP tool and prompt reference (arguments, examples): ./docs/TOOLS.md
 - Architecture & package responsibilities: ./docs/ARCHITECTURE.md
 - Graph-based source architecture POC: ./docs/SOURCE_ARCHITECTURE_POC.md
 - Agent contributor guide: ./AGENTS.md
@@ -33,6 +33,7 @@ The server is designed for consumption by LLM agents and MCP-capable clients
 - Changelog: ./CHANGELOG.md
 - JSON-RPC request examples: ./examples/jsonrpc/
   - `initialize.json`, `tools-list.json`, `index-workspace.json`, `render-flowchart.json`
+  - `prompts-list.json`, `prompt-get-analyze-workspace.json`
 
 ## Source Map
 
@@ -79,6 +80,8 @@ The server is designed for consumption by LLM agents and MCP-capable clients
   POC document (`export_graph_architecture_poc`).
 - Query the architecture as a graph (`query_architecture_graph`) with
   `summary`, `find_nodes`, `find_edges`, `neighborhood`, `paths`, `impacted_by` actions.
+- Expose workflow prompts through `prompts/list` and `prompts/get` for common
+  multi-tool analysis tasks.
 
 ## MCP Tools
 
@@ -97,12 +100,27 @@ per-path output) when the question is "what does the full pipeline look like".
 
 See `./docs/TOOLS.md` for arguments and examples.
 
+## MCP Prompts
+
+Prompts are workflow templates for clients and agents; they do not replace tools.
+
+- `analyze_workspace(path)`: index a workspace, list apps, inspect entrypoints/components,
+  and summarize the architecture.
+- `generate_architecture_docs(path, focusComponent)`: index a workspace and regenerate
+  architecture docs plus graph POC docs.
+- `investigate_component(component)`: inspect dependencies, graph neighborhood, and
+  change impact for one component.
+- `trace_use_case(entrypoint)`: follow runtime flow, call flow, data flow, and timeline
+  views for an entrypoint/use case.
+- `find_pipeline(filter)`: look for cross-entrypoint or messaging/store-linked pipeline
+  chains.
+
 ## Build & Run
 
 - Test: `mvn test`
 - Package: `mvn package`
-- Run: `java -jar target/spoon-mcp-server-1.0.0-SNAPSHOT.jar`
-- Smoke test: `java -jar target/spoon-mcp-server-1.0.0-SNAPSHOT.jar < examples/jsonrpc/initialize.json`
+- Run: `java -jar target/spoon-mcp-server.jar`
+- Smoke test: `java -jar target/spoon-mcp-server.jar < examples/jsonrpc/initialize.json`
 
 ## Configuration
 
@@ -121,6 +139,10 @@ See `./docs/TOOLS.md` for arguments and examples.
 
 - The cached architecture model is in-process; tools other than `index_workspace`
   require a previous `index_workspace` call (or a pre-existing `.spoon-mcp-cache/`).
+- Stdio examples are JSONL-style request streams: one complete JSON-RPC object per
+  physical line. Do not pipe pretty-printed multi-line JSON envelopes directly to stdin.
+- Workflow prompts are intentionally coarse-grained. Add prompts for repeated
+  multi-tool workflows, not one prompt per tool.
 - `detect_use_cases` and `trace_data_flow` produce richer output when call-graph data
   is available (i.e. after `index_workspace` on a real project). Without call edges they
   fall back to injection-dependency traversal and emit a warning label.
@@ -133,6 +155,10 @@ See `./docs/TOOLS.md` for arguments and examples.
 - `trace_data_flow`: every `store` sink carries `linkedPathIds` listing downstream
   `DataFlowPath`s whose entrypoint reads the same shared field — explicit
   cross-entrypoint pipeline links so agents do not need to match field names heuristically.
+- Shared-state reads through accessor calls are evidence too: if a scheduler/service
+  calls another component method that returns a shared field directly or invokes a
+  method on it (for example `return cache` or `return cache.keySet()`), extraction
+  records a caller-side `field-access-via-getter` read owned by the callee component.
 - `trace_data_flow`: edges now also carry `assignedToVar` + `returnsTracked` for
   invocations whose result is bound to a local (used to extend tracking when the callee
   returns a parameter), and `killedTrackedNames` listing caller locals reassigned before
@@ -165,6 +191,15 @@ See `./docs/TOOLS.md` for arguments and examples.
   kinds in traversal order); each `HAS_SEGMENT` edge carries `segmentIndex` and,
   for non-root segments, `linkKind` + `incomingSinkId` + the channel/field
   property — giving graph-only clients parity with `render_pipeline`.
+- Property graph component scoring is noise-aware. Prefer components with
+  `workflowRelevant=true`, `businessRelevant=true`, high `workflowBridgeScore`, and
+  low `noiseScore`. Treat high fan-in utilities, formatters, parsers, mappers,
+  loggers, config classes, DTO-ish types, and `UNKNOWN` components as supporting
+  infrastructure unless they also bridge entrypoints, sinks, state, messaging, or
+  external systems.
+- Property graph state handoffs are first-class component edges:
+  `WRITES_STATE`, `READS_STATE`, and `STATE_HANDOFF`. Use `STATE_HANDOFF` and
+  `PipelineChain`/`LINKS_TO` before inferring workflow pivots from fan-in alone.
 - Tool argument schemas in `McpServer.java` are the authoritative source — keep
   `docs/TOOLS.md` in sync when changing them.
 - Generated artifacts (`target/`, `.spoon-mcp-cache/`, `dependency-reduced-pom.xml`)

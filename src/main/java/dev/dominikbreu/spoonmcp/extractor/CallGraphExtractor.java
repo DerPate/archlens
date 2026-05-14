@@ -475,10 +475,7 @@ public class CallGraphExtractor {
         for (CtReturn<?> ret : calleeMethod.getElements(new TypeFilter<>(CtReturn.class))) {
             CtExpression<?> ex = ret.getReturnedExpression();
             if (ex == null) continue;
-            if (ex instanceof CtFieldRead<?> fr) {
-                String fieldName = fr.getVariable().getSimpleName();
-                if (calleeSharedState.contains(fieldName)) return true;
-            }
+            if (returnedSharedFieldName(ex, calleeSharedState) != null) return true;
             String name = findFirstVarRead(ex);
             if (name != null && paramNames.contains(name)) return true;
         }
@@ -496,16 +493,16 @@ public class CallGraphExtractor {
         if (calleeSharedState.isEmpty()) return;
         for (CtReturn<?> ret : calleeMethod.getElements(new TypeFilter<>(CtReturn.class))) {
             CtExpression<?> ex = ret.getReturnedExpression();
-            if (!(ex instanceof CtFieldRead<?> fr)) continue;
-            String fieldName = fr.getVariable().getSimpleName();
-            if (!calleeSharedState.contains(fieldName)) continue;
+            String fieldName = returnedSharedFieldName(ex, calleeSharedState);
+            if (fieldName == null) continue;
             FieldAccess fa = new FieldAccess();
             fa.kind = FieldAccess.Kind.READ;
             fa.componentId = fromComp.id;
             fa.fieldOwnerComponentId = toComp.id;
             fa.fieldName = fieldName;
             fa.method = fromMethod;
-            fa.id = "field:" + fromComp.id + "#" + fromMethod + "@" + toComp.id + ":" + fieldName + ":read:xcomp";
+            fa.id = "field:" + fromComp.id + "#" + fromMethod + "@" + toComp.id + "#"
+                    + calleeMethod.getSimpleName() + ":" + fieldName + ":read:xcomp";
             var pos = inv.getPosition();
             String file = (pos != null && pos.isValidPosition()) ? pos.getFile().getAbsolutePath() : "unknown";
             int line = (pos != null && pos.isValidPosition()) ? pos.getLine() : 0;
@@ -513,6 +510,23 @@ public class CallGraphExtractor {
             model.fieldAccesses.add(fa);
             return;
         }
+    }
+
+    private String returnedSharedFieldName(CtExpression<?> expression, Set<String> sharedStateFields) {
+        if (expression == null || sharedStateFields.isEmpty()) {
+            return null;
+        }
+        if (expression instanceof CtFieldRead<?> direct) {
+            String fieldName = direct.getVariable().getSimpleName();
+            return sharedStateFields.contains(fieldName) ? fieldName : null;
+        }
+        for (CtFieldRead<?> read : expression.getElements(new TypeFilter<>(CtFieldRead.class))) {
+            String fieldName = read.getVariable().getSimpleName();
+            if (sharedStateFields.contains(fieldName)) {
+                return fieldName;
+            }
+        }
+        return null;
     }
 
     private void buildParamMapping(CtInvocation<?> inv, CallEdge edge) {

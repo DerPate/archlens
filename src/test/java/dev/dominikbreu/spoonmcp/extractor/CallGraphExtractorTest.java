@@ -2,6 +2,7 @@ package dev.dominikbreu.spoonmcp.extractor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
 import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import java.util.List;
@@ -193,6 +194,27 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         assertThat(storeSink.linkedPathIds)
                 .as("STORE sink on OrderBuffer.cache must link to the OrderForwarder reader path")
                 .contains(schedulerPath.id);
+    }
+
+    @Test
+    void endToEndCacheSchedulerPipelineProducesComponentStateHandoffEdge() {
+        ArchitectureModel traced = new ArchitectureModel("test");
+        traced.components.addAll(model.components);
+        traced.entrypoints.addAll(model.entrypoints);
+        traced.dependencies.addAll(model.dependencies);
+        traced.callEdges.addAll(model.callEdges);
+        traced.fieldAccesses.addAll(model.fieldAccesses);
+        traced.outboundSinkSites.addAll(model.outboundSinkSites);
+        traced.dataFlowPaths.addAll(new DataFlowTracer().trace(traced));
+
+        ArchitectureGraph graph = new ArchitectureGraph();
+        graph.rebuild(traced);
+
+        assertThat(graph.findEdges("STATE_HANDOFF", java.util.Map.of("fieldName", "cache"), 20))
+                .as("component graph must expose OrderBuffer.cache handoff to OrderForwarder")
+                .anyMatch(edge -> edge.fromId().contains("OrderBuffer")
+                        && edge.toId().contains("OrderForwarder")
+                        && "cache".equals(edge.properties().get("fieldName")));
     }
 
     @Test

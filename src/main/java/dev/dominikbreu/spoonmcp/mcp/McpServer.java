@@ -75,9 +75,11 @@ public class McpServer {
         io.modelcontextprotocol.server.McpServer.sync(transport)
                 .serverInfo("spoon-mcp-server", "1.1.0")
                 .capabilities(McpSchema.ServerCapabilities.builder()
+                        .prompts(false)
                         .tools(false)
                         .build())
                 .tools(buildToolSpecifications())
+                .prompts(buildPromptSpecifications())
                 .build();
     }
 
@@ -218,6 +220,9 @@ public class McpServer {
                         .opt("module", "string", "Shorthand filter: module/app ID property")
                         .opt("packageName", "string", "Shorthand filter: packageName property (partial match)")
                         .opt("entrypointReachable", "string", "Shorthand filter: true | false — only nodes reachable from an entrypoint")
+                        .opt("workflowRelevant", "string", "Shorthand filter: true | false — only workflow-relevant components")
+                        .opt("businessRelevant", "string", "Shorthand filter: true | false — only business-relevant components")
+                        .opt("infrastructureRole", "string", "Shorthand filter: component role such as scheduler, repository, utility")
                         .opt("isCrossModule", "string", "Shorthand filter: true | false — only cross-module edges")
                         .opt("isRuntimeRelevant", "string", "Shorthand filter: true | false — only runtime-relevant edges")
                         .opt("isCondensable", "string", "Shorthand filter: true | false — only condensable edges"),
@@ -261,6 +266,83 @@ public class McpServer {
         return specs;
     }
 
+    // ── prompt registration ───────────────────────────────────────────────────
+
+    private List<McpServerFeatures.SyncPromptSpecification> buildPromptSpecifications() {
+        return List.of(
+                promptSpec(
+                        "analyze_workspace",
+                        "Analyze a Java workspace and summarize the discovered architecture.",
+                        List.of(arg("path", "Absolute project or workspace root to index.", true)),
+                        """
+                        Analyze the Java workspace at `{path}`.
+
+                        Use this workflow:
+                        1. Call `index_workspace` with `paths: ["{path}"]`.
+                        2. Call `list_apps` to identify modules and packaging.
+                        3. Call `find_entrypoints` and `find_components` to map the runtime surface.
+                        4. Call `explain_architecture` for a concise architecture summary.
+                        5. Mention uncertainty where component types or technologies are inferred with low confidence.
+                        """),
+                promptSpec(
+                        "generate_architecture_docs",
+                        "Generate checked-in architecture documentation for a Java workspace.",
+                        List.of(
+                                arg("path", "Absolute project or workspace root to index.", true),
+                                arg("focusComponent", "Component name used for focused dependency slices.", false)),
+                        """
+                        Generate architecture documentation for `{path}`.
+
+                        Use this workflow:
+                        1. Call `index_workspace` with `paths: ["{path}"]`.
+                        2. Call `export_architecture_docs` with `outputPath: "docs/ARCHITECTURE.md"` and `focusComponent: "{focusComponent}"`.
+                        3. Call `export_graph_architecture_poc` with `outputPath: "docs/SOURCE_ARCHITECTURE_POC.md"` and `focusComponent: "{focusComponent}"`.
+                        4. Review the tool summaries and report component, dependency, node, and edge counts.
+                        """),
+                promptSpec(
+                        "investigate_component",
+                        "Investigate a component's dependencies, graph neighborhood, and impact surface.",
+                        List.of(arg("component", "Component simple name, qualified name, or component ID.", true)),
+                        """
+                        Investigate component `{component}`.
+
+                        Use this workflow:
+                        1. Call `find_components` with `query` if available to locate likely component IDs, or use `query_architecture_graph` with `action: "find_nodes"` and `query: "{component}"`.
+                        2. Call `get_component_dependencies` with `name: "{component}"`, `depth: 2`, and `condensed: true`.
+                        3. Call `render_component_dependency_diagram` with `name: "{component}"` and `depth: 2`.
+                        4. Call `query_architecture_graph` with `action: "neighborhood"` for the selected node ID.
+                        5. Summarize inbound dependencies, outbound dependencies, runtime-relevant edges, and likely change impact.
+                        """),
+                promptSpec(
+                        "trace_use_case",
+                        "Trace an entrypoint or use case through runtime flow, call flow, and data flow.",
+                        List.of(arg("entrypoint", "Entrypoint name, path, or entrypoint ID.", true)),
+                        """
+                        Trace use case `{entrypoint}`.
+
+                        Use this workflow:
+                        1. Call `find_entrypoints` to confirm the matching entrypoint.
+                        2. Call `get_runtime_flow` with `entrypointName: "{entrypoint}"` and `maxDepth: 8`.
+                        3. Call `render_call_flow` with `entrypointName: "{entrypoint}"` and `maxDepth: 8`.
+                        4. Call `trace_data_flow` with `entrypointName: "{entrypoint}"`.
+                        5. Call `render_use_case_timeline` with `entrypointName: "{entrypoint}"`.
+                        6. Explain the request path, component hops, data sinks, and any missing call-graph evidence.
+                        """),
+                promptSpec(
+                        "find_pipeline",
+                        "Find cross-entrypoint or messaging/store-linked pipeline chains.",
+                        List.of(arg("filter", "Optional entrypoint name, HTTP path, or messaging channel filter.", false)),
+                        """
+                        Find pipeline chains matching `{filter}`.
+
+                        Use this workflow:
+                        1. Call `trace_data_flow` to inspect available data-flow paths and sinks.
+                        2. Call `render_pipeline` with `entrypointName: "{filter}"`, `channel: "{filter}"`, `maxDepth: 8`, and `maxChains: 5`.
+                        3. If no chains match, call `query_architecture_graph` with `action: "find_edges"` and filters for `kind: "LINKS_TO"` where available.
+                        4. Summarize each pipeline segment, bridge kind, channel/store name, and downstream consumer.
+                        """));
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private McpServerFeatures.SyncToolSpecification toolSpec(
@@ -282,6 +364,33 @@ public class McpServer {
                     .addTextContent(result)
                     .build();
         });
+    }
+
+    private McpServerFeatures.SyncPromptSpecification promptSpec(
+            String name, String description, List<McpSchema.PromptArgument> args, String template) {
+        McpSchema.Prompt prompt = new McpSchema.Prompt(name, description, args);
+        return new McpServerFeatures.SyncPromptSpecification(prompt, (exchange, request) -> {
+            Map<String, Object> promptArgs = request.arguments() != null ? request.arguments() : Map.of();
+            String text = fillTemplate(template, promptArgs);
+            return new McpSchema.GetPromptResult(
+                    description,
+                    List.of(new McpSchema.PromptMessage(
+                            McpSchema.Role.USER,
+                            new McpSchema.TextContent(text))));
+        });
+    }
+
+    private static McpSchema.PromptArgument arg(String name, String description, boolean required) {
+        return new McpSchema.PromptArgument(name, description, required);
+    }
+
+    private static String fillTemplate(String template, Map<String, Object> args) {
+        String result = template.strip();
+        for (Map.Entry<String, Object> entry : args.entrySet()) {
+            String value = entry.getValue() == null ? "" : entry.getValue().toString();
+            result = result.replace("{" + entry.getKey() + "}", value);
+        }
+        return result.replaceAll("\\{[A-Za-z0-9_]+}", "");
     }
 
     private static SchemaBuilder schema() {

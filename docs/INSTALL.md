@@ -86,7 +86,7 @@ mvn clean package
 The runnable, dependency-shaded jar is produced at:
 
 ```
-target/spoon-mcp-server-1.0.0-SNAPSHOT.jar
+target/spoon-mcp-server.jar
 ```
 
 Note the absolute path — every MCP client config below needs it.
@@ -96,20 +96,18 @@ Note the absolute path — every MCP client config below needs it.
 Verify the server starts and speaks JSON-RPC over stdio:
 
 ```sh
-java -jar target/spoon-mcp-server-1.0.0-SNAPSHOT.jar < examples/jsonrpc/initialize.json
+java -jar target/spoon-mcp-server.jar < examples/jsonrpc/initialize.json
 ```
 
 You should see a JSON response with `serverInfo` and the supported `protocolVersion`.
 
-To list all tools:
+The example files in `examples/jsonrpc/` are JSONL-style request streams: one complete JSON-RPC object per line. This matches the SDK stdio transport. Do not pretty-print a single JSON-RPC envelope across multiple physical lines when piping directly to stdin.
 
-```sh
-java -jar target/spoon-mcp-server-1.0.0-SNAPSHOT.jar < examples/jsonrpc/tools-list.json
-```
+For multi-message flows such as `tools-list.json`, `prompts-list.json`, or `prompt-get-analyze-workspace.json`, use an MCP client or a small driver that sends each JSONL message sequentially and waits for responses. A plain shell redirection can close stdin before the SDK has finished processing later messages.
 
 ## 3. Configure your MCP client
 
-The server is a stdio MCP server. Replace `/abs/path/to` with the absolute path on your machine.
+The server is a stdio MCP server. Replace `/abs/path/to` with the absolute path on your machine. MCP clients handle the JSONL framing and initialization handshake for you.
 
 ### Claude Desktop
 
@@ -122,7 +120,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) o
       "command": "java",
       "args": [
         "-jar",
-        "/abs/path/to/spoon-mcp-server/target/spoon-mcp-server-1.0.0-SNAPSHOT.jar"
+        "/abs/path/to/spoon-mcp-server/target/spoon-mcp-server.jar"
       ]
     }
   }
@@ -136,7 +134,7 @@ Restart Claude Desktop. The Spoon tools should appear under the tools menu.
 Add the server with the CLI:
 
 ```sh
-claude mcp add spoon -- java -jar /abs/path/to/spoon-mcp-server/target/spoon-mcp-server-1.0.0-SNAPSHOT.jar
+claude mcp add spoon -- java -jar /abs/path/to/spoon-mcp-server/target/spoon-mcp-server.jar
 ```
 
 Or edit `~/.claude.json` (or your project `.mcp.json`) directly:
@@ -148,7 +146,7 @@ Or edit `~/.claude.json` (or your project `.mcp.json`) directly:
       "command": "java",
       "args": [
         "-jar",
-        "/abs/path/to/spoon-mcp-server/target/spoon-mcp-server-1.0.0-SNAPSHOT.jar"
+        "/abs/path/to/spoon-mcp-server/target/spoon-mcp-server.jar"
       ]
     }
   }
@@ -160,7 +158,7 @@ Or edit `~/.claude.json` (or your project `.mcp.json`) directly:
 Any client that speaks MCP over stdio works. Configure it to launch:
 
 ```
-java -jar /abs/path/to/spoon-mcp-server/target/spoon-mcp-server-1.0.0-SNAPSHOT.jar
+java -jar /abs/path/to/spoon-mcp-server/target/spoon-mcp-server.jar
 ```
 
 with no arguments. The server reads JSON-RPC from stdin and writes responses to stdout.
@@ -192,7 +190,7 @@ After indexing, every other tool (`list_apps`, `find_components`, `render_mermai
 Example with the graph backend:
 
 ```sh
-SPOON_MCP_CACHE_BACKEND=graph java -jar target/spoon-mcp-server-1.0.0-SNAPSHOT.jar
+SPOON_MCP_CACHE_BACKEND=graph java -jar target/spoon-mcp-server.jar
 ```
 
 The cache itself is written to `.spoon-mcp-cache/` in the working directory.
@@ -213,4 +211,4 @@ git pull
 mvn clean package
 ```
 
-The jar version may change (`spoon-mcp-server-<version>.jar`) — update the path in your client config to match.
+The jar is built with the stable name `spoon-mcp-server.jar`; rebuild it after pulling changes.

@@ -46,7 +46,8 @@ Use the MCP tool `query_architecture_graph` to inspect the same metadata interac
 - `componentType`, `type`, `name`, `simpleName`, `qualifiedName`, `packageName`
 - `module`, `technology`, `stereotypes`, `sourceFile`, `sourceLine`
 - `derivedFrom`, `confidence`, `fanIn`, `fanOut`, `degree`, `entrypointReachable`
-- `ownedEntrypointCount`, `architecturalWeight` (= fanIn + fanOut + ownedEntrypointCount×2)
+- `ownedEntrypointCount`, `architecturalWeight` (noise-aware workflow score)
+- `workflowRelevant`, `businessRelevant`, `infrastructureRole`, `noiseScore`, `workflowBridgeScore`
 
 ### Entrypoint Nodes
 

@@ -114,6 +114,11 @@ public class QueryArchitectureGraphTool {
                     "degree",
                     "ownedEntrypointCount",
                     "architecturalWeight",
+                    "workflowRelevant",
+                    "businessRelevant",
+                    "infrastructureRole",
+                    "noiseScore",
+                    "workflowBridgeScore",
                     "entrypointReachable");
             sb.append("\n");
         }
@@ -145,7 +150,15 @@ public class QueryArchitectureGraphTool {
                     "isCondensable",
                     "isCrossModule",
                     "fromModule",
-                    "toModule");
+                    "toModule",
+                    "fieldName",
+                    "fieldOwnerComponentId",
+                    "writerMethod",
+                    "readerMethod",
+                    "accessKind",
+                    "linkKind",
+                    "viaField",
+                    "viaChannel");
             sb.append("\n");
         }
         return sb.toString();
@@ -207,6 +220,9 @@ public class QueryArchitectureGraphTool {
         addDirectFilter(args, filters, "module");
         addDirectFilter(args, filters, "packageName");
         addDirectFilter(args, filters, "entrypointReachable");
+        addDirectFilter(args, filters, "workflowRelevant");
+        addDirectFilter(args, filters, "businessRelevant");
+        addDirectFilter(args, filters, "infrastructureRole");
         addDirectFilter(args, filters, "isCrossModule");
         addDirectFilter(args, filters, "isRuntimeRelevant");
         addDirectFilter(args, filters, "isCondensable");
