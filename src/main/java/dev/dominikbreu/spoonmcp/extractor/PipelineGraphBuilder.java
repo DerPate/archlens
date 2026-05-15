@@ -90,7 +90,7 @@ public class PipelineGraphBuilder {
             if (!hasAnyLink(p)) continue;
             extend(new ArrayList<>(), p, null, pathById, epById, chains, maxDepth, new LinkedHashSet<>());
         }
-        return removePrefixChains(chains);
+        return removeDuplicateChains(removePrefixChains(chains));
     }
 
     /**
@@ -133,6 +133,28 @@ public class PipelineGraphBuilder {
             result.add(chains.get(i));
         }
         return result;
+    }
+
+    private List<Chain> removeDuplicateChains(List<Chain> chains) {
+        LinkedHashSet<String> seen = new LinkedHashSet<>();
+        List<Chain> result = new ArrayList<>();
+        for (Chain c : chains) {
+            if (seen.add(chainKey(c))) {
+                result.add(c);
+            }
+        }
+        return result;
+    }
+
+    private String chainKey(Chain c) {
+        StringBuilder sb = new StringBuilder();
+        for (Segment s : c.segments) {
+            if (sb.length() > 0) sb.append('|');
+            String epId = s.entrypoint != null ? s.entrypoint.id
+                        : (s.path != null ? s.path.entrypointId : "");
+            sb.append(epId != null ? epId : "");
+        }
+        return sb.toString();
     }
 
     private List<String> segmentPathIds(Chain c) {
