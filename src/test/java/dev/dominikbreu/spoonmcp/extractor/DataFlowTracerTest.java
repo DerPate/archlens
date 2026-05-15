@@ -577,6 +577,36 @@ class DataFlowTracerTest {
                         .anySatisfy(s -> assertThat(s.kind).isEqualTo(DataFlowSink.Kind.PERSISTENCE)));
     }
 
+    // ── G_consumer: terminal MESSAGING_CONSUMER path with no outbound sinks ──────
+
+    @Test
+    void trace_includesMessagingConsumerPathWithStepsEvenWhenNoSinks() {
+        // A MESSAGING_CONSUMER that only processes internally (no DB/HTTP/messaging write)
+        // has zero sinks. The path must still appear so upstream producer sinks can stitch to it.
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("OrderConsumer", ComponentType.SERVICE));
+        Component internal = comp("OrderValidator", ComponentType.SERVICE);
+        model.components.add(internal);
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:consume-order";
+        ep.name = "consume";
+        ep.type = EntrypointType.MESSAGING_CONSUMER;
+        ep.componentId = "comp:OrderConsumer";
+        ep.parameters.add("order");
+        model.entrypoints.add(ep);
+
+        // Call edge to an internal method — causes path.steps to be non-empty
+        addCallEdge(model, "comp:OrderConsumer", "consume", "comp:OrderValidator", "validate",
+                Map.of("order", "order"));
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        assertThat(paths)
+                .as("terminal consumer path should be present even without sinks")
+                .anySatisfy(p -> assertThat(p.entrypointId).isEqualTo("ep:consume-order"));
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────────
 
     private static ArchitectureModel buildModel() {
