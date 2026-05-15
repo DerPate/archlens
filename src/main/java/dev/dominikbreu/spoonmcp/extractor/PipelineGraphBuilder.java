@@ -90,7 +90,50 @@ public class PipelineGraphBuilder {
             if (!hasAnyLink(p)) continue;
             extend(new ArrayList<>(), p, null, pathById, epById, chains, maxDepth, new LinkedHashSet<>());
         }
-        return chains;
+        return removePrefixChains(chains);
+    }
+
+    /**
+     * Removes chains that terminate early at a fan-out node.
+     *
+     * <p>Chain ci is suppressed when there exists a strictly longer chain cj that shares the same
+     * leading path IDs up to (but not including) ci's terminal segment. This covers the case where
+     * one fan-out branch ends immediately while a sibling branch continues deeper: the short branch
+     * is noise because the fan-out node itself already appears in the longer chain.
+     */
+    private List<Chain> removePrefixChains(List<Chain> chains) {
+        List<Chain> result = new ArrayList<>(chains.size());
+        outer:
+        for (Chain ci : chains) {
+            List<String> idsI = segmentPathIds(ci);
+            // Compare only the prefix up to (not including) the terminal segment of ci.
+            int prefixLen = idsI.size() - 1;
+            if (prefixLen == 0) {
+                result.add(ci);
+                continue;
+            }
+            for (Chain cj : chains) {
+                if (cj == ci) continue;
+                if (cj.segments.size() <= ci.segments.size()) continue;
+                List<String> idsJ = segmentPathIds(cj);
+                boolean isPrefix = true;
+                for (int k = 0; k < prefixLen; k++) {
+                    if (!idsI.get(k).equals(idsJ.get(k))) {
+                        isPrefix = false;
+                        break;
+                    }
+                }
+                if (isPrefix) continue outer;
+            }
+            result.add(ci);
+        }
+        return result;
+    }
+
+    private List<String> segmentPathIds(Chain c) {
+        List<String> ids = new ArrayList<>(c.segments.size());
+        for (Segment s : c.segments) ids.add(s.path.id);
+        return ids;
     }
 
     private void extend(
