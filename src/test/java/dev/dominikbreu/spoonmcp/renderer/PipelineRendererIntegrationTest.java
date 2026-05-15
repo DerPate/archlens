@@ -188,4 +188,37 @@ class PipelineRendererIntegrationTest {
         p.trackedParam = trackedParam;
         return p;
     }
+
+    @Test
+    void renderedSegmentDoesNotStartWithSelfReferentialEdge() {
+        ArchitectureModel model = new ArchitectureModel("self-call-test");
+        model.components.add(comp("comp:Scheduler", "Scheduler", ComponentType.SCHEDULER));
+        model.components.add(comp("comp:Repo", "Repo", ComponentType.REPOSITORY));
+
+        model.entrypoints.add(ep("ep:tick", "tick", EntrypointType.SCHEDULER, null, "comp:Scheduler"));
+
+        DataFlowPath p1 = path("df:tick", "ep:tick", "*");
+        p1.steps.add(new DataFlowStep(0, "comp:Scheduler", "Scheduler", "tick", "*"));
+        p1.steps.add(new DataFlowStep(1, "comp:Repo", "Repo", "save", "*"));
+        DataFlowSink terminal = new DataFlowSink();
+        terminal.kind = DataFlowSink.Kind.PERSISTENCE;
+        terminal.componentId = "comp:Repo";
+        terminal.componentName = "Repo";
+        terminal.method = "save";
+        p1.sinks.add(terminal);
+        model.dataFlowPaths.add(p1);
+
+        PipelineGraphBuilder.Chain chain = new PipelineGraphBuilder.Chain();
+        chain.segments.add(new PipelineGraphBuilder.Segment(p1, null, model.entrypoints.get(0)));
+
+        String mermaid = new MermaidPipelineRenderer().render(chain, model);
+
+        // "Scheduler.tick" must appear as exactly one node declaration (not two).
+        long headerCount = java.util.Arrays.stream(mermaid.split("\n"))
+                .filter(line -> line.contains("\"Scheduler.tick\"") && line.contains("["))
+                .count();
+        assertThat(headerCount)
+                .as("'Scheduler.tick' node must appear exactly once — no duplicate header")
+                .isEqualTo(1);
+    }
 }
