@@ -767,14 +767,18 @@ class DataFlowTracerTest {
 
         List<DataFlowPath> paths = tracer.trace(model);
 
-        paths.stream()
+        List<DataFlowSink> storeSinks = paths.stream()
                 .filter(p -> p.entrypointId.equals("ep:consumer"))
                 .flatMap(p -> p.sinks.stream())
                 .filter(s -> s.kind == DataFlowSink.Kind.STORE && "stateMap".equals(s.fieldName))
-                .forEach(storeSink ->
-                    assertThat(storeSink.linkedPathIds)
-                            .as("STORE sink must not link to scheduler that only reaches 'stateMap' via messaging boundary")
-                            .noneMatch(id -> id.contains("ep:scheduler")));
+                .toList();
+        assertThat(storeSinks)
+                .as("consumer must produce a stateMap STORE sink")
+                .isNotEmpty();
+        storeSinks.forEach(storeSink ->
+                assertThat(storeSink.linkedPathIds)
+                        .as("STORE sink must not link to scheduler that only reaches 'stateMap' via messaging boundary")
+                        .noneMatch(id -> id.contains("ep:scheduler")));
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────────
