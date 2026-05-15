@@ -168,4 +168,67 @@ class PipelineGraphBuilderTest {
         s.linkedPathIds.add(toPathId);
         from.sinks.add(s);
     }
+
+    @Test
+    void build_excludesLifecycleObserverEntrypointsFromChains() {
+        ArchitectureModel m = new ArchitectureModel("test");
+
+        Entrypoint schedulerEp = new Entrypoint();
+        schedulerEp.id = "ep:scheduler";
+        schedulerEp.name = "run";
+        schedulerEp.type = EntrypointType.SCHEDULER;
+        m.entrypoints.add(schedulerEp);
+
+        Entrypoint observerEp = new Entrypoint();
+        observerEp.id = "ep:shutdown-observer";
+        observerEp.name = "onShutdown";
+        observerEp.type = EntrypointType.CDI_EVENT_OBSERVER;
+        m.entrypoints.add(observerEp);
+
+        Entrypoint dataObserverEp = new Entrypoint();
+        dataObserverEp.id = "ep:data-observer";
+        dataObserverEp.name = "onOrderCreated";
+        dataObserverEp.type = EntrypointType.CDI_EVENT_OBSERVER;
+        m.entrypoints.add(dataObserverEp);
+
+        // Scheduler path links to both the shutdown observer and the data observer
+        DataFlowPath schedulerPath = new DataFlowPath();
+        schedulerPath.id = "df:scheduler";
+        schedulerPath.entrypointId = "ep:scheduler";
+        schedulerPath.steps.add(new DataFlowStep(0, "comp:x", "X", "run", "*"));
+
+        DataFlowSink sinkToShutdown = new DataFlowSink();
+        sinkToShutdown.kind = DataFlowSink.Kind.STORE;
+        sinkToShutdown.linkedPathIds.add("df:shutdown-observer");
+
+        DataFlowSink sinkToData = new DataFlowSink();
+        sinkToData.kind = DataFlowSink.Kind.MESSAGING;
+        sinkToData.channel = "orders";
+        sinkToData.linkedPathIds.add("df:data-observer");
+
+        schedulerPath.sinks.add(sinkToShutdown);
+        schedulerPath.sinks.add(sinkToData);
+        m.dataFlowPaths.add(schedulerPath);
+
+        DataFlowPath shutdownPath = new DataFlowPath();
+        shutdownPath.id = "df:shutdown-observer";
+        shutdownPath.entrypointId = "ep:shutdown-observer";
+        shutdownPath.steps.add(new DataFlowStep(0, "comp:x", "X", "onShutdown", "*"));
+        m.dataFlowPaths.add(shutdownPath);
+
+        DataFlowPath dataObserverPath = new DataFlowPath();
+        dataObserverPath.id = "df:data-observer";
+        dataObserverPath.entrypointId = "ep:data-observer";
+        dataObserverPath.steps.add(new DataFlowStep(0, "comp:x", "X", "onOrderCreated", "*"));
+        m.dataFlowPaths.add(dataObserverPath);
+
+        List<Chain> chains = builder.build(m, 10);
+
+        assertThat(chains)
+                .as("only the chain to the data observer should survive")
+                .hasSize(1);
+        assertThat(chains.get(0).segments.get(1).entrypoint.id)
+                .as("surviving chain's segment-1 is the data observer, not the shutdown observer")
+                .isEqualTo("ep:data-observer");
+    }
 }

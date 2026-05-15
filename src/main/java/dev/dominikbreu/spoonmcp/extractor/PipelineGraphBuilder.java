@@ -22,6 +22,16 @@ import java.util.Set;
  */
 public class PipelineGraphBuilder {
 
+    private static final java.util.Set<String> LIFECYCLE_KEYWORDS = java.util.Set.of(
+            "shutdown", "stop", "destroy", "close", "halt", "predestroy", "cleanup");
+
+    private static boolean isLifecycleEntrypoint(Entrypoint ep) {
+        if (ep == null || ep.type != dev.dominikbreu.spoonmcp.model.EntrypointType.CDI_EVENT_OBSERVER) return false;
+        if (ep.name == null) return false;
+        String lower = ep.name.toLowerCase(java.util.Locale.ROOT);
+        return LIFECYCLE_KEYWORDS.stream().anyMatch(lower::contains);
+    }
+
     /** Creates a builder. */
     public PipelineGraphBuilder() {}
 
@@ -69,14 +79,22 @@ public class PipelineGraphBuilder {
         if (model == null || model.dataFlowPaths == null || model.dataFlowPaths.isEmpty()) {
             return List.of();
         }
-        Map<String, DataFlowPath> pathById = new HashMap<>();
-        for (DataFlowPath p : model.dataFlowPaths) pathById.put(p.id, p);
-
         Map<String, Entrypoint> epById = new HashMap<>();
         for (Entrypoint e : model.entrypoints) epById.put(e.id, e);
 
+        // Remove lifecycle observer paths so they cannot appear as any segment.
+        Set<String> lifecyclePathIds = new HashSet<>();
+        for (DataFlowPath p : model.dataFlowPaths) {
+            if (isLifecycleEntrypoint(epById.get(p.entrypointId))) lifecyclePathIds.add(p.id);
+        }
+        Map<String, DataFlowPath> pathById = new HashMap<>();
+        for (DataFlowPath p : model.dataFlowPaths) {
+            if (!lifecyclePathIds.contains(p.id)) pathById.put(p.id, p);
+        }
+
         Set<String> hasIncoming = new HashSet<>();
         for (DataFlowPath p : model.dataFlowPaths) {
+            if (lifecyclePathIds.contains(p.id)) continue;
             for (DataFlowSink s : p.sinks) {
                 if (s.linkedPathIds == null) continue;
                 hasIncoming.addAll(s.linkedPathIds);
@@ -85,6 +103,7 @@ public class PipelineGraphBuilder {
 
         List<Chain> chains = new ArrayList<>();
         for (DataFlowPath p : model.dataFlowPaths) {
+            if (lifecyclePathIds.contains(p.id)) continue;
             if (hasIncoming.contains(p.id)) continue;
             // Skip orphan roots: must have at least one outgoing link to be a pipeline.
             if (!hasAnyLink(p)) continue;
