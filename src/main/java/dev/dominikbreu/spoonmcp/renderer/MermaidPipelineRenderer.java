@@ -100,9 +100,9 @@ public class MermaidPipelineRenderer {
                     .append("\n");
 
             String previousNodeInSeg = headerNodeId;
-            for (int i = 0; i < seg.path.steps.size(); i++) {
+            for (int i = 1; i < seg.path.steps.size(); i++) {
                 DataFlowStep step = seg.path.steps.get(i);
-                String nodeId = "S" + segIdx + "_" + (i + 1);
+                String nodeId = "S" + segIdx + "_" + i;
                 ComponentType type =
                         compById.containsKey(step.componentId) ? compById.get(step.componentId).type : null;
                 String label = step.componentName + "." + step.method;
