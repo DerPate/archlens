@@ -30,7 +30,9 @@ class PipelineGraphBuilderTest {
 
         List<Chain> chains = builder.build(model, 10);
 
-        assertThat(chains).as("prefix chain (R,B,A) suppressed; only (R,B,C,D) remains").hasSize(1);
+        assertThat(chains)
+                .as("prefix chain (R,B,A) suppressed; only (R,B,C,D) remains")
+                .hasSize(1);
         assertThat(chains.get(0).segments).hasSize(4);
         assertThat(chains.get(0).segments.get(0).path.id).isEqualTo("df:R");
         assertThat(chains.get(0).segments.get(1).path.id).isEqualTo("df:B");
@@ -44,7 +46,9 @@ class PipelineGraphBuilderTest {
 
         List<Chain> chains = builder.build(model, 10);
 
-        assertThat(chains).as("two structurally identical chains collapsed to one").hasSize(1);
+        assertThat(chains)
+                .as("two structurally identical chains collapsed to one")
+                .hasSize(1);
     }
 
     @Test

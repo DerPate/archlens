@@ -1,7 +1,6 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import java.util.Map;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.Dependency;
@@ -129,5 +128,4 @@ public class ExportArchitectureDocsTool {
         }
         return sb.toString();
     }
-
 }

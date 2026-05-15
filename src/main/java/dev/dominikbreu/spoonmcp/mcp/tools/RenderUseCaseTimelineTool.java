@@ -1,10 +1,10 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import java.util.Map;
 import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.renderer.MermaidUseCaseTimelineRenderer;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -80,5 +80,4 @@ public class RenderUseCaseTimelineTool {
             return "Error rendering use case timeline: " + e.getMessage();
         }
     }
-
 }

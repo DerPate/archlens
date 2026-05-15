@@ -1,7 +1,6 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
-import java.util.Map;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.RuntimeFlow;
@@ -99,7 +98,8 @@ public class ExportGraphArchitecturePocTool {
         sb.append("- `module`, `technology`, `stereotypes`, `sourceFile`, `sourceLine`\n");
         sb.append("- `derivedFrom`, `confidence`, `fanIn`, `fanOut`, `degree`, `entrypointReachable`\n");
         sb.append("- `ownedEntrypointCount`, `architecturalWeight` (noise-aware workflow score)\n");
-        sb.append("- `workflowRelevant`, `businessRelevant`, `infrastructureRole`, `noiseScore`, `workflowBridgeScore`\n\n");
+        sb.append(
+                "- `workflowRelevant`, `businessRelevant`, `infrastructureRole`, `noiseScore`, `workflowBridgeScore`\n\n");
 
         sb.append("### Entrypoint Nodes\n\n");
         sb.append("- `kind=entrypoint`\n");
@@ -112,16 +112,15 @@ public class ExportGraphArchitecturePocTool {
 
         sb.append("## High Signal Components\n\n");
         Comparator<ArchitectureGraph.GraphNode> signalOrder = Comparator.comparingInt(
-                        (ArchitectureGraph.GraphNode node) -> booleanRank(node.properties().get("workflowRelevant")))
+                        (ArchitectureGraph.GraphNode node) ->
+                                booleanRank(node.properties().get("workflowRelevant")))
                 .reversed()
-                .thenComparing(Comparator.comparingInt(
-                                (ArchitectureGraph.GraphNode node) ->
-                                        booleanRank(node.properties().get("businessRelevant")))
+                .thenComparing(Comparator.comparingInt((ArchitectureGraph.GraphNode node) ->
+                                booleanRank(node.properties().get("businessRelevant")))
                         .reversed())
                 .thenComparingInt(node -> numeric(node.properties().get("noiseScore")))
-                .thenComparing(Comparator.comparingInt(
-                                (ArchitectureGraph.GraphNode node) ->
-                                        numeric(node.properties().get("architecturalWeight")))
+                .thenComparing(Comparator.comparingInt((ArchitectureGraph.GraphNode node) ->
+                                numeric(node.properties().get("architecturalWeight")))
                         .reversed())
                 .thenComparing(ArchitectureGraph.GraphNode::id);
         graph.findNodes("Component", null, Map.of(), 100).stream()
@@ -322,5 +321,4 @@ public class ExportGraphArchitecturePocTool {
             return 0.0d;
         }
     }
-
 }

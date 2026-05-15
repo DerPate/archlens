@@ -1,7 +1,6 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import java.util.Map;
 import dev.dominikbreu.spoonmcp.model.*;
 import java.util.List;
 import java.util.Map;
@@ -145,5 +144,4 @@ public class ExplainArchitectureTool {
                 .map(c -> c.name)
                 .orElse(id);
     }
-
 }

@@ -1,12 +1,12 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import tools.jackson.databind.ObjectMapper;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import java.util.Map;
 import dev.dominikbreu.spoonmcp.extractor.UseCaseDetector;
 import dev.dominikbreu.spoonmcp.model.*;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * MCP tool that detects business use cases from indexed entrypoints and their call chains.
@@ -127,5 +127,4 @@ public class DetectUseCasesTool {
                         .orElse(id))
                 .collect(Collectors.joining(", "));
     }
-
 }

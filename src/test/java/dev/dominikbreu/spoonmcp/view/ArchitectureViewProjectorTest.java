@@ -23,10 +23,7 @@ class ArchitectureViewProjectorTest {
                 "Spoon MCP Server - Component View",
                 "app:spoon-mcp-server",
                 List.of(new ArchitectureViewProjection.Node(
-                        "comp:dev.example.McpServer",
-                        "McpServer",
-                        "component",
-                        Map.of("componentType", "SERVICE"))),
+                        "comp:dev.example.McpServer", "McpServer", "component", Map.of("componentType", "SERVICE"))),
                 List.of(new ArchitectureViewProjection.Edge(
                         "comp:dev.example.McpServer",
                         "comp:dev.example.IndexWorkspaceTool",
@@ -46,8 +43,8 @@ class ArchitectureViewProjectorTest {
     void componentViewPrefersWorkflowRelevantComponentsOverUtilityFanIn() {
         ArchitectureGraph graph = componentViewFixture();
 
-        ArchitectureViewProjection projection = new ArchitectureViewProjector()
-                .projectComponentView(graph, "app:demo", "Demo Component View", 12);
+        ArchitectureViewProjection projection =
+                new ArchitectureViewProjector().projectComponentView(graph, "app:demo", "Demo Component View", 12);
 
         List<String> titles = projection.nodes().stream()
                 .map(ArchitectureViewProjection.Node::title)
@@ -58,10 +55,12 @@ class ArchitectureViewProjectorTest {
         assertTrue(titles.contains("SchedulerJob"), "missing SchedulerJob in " + titles);
         assertTrue(titles.contains("PublisherGateway"), "missing PublisherGateway in " + titles);
         assertTrue(titles.contains("Repository"), "missing Repository in " + titles);
-        assertTrue(titles.indexOf("TimestampFormatter") > titles.indexOf("SchedulerJob"),
+        assertTrue(
+                titles.indexOf("TimestampFormatter") > titles.indexOf("SchedulerJob"),
                 "TimestampFormatter should appear after SchedulerJob but was: " + titles);
-        assertTrue(projection.edges().stream().anyMatch(edge ->
-                        edge.label().equals("STATE_HANDOFF")
+        assertTrue(
+                projection.edges().stream()
+                        .anyMatch(edge -> edge.label().equals("STATE_HANDOFF")
                                 && edge.sourceId().contains("KafkaConsumerService")
                                 && edge.targetId().contains("SchedulerJob")),
                 "Expected STATE_HANDOFF edge from KafkaConsumerService to SchedulerJob");
@@ -89,13 +88,16 @@ class ArchitectureViewProjectorTest {
         ArchitectureGraph graph = new ArchitectureGraph();
         graph.rebuild(model);
 
-        ArchitectureViewProjection projection = new ArchitectureViewProjector()
-                .projectComponentView(graph, "app:injection", "Injection View", 10);
+        ArchitectureViewProjection projection =
+                new ArchitectureViewProjector().projectComponentView(graph, "app:injection", "Injection View", 10);
 
-        assertTrue(projection.edges().stream().anyMatch(e ->
-                        "DEPENDS_ON".equals(e.label()) && e.sourceId().contains("McpServer")),
+        assertTrue(
+                projection.edges().stream()
+                        .anyMatch(e ->
+                                "DEPENDS_ON".equals(e.label()) && e.sourceId().contains("McpServer")),
                 "Expected DEPENDS_ON edges from McpServer; edges were: " + projection.edges());
-        assertTrue(projection.warnings().isEmpty() || !projection.edges().isEmpty(),
+        assertTrue(
+                projection.warnings().isEmpty() || !projection.edges().isEmpty(),
                 "Expected no empty-edge warning when DEPENDS_ON edges exist");
     }
 
@@ -115,18 +117,16 @@ class ArchitectureViewProjectorTest {
         Component repo = component("Repository", ComponentType.REPOSITORY);
         Component formatter = component("TimestampFormatter", ComponentType.UTILITY);
 
-        app.componentIds.addAll(List.of(
-                kafka.id, stateStore.id, scheduler.id, publisher.id, repo.id, formatter.id));
+        app.componentIds.addAll(List.of(kafka.id, stateStore.id, scheduler.id, publisher.id, repo.id, formatter.id));
 
         model.applications.add(app);
         model.components.addAll(List.of(kafka, stateStore, scheduler, publisher, repo, formatter));
 
         // KafkaConsumerService writes a field on StateStore, SchedulerJob reads it
         // → graph creates STATE_HANDOFF: KafkaConsumerService → SchedulerJob
-        model.fieldAccesses.add(fieldAccess(
-                FieldAccess.Kind.WRITE, kafka.id, "consume", stateStore.id, "pendingItems"));
-        model.fieldAccesses.add(fieldAccess(
-                FieldAccess.Kind.READ, scheduler.id, "run", stateStore.id, "pendingItems"));
+        model.fieldAccesses.add(
+                fieldAccess(FieldAccess.Kind.WRITE, kafka.id, "consume", stateStore.id, "pendingItems"));
+        model.fieldAccesses.add(fieldAccess(FieldAccess.Kind.READ, scheduler.id, "run", stateStore.id, "pendingItems"));
 
         // give TimestampFormatter high fan-in (many DEPENDS_ON to it) so it looks important by degree
         for (String id : List.of(kafka.id, scheduler.id, publisher.id, repo.id)) {
@@ -171,7 +171,8 @@ class ArchitectureViewProjectorTest {
         fa.method = method;
         fa.fieldOwnerComponentId = ownerComponentId;
         fa.fieldName = fieldName;
-        fa.id = "field:" + componentId + "#" + method + "@" + fieldName + ":" + kind.name().toLowerCase();
+        fa.id = "field:" + componentId + "#" + method + "@" + fieldName + ":"
+                + kind.name().toLowerCase();
         return fa;
     }
 }

@@ -1,9 +1,9 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import java.util.Map;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.renderer.MermaidSourceOverviewRenderer;
+import java.util.Map;
 
 /**
  * MCP tool that renders a package-aware source overview diagram.
@@ -38,5 +38,4 @@ public class RenderSourceOverviewTool {
             return "Error rendering source overview: " + e.getMessage();
         }
     }
-
 }

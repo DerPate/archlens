@@ -1,10 +1,10 @@
 package dev.dominikbreu.spoonmcp.cache;
 
-import tools.jackson.databind.SerializationFeature;
-import tools.jackson.databind.json.JsonMapper;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import java.io.File;
 import java.io.IOException;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Stores and loads the current {@link ArchitectureModel} for MCP tool calls.
@@ -44,9 +44,8 @@ public class ModelCache {
      * @param backend cache backend mode
      */
     public ModelCache(String externalCachePath, CacheBackend backend) {
-        this.mapper = JsonMapper.builder()
-                .enable(SerializationFeature.INDENT_OUTPUT)
-                .build();
+        this.mapper =
+                JsonMapper.builder().enable(SerializationFeature.INDENT_OUTPUT).build();
         this.cacheDir = externalCachePath != null ? externalCachePath : DEFAULT_CACHE_DIR;
         this.backend = backend != null ? backend : CacheBackend.JSON;
         this.graph = new ArchitectureGraph();

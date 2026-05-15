@@ -5,7 +5,6 @@ import dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor;
 import dev.dominikbreu.spoonmcp.mcp.tools.*;
 import io.modelcontextprotocol.json.McpJsonDefaults;
 import io.modelcontextprotocol.server.McpServerFeatures;
-import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.ArrayList;
@@ -73,8 +72,7 @@ public class McpServer {
      * Starts the MCP server on stdio.
      */
     public void run() {
-        StdioServerTransportProvider transport =
-                new StdioServerTransportProvider(McpJsonDefaults.getMapper());
+        StdioServerTransportProvider transport = new StdioServerTransportProvider(McpJsonDefaults.getMapper());
 
         io.modelcontextprotocol.server.McpServer.sync(transport)
                 .serverInfo("spoon-mcp-server", "1.1.0")
@@ -175,7 +173,10 @@ public class McpServer {
         specs.add(toolSpec(
                 "render_source_overview",
                 "Render a package-aware Mermaid source overview with components and dependency edges.",
-                schema().opt("maxComponentsPerPackage", "integer", "Maximum rendered component nodes per package (default 25)"),
+                schema().opt(
+                                "maxComponentsPerPackage",
+                                "integer",
+                                "Maximum rendered component nodes per package (default 25)"),
                 sourceOverviewTool::execute));
 
         specs.add(toolSpec(
@@ -203,16 +204,28 @@ public class McpServer {
                 "export_graph_architecture_poc",
                 "Write a graph-centric architecture POC document with graph metadata, property examples, and MCP query samples.",
                 schema().opt("outputPath", "string", "Output Markdown path (default docs/SOURCE_ARCHITECTURE_POC.md)")
-                        .opt("focusComponent", "string", "Component used for the graph focus slice (default McpServer)"),
+                        .opt(
+                                "focusComponent",
+                                "string",
+                                "Component used for the graph focus slice (default McpServer)"),
                 exportGraphPocTool::execute));
 
         specs.add(toolSpec(
                 "query_architecture_graph",
                 "Query the architecture as a graph: summary, node search, neighborhoods, paths, or impact slices.",
-                schema().opt("action", "string", "summary | find_nodes | find_edges | neighborhood | paths | impacted_by")
-                        .opt("label", "string", "Node label for find_nodes: Application | Component | Entrypoint | Interface | Container | Deployment | RuntimeFlow | DataFlowPath | DataFlowSink | PipelineChain")
+                schema().opt(
+                                "action",
+                                "string",
+                                "summary | find_nodes | find_edges | neighborhood | paths | impacted_by")
+                        .opt(
+                                "label",
+                                "string",
+                                "Node label for find_nodes: Application | Component | Entrypoint | Interface | Container | Deployment | RuntimeFlow | DataFlowPath | DataFlowSink | PipelineChain")
                         .opt("query", "string", "Free-text node search")
-                        .opt("filters", "object", "Property filters, with numeric comparisons such as {\"confidence\":\"<=0.6\"}")
+                        .opt(
+                                "filters",
+                                "object",
+                                "Property filters, with numeric comparisons such as {\"confidence\":\"<=0.6\"}")
                         .opt("nodeId", "string", "Node ID for neighborhood or impacted_by")
                         .opt("fromId", "string", "Source node ID for paths")
                         .opt("toId", "string", "Target node ID for paths")
@@ -223,12 +236,27 @@ public class McpServer {
                         .opt("technology", "string", "Shorthand filter: technology property (e.g. quarkus, jpa)")
                         .opt("module", "string", "Shorthand filter: module/app ID property")
                         .opt("packageName", "string", "Shorthand filter: packageName property (partial match)")
-                        .opt("entrypointReachable", "string", "Shorthand filter: true | false — only nodes reachable from an entrypoint")
-                        .opt("workflowRelevant", "string", "Shorthand filter: true | false — only workflow-relevant components")
-                        .opt("businessRelevant", "string", "Shorthand filter: true | false — only business-relevant components")
-                        .opt("infrastructureRole", "string", "Shorthand filter: component role such as scheduler, repository, utility")
+                        .opt(
+                                "entrypointReachable",
+                                "string",
+                                "Shorthand filter: true | false — only nodes reachable from an entrypoint")
+                        .opt(
+                                "workflowRelevant",
+                                "string",
+                                "Shorthand filter: true | false — only workflow-relevant components")
+                        .opt(
+                                "businessRelevant",
+                                "string",
+                                "Shorthand filter: true | false — only business-relevant components")
+                        .opt(
+                                "infrastructureRole",
+                                "string",
+                                "Shorthand filter: component role such as scheduler, repository, utility")
                         .opt("isCrossModule", "string", "Shorthand filter: true | false — only cross-module edges")
-                        .opt("isRuntimeRelevant", "string", "Shorthand filter: true | false — only runtime-relevant edges")
+                        .opt(
+                                "isRuntimeRelevant",
+                                "string",
+                                "Shorthand filter: true | false — only runtime-relevant edges")
                         .opt("isCondensable", "string", "Shorthand filter: true | false — only condensable edges"),
                 graphTool::execute));
 
@@ -238,7 +266,10 @@ public class McpServer {
                 schema().opt("entrypointId", "string", "Filter by entrypoint ID (partial match)")
                         .opt("entrypointName", "string", "Filter by entrypoint name or path (partial match)")
                         .opt("param", "string", "Filter by tracked parameter name")
-                        .opt("sinkKind", "string", "Filter by sink kind: persistence | messaging | http-outbound | event-bus | store | file-outbound | object-storage | unknown"),
+                        .opt(
+                                "sinkKind",
+                                "string",
+                                "Filter by sink kind: persistence | messaging | http-outbound | event-bus | store | file-outbound | object-storage | unknown"),
                 traceDataFlowTool::execute));
 
         specs.add(toolSpec(
@@ -253,17 +284,29 @@ public class McpServer {
         specs.add(toolSpec(
                 "render_pipeline",
                 "Render an end-to-end pipeline diagram by stitching data-flow paths across entrypoints via DataFlowSink.linkedPathIds (store reads, messaging consumers, event-bus consumers). Produces a single connected Mermaid flowchart per chain rather than separate per-entrypoint diagrams.",
-                schema().opt("entrypointName", "string", "Filter chains whose root entrypoint name or HTTP path contains this substring")
-                        .opt("channel", "string", "Filter chains that pass through a messaging link whose channel name contains this substring")
+                schema().opt(
+                                "entrypointName",
+                                "string",
+                                "Filter chains whose root entrypoint name or HTTP path contains this substring")
+                        .opt(
+                                "channel",
+                                "string",
+                                "Filter chains that pass through a messaging link whose channel name contains this substring")
                         .opt("maxDepth", "integer", "Maximum number of pipeline segments per chain (default 8)")
                         .opt("maxChains", "integer", "Maximum number of chains to render (default 5)")
-                        .opt("includeLifecycle", "boolean", "Include CDI lifecycle observer, main-method, and RMI chains (default false)"),
+                        .opt(
+                                "includeLifecycle",
+                                "boolean",
+                                "Include CDI lifecycle observer, main-method, and RMI chains (default false)"),
                 pipelineTool::execute));
 
         specs.add(toolSpec(
                 "detect_use_cases",
                 "Detect business use cases from indexed entrypoints and their call chains. Uses call-graph data when available; falls back to injection-dependency traversal.",
-                schema().opt("configFile", "string", "Path to a JSON naming config file ({ \"names\": { \"<entrypointId>\": \"Display Name\" } })")
+                schema().opt(
+                                "configFile",
+                                "string",
+                                "Path to a JSON naming config file ({ \"names\": { \"<entrypointId>\": \"Display Name\" } })")
                         .opt("module", "string", "Filter results by app/module ID (partial match)")
                         .opt("maxDepth", "integer", "Max call-chain depth shown per use case (default 5)"),
                 detectUseCasesTool::execute));
@@ -366,7 +409,8 @@ public class McpServer {
                 promptSpec(
                         "find_pipeline",
                         "Find cross-entrypoint or messaging/store-linked pipeline chains.",
-                        List.of(arg("filter", "Optional entrypoint name, HTTP path, or messaging channel filter.", false)),
+                        List.of(arg(
+                                "filter", "Optional entrypoint name, HTTP path, or messaging channel filter.", false)),
                         """
                         Find pipeline chains matching `{filter}`.
 
@@ -381,10 +425,7 @@ public class McpServer {
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private McpServerFeatures.SyncToolSpecification toolSpec(
-            String name,
-            String description,
-            SchemaBuilder schema,
-            Function<Map<String, Object>, String> handler) {
+            String name, String description, SchemaBuilder schema, Function<Map<String, Object>, String> handler) {
 
         McpSchema.Tool tool = McpSchema.Tool.builder()
                 .name(name)
@@ -395,9 +436,7 @@ public class McpServer {
         return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> {
             Map<String, Object> args = request.arguments() != null ? request.arguments() : Map.of();
             String result = handler.apply(args);
-            return McpSchema.CallToolResult.builder()
-                    .addTextContent(result)
-                    .build();
+            return McpSchema.CallToolResult.builder().addTextContent(result).build();
         });
     }
 
@@ -409,9 +448,7 @@ public class McpServer {
             String text = fillTemplate(template, promptArgs);
             return new McpSchema.GetPromptResult(
                     description,
-                    List.of(new McpSchema.PromptMessage(
-                            McpSchema.Role.USER,
-                            new McpSchema.TextContent(text))));
+                    List.of(new McpSchema.PromptMessage(McpSchema.Role.USER, new McpSchema.TextContent(text))));
         });
     }
 
@@ -442,24 +479,14 @@ public class McpServer {
         }
 
         SchemaBuilder reqArray(String name, String itemType, String description) {
-            props.put(
-                    name,
-                    Map.of(
-                            "type", "array",
-                            "items", Map.of("type", itemType),
-                            "description", description));
+            props.put(name, Map.of("type", "array", "items", Map.of("type", itemType), "description", description));
             required.add(name);
             return this;
         }
 
         McpSchema.JsonSchema build() {
             return new McpSchema.JsonSchema(
-                    "object",
-                    props.isEmpty() ? null : props,
-                    required.isEmpty() ? null : required,
-                    null,
-                    null,
-                    null);
+                    "object", props.isEmpty() ? null : props, required.isEmpty() ? null : required, null, null, null);
         }
     }
 }

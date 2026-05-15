@@ -170,7 +170,8 @@ class SchedulerHubIntegrationTest extends ExtractorTestBase {
     @Test
     void dispatchAllHasCrossComponentReadWhenGetterReturnsMethodCallOnCache() {
         assertThat(model.fieldAccesses)
-                .as("cross-component field access: RecordDispatcher#dispatchAll reads RecordStore.records via activeItems")
+                .as(
+                        "cross-component field access: RecordDispatcher#dispatchAll reads RecordStore.records via activeItems")
                 .anyMatch(fa -> fa.kind == dev.dominikbreu.spoonmcp.model.FieldAccess.Kind.READ
                         && fa.componentId.contains(DISPATCHER)
                         && fa.fieldOwnerComponentId != null
