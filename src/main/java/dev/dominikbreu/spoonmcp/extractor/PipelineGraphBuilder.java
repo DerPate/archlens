@@ -94,28 +94,33 @@ public class PipelineGraphBuilder {
     }
 
     /**
-     * Removes chains that terminate early at a fan-out node.
+     * Suppresses early-terminating fan-out branches. When a path fans out to branch A (terminal)
+     * and branch B→C (deeper), the builder emits both (root,...,A) and (root,...,B,C). The
+     * (root,...,A) chain is removed because its trunk (all segments except its own terminal) is
+     * a leading subsequence of the longer chain, making it a redundant truncation.
      *
-     * <p>Chain ci is suppressed when there exists a strictly longer chain cj that shares the same
-     * leading path IDs up to (but not including) ci's terminal segment. This covers the case where
-     * one fan-out branch ends immediately while a sibling branch continues deeper: the short branch
-     * is noise because the fan-out node itself already appears in the longer chain.
+     * <p>Uses {@code prefixLen = size - 1} rather than {@code size}: at the fan-out point, branch
+     * A and branch B diverge by definition, so a full-length prefix match would never fire. Only
+     * the shared trunk (everything before the terminal) needs to match.
      */
     private List<Chain> removePrefixChains(List<Chain> chains) {
-        List<Chain> result = new ArrayList<>(chains.size());
+        int n = chains.size();
+        List<List<String>> allIds = new ArrayList<>(n);
+        for (Chain c : chains) allIds.add(segmentPathIds(c));
+
+        List<Chain> result = new ArrayList<>(n);
         outer:
-        for (Chain ci : chains) {
-            List<String> idsI = segmentPathIds(ci);
-            // Compare only the prefix up to (not including) the terminal segment of ci.
+        for (int i = 0; i < n; i++) {
+            List<String> idsI = allIds.get(i);
             int prefixLen = idsI.size() - 1;
             if (prefixLen == 0) {
-                result.add(ci);
+                result.add(chains.get(i));
                 continue;
             }
-            for (Chain cj : chains) {
-                if (cj == ci) continue;
-                if (cj.segments.size() <= ci.segments.size()) continue;
-                List<String> idsJ = segmentPathIds(cj);
+            for (int j = 0; j < n; j++) {
+                if (j == i) continue;
+                List<String> idsJ = allIds.get(j);
+                if (idsJ.size() <= idsI.size()) continue;
                 boolean isPrefix = true;
                 for (int k = 0; k < prefixLen; k++) {
                     if (!idsI.get(k).equals(idsJ.get(k))) {
@@ -125,7 +130,7 @@ public class PipelineGraphBuilder {
                 }
                 if (isPrefix) continue outer;
             }
-            result.add(ci);
+            result.add(chains.get(i));
         }
         return result;
     }
