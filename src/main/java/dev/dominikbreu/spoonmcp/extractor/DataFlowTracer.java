@@ -209,6 +209,7 @@ public class DataFlowTracer {
                 }
             }
             for (CallEdge edge : callAdj.getOrDefault(key, List.of())) {
+                if ("messaging".equals(edge.callKind) || "event-bus".equals(edge.callKind)) continue;
                 String next = edge.toComponentId + "#" + edge.toMethod;
                 if (seen.add(next)) stack.push(next);
             }
@@ -323,6 +324,7 @@ public class DataFlowTracer {
                 fields.add(r.fieldName);
             }
             for (CallEdge edge : callAdj.getOrDefault(key, List.of())) {
+                if ("messaging".equals(edge.callKind) || "event-bus".equals(edge.callKind)) continue;
                 String next = edge.toComponentId + "#" + edge.toMethod;
                 if (seen.add(next)) stack.push(next);
             }

@@ -670,6 +670,113 @@ class DataFlowTracerTest {
                 .anySatisfy(p -> assertThat(p.entrypointId).isEqualTo("ep:consume-order"));
     }
 
+    // ── D2: messaging-edge boundary guards ───────────────────────────────────────
+
+    @Test
+    void schedulerDoesNotSeedFieldsReadOnlyInsideMessagingConsumer() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("Scheduler", ComponentType.SCHEDULER));
+        model.components.add(comp("Consumer", ComponentType.SERVICE));
+        model.components.add(comp("Repo", ComponentType.REPOSITORY));
+
+        Entrypoint schedulerEp = new Entrypoint();
+        schedulerEp.id = "ep:scheduler";
+        schedulerEp.name = "run";
+        schedulerEp.type = EntrypointType.SCHEDULER;
+        schedulerEp.componentId = "comp:Scheduler";
+        model.entrypoints.add(schedulerEp);
+
+        Entrypoint consumerEp = new Entrypoint();
+        consumerEp.id = "ep:consumer";
+        consumerEp.name = "process";
+        consumerEp.type = EntrypointType.MESSAGING_CONSUMER;
+        consumerEp.componentId = "comp:Consumer";
+        consumerEp.parameters.add("msg");
+        model.entrypoints.add(consumerEp);
+
+        // Scheduler sends to consumer via messaging edge
+        addCallEdgeWithKind(model, "comp:Scheduler", "run", "comp:Consumer", "process", Map.of(), "messaging");
+
+        // Consumer reads 'cache' field and saves to repo
+        FieldAccess fr = new FieldAccess();
+        fr.kind = FieldAccess.Kind.READ;
+        fr.componentId = "comp:Consumer";
+        fr.fieldOwnerComponentId = "comp:Consumer";
+        fr.method = "process";
+        fr.fieldName = "cache";
+        fr.id = "field:comp:Consumer#process@cache:read";
+        model.fieldAccesses.add(fr);
+
+        addCallEdge(model, "comp:Consumer", "process", "comp:Repo", "save", Map.of("msg", "entity"));
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        assertThat(paths)
+                .as("scheduler must not produce a path tracking 'cache' (field behind messaging boundary)")
+                .noneMatch(p -> p.entrypointId.equals("ep:scheduler") && "cache".equals(p.trackedParam));
+    }
+
+    @Test
+    void storeSinkDoesNotLinkToSchedulerThatOnlySeedsFieldTransitivelyViaMessaging() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("Consumer", ComponentType.SERVICE));
+        model.components.add(comp("Scheduler", ComponentType.SCHEDULER));
+        model.components.add(comp("Repo", ComponentType.REPOSITORY));
+
+        Entrypoint consumerEp = new Entrypoint();
+        consumerEp.id = "ep:consumer";
+        consumerEp.name = "ingest";
+        consumerEp.type = EntrypointType.MESSAGING_CONSUMER;
+        consumerEp.componentId = "comp:Consumer";
+        consumerEp.parameters.add("payload");
+        model.entrypoints.add(consumerEp);
+
+        Entrypoint schedulerEp = new Entrypoint();
+        schedulerEp.id = "ep:scheduler";
+        schedulerEp.name = "tick";
+        schedulerEp.type = EntrypointType.SCHEDULER;
+        schedulerEp.componentId = "comp:Scheduler";
+        model.entrypoints.add(schedulerEp);
+
+        // Consumer writes 'stateMap' sourced from payload
+        FieldAccess fw = new FieldAccess();
+        fw.kind = FieldAccess.Kind.WRITE;
+        fw.componentId = "comp:Consumer";
+        fw.fieldOwnerComponentId = "comp:Consumer";
+        fw.method = "ingest";
+        fw.fieldName = "stateMap";
+        fw.sourceVarName = "payload";
+        fw.id = "field:comp:Consumer#ingest@stateMap:write";
+        model.fieldAccesses.add(fw);
+
+        // Scheduler → (messaging) → Consumer (which reads stateMap)
+        addCallEdgeWithKind(model, "comp:Scheduler", "tick", "comp:Consumer", "ingest", Map.of(), "messaging");
+
+        // Consumer also reads stateMap
+        FieldAccess fr = new FieldAccess();
+        fr.kind = FieldAccess.Kind.READ;
+        fr.componentId = "comp:Consumer";
+        fr.fieldOwnerComponentId = "comp:Consumer";
+        fr.method = "ingest";
+        fr.fieldName = "stateMap";
+        fr.id = "field:comp:Consumer#ingest@stateMap:read";
+        model.fieldAccesses.add(fr);
+
+        // Consumer also saves to repo so it appears in results
+        addCallEdge(model, "comp:Consumer", "ingest", "comp:Repo", "save", Map.of("payload", "entity"));
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        paths.stream()
+                .filter(p -> p.entrypointId.equals("ep:consumer"))
+                .flatMap(p -> p.sinks.stream())
+                .filter(s -> s.kind == DataFlowSink.Kind.STORE && "stateMap".equals(s.fieldName))
+                .forEach(storeSink ->
+                    assertThat(storeSink.linkedPathIds)
+                            .as("STORE sink must not link to scheduler that only reaches 'stateMap' via messaging boundary")
+                            .noneMatch(id -> id.contains("ep:scheduler")));
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────────
 
     private static ArchitectureModel buildModel() {
