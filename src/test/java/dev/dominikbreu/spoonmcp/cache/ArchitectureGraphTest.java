@@ -445,5 +445,9 @@ class ArchitectureGraphTest {
                         && "comp:SnapshotPublisher".equals(edge.toId()));
         assertThat(graph.findEdges("STATE_HANDOFF", Map.of(), 10))
                 .noneMatch(edge -> edge.fromId().equals(edge.toId()));
+        boolean hasServiceSelfEdge = graph.findEdges("STATE_HANDOFF", Map.of(), 10).stream()
+                .anyMatch(e -> "comp:DeviceStateDataService".equals(e.fromId())
+                        && "comp:DeviceStateDataService".equals(e.toId()));
+        assertThat(hasServiceSelfEdge).isFalse();
     }
 }

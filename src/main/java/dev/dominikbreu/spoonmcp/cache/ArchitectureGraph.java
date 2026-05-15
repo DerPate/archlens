@@ -655,6 +655,9 @@ public class ArchitectureGraph {
         Set<String> writerCallers = new HashSet<>();
         Set<String> readerCallers = new HashSet<>();
         for (CallEdge e : sourceModel.callEdges) {
+            if (e.fromComponentId == null || e.toComponentId == null || e.toMethod == null) {
+                continue;
+            }
             if (write.componentId.equals(e.toComponentId) && write.method.equals(e.toMethod)) {
                 writerCallers.add(e.fromComponentId);
             }
