@@ -34,46 +34,35 @@ class RenderPipelineToolTest {
     }
 
     @Test
-    void selectDiverse_singleRoot_fillsUpToMax() {
-        // 5 chains from the same root; max=3 → 3 chains, all from ep:A
+    void selectDiverse_singleRoot_returnsOnlyOne() {
+        // 5 chains from the same root; at most 1 chain per root regardless of maxChains
         List<Chain> candidates = List.of(chain("ep:A"), chain("ep:A"), chain("ep:A"), chain("ep:A"), chain("ep:A"));
         List<Chain> result = tool.selectDiverse(candidates, 3);
-        assertThat(result).hasSize(3);
+        assertThat(result).hasSize(1);
         assertThat(result).allMatch(c -> rootId(c).equals("ep:A"));
     }
 
     @Test
-    void selectDiverse_twoRoots_roundRobinInterleaves() {
-        // root A: 5 chains, root B: 1 chain; max=3 → A, B, A (round-robin)
+    void selectDiverse_twoRoots_oneEach() {
         List<Chain> candidates = new ArrayList<>();
-        candidates.add(chain("ep:A")); // A₁
-        candidates.add(chain("ep:A")); // A₂
-        candidates.add(chain("ep:A")); // A₃
-        candidates.add(chain("ep:A")); // A₄
-        candidates.add(chain("ep:A")); // A₅
-        candidates.add(chain("ep:B")); // B₁
+        candidates.add(chain("ep:A"));
+        candidates.add(chain("ep:A"));
+        candidates.add(chain("ep:A"));
+        candidates.add(chain("ep:B"));
 
         List<Chain> result = tool.selectDiverse(candidates, 3);
 
-        assertThat(result).hasSize(3);
-        assertThat(result.stream().filter(c -> rootId(c).equals("ep:A")).count())
-                .as("two slots from ep:A after best-effort fill")
-                .isEqualTo(2);
-        assertThat(result.stream().filter(c -> rootId(c).equals("ep:B")).count())
-                .as("one slot from ep:B")
-                .isEqualTo(1);
-        // round-robin order: A₁ first, then B₁, then A₂
-        assertThat(rootId(result.get(0))).isEqualTo("ep:A");
-        assertThat(rootId(result.get(1))).isEqualTo("ep:B");
-        assertThat(rootId(result.get(2))).isEqualTo("ep:A");
+        assertThat(result).hasSize(2);
+        assertThat(result.stream().filter(c -> rootId(c).equals("ep:A")).count()).isEqualTo(1);
+        assertThat(result.stream().filter(c -> rootId(c).equals("ep:B")).count()).isEqualTo(1);
     }
 
     @Test
-    void selectDiverse_maxLargerThanCandidates_returnsAll() {
+    void selectDiverse_maxLargerThanDistinctRoots_returnsOnePerRoot() {
         List<Chain> candidates =
                 List.of(chain("ep:A"), chain("ep:A"), chain("ep:A"), chain("ep:A"), chain("ep:A"), chain("ep:B"));
         List<Chain> result = tool.selectDiverse(candidates, 20);
-        assertThat(result).hasSize(6);
+        assertThat(result).hasSize(2); // 1 per distinct root
     }
 
     @Test
@@ -86,18 +75,64 @@ class RenderPipelineToolTest {
 
     @Test
     void selectDiverse_usesResolvedEntrypointIdForGrouping() {
-        // Chains where path.entrypointId is null but seg.entrypoint is resolved
-        Chain a = chainWithResolvedEp("ep:A");
-        Chain b = chainWithResolvedEp("ep:B");
+        Chain a  = chainWithResolvedEp("ep:A");
+        Chain b  = chainWithResolvedEp("ep:B");
         Chain a2 = chainWithResolvedEp("ep:A");
 
         List<Chain> result = tool.selectDiverse(List.of(a, b, a2), 3);
 
-        assertThat(result).hasSize(3);
-        // round-robin: ep:A, ep:B, ep:A
-        assertThat(resolvedRootId(result.get(0))).isEqualTo("ep:A");
-        assertThat(resolvedRootId(result.get(1))).isEqualTo("ep:B");
-        assertThat(resolvedRootId(result.get(2))).isEqualTo("ep:A");
+        assertThat(result).hasSize(2); // 1 per distinct root
+        assertThat(result.stream().anyMatch(c -> "ep:A".equals(resolvedRootId(c)))).isTrue();
+        assertThat(result.stream().anyMatch(c -> "ep:B".equals(resolvedRootId(c)))).isTrue();
+    }
+
+    @Test
+    void selectDiverse_sameRoot_keepsLongestOnly() {
+        // 3 chains from ep:A with different lengths: 2, 4, 3 segments
+        Chain short2 = chainWithDepth("ep:A", 2);
+        Chain long4  = chainWithDepth("ep:A", 4);
+        Chain mid3   = chainWithDepth("ep:A", 3);
+
+        List<Chain> result = tool.selectDiverse(List.of(short2, long4, mid3), 5);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).segments).hasSize(4); // longest wins
+    }
+
+    @Test
+    void selectDiverse_twoRoots_oneChainPerRoot() {
+        // 3 chains from ep:A and 2 chains from ep:B; max=10 → 2 chains total (one per root)
+        Chain a1 = chainWithDepth("ep:A", 2);
+        Chain a2 = chainWithDepth("ep:A", 3);
+        Chain b1 = chainWithDepth("ep:B", 2);
+        Chain b2 = chainWithDepth("ep:B", 4);
+
+        List<Chain> result = tool.selectDiverse(List.of(a1, a2, b1, b2), 10);
+
+        assertThat(result).hasSize(2);
+        assertThat(result.stream().filter(c -> rootId(c).equals("ep:A")).count()).isEqualTo(1);
+        assertThat(result.stream().filter(c -> rootId(c).equals("ep:B")).count()).isEqualTo(1);
+        // ep:A longest is a2 (3 segments), ep:B longest is b2 (4 segments)
+        long aSegments = result.stream().filter(c -> rootId(c).equals("ep:A")).mapToLong(c -> c.segments.size()).sum();
+        long bSegments = result.stream().filter(c -> rootId(c).equals("ep:B")).mapToLong(c -> c.segments.size()).sum();
+        assertThat(aSegments).isEqualTo(3);
+        assertThat(bSegments).isEqualTo(4);
+    }
+
+    @Test
+    void selectDiverse_maxCapsDistinctRoots() {
+        // 4 distinct roots, max=2 → first 2 roots only
+        List<Chain> candidates = List.of(
+                chainWithDepth("ep:A", 2),
+                chainWithDepth("ep:B", 2),
+                chainWithDepth("ep:C", 2),
+                chainWithDepth("ep:D", 2));
+
+        List<Chain> result = tool.selectDiverse(candidates, 2);
+
+        assertThat(result).hasSize(2);
+        assertThat(rootId(result.get(0))).isEqualTo("ep:A");
+        assertThat(rootId(result.get(1))).isEqualTo("ep:B");
     }
 
     @Test
@@ -178,6 +213,27 @@ class RenderPipelineToolTest {
     private String resolvedRootId(Chain c) {
         Entrypoint ep = c.segments.get(0).entrypoint;
         return ep != null ? ep.id : c.segments.get(0).path.entrypointId;
+    }
+
+    /**
+     * Builds a chain with the given root entrypoint ID and exactly {@code totalSegments} segments.
+     * The root segment uses path.entrypointId; downstream segments use unique IDs.
+     */
+    private Chain chainWithDepth(String rootEpId, int totalSegments) {
+        Chain c = new Chain();
+        DataFlowPath root = new DataFlowPath();
+        root.id = "df:" + rootEpId + ":root:" + System.nanoTime();
+        root.entrypointId = rootEpId;
+        c.segments.add(new Segment(root, null, null));
+        for (int i = 1; i < totalSegments; i++) {
+            DataFlowPath p = new DataFlowPath();
+            p.id = "df:" + rootEpId + ":seg" + i + ":" + System.nanoTime();
+            p.entrypointId = "ep:downstream" + i;
+            DataFlowSink link = new DataFlowSink();
+            link.kind = DataFlowSink.Kind.MESSAGING;
+            c.segments.add(new Segment(p, link, null));
+        }
+        return c;
     }
 
     /** Creates a ModelCache stub that returns the given model without touching the filesystem. */

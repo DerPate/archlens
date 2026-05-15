@@ -130,28 +130,24 @@ public class RenderPipelineTool {
     }
 
     /**
-     * Selects up to {@code maxChains} chains using a best-effort round-robin across
-     * distinct root entrypoints. Groups are ordered by first appearance in
-     * {@code candidates}; within each group chains are taken in insertion order.
+     * Selects up to {@code maxChains} chains — at most one per distinct root entrypoint,
+     * keeping the longest (deepest) chain for each root. Root groups are ordered by first
+     * appearance in {@code candidates}.
      */
     List<Chain> selectDiverse(List<Chain> candidates, int maxChains) {
         if (candidates.isEmpty() || maxChains <= 0) return List.of();
-        LinkedHashMap<String, List<Chain>> byRoot = new LinkedHashMap<>();
+        LinkedHashMap<String, Chain> longestPerRoot = new LinkedHashMap<>();
         for (Chain c : candidates) {
-            byRoot.computeIfAbsent(rootEntrypointId(c), k -> new ArrayList<>()).add(c);
-        }
-        List<List<Chain>> groups = new ArrayList<>(byRoot.values());
-        int[] idx = new int[groups.size()];
-        List<Chain> result = new ArrayList<>(Math.min(maxChains, candidates.size()));
-        boolean progress = true;
-        while (result.size() < maxChains && progress) {
-            progress = false;
-            for (int g = 0; g < groups.size() && result.size() < maxChains; g++) {
-                if (idx[g] < groups.get(g).size()) {
-                    result.add(groups.get(g).get(idx[g]++));
-                    progress = true;
-                }
+            String rootId = rootEntrypointId(c);
+            Chain existing = longestPerRoot.get(rootId);
+            if (existing == null || c.segments.size() > existing.segments.size()) {
+                longestPerRoot.put(rootId, c);
             }
+        }
+        List<Chain> result = new ArrayList<>(Math.min(maxChains, longestPerRoot.size()));
+        for (Chain c : longestPerRoot.values()) {
+            if (result.size() >= maxChains) break;
+            result.add(c);
         }
         return result;
     }
