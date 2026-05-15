@@ -39,6 +39,15 @@ class PipelineGraphBuilderTest {
     }
 
     @Test
+    void build_deduplicatesChainsThatHaveIdenticalEntrypointIdSequences() {
+        ArchitectureModel model = buildDuplicateModel();
+
+        List<Chain> chains = builder.build(model, 10);
+
+        assertThat(chains).as("two structurally identical chains collapsed to one").hasSize(1);
+    }
+
+    @Test
     void build_retainsBothBranchesWhenNeitherIsAPrefixOfTheOther() {
         // R → A → C  (branch 1)
         // R → B → D  (branch 2, fan-out at root)
@@ -111,6 +120,25 @@ class PipelineGraphBuilderTest {
         DataFlowPath pD = path("df:D", "ep:D");
 
         m.dataFlowPaths.addAll(List.of(pR, pA, pB, pC, pD));
+        return m;
+    }
+
+    private ArchitectureModel buildDuplicateModel() {
+        ArchitectureModel m = new ArchitectureModel("test");
+        m.entrypoints.add(ep("ep:EP1", EntrypointType.MESSAGING_CONSUMER));
+        m.entrypoints.add(ep("ep:EP2", EntrypointType.MESSAGING_CONSUMER));
+
+        // Two paths from same entrypoint, different trackedName — both link to same downstream
+        DataFlowPath pA = path("df:EP1#a", "ep:EP1");
+        sink(pA, "df:EP2");
+
+        DataFlowPath pB = path("df:EP1#b", "ep:EP1");
+        sink(pB, "df:EP2");
+
+        DataFlowPath pEP2 = path("df:EP2", "ep:EP2");
+        // terminal: no outgoing sinks
+
+        m.dataFlowPaths.addAll(List.of(pA, pB, pEP2));
         return m;
     }
 
