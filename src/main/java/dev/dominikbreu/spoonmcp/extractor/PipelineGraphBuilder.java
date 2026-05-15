@@ -25,11 +25,18 @@ public class PipelineGraphBuilder {
     private static final java.util.Set<String> LIFECYCLE_KEYWORDS = java.util.Set.of(
             "shutdown", "stop", "destroy", "close", "halt", "predestroy", "cleanup");
 
-    private static boolean isLifecycleEntrypoint(Entrypoint ep) {
-        if (ep == null || ep.type != dev.dominikbreu.spoonmcp.model.EntrypointType.CDI_EVENT_OBSERVER) return false;
-        if (ep.name == null) return false;
-        String lower = ep.name.toLowerCase(java.util.Locale.ROOT);
-        return LIFECYCLE_KEYWORDS.stream().anyMatch(lower::contains);
+    private static boolean isLifecycleEntrypoint(Entrypoint ep, String pathId) {
+        if (ep != null) {
+            if (ep.type != dev.dominikbreu.spoonmcp.model.EntrypointType.CDI_EVENT_OBSERVER) return false;
+            if (ep.name == null) return false;
+            String lower = ep.name.toLowerCase(java.util.Locale.ROOT);
+            return LIFECYCLE_KEYWORDS.stream().anyMatch(lower::contains);
+        }
+        // Fallback: infer from path ID when entrypoint is not in the model index.
+        // Path IDs for CDI observers follow the pattern "df:ep:...#methodName:observer#trackedParam".
+        if (pathId == null) return false;
+        String lower = pathId.toLowerCase(java.util.Locale.ROOT);
+        return lower.contains(":observer#") && LIFECYCLE_KEYWORDS.stream().anyMatch(lower::contains);
     }
 
     /** Creates a builder. */
@@ -85,7 +92,7 @@ public class PipelineGraphBuilder {
         // Remove lifecycle observer paths so they cannot appear as any segment.
         Set<String> lifecyclePathIds = new HashSet<>();
         for (DataFlowPath p : model.dataFlowPaths) {
-            if (isLifecycleEntrypoint(epById.get(p.entrypointId))) lifecyclePathIds.add(p.id);
+            if (isLifecycleEntrypoint(epById.get(p.entrypointId), p.id)) lifecyclePathIds.add(p.id);
         }
         Map<String, DataFlowPath> pathById = new HashMap<>();
         for (DataFlowPath p : model.dataFlowPaths) {
@@ -107,7 +114,8 @@ public class PipelineGraphBuilder {
             if (hasIncoming.contains(p.id)) continue;
             // Skip orphan roots: must have at least one outgoing link to be a pipeline.
             if (!hasAnyLink(p)) continue;
-            extend(new ArrayList<>(), p, null, pathById, epById, chains, maxDepth, new LinkedHashSet<>());
+            extend(new ArrayList<>(), p, null, pathById, epById, chains, maxDepth,
+                    new LinkedHashSet<>(), new LinkedHashSet<>());
         }
         return removeDuplicateChains(removePrefixChains(chains));
     }
@@ -189,14 +197,22 @@ public class PipelineGraphBuilder {
             Map<String, Entrypoint> epById,
             List<Chain> out,
             int maxDepth,
-            LinkedHashSet<String> stack) {
+            LinkedHashSet<String> stack,
+            LinkedHashSet<String> epStack) {
         if (current == null) return;
         if (stack.contains(current.id)) {
-            // cycle — emit chain up to here
+            // path-level cycle — emit chain up to here
             emit(prefix, out);
             return;
         }
-        Segment seg = new Segment(current, incomingSink, epById.get(current.entrypointId));
+        // Entrypoint-level cycle: same entrypoint appearing twice means a STORE loop
+        // (e.g. defaultStateCalculation → stateCache → defaultStateCalculation).
+        String epId = current.entrypointId;
+        if (epId != null && !prefix.isEmpty() && epStack.contains(epId)) {
+            emit(prefix, out);
+            return;
+        }
+        Segment seg = new Segment(current, incomingSink, epById.get(epId));
         List<Segment> nextPrefix = new ArrayList<>(prefix);
         nextPrefix.add(seg);
 
@@ -208,13 +224,15 @@ public class PipelineGraphBuilder {
         boolean fannedOut = false;
         LinkedHashSet<String> nextStack = new LinkedHashSet<>(stack);
         nextStack.add(current.id);
+        LinkedHashSet<String> nextEpStack = new LinkedHashSet<>(epStack);
+        if (epId != null) nextEpStack.add(epId);
         for (DataFlowSink s : current.sinks) {
             if (s.linkedPathIds == null || s.linkedPathIds.isEmpty()) continue;
             for (String nextId : s.linkedPathIds) {
                 DataFlowPath next = pathById.get(nextId);
                 if (next == null) continue;
                 fannedOut = true;
-                extend(nextPrefix, next, s, pathById, epById, out, maxDepth, nextStack);
+                extend(nextPrefix, next, s, pathById, epById, out, maxDepth, nextStack, nextEpStack);
             }
         }
         if (!fannedOut) emit(nextPrefix, out);

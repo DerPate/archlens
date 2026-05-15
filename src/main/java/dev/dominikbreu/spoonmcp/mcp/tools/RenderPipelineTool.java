@@ -99,8 +99,12 @@ public class RenderPipelineTool {
 
     private boolean isLifecycleChain(Chain c) {
         if (c.segments.isEmpty()) return false;
-        Entrypoint ep = c.segments.get(0).entrypoint;
-        return ep != null && LIFECYCLE_TYPES.contains(ep.type);
+        Segment first = c.segments.get(0);
+        Entrypoint ep = first.entrypoint;
+        if (ep != null) return LIFECYCLE_TYPES.contains(ep.type);
+        // Fallback: check entrypoint ID suffix when entrypoint object is not in the model index.
+        String epId = first.path != null ? first.path.entrypointId : null;
+        return epId != null && epId.endsWith(":observer");
     }
 
     private boolean rootMatches(Chain c, String filter) {
