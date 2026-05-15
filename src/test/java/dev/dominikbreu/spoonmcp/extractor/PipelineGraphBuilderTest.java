@@ -169,6 +169,90 @@ class PipelineGraphBuilderTest {
         from.sinks.add(s);
     }
 
+    /**
+     * Scheduler(ep:S) → stateCache STORE → ConsumerA(ep:A) → stateCache STORE → ConsumerB(ep:A, same ep)
+     *
+     * The second stateCache link re-uses ep:A (same entrypoint as segment 1). This is a STORE loop.
+     * Entrypoint-level cycle detection must truncate the chain after (S, A) rather than emitting (S, A, A).
+     */
+    @Test
+    void build_truncatesChainsWhereSameEntrypointRepeatsViaStoreSink() {
+        ArchitectureModel m = new ArchitectureModel("test");
+
+        m.entrypoints.add(ep("ep:S", EntrypointType.SCHEDULER));
+        m.entrypoints.add(ep("ep:A", EntrypointType.MESSAGING_CONSUMER));
+
+        // Two paths from ep:A, different tracked params
+        DataFlowPath pA1 = path("df:A#star", "ep:A");
+        DataFlowPath pA2 = path("df:A#field", "ep:A");
+
+        // Scheduler path → stateCache → pA1
+        DataFlowPath pS = path("df:S", "ep:S");
+        DataFlowSink storeSinkS = new DataFlowSink();
+        storeSinkS.kind = DataFlowSink.Kind.STORE;
+        storeSinkS.linkedPathIds.add("df:A#star");
+        pS.sinks.add(storeSinkS);
+
+        // pA1 → stateCache → pA2 (same entrypoint as pA1 → loop)
+        DataFlowSink storeSinkA = new DataFlowSink();
+        storeSinkA.kind = DataFlowSink.Kind.STORE;
+        storeSinkA.linkedPathIds.add("df:A#field");
+        pA1.sinks.add(storeSinkA);
+
+        m.dataFlowPaths.addAll(List.of(pS, pA1, pA2));
+
+        List<Chain> chains = builder.build(m, 10);
+
+        // The only valid chain is (S → A), not (S → A → A)
+        assertThat(chains).as("STORE loop via same entrypoint produces exactly one chain").hasSize(1);
+        assertThat(chains.get(0).segments)
+                .as("chain must be (S, A) — entrypoint-level cycle stops at the second A")
+                .hasSize(2);
+        assertThat(chains.get(0).segments.get(1).path.id).isEqualTo("df:A#star");
+    }
+
+    /**
+     * When the model's entrypoints list does NOT contain the CDI observer (e.g. stale JSON cache),
+     * the path ID string itself must still be enough to classify the path as lifecycle and exclude it.
+     * Path ID pattern: "df:ep:...#onShutdown:observer#trackedParam"
+     */
+    @Test
+    void build_excludesLifecyclePathsByIdStringWhenEntrypointObjectIsMissing() {
+        ArchitectureModel m = new ArchitectureModel("test");
+
+        // Scheduler ep is in the model; observer ep is NOT registered in entrypoints
+        m.entrypoints.add(ep("ep:scheduler", EntrypointType.SCHEDULER));
+        m.entrypoints.add(ep("ep:consumer", EntrypointType.MESSAGING_CONSUMER));
+
+        DataFlowPath schedulerPath = path("df:scheduler", "ep:scheduler");
+        // Scheduler links to both: a lifecycle path (whose ep is absent) and a real consumer path
+        DataFlowSink toObserver = new DataFlowSink();
+        toObserver.kind = DataFlowSink.Kind.STORE;
+        toObserver.linkedPathIds.add("df:ep:com.example.Svc#onShutdown:observer#*");
+        schedulerPath.sinks.add(toObserver);
+
+        DataFlowSink toConsumer = new DataFlowSink();
+        toConsumer.kind = DataFlowSink.Kind.MESSAGING;
+        toConsumer.linkedPathIds.add("df:consumer");
+        schedulerPath.sinks.add(toConsumer);
+
+        // Lifecycle path — entrypointId absent from model.entrypoints
+        DataFlowPath observerPath = path(
+                "df:ep:com.example.Svc#onShutdown:observer#*",
+                "ep:com.example.Svc#onShutdown:observer");
+
+        DataFlowPath consumerPath = path("df:consumer", "ep:consumer");
+
+        m.dataFlowPaths.addAll(List.of(schedulerPath, observerPath, consumerPath));
+
+        List<Chain> chains = builder.build(m, 10);
+
+        assertThat(chains).as("lifecycle path excluded even without registered entrypoint").hasSize(1);
+        assertThat(chains.get(0).segments.get(1).path.id)
+                .as("only the consumer chain survives")
+                .isEqualTo("df:consumer");
+    }
+
     @Test
     void build_excludesLifecycleObserverEntrypointsFromChains() {
         ArchitectureModel m = new ArchitectureModel("test");
