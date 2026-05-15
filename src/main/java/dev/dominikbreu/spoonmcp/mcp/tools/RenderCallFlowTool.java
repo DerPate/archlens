@@ -1,11 +1,11 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import java.util.Map;
 import dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.RuntimeFlow;
 import dev.dominikbreu.spoonmcp.renderer.MermaidCallFlowRenderer;
+import java.util.Map;
 
 /**
  * MCP tool that renders a Mermaid flowchart for a runtime call flow starting from an entrypoint.
@@ -64,5 +64,4 @@ public class RenderCallFlowTool {
                 .findFirst()
                 .orElse(null);
     }
-
 }

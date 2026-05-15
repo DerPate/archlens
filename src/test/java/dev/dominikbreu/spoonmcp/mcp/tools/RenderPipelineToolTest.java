@@ -53,8 +53,10 @@ class RenderPipelineToolTest {
         List<Chain> result = tool.selectDiverse(candidates, 3);
 
         assertThat(result).hasSize(2);
-        assertThat(result.stream().filter(c -> rootId(c).equals("ep:A")).count()).isEqualTo(1);
-        assertThat(result.stream().filter(c -> rootId(c).equals("ep:B")).count()).isEqualTo(1);
+        assertThat(result.stream().filter(c -> rootId(c).equals("ep:A")).count())
+                .isEqualTo(1);
+        assertThat(result.stream().filter(c -> rootId(c).equals("ep:B")).count())
+                .isEqualTo(1);
     }
 
     @Test
@@ -75,23 +77,25 @@ class RenderPipelineToolTest {
 
     @Test
     void selectDiverse_usesResolvedEntrypointIdForGrouping() {
-        Chain a  = chainWithResolvedEp("ep:A");
-        Chain b  = chainWithResolvedEp("ep:B");
+        Chain a = chainWithResolvedEp("ep:A");
+        Chain b = chainWithResolvedEp("ep:B");
         Chain a2 = chainWithResolvedEp("ep:A");
 
         List<Chain> result = tool.selectDiverse(List.of(a, b, a2), 3);
 
         assertThat(result).hasSize(2); // 1 per distinct root
-        assertThat(result.stream().anyMatch(c -> "ep:A".equals(resolvedRootId(c)))).isTrue();
-        assertThat(result.stream().anyMatch(c -> "ep:B".equals(resolvedRootId(c)))).isTrue();
+        assertThat(result.stream().anyMatch(c -> "ep:A".equals(resolvedRootId(c))))
+                .isTrue();
+        assertThat(result.stream().anyMatch(c -> "ep:B".equals(resolvedRootId(c))))
+                .isTrue();
     }
 
     @Test
     void selectDiverse_sameRoot_keepsLongestOnly() {
         // 3 chains from ep:A with different lengths: 2, 4, 3 segments
         Chain short2 = chainWithDepth("ep:A", 2);
-        Chain long4  = chainWithDepth("ep:A", 4);
-        Chain mid3   = chainWithDepth("ep:A", 3);
+        Chain long4 = chainWithDepth("ep:A", 4);
+        Chain mid3 = chainWithDepth("ep:A", 3);
 
         List<Chain> result = tool.selectDiverse(List.of(short2, long4, mid3), 5);
 
@@ -110,11 +114,19 @@ class RenderPipelineToolTest {
         List<Chain> result = tool.selectDiverse(List.of(a1, a2, b1, b2), 10);
 
         assertThat(result).hasSize(2);
-        assertThat(result.stream().filter(c -> rootId(c).equals("ep:A")).count()).isEqualTo(1);
-        assertThat(result.stream().filter(c -> rootId(c).equals("ep:B")).count()).isEqualTo(1);
+        assertThat(result.stream().filter(c -> rootId(c).equals("ep:A")).count())
+                .isEqualTo(1);
+        assertThat(result.stream().filter(c -> rootId(c).equals("ep:B")).count())
+                .isEqualTo(1);
         // ep:A longest is a2 (3 segments), ep:B longest is b2 (4 segments)
-        long aSegments = result.stream().filter(c -> rootId(c).equals("ep:A")).mapToLong(c -> c.segments.size()).sum();
-        long bSegments = result.stream().filter(c -> rootId(c).equals("ep:B")).mapToLong(c -> c.segments.size()).sum();
+        long aSegments = result.stream()
+                .filter(c -> rootId(c).equals("ep:A"))
+                .mapToLong(c -> c.segments.size())
+                .sum();
+        long bSegments = result.stream()
+                .filter(c -> rootId(c).equals("ep:B"))
+                .mapToLong(c -> c.segments.size())
+                .sum();
         assertThat(aSegments).isEqualTo(3);
         assertThat(bSegments).isEqualTo(4);
     }
@@ -139,7 +151,7 @@ class RenderPipelineToolTest {
     void execute_suppressesLifecycleChainsByDefault() throws Exception {
         ArchitectureModel model = buildTwoChainModel(
                 "ep:shutdown", EntrypointType.CDI_EVENT_OBSERVER,
-                "ep:ingest",   EntrypointType.MESSAGING_CONSUMER);
+                "ep:ingest", EntrypointType.MESSAGING_CONSUMER);
         ModelCache cache = stubbedCache(model);
         RenderPipelineTool t = new RenderPipelineTool(cache);
 
@@ -153,7 +165,7 @@ class RenderPipelineToolTest {
     void execute_includeLifecycleTrue_includesObserverChains() throws Exception {
         ArchitectureModel model = buildTwoChainModel(
                 "ep:shutdown", EntrypointType.CDI_EVENT_OBSERVER,
-                "ep:ingest",   EntrypointType.MESSAGING_CONSUMER);
+                "ep:ingest", EntrypointType.MESSAGING_CONSUMER);
         ModelCache cache = stubbedCache(model);
         RenderPipelineTool t = new RenderPipelineTool(cache);
 
@@ -251,43 +263,79 @@ class RenderPipelineToolTest {
      * Each chain: rootEp → MESSAGING_CONSUMER downstream.
      */
     private ArchitectureModel buildTwoChainModel(
-            String rootEpId1, EntrypointType rootType1,
-            String rootEpId2, EntrypointType rootType2) {
+            String rootEpId1, EntrypointType rootType1, String rootEpId2, EntrypointType rootType2) {
         ArchitectureModel m = new ArchitectureModel("test");
 
-        Component src1 = new Component(); src1.id = "comp:src1"; src1.name = "Src1"; src1.type = ComponentType.MESSAGE_DRIVEN_BEAN;
-        Component src2 = new Component(); src2.id = "comp:src2"; src2.name = "Src2"; src2.type = ComponentType.MESSAGE_DRIVEN_BEAN;
-        Component downstream = new Component(); downstream.id = "comp:ds"; downstream.name = "Downstream"; downstream.type = ComponentType.SERVICE;
+        Component src1 = new Component();
+        src1.id = "comp:src1";
+        src1.name = "Src1";
+        src1.type = ComponentType.MESSAGE_DRIVEN_BEAN;
+        Component src2 = new Component();
+        src2.id = "comp:src2";
+        src2.name = "Src2";
+        src2.type = ComponentType.MESSAGE_DRIVEN_BEAN;
+        Component downstream = new Component();
+        downstream.id = "comp:ds";
+        downstream.name = "Downstream";
+        downstream.type = ComponentType.SERVICE;
         m.components.addAll(List.of(src1, src2, downstream));
 
-        Entrypoint ep1 = new Entrypoint(); ep1.id = rootEpId1; ep1.name = "method1"; ep1.type = rootType1; ep1.componentId = "comp:src1";
-        Entrypoint ep2 = new Entrypoint(); ep2.id = rootEpId2; ep2.name = "method2"; ep2.type = rootType2; ep2.componentId = "comp:src2";
-        Entrypoint epDs = new Entrypoint(); epDs.id = "ep:ds"; epDs.name = "handle"; epDs.type = EntrypointType.MESSAGING_CONSUMER; epDs.componentId = "comp:ds";
+        Entrypoint ep1 = new Entrypoint();
+        ep1.id = rootEpId1;
+        ep1.name = "method1";
+        ep1.type = rootType1;
+        ep1.componentId = "comp:src1";
+        Entrypoint ep2 = new Entrypoint();
+        ep2.id = rootEpId2;
+        ep2.name = "method2";
+        ep2.type = rootType2;
+        ep2.componentId = "comp:src2";
+        Entrypoint epDs = new Entrypoint();
+        epDs.id = "ep:ds";
+        epDs.name = "handle";
+        epDs.type = EntrypointType.MESSAGING_CONSUMER;
+        epDs.componentId = "comp:ds";
         m.entrypoints.addAll(List.of(ep1, ep2, epDs));
 
         // chain 1: root1 → MESSAGING → downstream
-        DataFlowPath p1 = new DataFlowPath(); p1.id = "df:root1"; p1.entrypointId = rootEpId1;
+        DataFlowPath p1 = new DataFlowPath();
+        p1.id = "df:root1";
+        p1.entrypointId = rootEpId1;
         p1.steps.add(new DataFlowStep(0, "comp:src1", "Src1", "method1", "x"));
-        DataFlowSink s1 = new DataFlowSink(); s1.kind = DataFlowSink.Kind.MESSAGING; s1.channel = "ch1"; s1.linkedPathIds.add("df:ds1");
+        DataFlowSink s1 = new DataFlowSink();
+        s1.kind = DataFlowSink.Kind.MESSAGING;
+        s1.channel = "ch1";
+        s1.linkedPathIds.add("df:ds1");
         p1.sinks.add(s1);
 
         // chain 2: root2 → MESSAGING → downstream
-        DataFlowPath p2 = new DataFlowPath(); p2.id = "df:root2"; p2.entrypointId = rootEpId2;
+        DataFlowPath p2 = new DataFlowPath();
+        p2.id = "df:root2";
+        p2.entrypointId = rootEpId2;
         p2.steps.add(new DataFlowStep(0, "comp:src2", "Src2", "method2", "x"));
-        DataFlowSink s2 = new DataFlowSink(); s2.kind = DataFlowSink.Kind.MESSAGING; s2.channel = "ch2"; s2.linkedPathIds.add("df:ds2");
+        DataFlowSink s2 = new DataFlowSink();
+        s2.kind = DataFlowSink.Kind.MESSAGING;
+        s2.channel = "ch2";
+        s2.linkedPathIds.add("df:ds2");
         p2.sinks.add(s2);
 
         // shared downstream paths (terminal)
-        DataFlowPath ds1 = new DataFlowPath(); ds1.id = "df:ds1"; ds1.entrypointId = "ep:ds";
+        DataFlowPath ds1 = new DataFlowPath();
+        ds1.id = "df:ds1";
+        ds1.entrypointId = "ep:ds";
         ds1.steps.add(new DataFlowStep(0, "comp:ds", "Downstream", "handle", "x"));
-        DataFlowPath ds2 = new DataFlowPath(); ds2.id = "df:ds2"; ds2.entrypointId = "ep:ds";
+        DataFlowPath ds2 = new DataFlowPath();
+        ds2.id = "df:ds2";
+        ds2.entrypointId = "ep:ds";
         ds2.steps.add(new DataFlowStep(0, "comp:ds", "Downstream", "handle", "x"));
 
         m.dataFlowPaths.addAll(List.of(p1, p2, ds1, ds2));
         // callEdges must be non-empty for the guard in execute()
         dev.dominikbreu.spoonmcp.model.CallEdge edge = new dev.dominikbreu.spoonmcp.model.CallEdge();
-        edge.fromComponentId = "comp:src1"; edge.toComponentId = "comp:ds";
-        edge.fromMethod = "method1"; edge.toMethod = "handle";
+        edge.fromComponentId = "comp:src1";
+        edge.toComponentId = "comp:ds";
+        edge.fromMethod = "method1";
+        edge.toMethod = "handle";
         m.callEdges.add(edge);
         return m;
     }

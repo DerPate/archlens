@@ -1,9 +1,9 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import java.util.Map;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.renderer.MermaidFlowchartRenderer;
+import java.util.Map;
 
 /**
  * MCP tool that renders system, container, module, or component Mermaid flowcharts.
@@ -42,5 +42,4 @@ public class RenderMermaidFlowchartTool {
             return "Error rendering flowchart: " + e.getMessage();
         }
     }
-
 }

@@ -1,9 +1,9 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import java.util.Map;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.renderer.MermaidDependencyMapRenderer;
+import java.util.Map;
 
 /**
  * MCP tool that renders an aggregated Mermaid dependency map.

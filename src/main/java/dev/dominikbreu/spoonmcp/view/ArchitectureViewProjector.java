@@ -10,14 +10,11 @@ import java.util.Set;
 
 public final class ArchitectureViewProjector {
 
-    private static final Set<String> VIEW_RELATIONSHIPS = Set.of(
-            "DEPENDS_ON", "STATE_HANDOFF", "READS_STATE", "WRITES_STATE", "STARTS_AT", "STARTED_BY");
+    private static final Set<String> VIEW_RELATIONSHIPS =
+            Set.of("DEPENDS_ON", "STATE_HANDOFF", "READS_STATE", "WRITES_STATE", "STARTS_AT", "STARTED_BY");
 
     public ArchitectureViewProjection projectComponentView(
-            ArchitectureGraph graph,
-            String scopeId,
-            String title,
-            int maxNodes) {
+            ArchitectureGraph graph, String scopeId, String title, int maxNodes) {
 
         Set<String> scopeIds = resolveScope(graph, scopeId);
 
@@ -35,15 +32,10 @@ public final class ArchitectureViewProjector {
         Set<String> selectedIds = new HashSet<>(
                 nodes.stream().map(ArchitectureViewProjection.Node::id).toList());
 
-        List<ArchitectureViewProjection.Edge> edges = graph
-                .findEdgesBetween(selectedIds, VIEW_RELATIONSHIPS)
-                .stream()
+        List<ArchitectureViewProjection.Edge> edges = graph.findEdgesBetween(selectedIds, VIEW_RELATIONSHIPS).stream()
                 .filter(edge -> !edge.fromId().equals(edge.toId()))
                 .map(edge -> new ArchitectureViewProjection.Edge(
-                        edge.fromId(),
-                        edge.toId(),
-                        edge.label(),
-                        relationshipTitle(edge.label(), edge.properties())))
+                        edge.fromId(), edge.toId(), edge.label(), relationshipTitle(edge.label(), edge.properties())))
                 .toList();
 
         List<String> warnings = new ArrayList<>();
@@ -67,12 +59,14 @@ public final class ArchitectureViewProjector {
     }
 
     private static Comparator<ArchitectureGraph.GraphNode> componentPriority() {
-        return Comparator
-                .comparing((ArchitectureGraph.GraphNode node) -> bool(node, "workflowRelevant")).reversed()
+        return Comparator.comparing((ArchitectureGraph.GraphNode node) -> bool(node, "workflowRelevant"))
+                .reversed()
                 .thenComparing(node -> bool(node, "businessRelevant"), Comparator.reverseOrder())
-                .thenComparingInt(node -> intProp(node, "workflowBridgeScore")).reversed()
+                .thenComparingInt(node -> intProp(node, "workflowBridgeScore"))
+                .reversed()
                 .thenComparingInt(node -> intProp(node, "noiseScore"))
-                .thenComparingInt(node -> intProp(node, "architecturalWeight")).reversed()
+                .thenComparingInt(node -> intProp(node, "architecturalWeight"))
+                .reversed()
                 .thenComparing(node -> String.valueOf(node.properties().getOrDefault("name", node.id())));
     }
 

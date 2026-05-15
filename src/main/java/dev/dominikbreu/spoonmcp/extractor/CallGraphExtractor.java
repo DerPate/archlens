@@ -501,8 +501,8 @@ public class CallGraphExtractor {
             fa.fieldOwnerComponentId = toComp.id;
             fa.fieldName = fieldName;
             fa.method = fromMethod;
-            fa.id = "field:" + fromComp.id + "#" + fromMethod + "@" + toComp.id + "#"
-                    + calleeMethod.getSimpleName() + ":" + fieldName + ":read:xcomp";
+            fa.id = "field:" + fromComp.id + "#" + fromMethod + "@" + toComp.id + "#" + calleeMethod.getSimpleName()
+                    + ":" + fieldName + ":read:xcomp";
             var pos = inv.getPosition();
             String file = (pos != null && pos.isValidPosition()) ? pos.getFile().getAbsolutePath() : "unknown";
             int line = (pos != null && pos.isValidPosition()) ? pos.getLine() : 0;

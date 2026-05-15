@@ -484,10 +484,9 @@ class DataFlowTracerTest {
                     String pathBId = "df:ep:EP1#machineId";
                     pathA.sinks.stream()
                             .filter(s -> s.kind == DataFlowSink.Kind.STORE)
-                            .forEach(storeSink ->
-                                assertThat(storeSink.linkedPathIds)
-                                        .as("STORE sink on path A must not link to path B (same entrypoint)")
-                                        .doesNotContain(pathBId));
+                            .forEach(storeSink -> assertThat(storeSink.linkedPathIds)
+                                    .as("STORE sink on path A must not link to path B (same entrypoint)")
+                                    .doesNotContain(pathBId));
                 });
     }
 
@@ -661,8 +660,8 @@ class DataFlowTracerTest {
         model.entrypoints.add(ep);
 
         // Call edge to an internal method — causes path.steps to be non-empty
-        addCallEdge(model, "comp:OrderConsumer", "consume", "comp:OrderValidator", "validate",
-                Map.of("order", "order"));
+        addCallEdge(
+                model, "comp:OrderConsumer", "consume", "comp:OrderValidator", "validate", Map.of("order", "order"));
 
         List<DataFlowPath> paths = tracer.trace(model);
 

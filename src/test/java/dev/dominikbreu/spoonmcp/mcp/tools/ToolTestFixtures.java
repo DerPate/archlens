@@ -63,7 +63,8 @@ class ToolTestFixtures {
         fa.method = method;
         fa.fieldOwnerComponentId = ownerComponentId;
         fa.fieldName = fieldName;
-        fa.id = "field:" + componentId + "#" + method + "@" + fieldName + ":" + kind.name().toLowerCase();
+        fa.id = "field:" + componentId + "#" + method + "@" + fieldName + ":"
+                + kind.name().toLowerCase();
         return fa;
     }
 }

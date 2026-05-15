@@ -1,7 +1,6 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import java.util.Map;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.Container;
@@ -76,5 +75,4 @@ public class InferContainersTool {
             return "Error inferring containers: " + e.getMessage();
         }
     }
-
 }

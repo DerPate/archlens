@@ -1,7 +1,6 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import java.util.Map;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Chain;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Segment;
@@ -14,6 +13,7 @@ import dev.dominikbreu.spoonmcp.renderer.MermaidPipelineRenderer;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -22,10 +22,8 @@ import java.util.Set;
  */
 public class RenderPipelineTool {
 
-    private static final Set<EntrypointType> LIFECYCLE_TYPES = Set.of(
-            EntrypointType.CDI_EVENT_OBSERVER,
-            EntrypointType.MAIN_METHOD,
-            EntrypointType.RMI_ENDPOINT);
+    private static final Set<EntrypointType> LIFECYCLE_TYPES =
+            Set.of(EntrypointType.CDI_EVENT_OBSERVER, EntrypointType.MAIN_METHOD, EntrypointType.RMI_ENDPOINT);
 
     private final ModelCache cache;
     private final PipelineGraphBuilder builder = new PipelineGraphBuilder();
@@ -176,5 +174,4 @@ public class RenderPipelineTool {
                 + "names unresolved or no consumer indexed for the produced channel), or store/messaging "
                 + "stitching in DataFlowTracer found no matching readers/consumers.";
     }
-
 }

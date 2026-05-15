@@ -118,9 +118,10 @@ class ArchitectureGraphTest {
         ArchitectureGraph graph = new ArchitectureGraph();
         graph.rebuild(model);
 
-        ArchitectureGraph.GraphNode service = graph.findNodes("Component", "OrderService", Map.of(), 10).getFirst();
-        ArchitectureGraph.GraphNode utility = graph.findNodes("Component", "TimestampFormatter", Map.of(), 10)
-                .getFirst();
+        ArchitectureGraph.GraphNode service =
+                graph.findNodes("Component", "OrderService", Map.of(), 10).getFirst();
+        ArchitectureGraph.GraphNode utility =
+                graph.findNodes("Component", "TimestampFormatter", Map.of(), 10).getFirst();
 
         assertThat(utility.properties())
                 .containsEntry("workflowRelevant", false)
@@ -149,9 +150,10 @@ class ArchitectureGraphTest {
         ArchitectureGraph graph = new ArchitectureGraph();
         graph.rebuild(model);
 
-        ArchitectureGraph.GraphNode service = graph.findNodes("Component", "OrderService", Map.of(), 10).getFirst();
-        ArchitectureGraph.GraphNode internals = graph.findNodes("Component", "ArchitectureGraph", Map.of(), 10)
-                .getFirst();
+        ArchitectureGraph.GraphNode service =
+                graph.findNodes("Component", "OrderService", Map.of(), 10).getFirst();
+        ArchitectureGraph.GraphNode internals =
+                graph.findNodes("Component", "ArchitectureGraph", Map.of(), 10).getFirst();
 
         assertThat(internals.properties())
                 .containsEntry("workflowRelevant", false)
@@ -166,18 +168,10 @@ class ArchitectureGraphTest {
         ArchitectureModel model = model();
         model.components.add(component("StatePublisher", ComponentType.SCHEDULER));
 
-        FieldAccess write = fieldAccess(
-                FieldAccess.Kind.WRITE,
-                "comp:OrderService",
-                "consume",
-                "comp:OrderService",
-                "snapshots");
-        FieldAccess read = fieldAccess(
-                FieldAccess.Kind.READ,
-                "comp:StatePublisher",
-                "tick",
-                "comp:OrderService",
-                "snapshots");
+        FieldAccess write =
+                fieldAccess(FieldAccess.Kind.WRITE, "comp:OrderService", "consume", "comp:OrderService", "snapshots");
+        FieldAccess read =
+                fieldAccess(FieldAccess.Kind.READ, "comp:StatePublisher", "tick", "comp:OrderService", "snapshots");
         model.fieldAccesses.add(write);
         model.fieldAccesses.add(read);
 
@@ -185,11 +179,10 @@ class ArchitectureGraphTest {
         graph.rebuild(model);
 
         assertThat(graph.findEdges("WRITES_STATE", Map.of("fieldName", "snapshots"), 10))
-                .anyMatch(edge -> "comp:OrderService".equals(edge.fromId())
-                        && "comp:OrderService".equals(edge.toId()));
+                .anyMatch(edge -> "comp:OrderService".equals(edge.fromId()) && "comp:OrderService".equals(edge.toId()));
         assertThat(graph.findEdges("READS_STATE", Map.of("fieldName", "snapshots"), 10))
-                .anyMatch(edge -> "comp:StatePublisher".equals(edge.fromId())
-                        && "comp:OrderService".equals(edge.toId()));
+                .anyMatch(
+                        edge -> "comp:StatePublisher".equals(edge.fromId()) && "comp:OrderService".equals(edge.toId()));
         assertThat(graph.findEdges("STATE_HANDOFF", Map.of("fieldName", "snapshots"), 10))
                 .anyMatch(edge -> "comp:OrderService".equals(edge.fromId())
                         && "comp:StatePublisher".equals(edge.toId())
@@ -393,7 +386,8 @@ class ArchitectureGraphTest {
         access.method = method;
         access.fieldOwnerComponentId = ownerComponentId;
         access.fieldName = fieldName;
-        access.id = "field:" + componentId + "#" + method + "@" + fieldName + ":" + kind.name().toLowerCase();
+        access.id = "field:" + componentId + "#" + method + "@" + fieldName + ":"
+                + kind.name().toLowerCase();
         return access;
     }
 
@@ -441,8 +435,8 @@ class ArchitectureGraphTest {
         graph.rebuild(model);
 
         assertThat(graph.findEdges("STATE_HANDOFF", Map.of(), 10))
-                .anyMatch(edge -> "comp:MqttConsumer".equals(edge.fromId())
-                        && "comp:SnapshotPublisher".equals(edge.toId()));
+                .anyMatch(edge ->
+                        "comp:MqttConsumer".equals(edge.fromId()) && "comp:SnapshotPublisher".equals(edge.toId()));
         assertThat(graph.findEdges("STATE_HANDOFF", Map.of(), 10))
                 .noneMatch(edge -> edge.fromId().equals(edge.toId()));
         boolean hasServiceSelfEdge = graph.findEdges("STATE_HANDOFF", Map.of(), 10).stream()

@@ -19,7 +19,8 @@ class RenderArchitectureViewToolTest {
                 "maxNodes", 12));
 
         assertTrue(result.contains("flowchart LR"), "expected flowchart LR in:\n" + result);
-        assertTrue(result.contains("state handoff") || result.contains("STATE_HANDOFF"),
+        assertTrue(
+                result.contains("state handoff") || result.contains("STATE_HANDOFF"),
                 "expected state handoff edge in:\n" + result);
         assertTrue(result.contains("Scheduler"), "expected Scheduler in:\n" + result);
     }

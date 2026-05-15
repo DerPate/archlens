@@ -150,8 +150,7 @@ public class PipelineGraphBuilder {
         StringBuilder sb = new StringBuilder();
         for (Segment s : c.segments) {
             if (sb.length() > 0) sb.append('|');
-            String epId = s.entrypoint != null ? s.entrypoint.id
-                        : (s.path != null ? s.path.entrypointId : "");
+            String epId = s.entrypoint != null ? s.entrypoint.id : (s.path != null ? s.path.entrypointId : "");
             sb.append(epId != null ? epId : "");
         }
         return sb.toString();

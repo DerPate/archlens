@@ -615,7 +615,11 @@ public class ArchitectureGraph {
                             propagateStateHandoffThroughCallers(write, read, sourceModel);
                         }
                     } else {
-                        addEdge(write.componentId, read.componentId, "STATE_HANDOFF", stateHandoffProperties(write, read));
+                        addEdge(
+                                write.componentId,
+                                read.componentId,
+                                "STATE_HANDOFF",
+                                stateHandoffProperties(write, read));
                     }
                 }
             }
@@ -649,9 +653,7 @@ public class ArchitectureGraph {
     }
 
     private void propagateStateHandoffThroughCallers(
-            FieldAccess write,
-            FieldAccess read,
-            ArchitectureModel sourceModel) {
+            FieldAccess write, FieldAccess read, ArchitectureModel sourceModel) {
         Set<String> writerCallers = new HashSet<>();
         Set<String> readerCallers = new HashSet<>();
         for (CallEdge e : sourceModel.callEdges) {

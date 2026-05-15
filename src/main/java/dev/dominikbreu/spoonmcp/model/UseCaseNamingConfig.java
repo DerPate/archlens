@@ -1,10 +1,10 @@
 package dev.dominikbreu.spoonmcp.model;
 
-import tools.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Optional naming configuration that maps entrypoint IDs to human-readable use case names.

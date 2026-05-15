@@ -1,10 +1,10 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import java.util.Map;
 import dev.dominikbreu.spoonmcp.extractor.DependencyCondenser;
 import dev.dominikbreu.spoonmcp.model.*;
 import java.util.*;
+import java.util.Map;
 
 /**
  * MCP tool that traverses dependencies around a selected component.
@@ -116,5 +116,4 @@ public class GetComponentDependenciesTool {
             return "Error getting dependencies: " + e.getMessage();
         }
     }
-
 }

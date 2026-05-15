@@ -90,8 +90,7 @@ public class DataFlowTracer {
                         visitedKeys);
 
                 boolean hasSinks = !path.sinks.isEmpty();
-                boolean isConsumerWithSteps = ep.type == EntrypointType.MESSAGING_CONSUMER
-                        && !path.steps.isEmpty();
+                boolean isConsumerWithSteps = ep.type == EntrypointType.MESSAGING_CONSUMER && !path.steps.isEmpty();
                 if (hasSinks || isConsumerWithSteps) result.add(path);
             }
         }

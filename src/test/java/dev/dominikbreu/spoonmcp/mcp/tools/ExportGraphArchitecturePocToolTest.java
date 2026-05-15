@@ -25,9 +25,7 @@ class ExportGraphArchitecturePocToolTest {
         cache.store(model());
         ExportGraphArchitecturePocTool tool = new ExportGraphArchitecturePocTool(cache);
 
-        String result = tool.execute(Map.of(
-                "outputPath", output.toString(),
-                "focusComponent", "OrderService"));
+        String result = tool.execute(Map.of("outputPath", output.toString(), "focusComponent", "OrderService"));
 
         assertThat(result).contains("Exported graph POC docs");
         assertThat(Files.readString(output)).contains("Generated Architecture Graph POC");
@@ -38,8 +36,7 @@ class ExportGraphArchitecturePocToolTest {
     }
 
     @Test
-    void highSignalComponentsPreferWorkflowRelevantNodesOverInternalStateNoise(@TempDir Path tempDir)
-            throws Exception {
+    void highSignalComponentsPreferWorkflowRelevantNodesOverInternalStateNoise(@TempDir Path tempDir) throws Exception {
         Path output = tempDir.resolve("SOURCE_ARCHITECTURE_POC.md");
         ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.GRAPH);
         ArchitectureModel model = model();
