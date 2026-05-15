@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.model.AppEntry;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
+import dev.dominikbreu.spoonmcp.model.CallEdge;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
@@ -394,5 +395,55 @@ class ArchitectureGraphTest {
         access.fieldName = fieldName;
         access.id = "field:" + componentId + "#" + method + "@" + fieldName + ":" + kind.name().toLowerCase();
         return access;
+    }
+
+    @Test
+    void propagatesStateHandoffThroughCallersWhenWriterAndReaderAreOnSameComponent() {
+        ArchitectureModel model = new ArchitectureModel("test");
+
+        Component dataService = component("DeviceStateDataService", ComponentType.SERVICE);
+        Component mqttConsumer = component("MqttConsumer", ComponentType.SERVICE);
+        Component snapshotPublisher = component("SnapshotPublisher", ComponentType.SCHEDULER);
+        model.components.add(dataService);
+        model.components.add(mqttConsumer);
+        model.components.add(snapshotPublisher);
+
+        FieldAccess write = fieldAccess(
+                FieldAccess.Kind.WRITE,
+                "comp:DeviceStateDataService",
+                "addDevice",
+                "comp:DeviceStateDataService",
+                "deviceStates");
+        FieldAccess read = fieldAccess(
+                FieldAccess.Kind.READ,
+                "comp:DeviceStateDataService",
+                "getAllDevices",
+                "comp:DeviceStateDataService",
+                "deviceStates");
+        model.fieldAccesses.add(write);
+        model.fieldAccesses.add(read);
+
+        CallEdge writeCall = new CallEdge();
+        writeCall.fromComponentId = "comp:MqttConsumer";
+        writeCall.fromMethod = "onMessage";
+        writeCall.toComponentId = "comp:DeviceStateDataService";
+        writeCall.toMethod = "addDevice";
+        model.callEdges.add(writeCall);
+
+        CallEdge readCall = new CallEdge();
+        readCall.fromComponentId = "comp:SnapshotPublisher";
+        readCall.fromMethod = "publishAll";
+        readCall.toComponentId = "comp:DeviceStateDataService";
+        readCall.toMethod = "getAllDevices";
+        model.callEdges.add(readCall);
+
+        ArchitectureGraph graph = new ArchitectureGraph();
+        graph.rebuild(model);
+
+        assertThat(graph.findEdges("STATE_HANDOFF", Map.of(), 10))
+                .anyMatch(edge -> "comp:MqttConsumer".equals(edge.fromId())
+                        && "comp:SnapshotPublisher".equals(edge.toId()));
+        assertThat(graph.findEdges("STATE_HANDOFF", Map.of(), 10))
+                .noneMatch(edge -> edge.fromId().equals(edge.toId()));
     }
 }

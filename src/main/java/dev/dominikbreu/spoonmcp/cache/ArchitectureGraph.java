@@ -5,6 +5,7 @@ import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Chain;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Segment;
 import dev.dominikbreu.spoonmcp.model.AppEntry;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
+import dev.dominikbreu.spoonmcp.model.CallEdge;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.Container;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
@@ -21,6 +22,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -608,11 +610,13 @@ public class ArchitectureGraph {
             }
             for (FieldAccess write : entry.getValue()) {
                 for (FieldAccess read : reads) {
-                    if (Objects.equals(write.componentId, read.componentId)
-                            && Objects.equals(write.method, read.method)) {
-                        continue;
+                    if (Objects.equals(write.componentId, read.componentId)) {
+                        if (!Objects.equals(write.method, read.method)) {
+                            propagateStateHandoffThroughCallers(write, read, sourceModel);
+                        }
+                    } else {
+                        addEdge(write.componentId, read.componentId, "STATE_HANDOFF", stateHandoffProperties(write, read));
                     }
-                    addEdge(write.componentId, read.componentId, "STATE_HANDOFF", stateHandoffProperties(write, read));
                 }
             }
         }
@@ -642,6 +646,29 @@ public class ArchitectureGraph {
         properties.put("source", "field_access");
         properties.put("confidence", 0.8);
         return properties;
+    }
+
+    private void propagateStateHandoffThroughCallers(
+            FieldAccess write,
+            FieldAccess read,
+            ArchitectureModel sourceModel) {
+        Set<String> writerCallers = new HashSet<>();
+        Set<String> readerCallers = new HashSet<>();
+        for (CallEdge e : sourceModel.callEdges) {
+            if (write.componentId.equals(e.toComponentId) && write.method.equals(e.toMethod)) {
+                writerCallers.add(e.fromComponentId);
+            }
+            if (read.componentId.equals(e.toComponentId) && read.method.equals(e.toMethod)) {
+                readerCallers.add(e.fromComponentId);
+            }
+        }
+        for (String caller1 : writerCallers) {
+            for (String caller2 : readerCallers) {
+                if (!caller1.equals(caller2)) {
+                    addEdge(caller1, caller2, "STATE_HANDOFF", stateHandoffProperties(write, read));
+                }
+            }
+        }
     }
 
     private void computeDerivedProperties() {
