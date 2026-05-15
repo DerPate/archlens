@@ -256,7 +256,8 @@ public class McpServer {
                 schema().opt("entrypointName", "string", "Filter chains whose root entrypoint name or HTTP path contains this substring")
                         .opt("channel", "string", "Filter chains that pass through a messaging link whose channel name contains this substring")
                         .opt("maxDepth", "integer", "Maximum number of pipeline segments per chain (default 8)")
-                        .opt("maxChains", "integer", "Maximum number of chains to render (default 5)"),
+                        .opt("maxChains", "integer", "Maximum number of chains to render (default 5)")
+                        .opt("includeLifecycle", "boolean", "Include CDI lifecycle observer, main-method, and RMI chains (default false)"),
                 pipelineTool::execute));
 
         specs.add(toolSpec(

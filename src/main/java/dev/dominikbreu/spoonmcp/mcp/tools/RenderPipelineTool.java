@@ -9,16 +9,23 @@ import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
+import dev.dominikbreu.spoonmcp.model.EntrypointType;
 import dev.dominikbreu.spoonmcp.renderer.MermaidPipelineRenderer;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Set;
 
 /**
  * MCP tool that renders end-to-end pipeline chains stitched across entrypoints by
  * traversing {@link DataFlowSink#linkedPathIds}.
  */
 public class RenderPipelineTool {
+
+    private static final Set<EntrypointType> LIFECYCLE_TYPES = Set.of(
+            EntrypointType.CDI_EVENT_OBSERVER,
+            EntrypointType.MAIN_METHOD,
+            EntrypointType.RMI_ENDPOINT);
 
     private final ModelCache cache;
     private final PipelineGraphBuilder builder = new PipelineGraphBuilder();
@@ -49,6 +56,7 @@ public class RenderPipelineTool {
 
             int maxDepth = ToolArgs.getInt(args, "maxDepth", 8);
             int maxChains = ToolArgs.getInt(args, "maxChains", 5);
+            boolean includeLifecycle = ToolArgs.getBool(args, "includeLifecycle", false);
             String epFilter = ToolArgs.getString(args, "entrypointName");
             String channelFilter = ToolArgs.getString(args, "channel");
 
@@ -59,6 +67,7 @@ public class RenderPipelineTool {
 
             List<Chain> candidates = new ArrayList<>();
             for (Chain c : chains) {
+                if (!includeLifecycle && isLifecycleChain(c)) continue;
                 if (epFilter != null && !rootMatches(c, epFilter)) continue;
                 if (channelFilter != null && !chainHasChannel(c, channelFilter)) continue;
                 candidates.add(c);
@@ -88,6 +97,12 @@ public class RenderPipelineTool {
         } catch (Exception e) {
             return "Error rendering pipeline: " + e.getMessage();
         }
+    }
+
+    private boolean isLifecycleChain(Chain c) {
+        if (c.segments.isEmpty()) return false;
+        Entrypoint ep = c.segments.get(0).entrypoint;
+        return ep != null && LIFECYCLE_TYPES.contains(ep.type);
     }
 
     private boolean rootMatches(Chain c, String filter) {
