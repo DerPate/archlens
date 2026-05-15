@@ -128,6 +128,14 @@ public class DataFlowTracer {
             }
         }
 
+        // Build a one-time index of pathId → entrypointId to guard against same-entrypoint linking.
+        // Two paths from the same entrypoint must not be stitched together via a STORE sink —
+        // that would create phantom loops back to the same entrypoint in the pipeline diagram.
+        Map<String, String> pathIdToEpId = new HashMap<>();
+        for (DataFlowPath p2 : paths) {
+            pathIdToEpId.put(p2.id, p2.entrypointId);
+        }
+
         for (DataFlowPath p : paths) {
             for (DataFlowSink s : p.sinks) {
                 if (s.kind != DataFlowSink.Kind.STORE) continue;
@@ -136,7 +144,10 @@ public class DataFlowTracer {
                 List<String> readerIds = readerPathsByKey.get(key);
                 if (readerIds == null) continue;
                 for (String rid : readerIds) {
-                    if (!rid.equals(p.id) && !s.linkedPathIds.contains(rid)) {
+                    String readerEpId = pathIdToEpId.get(rid);
+                    if (!rid.equals(p.id)
+                            && (readerEpId == null || !readerEpId.equals(p.entrypointId))
+                            && !s.linkedPathIds.contains(rid)) {
                         s.linkedPathIds.add(rid);
                     }
                 }

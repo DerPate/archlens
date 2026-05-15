@@ -427,6 +427,70 @@ class DataFlowTracerTest {
         });
     }
 
+    // ── same-entrypoint store-sink guard ────────────────────────────────────────
+
+    @Test
+    void linkStoreSinks_doesNotLinkReaderPathFromSameEntrypoint() {
+        // Two paths come from the same entrypoint EP1.
+        // Path A tracks 'cacheField' and writes field 'myField' on comp:FC.
+        // Path B tracks 'machineId' and reads field 'myField' on comp:FC.
+        // Because both paths share the same entrypointId, the STORE sink on path A
+        // must NOT be linked to path B — doing so would create a phantom loop back
+        // to the same entrypoint.
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("FC", ComponentType.SERVICE));
+        model.components.add(comp("SomeRepo", ComponentType.REPOSITORY));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:EP1";
+        ep.name = "onMessage";
+        ep.type = EntrypointType.MESSAGING_CONSUMER;
+        ep.componentId = "comp:FC";
+        ep.parameters.add("cacheField");
+        ep.parameters.add("machineId");
+        model.entrypoints.add(ep);
+
+        // Path A: WRITE of 'myField', sourced from 'cacheField'
+        FieldAccess fw = new FieldAccess();
+        fw.kind = FieldAccess.Kind.WRITE;
+        fw.componentId = "comp:FC";
+        fw.fieldOwnerComponentId = "comp:FC";
+        fw.method = "onMessage";
+        fw.fieldName = "myField";
+        fw.sourceVarName = "cacheField";
+        fw.id = "field:comp:FC#onMessage@myField:write";
+        model.fieldAccesses.add(fw);
+
+        // Path B: READ of 'myField' — from the same entrypoint component/method
+        FieldAccess fr = new FieldAccess();
+        fr.kind = FieldAccess.Kind.READ;
+        fr.componentId = "comp:FC";
+        fr.fieldOwnerComponentId = "comp:FC";
+        fr.method = "onMessage";
+        fr.fieldName = "myField";
+        fr.id = "field:comp:FC#onMessage@myField:read";
+        model.fieldAccesses.add(fr);
+
+        // Give path B a downstream sink so it appears in the result
+        addCallEdge(model, "comp:FC", "onMessage", "comp:SomeRepo", "save", Map.of("machineId", "entity"));
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        // The path tracking 'cacheField' is path A — find its STORE sink if present
+        paths.stream()
+                .filter(p -> p.entrypointId.equals("ep:EP1") && p.trackedParam.equals("cacheField"))
+                .findFirst()
+                .ifPresent(pathA -> {
+                    String pathBId = "df:ep:EP1#machineId";
+                    pathA.sinks.stream()
+                            .filter(s -> s.kind == DataFlowSink.Kind.STORE)
+                            .forEach(storeSink ->
+                                assertThat(storeSink.linkedPathIds)
+                                        .as("STORE sink on path A must not link to path B (same entrypoint)")
+                                        .doesNotContain(pathBId));
+                });
+    }
+
     // ── G1: return-value derived tracking ───────────────────────────────────────
 
     @Test
