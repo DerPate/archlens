@@ -256,6 +256,40 @@ class RuntimeFlowInferrerTest {
         assertThat(flow.steps).extracting(step -> step.componentName).containsExactly("Main", "Game");
     }
 
+    @Test
+    void bothCallersToSharedComponentProduceEdges() {
+        // Regression: when RandomPlayer and SimplePlayer both call Strategy,
+        // only RandomPlayer->Strategy was recorded; SimplePlayer->Strategy was dropped
+        // because Strategy's DFS key was already marked visited.
+        ArchitectureModel model = new ArchitectureModel("test");
+        Component game = comp("Game", ComponentType.UNKNOWN);
+        Component random = comp("RandomPlayer", ComponentType.UNKNOWN);
+        Component simple = comp("SimplePlayer", ComponentType.UNKNOWN);
+        Component strategy = comp("Strategy", ComponentType.UNKNOWN);
+        model.components.addAll(List.of(game, random, simple, strategy));
+
+        model.entrypoints.add(ep("ep:Game#run", "run", game.id, null, null));
+
+        model.callEdges.addAll(List.of(
+                callEdge(game.id, "run", random.id, "nextMove"),
+                callEdge(game.id, "run", simple.id, "nextMove"),
+                callEdge(random.id, "nextMove", strategy.id, "nextSign"),
+                callEdge(simple.id, "nextMove", strategy.id, "nextSign")));
+
+        RuntimeFlow flow = inferrer.infer("ep:Game#run", 10, model);
+
+        assertThat(flow.edges)
+                .anySatisfy(e -> {
+                    assertThat(e.fromId).isEqualTo(random.id);
+                    assertThat(e.toId).isEqualTo(strategy.id);
+                });
+        assertThat(flow.edges)
+                .anySatisfy(e -> {
+                    assertThat(e.fromId).isEqualTo(simple.id);
+                    assertThat(e.toId).isEqualTo(strategy.id);
+                });
+    }
+
     // ── model builders ────────────────────────────────────────────────────────
 
     /** Resource –inject–> Service –inject–> Repository, with one GET entrypoint on Resource */
@@ -300,6 +334,16 @@ class RuntimeFlowInferrerTest {
         d.derivedFrom = "annotation";
         d.confidence = 0.95;
         return d;
+    }
+
+    private static CallEdge callEdge(String fromComp, String fromMethod, String toComp, String toMethod) {
+        CallEdge e = new CallEdge();
+        e.fromComponentId = fromComp;
+        e.fromMethod = fromMethod;
+        e.toComponentId = toComp;
+        e.toMethod = toMethod;
+        e.callKind = "direct";
+        return e;
     }
 
     private static Entrypoint ep(String id, String name, String compId, String method, String path) {

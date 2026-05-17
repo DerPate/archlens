@@ -17,7 +17,6 @@ import spoon.reflect.code.CtExpression;
 import spoon.reflect.code.CtInvocation;
 import spoon.reflect.code.CtNewArray;
 import spoon.reflect.code.CtVariableRead;
-import spoon.reflect.declaration.CtExecutable;
 import spoon.reflect.declaration.CtField;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtType;
@@ -99,7 +98,7 @@ public class ObjectFlowIndexBuilder {
         if (target instanceof CtArrayRead<?> arrayRead) {
             String arrayName = variableName(arrayRead.getTarget());
             if (arrayName != null) {
-                return resolveArrayField(invocation, projectTypes, arrayName, methodName);
+                return resolveArrayField(invocation, arrayName, methodName, typeIndex);
             }
         }
 
@@ -115,44 +114,26 @@ public class ObjectFlowIndexBuilder {
             return List.of();
         }
 
-        List<ReceiverTarget> localTargets = resolveLocalVariable(invocation, variableName, methodName);
+        List<ReceiverTarget> localTargets =
+                ObjectFlowMethodAnalyzer.resolveLocalVariableTargets(invocation, variableName, methodName);
         if (!localTargets.isEmpty()) {
             return localTargets;
         }
 
-        List<ReceiverTarget> fieldTargets = resolveField(invocation, projectTypes, variableName, methodName);
+        List<ReceiverTarget> fieldTargets = resolveField(invocation, variableName, methodName, typeIndex);
         if (!fieldTargets.isEmpty()) {
             return fieldTargets;
         }
 
         CtVariable<?> variable = variable(target);
         if (variable != null && variable.getType() != null) {
-            return typeIndex.expandDeclaredType(variable.getType().getQualifiedName(), methodName);
-        }
-        return List.of();
-    }
-
-    private static List<ReceiverTarget> resolveLocalVariable(
-            CtInvocation<?> invocation, String variableName, String methodName) {
-        CtExecutable<?> executable = invocation.getParent(CtExecutable.class);
-        if (executable == null) {
-            return List.of();
-        }
-        for (CtVariable<?> variable : executable.getElements(new TypeFilter<>(CtVariable.class))) {
-            if (!(variable instanceof spoon.reflect.code.CtLocalVariable<?> local)
-                    || !variableName.equals(local.getSimpleName())) {
-                continue;
-            }
-            String allocatedType = constructorType(local.getDefaultExpression());
-            if (allocatedType != null) {
-                return targetFor(allocatedType, methodName, ObjectFlowEvidence.LOCAL_ASSIGNMENT);
-            }
+            return typeIndex.expandDeclaredType(elementOrDeclaredType(variable.getType()), methodName);
         }
         return List.of();
     }
 
     private static List<ReceiverTarget> resolveField(
-            CtInvocation<?> invocation, List<CtType<?>> projectTypes, String fieldName, String methodName) {
+            CtInvocation<?> invocation, String fieldName, String methodName, ObjectFlowIndex typeIndex) {
         CtType<?> owner = invocation.getParent(CtType.class);
         if (owner == null) {
             return List.of();
@@ -166,14 +147,13 @@ public class ObjectFlowIndexBuilder {
             return targetFor(allocatedType, methodName, ObjectFlowEvidence.CONSTRUCTOR_ASSIGNMENT);
         }
         if (field.getType() != null) {
-            ObjectFlowIndex typeIndex = typeIndex(projectTypes);
-            return typeIndex.expandDeclaredType(field.getType().getQualifiedName(), methodName);
+            return typeIndex.expandDeclaredType(elementOrDeclaredType(field.getType()), methodName);
         }
         return List.of();
     }
 
     private static List<ReceiverTarget> resolveArrayField(
-            CtInvocation<?> invocation, List<CtType<?>> projectTypes, String fieldName, String methodName) {
+            CtInvocation<?> invocation, String fieldName, String methodName, ObjectFlowIndex typeIndex) {
         CtType<?> owner = invocation.getParent(CtType.class);
         if (owner == null) {
             return List.of();
@@ -195,9 +175,8 @@ public class ObjectFlowIndexBuilder {
                 return targets;
             }
         }
-        if (field.getType() != null && field.getType().getActualTypeArguments().size() == 1) {
-            String elementType = field.getType().getActualTypeArguments().getFirst().getQualifiedName();
-            return typeIndex(projectTypes).expandDeclaredType(elementType, methodName);
+        if (field.getType() != null) {
+            return typeIndex.expandDeclaredType(elementOrDeclaredType(field.getType()), methodName);
         }
         return List.of();
     }
@@ -212,28 +191,15 @@ public class ObjectFlowIndexBuilder {
                 .orElse(List.of());
     }
 
-    private static ObjectFlowIndex typeIndex(List<CtType<?>> projectTypes) {
-        Map<String, ObjectFlowIndex.TypeFact> types = new LinkedHashMap<>();
-        Map<String, List<ObjectFlowIndex.TypeFact>> implementations = new LinkedHashMap<>();
-        Map<String, CtType<?>> byName = new LinkedHashMap<>();
-        for (CtType<?> type : projectTypes) {
-            byName.put(type.getQualifiedName(), type);
-            boolean abstractOrInterface = type.isInterface() || type.hasModifier(ModifierKind.ABSTRACT);
-            types.put(
-                    type.getQualifiedName(),
-                    new ObjectFlowIndex.TypeFact(
-                            type.getQualifiedName(), "comp:" + type.getQualifiedName(), abstractOrInterface));
+    private static String elementOrDeclaredType(CtTypeReference<?> type) {
+        if (type == null) return "";
+        if (type instanceof spoon.reflect.reference.CtArrayTypeReference<?> arrayType) {
+            return arrayType.getComponentType().getQualifiedName();
         }
-        for (CtType<?> type : projectTypes) {
-            ObjectFlowIndex.TypeFact concreteType = types.get(type.getQualifiedName());
-            if (concreteType == null || concreteType.abstractOrInterface()) {
-                continue;
-            }
-            for (String supertype : supertypeClosure(type, byName)) {
-                registerImplementation(implementations, supertype, concreteType);
-            }
+        if (!type.getActualTypeArguments().isEmpty()) {
+            return type.getActualTypeArguments().get(0).getQualifiedName();
         }
-        return new ObjectFlowIndex(types, implementations);
+        return type.getQualifiedName();
     }
 
     private static CtField<?> field(CtType<?> owner, String fieldName) {

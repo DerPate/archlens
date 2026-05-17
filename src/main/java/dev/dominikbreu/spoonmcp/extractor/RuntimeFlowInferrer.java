@@ -60,6 +60,7 @@ public class RuntimeFlowInferrer {
 
         Set<String> visitedKeys = new LinkedHashSet<>();
         Set<String> visitedComps = new LinkedHashSet<>();
+        Set<String> visitedEdges = new LinkedHashSet<>();
 
         dfsCallGraph(
                 ep.componentId,
@@ -72,6 +73,7 @@ public class RuntimeFlowInferrer {
                 compById,
                 visitedKeys,
                 visitedComps,
+                visitedEdges,
                 flow);
 
         return flow;
@@ -88,13 +90,9 @@ public class RuntimeFlowInferrer {
             Map<String, Component> compById,
             Set<String> visitedKeys,
             Set<String> visitedComps,
+            Set<String> visitedEdges,
             RuntimeFlow flow) {
-        String key = compId + "#" + method;
-        if (visitedKeys.contains(key) || depth > maxDepth) return;
-        visitedKeys.add(key);
-
         Component comp = compById.get(compId);
-
         boolean visible = traversalPolicy.isHumanVisible(comp);
 
         if (!visitedComps.contains(compId)) {
@@ -104,14 +102,23 @@ public class RuntimeFlowInferrer {
             }
         }
 
+        // Record the edge regardless of whether this node was already visited — multiple
+        // callers (e.g. RandomPlayer and SimplePlayer both calling Strategy) must each
+        // produce their own edge even if the target's subtree is only traversed once.
         if (fromCompId != null && visible) {
-            flow.edges.add(new RuntimeFlow.FlowEdge(fromCompId, compId, via));
+            String edgeKey = fromCompId + "->" + compId + "|" + via;
+            if (visitedEdges.add(edgeKey)) {
+                flow.edges.add(new RuntimeFlow.FlowEdge(fromCompId, compId, via));
+            }
         }
+
+        String key = compId + "#" + method;
+        if (visitedKeys.contains(key) || depth > maxDepth) return;
+        visitedKeys.add(key);
 
         String nextFromCompId = visible ? compId : fromCompId;
         for (CallEdge edge : adj.getOrDefault(key, List.of())) {
             if (!traversalPolicy.canTraverseInline(edge)) continue;
-            Component target = compById.get(edge.toComponentId);
             dfsCallGraph(
                     edge.toComponentId,
                     edge.toMethod,
@@ -123,6 +130,7 @@ public class RuntimeFlowInferrer {
                     compById,
                     visitedKeys,
                     visitedComps,
+                    visitedEdges,
                     flow);
         }
     }
