@@ -29,8 +29,9 @@ The templates guide agents to:
 - call `index_workspace` before architecture analysis;
 - use `trace_data_flow`, `render_pipeline`, and `query_architecture_graph` before guessing
   about cross-entrypoint workflows;
-- prefer `STATE_HANDOFF`, `LINKS_TO`, and `PipelineChain` evidence over raw fan-in;
+- prefer source-derived `CALLS` edges with `receiverEvidence` / `receiverConfidence` for
+  ordinary Java object flow;
+- prefer `WORKFLOW_LINK`, `STATE_HANDOFF`, and `PipelineChain` evidence over raw fan-in;
 - downrank utilities, formatters, mappers, loggers, config classes, DTO-ish types, and
   unknown components unless they bridge real workflows;
 - report uncertainty when Spoon MCP evidence is incomplete.
-

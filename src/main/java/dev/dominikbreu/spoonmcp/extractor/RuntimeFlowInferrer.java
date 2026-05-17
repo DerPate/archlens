@@ -1,6 +1,7 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.workflow.WorkflowTraversalPolicy;
 import java.util.*;
 
 /**
@@ -15,10 +16,16 @@ import java.util.*;
  */
 public class RuntimeFlowInferrer {
 
-    private static final Set<ComponentType> SKIP_TYPES = Set.of(ComponentType.UTILITY, ComponentType.UNKNOWN);
+    private final WorkflowTraversalPolicy traversalPolicy;
 
     /** Creates a runtime flow inferrer using default component filtering. */
-    public RuntimeFlowInferrer() {}
+    public RuntimeFlowInferrer() {
+        this(new WorkflowTraversalPolicy());
+    }
+
+    public RuntimeFlowInferrer(WorkflowTraversalPolicy traversalPolicy) {
+        this.traversalPolicy = traversalPolicy;
+    }
 
     /**
      * Infers a runtime flow for the given entrypoint reference.
@@ -87,9 +94,8 @@ public class RuntimeFlowInferrer {
         visitedKeys.add(key);
 
         Component comp = compById.get(compId);
-        if (isRawMessagingClient(comp)) return;
 
-        boolean visible = comp != null && !SKIP_TYPES.contains(comp.type);
+        boolean visible = traversalPolicy.isHumanVisible(comp);
 
         if (!visitedComps.contains(compId)) {
             visitedComps.add(compId);
@@ -102,15 +108,15 @@ public class RuntimeFlowInferrer {
             flow.edges.add(new RuntimeFlow.FlowEdge(fromCompId, compId, via));
         }
 
+        String nextFromCompId = visible ? compId : fromCompId;
         for (CallEdge edge : adj.getOrDefault(key, List.of())) {
+            if (!traversalPolicy.canTraverseInline(edge)) continue;
             Component target = compById.get(edge.toComponentId);
-            if (isRawMessagingClient(target)) continue;
-            if (target != null && SKIP_TYPES.contains(target.type)) continue;
             dfsCallGraph(
                     edge.toComponentId,
                     edge.toMethod,
                     edge.toMethod,
-                    compId,
+                    nextFromCompId,
                     depth + 1,
                     maxDepth,
                     adj,
@@ -153,9 +159,8 @@ public class RuntimeFlowInferrer {
             visited.add(compId);
 
             Component comp = compById.get(compId);
-            if (isRawMessagingClient(comp)) continue;
 
-            boolean visible = comp != null && !SKIP_TYPES.contains(comp.type);
+            boolean visible = traversalPolicy.isHumanVisible(comp);
             if (visible) {
                 String via = viaForNode.getOrDefault(compId, "call");
                 flow.steps.add(new RuntimeFlowStep(flow.steps.size(), compId, comp.name, comp.type.name(), via));
@@ -202,13 +207,6 @@ public class RuntimeFlowInferrer {
             }
         }
         return null;
-    }
-
-    private boolean isRawMessagingClient(Component comp) {
-        return comp != null
-                && comp.type == ComponentType.HTTP_CLIENT
-                && comp.stereotypes != null
-                && comp.stereotypes.contains("messaging");
     }
 
     private Map<String, Component> buildCompById(ArchitectureModel model) {

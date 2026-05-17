@@ -180,6 +180,82 @@ class RuntimeFlowInferrerTest {
         assertThat(unique).isEqualTo(flow.steps.size());
     }
 
+    @Test
+    void runtimeFlowDoesNotTraverseAcrossMessagingBoundaryAsInlineCall() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        Component scheduler = comp("Scheduler", ComponentType.SCHEDULER);
+        Component consumer = comp("Consumer", ComponentType.SERVICE);
+        model.components.addAll(List.of(scheduler, consumer));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:Scheduler#tick";
+        ep.name = "tick";
+        ep.componentId = scheduler.id;
+        ep.type = EntrypointType.SCHEDULER;
+        model.entrypoints.add(ep);
+
+        CallEdge edge = new CallEdge();
+        edge.fromComponentId = scheduler.id;
+        edge.fromMethod = "tick";
+        edge.toComponentId = consumer.id;
+        edge.toMethod = "process";
+        edge.callKind = "messaging";
+        model.callEdges.add(edge);
+
+        RuntimeFlow flow = inferrer.infer(ep.id, 5, model);
+
+        assertThat(flow.steps).extracting(step -> step.componentName).contains("Scheduler");
+        assertThat(flow.steps).extracting(step -> step.componentName).doesNotContain("Consumer");
+    }
+
+    @Test
+    void runtimeFlowTraversesThroughHiddenInlineComponents() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        Component resource = comp("Resource", ComponentType.REST_RESOURCE);
+        Component mapper = comp("Mapper", ComponentType.UTILITY);
+        Component service = comp("Service", ComponentType.SERVICE);
+        model.components.addAll(List.of(resource, mapper, service));
+        model.entrypoints.add(ep("ep:Resource#get", "get", resource.id, "GET", "/orders"));
+
+        CallEdge toMapper = new CallEdge();
+        toMapper.fromComponentId = resource.id;
+        toMapper.fromMethod = "get";
+        toMapper.toComponentId = mapper.id;
+        toMapper.toMethod = "map";
+        toMapper.callKind = "direct";
+        model.callEdges.add(toMapper);
+
+        CallEdge toService = new CallEdge();
+        toService.fromComponentId = mapper.id;
+        toService.fromMethod = "map";
+        toService.toComponentId = service.id;
+        toService.toMethod = "handle";
+        toService.callKind = "direct";
+        model.callEdges.add(toService);
+
+        RuntimeFlow flow = inferrer.infer("ep:Resource#get", 5, model);
+
+        assertThat(flow.steps).extracting(step -> step.componentName).contains("Resource", "Service");
+        assertThat(flow.steps).extracting(step -> step.componentName).doesNotContain("Mapper");
+    }
+
+    @Test
+    void runtimeFlowKeepsUnknownPlainJavaComponentsVisible() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        Component main = comp("Main", ComponentType.UNKNOWN);
+        Component game = comp("Game", ComponentType.UNKNOWN);
+        model.components.addAll(List.of(main, game));
+        model.dependencies.add(dep(main.id, game.id));
+
+        Entrypoint ep = ep("ep:Main#main", "main", main.id, null, null);
+        ep.type = EntrypointType.MAIN_METHOD;
+        model.entrypoints.add(ep);
+
+        RuntimeFlow flow = inferrer.infer(ep.id, 5, model);
+
+        assertThat(flow.steps).extracting(step -> step.componentName).containsExactly("Main", "Game");
+    }
+
     // ── model builders ────────────────────────────────────────────────────────
 
     /** Resource –inject–> Service –inject–> Repository, with one GET entrypoint on Resource */

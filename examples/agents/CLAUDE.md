@@ -29,7 +29,7 @@ Use these workflows:
 - Use-case tracing: `find_entrypoints` -> `get_runtime_flow` -> `render_call_flow` ->
   `trace_data_flow` -> `render_use_case_timeline`.
 - Pipeline analysis: `trace_data_flow` -> `render_pipeline` ->
-  `query_architecture_graph` for `PipelineChain`, `LINKS_TO`, and `STATE_HANDOFF`.
+  `query_architecture_graph` for `WORKFLOW_LINK`, `PipelineChain`, and `STATE_HANDOFF`.
 
 If the server exposes prompts, prefer these prompt workflows when they match the task:
 
@@ -74,13 +74,17 @@ look for explicit evidence:
 
 - `trace_data_flow` store sinks and `linkedPathIds`
 - `render_pipeline` output
-- graph `LINKS_TO` edges
+- graph `WORKFLOW_LINK` edges
+- graph `CALLS` edges with `receiverEvidence` / `receiverConfidence` for ordinary Java
+  object flow
 - graph `STATE_HANDOFF`, `WRITES_STATE`, and `READS_STATE` edges
 - `PipelineChain` nodes and `HAS_SEGMENT` edges
 
 Shared-state reads may be direct field reads or accessor-style calls such as
 `return cache` and `return cache.keySet()`. Prefer the extracted MCP evidence before
 inferring the pipeline from names.
+For ordinary Java projects, prefer source-derived `CALLS` edges with
+`receiverEvidence` / `receiverConfidence`; do not infer object flow from names alone.
 
 ## Answer Style
 
@@ -92,4 +96,3 @@ When reporting architecture findings:
 - distinguish confirmed graph/data-flow evidence from inference;
 - mention missing call-graph or data-flow evidence instead of pretending certainty;
 - include a short next-step suggestion when the evidence points to a likely follow-up.
-

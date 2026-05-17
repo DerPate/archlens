@@ -156,6 +156,12 @@ public class QueryArchitectureGraphTool {
                     "writerMethod",
                     "readerMethod",
                     "accessKind",
+                    "fromMethod",
+                    "toMethod",
+                    "callKind",
+                    "receiverEvidence",
+                    "receiverConfidence",
+                    "receiverExpansionCapped",
                     "linkKind",
                     "viaField",
                     "viaChannel");

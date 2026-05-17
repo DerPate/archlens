@@ -265,19 +265,26 @@ flowchart LR
 
 ## Pipeline Rendering Workflow
 
-The pipeline renderer stitches data-flow paths through PipelineGraphBuilder and MermaidPipelineRenderer.
+The pipeline renderer stitches data-flow paths through `PipelineGraphBuilder`, the shared
+workflow linker, and `MermaidPipelineRenderer`. Graph-only clients should prefer
+`WORKFLOW_LINK` edges for continuation evidence and use `LINKS_TO` only when inspecting
+the lower-level sink bridge.
 
 ```mermaid
 flowchart LR
     comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderPipelineTool["RenderPipelineTool\nSERVICE"]
     comp_dev_dominikbreu_spoonmcp_cache_ModelCache["ModelCache\nSERVICE"]
     comp_dev_dominikbreu_spoonmcp_extractor_PipelineGraphBuilder["PipelineGraphBuilder\nUNKNOWN"]
+    comp_dev_dominikbreu_spoonmcp_workflow_WorkflowGraphBuilder["WorkflowGraphBuilder\nSERVICE"]
+    comp_dev_dominikbreu_spoonmcp_workflow_WorkflowLinker["WorkflowLinker\nSERVICE"]
     comp_dev_dominikbreu_spoonmcp_renderer_MermaidPipelineRenderer["MermaidPipelineRenderer\nSERVICE"]
     comp_dev_dominikbreu_spoonmcp_cache_ArchitectureGraph["ArchitectureGraph\nUNKNOWN"]
     comp_dev_dominikbreu_spoonmcp_model_ArchitectureModel["ArchitectureModel\nENTITY"]
     comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderPipelineTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ModelCache
     comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderPipelineTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_extractor_PipelineGraphBuilder
     comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderPipelineTool -->|field-reference| comp_dev_dominikbreu_spoonmcp_renderer_MermaidPipelineRenderer
+    comp_dev_dominikbreu_spoonmcp_extractor_PipelineGraphBuilder -->|workflow-linking| comp_dev_dominikbreu_spoonmcp_workflow_WorkflowGraphBuilder
+    comp_dev_dominikbreu_spoonmcp_workflow_WorkflowGraphBuilder -->|workflow-linking| comp_dev_dominikbreu_spoonmcp_workflow_WorkflowLinker
     comp_dev_dominikbreu_spoonmcp_cache_ModelCache -->|field-reference| comp_dev_dominikbreu_spoonmcp_cache_ArchitectureGraph
     comp_dev_dominikbreu_spoonmcp_cache_ModelCache -->|field-reference| comp_dev_dominikbreu_spoonmcp_model_ArchitectureModel
 ```

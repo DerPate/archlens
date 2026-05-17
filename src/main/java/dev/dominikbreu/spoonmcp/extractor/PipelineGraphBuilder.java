@@ -4,13 +4,12 @@ import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
+import dev.dominikbreu.spoonmcp.workflow.WorkflowGraph;
+import dev.dominikbreu.spoonmcp.workflow.WorkflowGraphBuilder;
+import dev.dominikbreu.spoonmcp.workflow.WorkflowLink;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Builds ordered pipeline chains by traversing {@link DataFlowSink#linkedPathIds} forward
@@ -22,23 +21,6 @@ import java.util.Set;
  */
 public class PipelineGraphBuilder {
 
-    private static final java.util.Set<String> LIFECYCLE_KEYWORDS = java.util.Set.of(
-            "shutdown", "stop", "destroy", "close", "halt", "predestroy", "cleanup");
-
-    private static boolean isLifecycleEntrypoint(Entrypoint ep, String pathId) {
-        if (ep != null) {
-            if (ep.type != dev.dominikbreu.spoonmcp.model.EntrypointType.CDI_EVENT_OBSERVER) return false;
-            if (ep.name == null) return false;
-            String lower = ep.name.toLowerCase(java.util.Locale.ROOT);
-            return LIFECYCLE_KEYWORDS.stream().anyMatch(lower::contains);
-        }
-        // Fallback: infer from path ID when entrypoint is not in the model index.
-        // Path IDs for CDI observers follow the pattern "df:ep:...#methodName:observer#trackedParam".
-        if (pathId == null) return false;
-        String lower = pathId.toLowerCase(java.util.Locale.ROOT);
-        return lower.contains(":observer#") && LIFECYCLE_KEYWORDS.stream().anyMatch(lower::contains);
-    }
-
     /** Creates a builder. */
     public PipelineGraphBuilder() {}
 
@@ -48,6 +30,8 @@ public class PipelineGraphBuilder {
         public final DataFlowPath path;
         /** Sink in the previous segment that linked to this segment, or null for the root. */
         public final DataFlowSink incomingSink;
+        /** Typed workflow link from the previous segment, or null for the root. */
+        public final WorkflowLink incomingLink;
         /** Entrypoint that owns this phase's path. */
         public final Entrypoint entrypoint;
 
@@ -59,8 +43,21 @@ public class PipelineGraphBuilder {
          * @param entrypoint    entrypoint that owns this path
          */
         public Segment(DataFlowPath path, DataFlowSink incomingSink, Entrypoint entrypoint) {
+            this(path, incomingSink, null, entrypoint);
+        }
+
+        /**
+         * Creates a segment with typed workflow-link metadata.
+         *
+         * @param path          data-flow path for this phase
+         * @param incomingSink  sink from the previous segment, or null for the root
+         * @param incomingLink  typed workflow link from the previous segment, or null for the root
+         * @param entrypoint    entrypoint that owns this path
+         */
+        public Segment(DataFlowPath path, DataFlowSink incomingSink, WorkflowLink incomingLink, Entrypoint entrypoint) {
             this.path = path;
             this.incomingSink = incomingSink;
+            this.incomingLink = incomingLink;
             this.entrypoint = entrypoint;
         }
     }
@@ -86,35 +83,11 @@ public class PipelineGraphBuilder {
         if (model == null || model.dataFlowPaths == null || model.dataFlowPaths.isEmpty()) {
             return List.of();
         }
-        Map<String, Entrypoint> epById = new HashMap<>();
-        for (Entrypoint e : model.entrypoints) epById.put(e.id, e);
-
-        // Remove lifecycle observer paths so they cannot appear as any segment.
-        Set<String> lifecyclePathIds = new HashSet<>();
-        for (DataFlowPath p : model.dataFlowPaths) {
-            if (isLifecycleEntrypoint(epById.get(p.entrypointId), p.id)) lifecyclePathIds.add(p.id);
-        }
-        Map<String, DataFlowPath> pathById = new HashMap<>();
-        for (DataFlowPath p : model.dataFlowPaths) {
-            if (!lifecyclePathIds.contains(p.id)) pathById.put(p.id, p);
-        }
-
-        Set<String> hasIncoming = new HashSet<>();
-        for (DataFlowPath p : model.dataFlowPaths) {
-            if (lifecyclePathIds.contains(p.id)) continue;
-            for (DataFlowSink s : p.sinks) {
-                if (s.linkedPathIds == null) continue;
-                hasIncoming.addAll(s.linkedPathIds);
-            }
-        }
+        WorkflowGraph workflowGraph = new WorkflowGraphBuilder().build(model);
 
         List<Chain> chains = new ArrayList<>();
-        for (DataFlowPath p : model.dataFlowPaths) {
-            if (lifecyclePathIds.contains(p.id)) continue;
-            if (hasIncoming.contains(p.id)) continue;
-            // Skip orphan roots: must have at least one outgoing link to be a pipeline.
-            if (!hasAnyLink(p)) continue;
-            extend(new ArrayList<>(), p, null, pathById, epById, chains, maxDepth,
+        for (DataFlowPath p : workflowGraph.rootPaths()) {
+            extend(new ArrayList<>(), p, null, null, workflowGraph, chains, maxDepth,
                     new LinkedHashSet<>(), new LinkedHashSet<>());
         }
         return removeDuplicateChains(removePrefixChains(chains));
@@ -193,8 +166,8 @@ public class PipelineGraphBuilder {
             List<Segment> prefix,
             DataFlowPath current,
             DataFlowSink incomingSink,
-            Map<String, DataFlowPath> pathById,
-            Map<String, Entrypoint> epById,
+            WorkflowLink incomingLink,
+            WorkflowGraph workflowGraph,
             List<Chain> out,
             int maxDepth,
             LinkedHashSet<String> stack,
@@ -212,7 +185,7 @@ public class PipelineGraphBuilder {
             emit(prefix, out);
             return;
         }
-        Segment seg = new Segment(current, incomingSink, epById.get(epId));
+        Segment seg = new Segment(current, incomingSink, incomingLink, workflowGraph.entrypointById().get(epId));
         List<Segment> nextPrefix = new ArrayList<>(prefix);
         nextPrefix.add(seg);
 
@@ -226,16 +199,23 @@ public class PipelineGraphBuilder {
         nextStack.add(current.id);
         LinkedHashSet<String> nextEpStack = new LinkedHashSet<>(epStack);
         if (epId != null) nextEpStack.add(epId);
-        for (DataFlowSink s : current.sinks) {
-            if (s.linkedPathIds == null || s.linkedPathIds.isEmpty()) continue;
-            for (String nextId : s.linkedPathIds) {
-                DataFlowPath next = pathById.get(nextId);
-                if (next == null) continue;
-                fannedOut = true;
-                extend(nextPrefix, next, s, pathById, epById, out, maxDepth, nextStack, nextEpStack);
-            }
+        for (WorkflowLink link : workflowGraph.linksFrom(current.id)) {
+            DataFlowPath next = workflowGraph.pathById().get(link.toPathId());
+            if (next == null) continue;
+            fannedOut = true;
+            extend(nextPrefix, next, incomingSink(current, link), link, workflowGraph, out, maxDepth, nextStack, nextEpStack);
         }
         if (!fannedOut) emit(nextPrefix, out);
+    }
+
+    private DataFlowSink incomingSink(DataFlowPath current, WorkflowLink link) {
+        for (DataFlowSink sink : current.sinks) {
+            if (sink.linkedPathIds == null || !sink.linkedPathIds.contains(link.toPathId())) continue;
+            if (link.kind() == WorkflowLink.Kind.MESSAGING && sink.kind == DataFlowSink.Kind.MESSAGING) return sink;
+            if (link.kind() == WorkflowLink.Kind.EVENT_BUS && sink.kind == DataFlowSink.Kind.EVENT_BUS) return sink;
+            if (link.kind() == WorkflowLink.Kind.STATE_HANDOFF && sink.kind == DataFlowSink.Kind.STORE) return sink;
+        }
+        return null;
     }
 
     private void emit(List<Segment> segments, List<Chain> out) {
@@ -245,10 +225,4 @@ public class PipelineGraphBuilder {
         out.add(c);
     }
 
-    private boolean hasAnyLink(DataFlowPath p) {
-        for (DataFlowSink s : p.sinks) {
-            if (s.linkedPathIds != null && !s.linkedPathIds.isEmpty()) return true;
-        }
-        return false;
-    }
 }

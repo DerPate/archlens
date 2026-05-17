@@ -1,6 +1,7 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.workflow.WorkflowTraversalPolicy;
 import java.util.*;
 
 /**
@@ -30,8 +31,16 @@ public class DataFlowTracer {
     private static final Set<ComponentType> SINK_TYPES =
             Set.of(ComponentType.REPOSITORY, ComponentType.HTTP_CLIENT, ComponentType.CDI_EVENT_PRODUCER);
 
+    private final WorkflowTraversalPolicy traversalPolicy;
+
     /** Creates a tracer with default sink classification. */
-    public DataFlowTracer() {}
+    public DataFlowTracer() {
+        this(new WorkflowTraversalPolicy());
+    }
+
+    public DataFlowTracer(WorkflowTraversalPolicy traversalPolicy) {
+        this.traversalPolicy = traversalPolicy;
+    }
 
     /**
      * Traces data-flow paths for all entrypoints in the model.
@@ -50,6 +59,7 @@ public class DataFlowTracer {
         List<DataFlowPath> result = new ArrayList<>();
 
         for (Entrypoint ep : model.entrypoints) {
+            if (!traversalPolicy.isWorkflowRoot(ep)) continue;
             LinkedHashSet<String> trackedNames = new LinkedHashSet<>();
             if (ep.parameters.isEmpty()) {
                 trackedNames.add("*");
@@ -209,7 +219,7 @@ public class DataFlowTracer {
                 }
             }
             for (CallEdge edge : callAdj.getOrDefault(key, List.of())) {
-                if ("messaging".equals(edge.callKind) || "event-bus".equals(edge.callKind)) continue;
+                if (!traversalPolicy.canTraverseInline(edge)) continue;
                 String next = edge.toComponentId + "#" + edge.toMethod;
                 if (seen.add(next)) stack.push(next);
             }
@@ -285,7 +295,7 @@ public class DataFlowTracer {
                         target != null ? target.name : edge.toComponentId,
                         edge.toMethod,
                         sinkSrc.get(sinkKey)));
-            } else {
+            } else if (traversalPolicy.canTraverseInline(edge)) {
                 String nextName =
                         "*".equals(trackedName) ? "*" : edge.paramMapping.getOrDefault(trackedName, trackedName);
                 dfs(
@@ -324,7 +334,7 @@ public class DataFlowTracer {
                 fields.add(r.fieldName);
             }
             for (CallEdge edge : callAdj.getOrDefault(key, List.of())) {
-                if ("messaging".equals(edge.callKind) || "event-bus".equals(edge.callKind)) continue;
+                if (!traversalPolicy.canTraverseInline(edge)) continue;
                 String next = edge.toComponentId + "#" + edge.toMethod;
                 if (seen.add(next)) stack.push(next);
             }

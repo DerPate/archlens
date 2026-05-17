@@ -781,6 +781,26 @@ class DataFlowTracerTest {
                         .noneMatch(id -> id.contains("ep:scheduler")));
     }
 
+    @Test
+    void traceDoesNotCreatePathsForLifecycleObservers() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("ShutdownHandler", ComponentType.SERVICE));
+        model.components.add(comp("Repository", ComponentType.REPOSITORY));
+
+        Entrypoint shutdown = new Entrypoint();
+        shutdown.id = "ep:shutdown";
+        shutdown.name = "onShutdown";
+        shutdown.type = EntrypointType.CDI_EVENT_OBSERVER;
+        shutdown.componentId = "comp:ShutdownHandler";
+        model.entrypoints.add(shutdown);
+
+        addCallEdge(model, "comp:ShutdownHandler", "onShutdown", "comp:Repository", "deleteAll", Map.of());
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        assertThat(paths).noneMatch(path -> path.entrypointId.equals("ep:shutdown"));
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────────
 
     private static ArchitectureModel buildModel() {

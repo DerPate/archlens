@@ -55,16 +55,20 @@ For flows like `Kafka consumer -> state store -> scheduler -> publisher`, priori
 first-class MCP evidence:
 
 - `DataFlowSink.linkedPathIds`
-- `LINKS_TO`
+- `CALLS` with `receiverEvidence` / `receiverConfidence` for ordinary Java object flow
+- `WORKFLOW_LINK`
+- `LINKS_TO` as lower-level sink evidence
 - `PipelineChain`
 - `HAS_SEGMENT`
 - `WRITES_STATE`
 - `READS_STATE`
 - `STATE_HANDOFF`
 
-Use `STATE_HANDOFF` and `PipelineChain` before inferring business flow from names or
-fan-in. Shared-state reads can come through accessor methods that return the cache
+Use `WORKFLOW_LINK`, `STATE_HANDOFF`, and `PipelineChain` before inferring business flow
+from names or fan-in. Shared-state reads can come through accessor methods that return the cache
 directly or call methods on it, such as `return cache.keySet()`.
+For ordinary Java projects, prefer source-derived `CALLS` edges with
+`receiverEvidence` / `receiverConfidence`; do not infer object flow from names alone.
 
 ## Implementation Guidance
 
@@ -72,4 +76,3 @@ directly or call methods on it, such as `return cache.keySet()`.
 - Update tool docs when changing tool output or graph labels.
 - Do not commit generated output from `target/` or `.spoon-mcp-cache/`.
 - Explain which claims are confirmed by MCP output and which are educated guesses.
-

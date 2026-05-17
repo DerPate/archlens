@@ -1,5 +1,7 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
+import dev.dominikbreu.spoonmcp.extractor.objectflow.ObjectFlowIndex;
+import dev.dominikbreu.spoonmcp.extractor.objectflow.ReceiverTarget;
 import dev.dominikbreu.spoonmcp.model.*;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -101,8 +103,19 @@ public class CallGraphExtractor {
             "accumulateAndGet",
             "updateAndGet");
 
+    private static final Set<String> READ_METHODS = Set.of(
+            "get", "containsKey", "containsValue", "values", "keySet", "entrySet", "size", "isEmpty");
+
+    private final ObjectFlowIndex objectFlowIndex;
+
     /** Creates a call graph extractor using default resolution rules. */
-    public CallGraphExtractor() {}
+    public CallGraphExtractor() {
+        this(ObjectFlowIndex.empty());
+    }
+
+    public CallGraphExtractor(ObjectFlowIndex objectFlowIndex) {
+        this.objectFlowIndex = objectFlowIndex == null ? ObjectFlowIndex.empty() : objectFlowIndex;
+    }
 
     /**
      * Extracts call edges from the supplied Spoon model and appends them to
@@ -181,6 +194,7 @@ public class CallGraphExtractor {
 
     private void extractFieldAccesses(
             CtMethod<?> method, Component fromComp, Set<String> sharedStateFields, ArchitectureModel model) {
+        extractAccessorChainFieldAccesses(method, fromComp, model);
         if (sharedStateFields.isEmpty()) return;
         String methodName = method.getSimpleName();
 
@@ -256,6 +270,80 @@ public class CallGraphExtractor {
         return fa;
     }
 
+    private void extractAccessorChainFieldAccesses(CtMethod<?> method, Component fromComp, ArchitectureModel model) {
+        String methodName = method.getSimpleName();
+        Set<String> existingIds = model.fieldAccesses.stream().map(access -> access.id).collect(Collectors.toSet());
+        for (CtInvocation<?> inv : method.getElements(new TypeFilter<>(CtInvocation.class))) {
+            String terminalMethod = inv.getExecutable().getSimpleName();
+            FieldAccess.Kind kind;
+            if (WRITE_METHODS.contains(terminalMethod)) {
+                kind = FieldAccess.Kind.WRITE;
+            } else if (READ_METHODS.contains(terminalMethod)) {
+                kind = FieldAccess.Kind.READ;
+            } else {
+                continue;
+            }
+            if (!(inv.getTarget() instanceof CtInvocation<?> accessor)) {
+                continue;
+            }
+            String fieldName = accessorReturnedSharedFieldName(accessor);
+            if (fieldName == null) {
+                continue;
+            }
+            for (ReceiverTarget target : objectFlowIndex.resolveReceiver(inv)) {
+                Component owner = byComponentId(model, target.componentId());
+                if (owner == null) {
+                    continue;
+                }
+                FieldAccess access = buildAccessorAccess(kind, fromComp, methodName, owner, fieldName, inv);
+                if (existingIds.add(access.id)) {
+                    model.fieldAccesses.add(access);
+                }
+            }
+        }
+    }
+
+    private FieldAccess buildAccessorAccess(
+            FieldAccess.Kind kind,
+            Component fromComp,
+            String methodName,
+            Component fieldOwner,
+            String fieldName,
+            CtInvocation<?> invocation) {
+        FieldAccess access = new FieldAccess();
+        access.kind = kind;
+        access.componentId = fromComp.id;
+        access.fieldOwnerComponentId = fieldOwner.id;
+        access.fieldName = fieldName;
+        access.method = methodName;
+        access.id = "field:" + fromComp.id + "#" + methodName + "@" + fieldOwner.id + "#" + fieldName + ":"
+                + kind.name().toLowerCase() + ":object-flow";
+        var pos = invocation.getPosition();
+        String file = (pos != null && pos.isValidPosition()) ? pos.getFile().getAbsolutePath() : "unknown";
+        int line = (pos != null && pos.isValidPosition()) ? pos.getLine() : 0;
+        access.source = new SourceInfo(file, line, "field-access-via-object-flow", 0.82);
+        return access;
+    }
+
+    private String accessorReturnedSharedFieldName(CtInvocation<?> accessor) {
+        var executable = accessor.getExecutable().getDeclaration();
+        if (!(executable instanceof CtMethod<?> accessorMethod)) {
+            return null;
+        }
+        CtType<?> owner = accessorMethod.getDeclaringType();
+        if (owner == null) {
+            return null;
+        }
+        Set<String> sharedStateFields = buildSharedStateFieldSet(owner);
+        for (CtReturn<?> ret : accessorMethod.getElements(new TypeFilter<>(CtReturn.class))) {
+            String fieldName = returnedSharedFieldName(ret.getReturnedExpression(), sharedStateFields);
+            if (fieldName != null) {
+                return fieldName;
+            }
+        }
+        return null;
+    }
+
     /**
      * Emits same-component call edges for method calls on implicit/explicit {@code this}
      * whose callee is declared in the same type. This lets the DataFlowTracer follow
@@ -313,6 +401,26 @@ public class CallGraphExtractor {
         Map<CtInvocation<?>, Set<String>> killedSnapshots = computeKilledSnapshots(method);
 
         for (CtInvocation<?> inv : method.getElements(new TypeFilter<>(CtInvocation.class))) {
+            List<ReceiverTarget> receiverTargets = objectFlowIndex.resolveReceiver(inv);
+            if (!receiverTargets.isEmpty()) {
+                for (ReceiverTarget target : receiverTargets) {
+                    Component toComp = byComponentId(model, target.componentId());
+                    if (toComp == null || toComp.id.equals(fromComp.id)) continue;
+                    emitCallEdge(
+                            inv,
+                            fromComp,
+                            fromMethod,
+                            toComp,
+                            target.methodName(),
+                            target.evidence().name().toLowerCase(Locale.ROOT).replace('_', '-'),
+                            target.confidence(),
+                            target.expansionCapped(),
+                            model,
+                            existingIds,
+                            killedSnapshots.get(inv));
+                }
+                continue;
+            }
             if (!(inv.getTarget() instanceof CtFieldRead<?> fieldRead)) continue;
 
             String fieldName = fieldRead.getVariable().getSimpleName();
@@ -321,26 +429,81 @@ public class CallGraphExtractor {
 
             String toMethod = inv.getExecutable().getSimpleName();
             String callKind = resolveCallKind(fieldRead);
-            String edgeId = "call:" + fromComp.id + "#" + fromMethod + "->" + toComp.id + "#" + toMethod;
-
-            if (!existingIds.add(edgeId)) continue;
-
-            CallEdge edge = new CallEdge();
-            edge.id = edgeId;
-            edge.fromComponentId = fromComp.id;
-            edge.fromMethod = fromMethod;
-            edge.toComponentId = toComp.id;
-            edge.toMethod = toMethod;
-            edge.callKind = callKind;
-            edge.source = buildSource(inv);
-            buildParamMapping(inv, edge);
-            edge.assignedToVar = resolveAssignedToVar(inv);
-            edge.returnsTracked = calleeReturnsTracked(inv);
-            Set<String> snap = killedSnapshots.get(inv);
-            if (snap != null) edge.killedTrackedNames.addAll(snap);
-            model.callEdges.add(edge);
-            emitCallerSideFieldReadIfGetter(inv, fromComp, fromMethod, toComp, model);
+            emitCallEdge(
+                    inv,
+                    fromComp,
+                    fromMethod,
+                    toComp,
+                    toMethod,
+                    "legacy-field-read",
+                    0.85,
+                    false,
+                    model,
+                    existingIds,
+                    killedSnapshots.get(inv),
+                    callKind);
         }
+    }
+
+    private void emitCallEdge(
+            CtInvocation<?> inv,
+            Component fromComp,
+            String fromMethod,
+            Component toComp,
+            String toMethod,
+            String receiverEvidence,
+            double receiverConfidence,
+            boolean receiverExpansionCapped,
+            ArchitectureModel model,
+            Set<String> existingIds,
+            Set<String> killedSnapshot) {
+        emitCallEdge(
+                inv,
+                fromComp,
+                fromMethod,
+                toComp,
+                toMethod,
+                receiverEvidence,
+                receiverConfidence,
+                receiverExpansionCapped,
+                model,
+                existingIds,
+                killedSnapshot,
+                "direct");
+    }
+
+    private void emitCallEdge(
+            CtInvocation<?> inv,
+            Component fromComp,
+            String fromMethod,
+            Component toComp,
+            String toMethod,
+            String receiverEvidence,
+            double receiverConfidence,
+            boolean receiverExpansionCapped,
+            ArchitectureModel model,
+            Set<String> existingIds,
+            Set<String> killedSnapshot,
+            String callKind) {
+        String edgeId = "call:" + fromComp.id + "#" + fromMethod + "->" + toComp.id + "#" + toMethod;
+        if (!existingIds.add(edgeId)) return;
+        CallEdge edge = new CallEdge();
+        edge.id = edgeId;
+        edge.fromComponentId = fromComp.id;
+        edge.fromMethod = fromMethod;
+        edge.toComponentId = toComp.id;
+        edge.toMethod = toMethod;
+        edge.callKind = callKind;
+        edge.source = buildSource(inv);
+        edge.receiverEvidence = receiverEvidence;
+        edge.receiverConfidence = receiverConfidence;
+        edge.receiverExpansionCapped = receiverExpansionCapped;
+        buildParamMapping(inv, edge);
+        edge.assignedToVar = resolveAssignedToVar(inv);
+        edge.returnsTracked = calleeReturnsTracked(inv);
+        if (killedSnapshot != null) edge.killedTrackedNames.addAll(killedSnapshot);
+        model.callEdges.add(edge);
+        emitCallerSideFieldReadIfGetter(inv, fromComp, fromMethod, toComp, model);
     }
 
     /**
@@ -602,6 +765,13 @@ public class CallGraphExtractor {
         Component c = byId.get("comp:" + qualifiedName);
         if (c != null) return c;
         return bySimpleName.get(simpleName);
+    }
+
+    private Component byComponentId(ArchitectureModel model, String id) {
+        for (Component component : model.components) {
+            if (component.id.equals(id)) return component;
+        }
+        return null;
     }
 
     private String resolveCallKind(CtFieldRead<?> fieldRead) {

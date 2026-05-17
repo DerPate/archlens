@@ -1,0 +1,134 @@
+// Folder-specific settings
+//
+// For a full list of overridable settings, and general information on folder-specific settings,
+// see the documentation: https://zed.dev/docs/configuring-zed#settings-files
+{
+  "lsp": {
+    "jdtls": {
+      "initialization_options": {
+        "bundles": [],
+        // The extension automatically sets this to the worktree root.
+        // Override only if your Java project root differs from the opened folder:
+        "workspaceFolders": [
+          "file:///home/dominik/spoon-mcp-server",
+          "file:///home/dominik/spoon-mcp-server/src",
+          "file:///home/dominik/spoon-mcp-server/src/main/java",
+        ],
+        "settings": {
+          "java": {
+            "configuration": {
+              "updateBuildConfiguration": "automatic",
+              "runtimes": [],
+            },
+            "saveActions": {
+              "organizeImports": true,
+            },
+            "compile": {
+              "nullAnalysis": {
+                "mode": "automatic",
+              },
+            },
+            "references": {
+              "includeAccessors": true,
+              "includeDecompiledSources": true,
+            },
+            "jdt": {
+              "ls": {
+                "protobufSupport": {
+                  "enabled": true,
+                },
+                "groovySupport": {
+                  "enabled": true,
+                },
+              },
+            },
+            "eclipse": {
+              "downloadSources": true,
+            },
+            "maven": {
+              "downloadSources": true,
+              "updateSnapshots": true,
+            },
+            "autobuild": {
+              "enabled": true,
+            },
+            "maxConcurrentBuilds": 1,
+            "inlayHints": {
+              "parameterNames": {
+                "enabled": "all",
+              },
+            },
+            "signatureHelp": {
+              "enabled": true,
+              "description": {
+                "enabled": true,
+              },
+            },
+            "format": {
+              "enabled": true,
+              "settings": {
+                // The formatter config to use
+                "url": "~/.config/jdtls/palantir_java_jdtls.xml",
+              },
+              "onType": {
+                "enabled": true,
+              },
+            },
+            "contentProvider": {
+              "preferred": null,
+            },
+            "import": {
+              "gradle": {
+                "enabled": true,
+                "wrapper": {
+                  "enabled": true,
+                },
+              },
+              "maven": {
+                "enabled": true,
+              },
+              "exclusions": [
+                "**/node_modules/**",
+                "**/.metadata/**",
+                "**/archetype-resources/**",
+                "**/META-INF/maven/**",
+                "/**/test/**",
+              ],
+            },
+            "completion": {
+              "enabled": true,
+              "favoriteStaticMembers": [
+                "org.junit.Assert.*",
+                "org.junit.Assume.*",
+                "org.junit.jupiter.api.Assertions.*",
+                "org.junit.jupiter.api.Assumptions.*",
+                "org.junit.jupiter.api.DynamicContainer.*",
+                "org.junit.jupiter.api.DynamicTest.*",
+                "org.mockito.Mockito.*",
+                "org.mockito.ArgumentMatchers.*",
+              ],
+              "importOrder": ["java", "javax", "com", "org"],
+              "postfix": {
+                "enabled": true,
+              },
+              "chain": {
+                "enabled": true,
+              },
+              "guessMethodArguments": "insertParameterNames",
+              "overwrite": true,
+            },
+            "errors": {
+              "incompleteClasspath": {
+                "severity": "warning",
+              },
+            },
+            "implementationCodeLens": "all",
+            "referencesCodeLens": {
+              "enabled": true,
+            },
+          },
+        },
+      },
+    },
+  },
+}

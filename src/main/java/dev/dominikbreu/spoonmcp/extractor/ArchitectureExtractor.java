@@ -2,6 +2,8 @@ package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.scanner.SpoonScanner;
+import dev.dominikbreu.spoonmcp.extractor.objectflow.ObjectFlowIndex;
+import dev.dominikbreu.spoonmcp.extractor.objectflow.ObjectFlowIndexBuilder;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.*;
@@ -25,7 +27,6 @@ public class ArchitectureExtractor {
     private final RuntimeFlowInferrer runtimeFlowInferrer = new RuntimeFlowInferrer();
     private final MessagingConfigResolver messagingConfigResolver = new MessagingConfigResolver();
     private final ExternalSystemInferrer externalSystemInferrer = new ExternalSystemInferrer();
-    private final CallGraphExtractor callGraphExtractor = new CallGraphExtractor();
     private final DataFlowTracer dataFlowTracer = new DataFlowTracer();
 
     /** Creates an extractor with the default scanner and extraction passes. */
@@ -54,7 +55,8 @@ public class ArchitectureExtractor {
 
         // Pass 2b: call graph — actual method invocations between components
         for (CtModel ctModel : ctModels.values()) {
-            callGraphExtractor.extract(ctModel, model);
+            ObjectFlowIndex objectFlowIndex = new ObjectFlowIndexBuilder().build(ctModel, model);
+            new CallGraphExtractor(objectFlowIndex).extract(ctModel, model);
         }
 
         // Pass 2c: data-flow tracing — parameter propagation to sinks

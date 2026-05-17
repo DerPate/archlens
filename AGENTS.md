@@ -12,6 +12,10 @@ Important paths:
 - `src/main/java/dev/dominikbreu/spoonmcp/mcp/McpServer.java`: JSON-RPC loop, MCP initialize response, tool registry, and dispatch.
 - `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/`: individual MCP tool adapters.
 - `src/main/java/dev/dominikbreu/spoonmcp/extractor/`: Java/Spoon architecture extraction.
+- `src/main/java/dev/dominikbreu/spoonmcp/extractor/objectflow/`: source-derived
+  receiver and object-flow analysis used by call graph and field access extraction.
+- `src/main/java/dev/dominikbreu/spoonmcp/workflow/`: shared workflow traversal and
+  linking semantics used by pipeline, use-case, runtime-flow, and graph projections.
 - `src/main/java/dev/dominikbreu/spoonmcp/model/`: extracted architecture data model.
 - `src/main/java/dev/dominikbreu/spoonmcp/merger/`: deployment metadata merging from Docker Compose and Ansible files.
 - `src/main/java/dev/dominikbreu/spoonmcp/renderer/`: Mermaid rendering.
@@ -33,7 +37,7 @@ mvn versions:display-plugin-updates
 Run the MCP server:
 
 ```sh
-java -jar target/spoon-mcp-server-1.0.0-SNAPSHOT.jar
+java -jar target/spoon-mcp-server.jar
 ```
 
 ## Conventions
@@ -48,6 +52,10 @@ java -jar target/spoon-mcp-server-1.0.0-SNAPSHOT.jar
   - extend `reachableFromEntrypoints` if the new edge should propagate
     `entrypointReachable=true` to the new vertices;
   - add coverage in `cache/ArchitectureGraphTest.java`.
+- When changing workflow continuation semantics (`WORKFLOW_LINK`, state handoffs,
+  messaging/event-bus chaining, or utility traversal boundaries), update
+  `workflow/WorkflowTraversalPolicy.java`, `workflow/WorkflowLinker.java`, relevant
+  pipeline/use-case/runtime-flow tests, `docs/TOOLS.md`, and `llms.txt`.
 - When extending `MessagingConfigResolver` (broker / topic / new connector kinds), also
   update the "Messaging entrypoints" paragraph in `docs/TOOLS.md` and the
   `Entrypoint` / `InterfaceEntry` model fields.
@@ -65,4 +73,3 @@ Most behavior has focused tests by package. When changing:
 - Mermaid output: run renderer tests.
 - deployment merge behavior: run merger tests.
 - MCP tool surface: run the full suite with `mvn test`.
-
