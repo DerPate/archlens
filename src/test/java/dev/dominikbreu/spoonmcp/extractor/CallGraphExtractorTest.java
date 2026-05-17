@@ -251,4 +251,63 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                     assertThat(fa.fieldName).isEqualTo("cache");
                 });
     }
+
+    @Test
+    void genericObjectFlowExtractsPlainJavaReceiverCalls() {
+        ArchitectureModel generic = new ArchitectureExtractor()
+                .extract(List.of(projectPath("generic-object-flow")));
+
+        assertThat(generic.callEdges)
+                .anySatisfy(edge -> {
+                    assertThat(edge.fromComponentId).isEqualTo("comp:com.example.objectflow.MainApp");
+                    assertThat(edge.fromMethod).isEqualTo("run");
+                    assertThat(edge.toComponentId).isEqualTo("comp:com.example.objectflow.GameService");
+                    assertThat(edge.toMethod).isEqualTo("run");
+                    assertThat(edge.receiverEvidence).isIn("constructor-assignment", "declared-field-type");
+                });
+
+        assertThat(generic.callEdges)
+                .anySatisfy(edge -> {
+                    assertThat(edge.fromComponentId).isEqualTo("comp:com.example.objectflow.GameService");
+                    assertThat(edge.fromMethod).isEqualTo("run");
+                    assertThat(edge.toComponentId).isIn(
+                            "comp:com.example.objectflow.RandomPlayer",
+                            "comp:com.example.objectflow.SimplePlayer");
+                    assertThat(edge.toMethod).isEqualTo("nextMove");
+                });
+    }
+
+    @Test
+    void genericObjectFlowCapsTooBroadPolymorphicExpansion() {
+        ArchitectureModel generic = new ArchitectureExtractor()
+                .extract(List.of(projectPath("generic-object-flow")));
+
+        long expanded = generic.callEdges.stream()
+                .filter(edge -> edge.toComponentId != null && edge.toComponentId.contains("TooManyHandler"))
+                .count();
+
+        assertThat(expanded).isLessThanOrEqualTo(25);
+    }
+
+    @Test
+    void genericObjectFlowRecordsAccessorBasedStateReadsAndWrites() {
+        ArchitectureModel generic = new ArchitectureExtractor()
+                .extract(List.of(projectPath("generic-object-flow")));
+
+        assertThat(generic.fieldAccesses)
+                .anySatisfy(access -> {
+                    assertThat(access.componentId).isEqualTo("comp:com.example.objectflow.StateWriter");
+                    assertThat(access.kind).isEqualTo(FieldAccess.Kind.WRITE);
+                    assertThat(access.fieldOwnerComponentId).isEqualTo("comp:com.example.objectflow.StateStore");
+                    assertThat(access.fieldName).isEqualTo("cache");
+                });
+
+        assertThat(generic.fieldAccesses)
+                .anySatisfy(access -> {
+                    assertThat(access.componentId).isEqualTo("comp:com.example.objectflow.StateReader");
+                    assertThat(access.kind).isEqualTo(FieldAccess.Kind.READ);
+                    assertThat(access.fieldOwnerComponentId).isEqualTo("comp:com.example.objectflow.StateStore");
+                    assertThat(access.fieldName).isEqualTo("cache");
+                });
+    }
 }

@@ -283,7 +283,7 @@ public class McpServer {
 
         specs.add(toolSpec(
                 "render_pipeline",
-                "Render an end-to-end pipeline diagram by stitching data-flow paths across entrypoints via DataFlowSink.linkedPathIds (store reads, messaging consumers, event-bus consumers). Produces a single connected Mermaid flowchart per chain rather than separate per-entrypoint diagrams.",
+                "Render an end-to-end pipeline diagram by stitching data-flow paths across entrypoints via typed workflow links (state handoffs, messaging consumers, event-bus consumers). Produces a single connected Mermaid flowchart per chain rather than separate per-entrypoint diagrams.",
                 schema().opt(
                                 "entrypointName",
                                 "string",
@@ -417,7 +417,7 @@ public class McpServer {
                         Use this workflow:
                         1. Call `trace_data_flow` to inspect available data-flow paths and sinks.
                         2. Call `render_pipeline` with `entrypointName: "{filter}"`, `channel: "{filter}"`, `maxDepth: 8`, and `maxChains: 5`.
-                        3. If no chains match, call `query_architecture_graph` with `action: "find_edges"` and filters for `kind: "LINKS_TO"` where available.
+                        3. If no chains match, call `query_architecture_graph` with `action: "find_edges"`, `label: "WORKFLOW_LINK"`, and filters such as `kind: "STATE_HANDOFF"` or `kind: "MESSAGING"` where useful.
                         4. Summarize each pipeline segment, bridge kind, channel/store name, and downstream consumer.
                         """));
     }

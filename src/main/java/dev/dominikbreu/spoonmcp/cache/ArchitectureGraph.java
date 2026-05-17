@@ -18,6 +18,8 @@ import dev.dominikbreu.spoonmcp.model.InterfaceEntry;
 import dev.dominikbreu.spoonmcp.model.RuntimeFlow;
 import dev.dominikbreu.spoonmcp.model.RuntimeFlowStep;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
+import dev.dominikbreu.spoonmcp.workflow.WorkflowLink;
+import dev.dominikbreu.spoonmcp.workflow.WorkflowLinker;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -87,11 +89,13 @@ public class ArchitectureGraph {
                 appId -> addEdge(deployment.id, appId, "DEPLOYS", Map.of("source", "deployment.appIds"))));
         sourceModel.dependencies.forEach(dependency ->
                 addEdge(dependency.fromId, dependency.toId, "DEPENDS_ON", dependencyProperties(dependency)));
+        addCallEdges(sourceModel);
         addFieldAccessEdges(sourceModel);
         sourceModel.runtimeFlows.forEach(this::addRuntimeFlowEdges);
         sourceModel.dataFlowPaths.forEach(this::addDataFlowPath);
         sourceModel.dataFlowPaths.forEach(this::addDataFlowEdges);
         linkDataFlowSinkReaders(sourceModel);
+        addWorkflowLinks(sourceModel);
         addPipelineChains(sourceModel);
         computeDerivedProperties();
     }
@@ -437,6 +441,29 @@ public class ArchitectureGraph {
         set(vertex, "sinkCount", path.sinks.size());
     }
 
+    private void addCallEdges(ArchitectureModel sourceModel) {
+        for (CallEdge callEdge : sourceModel.callEdges) {
+            if (callEdge.fromComponentId == null || callEdge.toComponentId == null) {
+                continue;
+            }
+            Map<String, Object> props = new HashMap<>();
+            props.put("fromMethod", Objects.toString(callEdge.fromMethod, ""));
+            props.put("toMethod", Objects.toString(callEdge.toMethod, ""));
+            props.put("callKind", Objects.toString(callEdge.callKind, ""));
+            props.put("source", "call_graph");
+            if (callEdge.receiverEvidence != null) {
+                props.put("receiverEvidence", callEdge.receiverEvidence);
+            }
+            props.put("receiverConfidence", callEdge.receiverConfidence);
+            props.put("receiverExpansionCapped", callEdge.receiverExpansionCapped);
+            if (callEdge.source != null) {
+                props.put("sourceFile", Objects.toString(callEdge.source.file, ""));
+                props.put("sourceLine", callEdge.source.line);
+            }
+            addEdge(callEdge.fromComponentId, callEdge.toComponentId, "CALLS", props);
+        }
+    }
+
     private void addDataFlowEdges(DataFlowPath path) {
         addEdge(
                 path.entrypointId,
@@ -501,6 +528,28 @@ public class ArchitectureGraph {
                     addEdge(sinkId, downstreamPathId, "LINKS_TO", props);
                 }
             }
+        }
+    }
+
+    private void addWorkflowLinks(ArchitectureModel sourceModel) {
+        for (WorkflowLink link : new WorkflowLinker().link(sourceModel)) {
+            Map<String, Object> props = new HashMap<>();
+            props.put("kind", link.kind().name());
+            props.put("confidence", link.confidence());
+            props.put("fromEntrypointId", Objects.toString(link.fromEntrypointId(), ""));
+            props.put("toEntrypointId", Objects.toString(link.toEntrypointId(), ""));
+            if (link.channel() != null) {
+                props.put("channel", link.channel());
+                props.put("viaChannel", link.channel());
+            }
+            if (link.fieldOwnerComponentId() != null) {
+                props.put("fieldOwnerComponentId", link.fieldOwnerComponentId());
+            }
+            if (link.fieldName() != null) {
+                props.put("fieldName", link.fieldName());
+                props.put("viaField", link.fieldName());
+            }
+            addEdge(link.fromPathId(), link.toPathId(), "WORKFLOW_LINK", props);
         }
     }
 
@@ -731,11 +780,13 @@ public class ArchitectureGraph {
                 Edge edge = edges.next();
                 String label = edge.label();
                 if ("STARTS_AT".equals(label)
+                        || "CALLS".equals(label)
                         || "DEPENDS_ON".equals(label)
                         || "VISITS".equals(label)
                         || "ORIGINATES".equals(label)
                         || "REACHES".equals(label)
                         || "LINKS_TO".equals(label)
+                        || "WORKFLOW_LINK".equals(label)
                         || "WRITES_STATE".equals(label)
                         || "READS_STATE".equals(label)
                         || "STATE_HANDOFF".equals(label)

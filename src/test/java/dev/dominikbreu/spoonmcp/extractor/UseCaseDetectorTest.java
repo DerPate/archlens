@@ -143,6 +143,91 @@ class UseCaseDetectorTest {
         assertThat(useCases).isNotEmpty(); // must not throw / hang
     }
 
+    @Test
+    void detectSkipsLifecycleObserverUseCases() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        Component handler = comp("LifecycleHandler", ComponentType.SERVICE);
+        model.components.add(handler);
+
+        Entrypoint shutdown = new Entrypoint();
+        shutdown.id = "ep:shutdown";
+        shutdown.name = "onShutdown";
+        shutdown.type = EntrypointType.CDI_EVENT_OBSERVER;
+        shutdown.componentId = handler.id;
+        model.entrypoints.add(shutdown);
+
+        List<UseCase> useCases = detector.detect(model, UseCaseNamingConfig.empty());
+
+        assertThat(useCases).isEmpty();
+    }
+
+    @Test
+    void detectDoesNotInlineMessagingConsumerIntoProducerUseCase() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        Component producer = comp("Producer", ComponentType.SERVICE);
+        Component consumer = comp("Consumer", ComponentType.SERVICE);
+        model.components.addAll(List.of(producer, consumer));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:Producer#send";
+        ep.name = "send";
+        ep.type = EntrypointType.SCHEDULER;
+        ep.componentId = producer.id;
+        model.entrypoints.add(ep);
+
+        CallEdge edge = new CallEdge();
+        edge.fromComponentId = producer.id;
+        edge.fromMethod = "send";
+        edge.toComponentId = consumer.id;
+        edge.toMethod = "consume";
+        edge.callKind = "messaging";
+        model.callEdges.add(edge);
+
+        List<UseCase> useCases = detector.detect(model, UseCaseNamingConfig.empty());
+        UseCase useCase = useCases.getFirst();
+
+        assertThat(useCase.componentIds).contains(producer.id);
+        assertThat(useCase.componentIds).doesNotContain(consumer.id);
+        assertThat(useCase.methodChain).noneMatch(step -> step.contains("Consumer.consume"));
+    }
+
+    @Test
+    void detectTraversesThroughHiddenInlineComponents() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        Component resource = comp("Resource", ComponentType.REST_RESOURCE);
+        Component mapper = comp("Mapper", ComponentType.UTILITY);
+        Component service = comp("Service", ComponentType.SERVICE);
+        model.components.addAll(List.of(resource, mapper, service));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:Resource#get";
+        ep.name = "get";
+        ep.type = EntrypointType.REST_ENDPOINT;
+        ep.componentId = resource.id;
+        model.entrypoints.add(ep);
+
+        CallEdge toMapper = new CallEdge();
+        toMapper.fromComponentId = resource.id;
+        toMapper.fromMethod = "get";
+        toMapper.toComponentId = mapper.id;
+        toMapper.toMethod = "map";
+        toMapper.callKind = "direct";
+        model.callEdges.add(toMapper);
+
+        CallEdge toService = new CallEdge();
+        toService.fromComponentId = mapper.id;
+        toService.fromMethod = "map";
+        toService.toComponentId = service.id;
+        toService.toMethod = "handle";
+        toService.callKind = "direct";
+        model.callEdges.add(toService);
+
+        UseCase useCase = detector.detect(model, UseCaseNamingConfig.empty()).getFirst();
+
+        assertThat(useCase.componentIds).contains(resource.id, service.id);
+        assertThat(useCase.componentIds).doesNotContain(mapper.id);
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────────
 
     private static Entrypoint ep(String name, EntrypointType type) {

@@ -1,6 +1,7 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.workflow.WorkflowTraversalPolicy;
 import java.util.*;
 
 /**
@@ -16,8 +17,17 @@ import java.util.*;
  */
 public class UseCaseDetector {
 
+    private final WorkflowTraversalPolicy traversalPolicy;
+
     /** Creates a use case detector with default naming heuristics. */
-    public UseCaseDetector() {}
+    public UseCaseDetector() {
+        this(new WorkflowTraversalPolicy());
+    }
+
+    public UseCaseDetector(WorkflowTraversalPolicy traversalPolicy) {
+        this.traversalPolicy = traversalPolicy;
+    }
+
 
     /**
      * Detects all use cases for the given model.
@@ -36,6 +46,7 @@ public class UseCaseDetector {
 
         List<UseCase> result = new ArrayList<>();
         for (Entrypoint ep : model.entrypoints) {
+            if (!traversalPolicy.isWorkflowRoot(ep)) continue;
             result.add(buildUseCase(ep, model, compById, hasCallGraph, callAdj, depAdj, config));
         }
         return result;
@@ -61,7 +72,16 @@ public class UseCaseDetector {
 
         if (hasCallGraph) {
             collectCallChain(
-                    ep.componentId, ep.name, 0, 5, callAdj, compById, visitedKeys, visitedComps, uc.methodChain);
+                    ep.componentId,
+                    ep.name,
+                    null,
+                    0,
+                    5,
+                    callAdj,
+                    compById,
+                    visitedKeys,
+                    visitedComps,
+                    uc.methodChain);
         } else {
             collectDepChain(ep.componentId, 0, 5, depAdj, compById, visitedComps);
         }
@@ -73,6 +93,7 @@ public class UseCaseDetector {
     private void collectCallChain(
             String compId,
             String method,
+            String visibleSourceName,
             int depth,
             int maxDepth,
             Map<String, List<CallEdge>> adj,
@@ -83,18 +104,27 @@ public class UseCaseDetector {
         String key = compId + "#" + method;
         if (visitedKeys.contains(key) || depth > maxDepth) return;
         visitedKeys.add(key);
-        visitedComps.add(compId);
 
         Component fromComp = compById.get(compId);
+        boolean visible = traversalPolicy.isHumanVisible(fromComp);
+        if (visible) {
+            visitedComps.add(compId);
+        }
         String fromName = fromComp != null ? fromComp.name : compId;
+        String currentVisibleSource = visible ? fromName : visibleSourceName;
 
         for (CallEdge edge : adj.getOrDefault(key, List.of())) {
+            if (!traversalPolicy.canTraverseInline(edge)) continue;
             Component toComp = compById.get(edge.toComponentId);
+            boolean targetVisible = traversalPolicy.isHumanVisible(toComp);
             String toName = toComp != null ? toComp.name : edge.toComponentId;
-            chain.add(fromName + "." + edge.fromMethod + " → " + toName + "." + edge.toMethod);
+            if (targetVisible && currentVisibleSource != null) {
+                chain.add(currentVisibleSource + "." + edge.fromMethod + " → " + toName + "." + edge.toMethod);
+            }
             collectCallChain(
                     edge.toComponentId,
                     edge.toMethod,
+                    currentVisibleSource,
                     depth + 1,
                     maxDepth,
                     adj,
@@ -113,7 +143,10 @@ public class UseCaseDetector {
             Map<String, Component> compById,
             Set<String> visitedComps) {
         if (visitedComps.contains(compId) || depth > maxDepth) return;
-        visitedComps.add(compId);
+        Component comp = compById.get(compId);
+        if (traversalPolicy.isHumanVisible(comp)) {
+            visitedComps.add(compId);
+        }
         for (String nextId : adj.getOrDefault(compId, List.of())) {
             collectDepChain(nextId, depth + 1, maxDepth, adj, compById, visitedComps);
         }

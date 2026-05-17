@@ -185,7 +185,7 @@ Prompts are workflow templates for clients and agents; they do not replace tools
   shared-state heuristics.
 - Property graph (`query_architecture_graph`): projects `DataFlowPath`,
   `DataFlowSink`, and `PipelineChain` vertices and `ORIGINATES`, `REACHES`,
-  `ON_FIELD`, `AT_COMPONENT`, `LINKS_TO`, and `HAS_SEGMENT` edges.
+  `ON_FIELD`, `AT_COMPONENT`, `LINKS_TO`, `WORKFLOW_LINK`, and `HAS_SEGMENT` edges.
   `LINKS_TO` materialises `linkedPathIds` for `store`, `messaging`, and `event-bus`
   sinks (carries `linkKind` plus `viaField` + `fieldOwnerComponentId` for STORE,
   `viaChannel` for MESSAGING / EVENT_BUS). `PipelineChain` nodes carry
@@ -193,6 +193,16 @@ Prompts are workflow templates for clients and agents; they do not replace tools
   kinds in traversal order); each `HAS_SEGMENT` edge carries `segmentIndex` and,
   for non-root segments, `linkKind` + `incomingSinkId` + the channel/field
   property — giving graph-only clients parity with `render_pipeline`.
+- Prefer `WORKFLOW_LINK` over reconstructing pipelines from raw `linkedPathIds`.
+  `WORKFLOW_LINK` is the canonical query edge for messaging/event-bus/state-handoff
+  continuation between `DataFlowPath` nodes.
+- Plain Java object flow is source-derived through `ObjectFlowIndex`. Prefer call edges
+  with `receiverEvidence` and `receiverConfidence` over guessing from class names.
+  Polymorphic receiver expansion is capped at 25 implementation targets by default; if
+  `receiverExpansionCapped=true`, report that the flow is conservative.
+- Workflow root/link semantics live in `workflow/`, not in renderers. When pipeline,
+  runtime flow, use-case, or architecture-view output looks wrong, inspect
+  `WorkflowTraversalPolicy`, `WorkflowLinker`, and `WorkflowGraphBuilder` first.
 - Property graph component scoring is noise-aware. Prefer components with
   `workflowRelevant=true`, `businessRelevant=true`, high `workflowBridgeScore`, and
   low `noiseScore`. Treat high fan-in utilities, formatters, parsers, mappers,
@@ -206,7 +216,7 @@ Prompts are workflow templates for clients and agents; they do not replace tools
   unless clearly marked as interpretation outside the MCP graph.
 - Property graph state handoffs are first-class component edges:
   `WRITES_STATE`, `READS_STATE`, and `STATE_HANDOFF`. Use `STATE_HANDOFF` and
-  `PipelineChain`/`LINKS_TO` before inferring workflow pivots from fan-in alone.
+  `PipelineChain`/`WORKFLOW_LINK` before inferring workflow pivots from fan-in alone.
   Self-only state reads/writes are local implementation detail and should not outrank
   cross-component handoffs or workflow/business components.
 - Tool argument schemas in `McpServer.java` are the authoritative source — keep

@@ -24,6 +24,12 @@ public class CallEdge {
     public String callKind;
     /** Source evidence for the call site. */
     public SourceInfo source;
+    /** Evidence kind used to resolve the invocation receiver, e.g. constructor-assignment. */
+    public String receiverEvidence;
+    /** Confidence of receiver resolution, between 0 and 1. */
+    public double receiverConfidence;
+    /** True when polymorphic expansion was capped for this receiver. */
+    public boolean receiverExpansionCapped;
     /**
      * Caller-parameter-name → callee-parameter-name mapping for arguments that are
      * simple variable reads. Only populated when the callee method is in the same Spoon model.

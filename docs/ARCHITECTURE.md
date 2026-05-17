@@ -11,6 +11,18 @@ Generated from the indexed `ArchitectureModel` by the MCP tool `export_architect
 - Dependencies: 90
 - Runtime flows: 1
 
+## Workflow Semantics
+
+Workflow behavior is derived in layers:
+
+1. `DataFlowTracer` traces per-entrypoint paths and sinks.
+2. `WorkflowLinker` turns sink links into typed workflow continuation edges.
+3. `WorkflowGraphBuilder` chooses valid workflow roots and suppresses lifecycle/noise paths.
+4. Pipeline, runtime-flow, use-case, graph, and projection tools consume these shared semantics.
+
+Do not add independent traversal rules to renderers or MCP tools. Add them to
+`WorkflowTraversalPolicy` or `WorkflowLinker`, then cover them with tests.
+
 ## Source Overview
 
 ```mermaid

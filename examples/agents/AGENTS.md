@@ -51,6 +51,8 @@ High-signal graph labels and edges:
 - `PipelineChain`
 - `DataFlowPath`
 - `DataFlowSink`
+- `WORKFLOW_LINK`
+- `CALLS`
 - `LINKS_TO`
 - `HAS_SEGMENT`
 - `WRITES_STATE`
@@ -68,9 +70,12 @@ Important component properties:
 - `architecturalWeight`
 - `entrypointReachable`
 
-Use `STATE_HANDOFF`, `LINKS_TO`, and `PipelineChain` to explain consumer/store/scheduler
-or producer/consumer flows. Do not ask the user to trust a guessed chain when the graph can
-show the handoff.
+Use `WORKFLOW_LINK`, `STATE_HANDOFF`, and `PipelineChain` to explain
+consumer/store/scheduler or producer/consumer flows. Treat `LINKS_TO` and
+`linkedPathIds` as lower-level sink evidence when you need to inspect the exact bridge.
+Do not ask the user to trust a guessed chain when the graph can show the handoff.
+For ordinary Java projects, prefer source-derived `CALLS` edges with
+`receiverEvidence` / `receiverConfidence`; do not infer object flow from names alone.
 
 ## Ranking And Noise
 
@@ -106,7 +111,7 @@ check:
 
 - `trace_data_flow` for `store` sinks and `linkedPathIds`
 - `render_pipeline` for the end-to-end chain
-- `query_architecture_graph` for `STATE_HANDOFF`, `LINKS_TO`, and `PipelineChain`
+- `query_architecture_graph` for `WORKFLOW_LINK`, `STATE_HANDOFF`, and `PipelineChain`
 
 Remember that reads through accessor methods count when extracted, for example:
 
@@ -122,4 +127,3 @@ return cache.keySet();
 - For data-flow sink changes, update the sink documentation and tests.
 - Keep generated output out of commits.
 - In final answers, say what MCP tools or tests were used and call out uncertainty.
-

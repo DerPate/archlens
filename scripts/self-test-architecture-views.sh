@@ -58,7 +58,7 @@ tool("index_workspace", {"paths": [root]})
 diagram = tool("render_architecture_view", {
     "app": "spoon-mcp-server",
     "view": "component",
-    "maxNodes": 18
+    "maxNodes": 50
 })
 
 likec4 = tool("export_likec4_model", {

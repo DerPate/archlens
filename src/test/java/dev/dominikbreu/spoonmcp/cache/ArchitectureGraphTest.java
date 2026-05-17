@@ -164,6 +164,35 @@ class ArchitectureGraphTest {
     }
 
     @Test
+    void callEdgesExposeReceiverResolutionMetadata() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        Component main = component("Main", ComponentType.UNKNOWN);
+        Component game = component("Game", ComponentType.UNKNOWN);
+        model.components.addAll(java.util.List.of(main, game));
+
+        CallEdge edge = new CallEdge();
+        edge.id = "call:Main#main->Game#run";
+        edge.fromComponentId = main.id;
+        edge.fromMethod = "main";
+        edge.toComponentId = game.id;
+        edge.toMethod = "run";
+        edge.callKind = "direct";
+        edge.receiverEvidence = "constructor-assignment";
+        edge.receiverConfidence = 0.90;
+        model.callEdges.add(edge);
+
+        ArchitectureGraph graph = new ArchitectureGraph();
+        graph.rebuild(model);
+
+        assertThat(graph.findEdges("CALLS", java.util.Map.of("receiverEvidence", "constructor-assignment"), 10))
+                .anySatisfy(graphEdge -> {
+                    assertThat(graphEdge.fromId()).isEqualTo(main.id);
+                    assertThat(graphEdge.toId()).isEqualTo(game.id);
+                    assertThat(graphEdge.properties()).containsEntry("receiverConfidence", 0.90);
+                });
+    }
+
+    @Test
     void projectsComponentLevelStateHandoffEdges() {
         ArchitectureModel model = model();
         model.components.add(component("StatePublisher", ComponentType.SCHEDULER));
@@ -244,6 +273,7 @@ class ArchitectureGraphTest {
         assertThat(graph.summary().edges()).containsEntry("ORIGINATES", 2);
         assertThat(graph.summary().edges()).containsEntry("REACHES", 2);
         assertThat(graph.summary().edges()).containsEntry("LINKS_TO", 1);
+        assertThat(graph.summary().edges()).containsEntry("WORKFLOW_LINK", 1);
         assertThat(graph.summary().edges()).containsEntry("ON_FIELD", 1);
 
         List<ArchitectureGraph.GraphEdge> linkEdges = graph.findEdges("LINKS_TO", Map.of(), 10);
@@ -252,6 +282,11 @@ class ArchitectureGraphTest {
         assertThat(linkEdges.getFirst().properties())
                 .containsEntry("viaField", "snapshots")
                 .containsEntry("fieldOwnerComponentId", "comp:OrderService");
+        assertThat(graph.findEdges("WORKFLOW_LINK", Map.of("kind", "STATE_HANDOFF"), 10))
+                .anyMatch(edge -> "df:entry:orders#order".equals(edge.fromId())
+                        && "df:ep:tick#snapshots".equals(edge.toId())
+                        && "snapshots".equals(edge.properties().get("fieldName"))
+                        && "comp:OrderService".equals(edge.properties().get("fieldOwnerComponentId")));
     }
 
     @Test
@@ -300,6 +335,9 @@ class ArchitectureGraphTest {
                 .anyMatch(e -> "df:ep:process#entry".equals(e.toId())
                         && "messaging".equals(e.properties().get("linkKind"))
                         && "internal".equals(e.properties().get("viaChannel")));
+        assertThat(graph.findEdges("WORKFLOW_LINK", Map.of("kind", "MESSAGING"), 10))
+                .anyMatch(e -> "df:ep:process#entry".equals(e.toId())
+                        && "internal".equals(e.properties().get("channel")));
 
         // 2. PipelineChain node materialised with segmentCount and rootEntrypointId
         assertThat(graph.summary().labels()).containsEntry("PipelineChain", 1);

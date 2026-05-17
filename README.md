@@ -78,8 +78,9 @@ These prompts guide clients through multi-tool architecture workflows without du
 `store` sink to downstream `DataFlowPath`s that read the same shared field via
 `linkedPathIds` — surfacing cross-entrypoint pipelines (e.g. `@Incoming` consumer →
 in-memory cache → `@Scheduled` / `@Outgoing` producer). The same relation is exposed
-in the property graph as a `LINKS_TO` edge between the `DataFlowSink` and the
-downstream `DataFlowPath`.
+in the property graph as raw `LINKS_TO` sink edges and canonical `WORKFLOW_LINK`
+path-to-path edges, so agents can query workflow continuation directly instead of
+reconstructing it from helper fields.
 
 Messaging entrypoints carry `channelName`, `broker` (`KAFKA`, `MQTT`, `AMQP`,
 `RABBITMQ`, `PULSAR`, `IN_MEMORY`, or `UNKNOWN`), and `topic` (broker-side

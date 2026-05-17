@@ -408,12 +408,13 @@ and `GRPC_METHOD` (classes annotated `@GrpcService`, implementing `BindableServi
 extending a generated `*Grpc.*ImplBase` stub — every public non-`bindService` method
 becomes a `GRPC_METHOD` entrypoint).
 
-**Cross-entrypoint linkage (`linkedPathIds`):** every `store` sink carries a
+**Cross-entrypoint linkage (`linkedPathIds` / `WORKFLOW_LINK`):** every `store` sink carries a
 `linkedPathIds` list pointing to the IDs of downstream `DataFlowPath`s whose entrypoint
 transitively reads the same `(fieldOwnerComponentId, fieldName)`. This makes the
 consumer → cache → producer/scheduler hand-off explicit so agents do not need to match
-field names heuristically. The same relation is projected as a `LINKS_TO` edge in the
-property graph (see `query_architecture_graph`).
+field names heuristically. The raw relation is projected as a `LINKS_TO` sink edge in
+the property graph; the canonical path-to-path continuation is projected as
+`WORKFLOW_LINK` (see `query_architecture_graph`).
 Shared-state reads are also recorded when a scheduler or service calls a getter-like
 method on another component and that method returns the shared field directly or calls
 through it, for example `return cache` or `return cache.keySet()`.
@@ -518,7 +519,7 @@ Render an end-to-end Mermaid `flowchart TD` for a multi-phase pipeline by stitch
 multiple `DataFlowPath`s across entrypoint boundaries. Where `render_call_flow`
 shows the call chain rooted at a single entrypoint, and `trace_data_flow` produces
 textual per-path output, `render_pipeline` follows `DataFlowSink.linkedPathIds`
-forward to produce one connected diagram per chain.
+through the shared workflow linker to produce one connected diagram per chain.
 
 A *pipeline chain* is an ordered sequence of segments where each segment's
 entrypoint is reached from the previous segment via either:
@@ -545,7 +546,7 @@ Arguments:
   rendered in one response.
 
 Requires `index_workspace` to have been called first. Chain quality depends on
-`DataFlowSink.linkedPathIds` being populated by `DataFlowTracer` — i.e. channel
+typed workflow links derived from `DataFlowSink.linkedPathIds` — i.e. channel
 names and field names must be resolvable from source. When a sink carries no
 `linkedPathIds` the diagram ends at that sink node and no forwarding arc is drawn;
 this is correct behaviour, not a rendering error. When no chains are found at all
@@ -674,7 +675,7 @@ Useful graph properties include:
   `java.nio.file.Files`; null for non-outbound kinds), `calleeMethod` (method name on
   the callee, e.g. `writeString`; null for non-outbound kinds).
 - PipelineChain nodes (label `PipelineChain`): one vertex per end-to-end pipeline
-  produced by stitching `DataFlowSink.linkedPathIds` forward across entrypoint
+  produced by stitching typed workflow links forward across entrypoint
   boundaries. Properties: `segmentCount`, `rootEntrypointId`, `linkKinds`
   (comma-separated handoff kinds in traversal order, e.g. `store,messaging`).
 - Dependency edges: `kind`, `derivedFrom`, `confidence`, `isRuntimeRelevant`,
@@ -692,6 +693,10 @@ Edge labels:
 - `CONTAINS` — Container → Component
 - `DEPLOYS` — Deployment → Application
 - `DEPENDS_ON` — Component → Component (or Component → ExternalSystem)
+- `CALLS` — Component → Component method-call evidence from source invocations.
+  Properties include `fromMethod`, `toMethod`, `callKind`, `receiverEvidence`,
+  `receiverConfidence`, and `receiverExpansionCapped`. Object-flow-derived receiver
+  evidence is source-based, not name-guessed.
 - `WRITES_STATE` — Component → Component declaring the shared-state field
 - `READS_STATE` — Component → Component declaring the shared-state field
 - `STATE_HANDOFF` — writer Component → reader Component when a write and read touch
@@ -708,12 +713,19 @@ Edge labels:
   carry `viaField` and `fieldOwnerComponentId`; MESSAGING / EVENT_BUS links carry
   `viaChannel`. This is how cross-entrypoint pipelines (consumer → cache → scheduler
   → channel → consumer) are made explicit in the graph.
+- `WORKFLOW_LINK` — DataFlowPath → DataFlowPath canonical workflow continuation
+  edge produced by the shared workflow linker. Properties include `kind`
+  (`MESSAGING`, `EVENT_BUS`, `STATE_HANDOFF`), `confidence`, `fromEntrypointId`,
+  `toEntrypointId`, and where applicable `channel` / `viaChannel` or `fieldName` /
+  `viaField` / `fieldOwnerComponentId`. Prefer this over reconstructing pipelines
+  from raw `DataFlowSink.linkedPathIds`.
 - `HAS_SEGMENT` — PipelineChain → DataFlowPath, one edge per segment.  Carries
   `segmentIndex` (0-based traversal order). For non-root segments it also carries
   `linkKind`, `incomingSinkId` (the upstream `DataFlowSink` vertex that bridged into
   this segment), and either `viaField` + `fieldOwnerComponentId` (STORE handoff) or
-  `viaChannel` (MESSAGING / EVENT_BUS handoff). Together with `LINKS_TO` this lets a
-  graph consumer reconstruct the full chain without calling `render_pipeline`.
+  `viaChannel` (MESSAGING / EVENT_BUS handoff). Together with `WORKFLOW_LINK` and
+  lower-level `LINKS_TO` sink edges, this lets a graph consumer reconstruct the full
+  chain without calling `render_pipeline`.
 
 Example — graph summary:
 
@@ -733,7 +745,13 @@ Example — find what is impacted if OrderRepository changes:
 { "action": "impacted_by", "nodeId": "comp:com.example.repository.OrderRepository", "maxDepth": 4 }
 ```
 
-Example — list cross-entrypoint pipeline links (consumer store → producer/scheduler path):
+Example — list canonical workflow continuations between data-flow paths:
+
+```json
+{ "action": "find_edges", "label": "WORKFLOW_LINK" }
+```
+
+Example — list raw sink-to-path pipeline links (consumer store → producer/scheduler path):
 
 ```json
 { "action": "find_edges", "label": "LINKS_TO" }
@@ -772,7 +790,8 @@ Example — walk a single chain from its root: take the chain node, follow
 `HAS_SEGMENT` edges in `segmentIndex` order; for each non-root segment the edge
 property `incomingSinkId` points at the upstream `DataFlowSink` vertex (which is
 already wired with `REACHES` / `ON_FIELD` / `AT_COMPONENT` / `LINKS_TO` edges).
-This is the same data `render_pipeline` consumes — so a graph-only client gets
+For direct continuation queries, prefer `WORKFLOW_LINK` edges between `DataFlowPath`
+vertices. This is the same data `render_pipeline` consumes — so a graph-only client gets
 parity with the tool, including the boundary kind and channel/field metadata.
 
 Example — find every messaging entrypoint bound to an in-memory channel:
