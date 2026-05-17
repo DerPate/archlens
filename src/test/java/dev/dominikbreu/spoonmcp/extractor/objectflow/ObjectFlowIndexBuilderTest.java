@@ -180,6 +180,20 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
     }
 
     @Test
+    void resolvesCollectionElementReceiverToConcretePlayerImplementations() {
+        List<ReceiverTarget> targets = index.resolveReceiver(invocation("player.nextMove"));
+
+        assertThat(targets)
+                .extracting(ReceiverTarget::componentId)
+                .contains(
+                        "comp:com.example.objectflow.RandomPlayer",
+                        "comp:com.example.objectflow.SimplePlayer");
+        assertThat(targets)
+                .allSatisfy(target ->
+                        assertThat(target.evidence()).isEqualTo(ObjectFlowEvidence.COLLECTION_ELEMENT_ALLOCATION));
+    }
+
+    @Test
     void doesNotDuplicatePolymorphicCapDiagnostics() {
         String declaredType = "example.ManyHandlers";
         List<ObjectFlowIndex.TypeFact> implementations = IntStream.range(0, 26)
