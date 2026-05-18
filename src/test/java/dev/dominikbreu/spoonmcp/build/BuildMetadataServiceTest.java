@@ -32,6 +32,35 @@ class BuildMetadataServiceTest {
         assertThat(module.evidence()).isEqualTo("literal-test");
     }
 
+    @Test
+    void mavenDetectorFindsSingleModuleWithPackagingAndRoots() {
+        File root = projectPath("quarkus-sample");
+
+        BuildProject project = new MavenBuildProjectDetector().detect(root).orElseThrow();
+
+        assertThat(project.buildSystem()).isEqualTo(BuildSystem.MAVEN);
+        assertThat(project.modules()).hasSize(1);
+        BuildModule module = project.modules().getFirst();
+        assertThat(module.name()).isEqualTo("quarkus-sample");
+        assertThat(module.packagingType()).isEqualTo("jar");
+        assertThat(module.sourceRoots()).contains(new File(root, "src/main/java"));
+        assertThat(module.resourceRoots()).contains(new File(root, "src/main/resources"));
+    }
+
+    @Test
+    void mavenDetectorFindsMultiModuleTree() {
+        File root = projectPath("multimodule-sample");
+
+        BuildProject project = new MavenBuildProjectDetector().detect(root).orElseThrow();
+
+        assertThat(project.buildSystem()).isEqualTo(BuildSystem.MAVEN);
+        assertThat(project.modules()).extracting(BuildModule::name).contains("api", "service", "domain");
+        assertThat(project.modules())
+                .filteredOn(module -> "api".equals(module.name()))
+                .singleElement()
+                .satisfies(module -> assertThat(module.root()).isEqualTo(new File(root, "api")));
+    }
+
     static File projectPath(String name) {
         try {
             var url = BuildMetadataServiceTest.class.getClassLoader().getResource("testprojects/" + name);
