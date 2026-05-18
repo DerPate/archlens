@@ -1,13 +1,11 @@
 package dev.dominikbreu.spoonmcp.scanner;
 
+import dev.dominikbreu.spoonmcp.build.BuildMetadataService;
+import dev.dominikbreu.spoonmcp.build.BuildModule;
+import dev.dominikbreu.spoonmcp.build.MavenBuildProjectDetector;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-import org.apache.maven.model.Model;
-import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
 import spoon.Launcher;
 import spoon.reflect.CtModel;
 
@@ -26,14 +24,24 @@ public class SpoonScanner {
      * @return Spoon model containing all discovered source types
      */
     public CtModel scan(List<String> projectPaths) {
+        List<BuildModule> modules = new ArrayList<>();
+        BuildMetadataService metadataService = new BuildMetadataService();
+        for (String path : projectPaths) {
+            modules.addAll(metadataService.detect(new File(path)).modules());
+        }
+        return scanModules(modules);
+    }
+
+    /** Scans normalized build modules into a single Spoon model. */
+    public CtModel scanModules(List<BuildModule> modules) {
         Launcher launcher = new Launcher();
         launcher.getEnvironment().setNoClasspath(true);
         launcher.getEnvironment().setAutoImports(true);
         launcher.getEnvironment().setComplianceLevel(21);
         launcher.getEnvironment().setShouldCompile(false);
 
-        for (String path : projectPaths) {
-            addSourceRoots(launcher, new File(path));
+        for (BuildModule module : modules) {
+            addSourceRoots(launcher, module);
         }
 
         launcher.buildModel();
@@ -69,6 +77,18 @@ public class SpoonScanner {
         }
     }
 
+    /** Adds all source roots declared for a normalized module. */
+    public void addSourceRoots(Launcher launcher, BuildModule module) {
+        if (module == null) return;
+        if (module.sourceRoots().isEmpty()) {
+            launcher.addInputResource(module.root().getAbsolutePath());
+            return;
+        }
+        for (File sourceRoot : module.sourceRoots()) {
+            if (sourceRoot.exists()) launcher.addInputResource(sourceRoot.getAbsolutePath());
+        }
+    }
+
     /**
      * Returns the list of Maven submodule directory names declared in &lt;modules&gt;,
      * or an empty list if none are found.
@@ -77,9 +97,7 @@ public class SpoonScanner {
      * @return declared Maven module directory names
      */
     public List<String> readMavenModules(File projectRoot) {
-        return readMavenModel(projectRoot)
-                .<List<String>>map(model -> new ArrayList<>(model.getModules()))
-                .orElseGet(List::of);
+        return new MavenBuildProjectDetector().readModules(projectRoot);
     }
 
     /**
@@ -89,20 +107,6 @@ public class SpoonScanner {
      * @return packaging type, defaulting to jar when no POM value exists
      */
     public String readPackagingType(File projectRoot) {
-        return readMavenModel(projectRoot)
-                .map(Model::getPackaging)
-                .filter(p -> p != null && !p.isBlank())
-                .orElse("jar");
-    }
-
-    private Optional<Model> readMavenModel(File projectRoot) {
-        File pom = new File(projectRoot, "pom.xml");
-        if (!pom.exists()) return Optional.empty();
-        try (InputStreamReader reader =
-                new InputStreamReader(new FileInputStream(pom), java.nio.charset.StandardCharsets.UTF_8)) {
-            return Optional.of(new MavenXpp3Reader().read(reader));
-        } catch (Exception ignored) {
-            return Optional.empty();
-        }
+        return new MavenBuildProjectDetector().readPackaging(projectRoot);
     }
 }
