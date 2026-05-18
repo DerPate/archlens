@@ -105,6 +105,28 @@ class BuildMetadataServiceTest {
                 });
     }
 
+    @Test
+    void buildMetadataServiceChoosesGradleBeforePlainFallback() {
+        File root = projectPath("gradle-springboot-sample");
+
+        BuildProject project = new BuildMetadataService().detect(root);
+
+        assertThat(project.buildSystem()).isEqualTo(BuildSystem.GRADLE_GROOVY);
+        assertThat(project.modules()).hasSize(1);
+        assertThat(project.modules().getFirst().packagingType()).isEqualTo("boot-jar");
+    }
+
+    @Test
+    void unknownDetectorReturnsPlainJavaSourceRoot() {
+        File root = projectPath("plain-java-sample");
+
+        BuildProject project = new UnknownBuildProjectDetector().detect(root).orElseThrow();
+
+        assertThat(project.buildSystem()).isEqualTo(BuildSystem.UNKNOWN);
+        assertThat(project.modules()).hasSize(1);
+        assertThat(project.modules().getFirst().sourceRoots()).contains(new File(root, "src/main/java"));
+    }
+
     static File projectPath(String name) {
         try {
             var url = BuildMetadataServiceTest.class.getClassLoader().getResource("testprojects/" + name);
