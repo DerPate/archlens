@@ -1,0 +1,2 @@
+rootProject.name = "gradle-multimodule-springboot-sample"
+include "api", "service"

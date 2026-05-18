@@ -61,6 +61,50 @@ class BuildMetadataServiceTest {
                 .satisfies(module -> assertThat(module.root()).isEqualTo(new File(root, "api")));
     }
 
+    @Test
+    void gradleGroovyDetectorFindsSpringBootPluginAndBootJar() {
+        File root = projectPath("gradle-springboot-sample");
+
+        BuildProject project = new GradleBuildProjectDetector().detect(root).orElseThrow();
+
+        assertThat(project.buildSystem()).isEqualTo(BuildSystem.GRADLE_GROOVY);
+        assertThat(project.modules()).hasSize(1);
+        BuildModule module = project.modules().getFirst();
+        assertThat(module.name()).isEqualTo("gradle-springboot-sample");
+        assertThat(module.packagingType()).isEqualTo("boot-jar");
+        assertThat(module.plugins()).contains("java", "org.springframework.boot", "io.spring.dependency-management");
+        assertThat(module.sourceRoots()).contains(new File(root, "src/main/java"));
+    }
+
+    @Test
+    void gradleKotlinDetectorFindsSpringBootPluginAndBootJar() {
+        File root = projectPath("gradle-kotlin-springboot-sample");
+
+        BuildProject project = new GradleBuildProjectDetector().detect(root).orElseThrow();
+
+        assertThat(project.buildSystem()).isEqualTo(BuildSystem.GRADLE_KOTLIN);
+        assertThat(project.modules()).hasSize(1);
+        assertThat(project.modules().getFirst().plugins()).contains("java", "org.springframework.boot");
+        assertThat(project.modules().getFirst().packagingType()).isEqualTo("boot-jar");
+    }
+
+    @Test
+    void gradleDetectorFindsLiteralMultiModuleIncludes() {
+        File root = projectPath("gradle-multimodule-springboot-sample");
+
+        BuildProject project = new GradleBuildProjectDetector().detect(root).orElseThrow();
+
+        assertThat(project.buildSystem()).isEqualTo(BuildSystem.GRADLE_GROOVY);
+        assertThat(project.modules()).extracting(BuildModule::name).containsExactlyInAnyOrder("api", "service");
+        assertThat(project.modules())
+                .filteredOn(module -> "api".equals(module.name()))
+                .singleElement()
+                .satisfies(module -> {
+                    assertThat(module.plugins()).contains("java", "org.springframework.boot");
+                    assertThat(module.packagingType()).isEqualTo("boot-jar");
+                });
+    }
+
     static File projectPath(String name) {
         try {
             var url = BuildMetadataServiceTest.class.getClassLoader().getResource("testprojects/" + name);
