@@ -249,15 +249,19 @@ public class DataFlowTracer {
 
         path.steps.add(new DataFlowStep(path.steps.size(), compId, compName, method, trackedName));
 
-        boolean isEntrypointBodyForOutbound = depth == 0 && !"*".equals(trackedName);
-        if (isEntrypointBodyForOutbound) {
-            for (OutboundSinkSite site : outbound.getOrDefault(compId + "#" + method, List.of())) {
-                DataFlowSink sink =
-                        new DataFlowSink(site.kind, site.componentId, compName, site.calleeMethod, site.source);
-                sink.channel = site.channel;
-                sink.calleeQualifiedName = site.calleeQualifiedName;
-                path.sinks.add(sink);
+        for (OutboundSinkSite site : outbound.getOrDefault(compId + "#" + method, List.of())) {
+            if (!outboundMatchesTracked(site, trackedName)) {
+                continue;
             }
+            DataFlowSink sink = new DataFlowSink(site.kind, site.componentId, compName, site.calleeMethod, site.source);
+            sink.channel = firstNonBlank(site.topic, site.channel);
+            sink.broker = site.broker;
+            sink.topic = site.topic;
+            sink.topicPropertyKey = site.topicPropertyKey;
+            sink.payloadType = site.payloadType;
+            sink.linkEvidence = site.linkEvidence;
+            sink.calleeQualifiedName = site.calleeQualifiedName;
+            path.sinks.add(sink);
         }
 
         for (FieldAccess fw : writes.getOrDefault(compId + "#" + method, List.of())) {
@@ -312,6 +316,18 @@ public class DataFlowTracer {
                         visitedKeys);
             }
         }
+    }
+
+    private boolean outboundMatchesTracked(OutboundSinkSite site, String trackedName) {
+        if (site == null) return false;
+        if ("*".equals(trackedName)) return true;
+        if (site.payloadVarName == null || site.payloadVarName.isBlank()) return true;
+        return site.payloadVarName.equals(trackedName);
+    }
+
+    private String firstNonBlank(String first, String second) {
+        if (first != null && !first.isBlank()) return first;
+        return second;
     }
 
     private boolean matchesTracked(String trackedName, String sourceVarName) {
