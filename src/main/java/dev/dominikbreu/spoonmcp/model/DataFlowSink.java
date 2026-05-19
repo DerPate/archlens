@@ -88,6 +88,20 @@ public class DataFlowSink {
     public java.util.List<String> linkedPathIds = new java.util.ArrayList<>();
     /** For {@code messaging} / {@code event-bus} sinks: the channel/topic name, or null. */
     public String channel;
+    /** Messaging broker for messaging/event-bus sinks when known. */
+    public MessagingBroker broker;
+    /** Normalized broker destination/topic for messaging sinks. */
+    public String topic;
+    /** Spring or build config property key that supplied {@link #topic}, when known. */
+    public String topicPropertyKey;
+    /** Fully-qualified payload type flowing into the sink, when source-derived. */
+    public String payloadType;
+    /** Entity type read/written by persistence handoff sinks, when known. */
+    public String entityType;
+    /** Persistence operation such as save, delete, findByStatus, or findById. */
+    public String repositoryOperation;
+    /** Short evidence label explaining how link metadata was extracted. */
+    public String linkEvidence;
     /** Fully-qualified declaring type of the outbound callee (e.g. {@code java.nio.file.Files},
      *  {@code software.amazon.awssdk.services.s3.S3Client}). Null for non-outbound sink kinds. */
     public String calleeQualifiedName;
