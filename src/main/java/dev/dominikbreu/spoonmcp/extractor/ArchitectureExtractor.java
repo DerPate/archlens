@@ -1,5 +1,8 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
+import dev.dominikbreu.spoonmcp.build.BuildMetadataService;
+import dev.dominikbreu.spoonmcp.build.BuildModule;
+import dev.dominikbreu.spoonmcp.build.BuildProject;
 import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.scanner.SpoonScanner;
 import dev.dominikbreu.spoonmcp.extractor.objectflow.ObjectFlowIndex;
@@ -28,6 +31,7 @@ public class ArchitectureExtractor {
     private final MessagingConfigResolver messagingConfigResolver = new MessagingConfigResolver();
     private final ExternalSystemInferrer externalSystemInferrer = new ExternalSystemInferrer();
     private final DataFlowTracer dataFlowTracer = new DataFlowTracer();
+    private final BuildMetadataService buildMetadataService = new BuildMetadataService();
 
     /** Creates an extractor with the default scanner and extraction passes. */
     public ArchitectureExtractor() {}
@@ -44,7 +48,8 @@ public class ArchitectureExtractor {
         // Pass 1: components + entrypoints per project/module, with WAR role assignment
         Map<String, CtModel> ctModels = new LinkedHashMap<>();
         for (String path : projectPaths) {
-            resolveAndRegisterModules(new File(path), null, model, ctModels);
+            BuildProject project = buildMetadataService.detect(new File(path));
+            registerBuildProject(project, model, ctModels);
         }
 
         // Pass 2: injection dependencies (needs all components to be known)
@@ -76,6 +81,105 @@ public class ArchitectureExtractor {
         }
 
         return model;
+    }
+
+    private void registerBuildProject(BuildProject project, ArchitectureModel model, Map<String, CtModel> ctModels) {
+        List<BuildModule> modules = project.modules();
+
+        // Pre-register WAR parent when all modules share the same parent name and the
+        // project root has WAR packaging — this mirrors the old Maven parent-pom handling.
+        if (!modules.isEmpty()) {
+            String sharedParent = modules.get(0).parentName();
+            if (sharedParent != null
+                    && modules.stream().allMatch(m -> sharedParent.equals(m.parentName()))) {
+                String rootPackaging = detectMavenPackagingType(project.root().getAbsolutePath());
+                if ("war".equals(rootPackaging)) {
+                    String parentId = "app:" + sharedParent;
+                    if (model.applications.stream().noneMatch(a -> a.id.equals(parentId))) {
+                        AppEntry parent = new AppEntry();
+                        parent.id = parentId;
+                        parent.name = sharedParent;
+                        parent.rootPath = project.root().getAbsolutePath();
+                        parent.packagingType = rootPackaging;
+                        parent.role = "deployment_unit";
+                        model.applications.add(parent);
+                    }
+                }
+            }
+        }
+
+        for (BuildModule module : modules) {
+            registerBuildModule(module, model, ctModels);
+        }
+    }
+
+    private void registerBuildModule(BuildModule module, ArchitectureModel model, Map<String, CtModel> ctModels) {
+        AppEntry app = buildAppEntry(module);
+        if (model.applications.stream().anyMatch(a -> a.id.equals(app.id))) return;
+        app.role = "deployment_unit";
+
+        // Assign internal_module role when parent is a WAR deployment unit
+        if (module.parentName() != null) {
+            model.applications.stream()
+                    .filter(a -> a.name.equals(module.parentName()) && "war".equals(a.packagingType))
+                    .findFirst()
+                    .ifPresent(parent -> {
+                        app.role = "internal_module";
+                        app.parentAppId = parent.id;
+                    });
+        }
+
+        model.applications.add(app);
+
+        Launcher launcher = new Launcher();
+        launcher.getEnvironment().setNoClasspath(true);
+        launcher.getEnvironment().setAutoImports(true);
+        launcher.getEnvironment().setComplianceLevel(21);
+        launcher.getEnvironment().setShouldCompile(false);
+        scanner.addSourceRoots(launcher, module);
+        launcher.buildModel();
+        CtModel ctModel = launcher.getModel();
+        ctModels.put(app.id, ctModel);
+
+        Collection<CtType<?>> types = ctModel.getAllTypes();
+        String tech = detectTechnology(types, module);
+        app.technology = tech;
+
+        // Apply heuristics to refine role: internal_module vs technical_library
+        if ("internal_module".equals(app.role)) {
+            app.role = moduleClassifier.classify(types, app);
+        }
+
+        dispatchExtractors(types, model, app.id, module, tech);
+
+        Map<String, MessagingConfigResolver.ChannelConfig> resolved = messagingConfigResolver.resolve(module.root());
+        applyMessagingBrokers(model, app.id, resolved);
+    }
+
+    private AppEntry buildAppEntry(BuildModule module) {
+        AppEntry app = new AppEntry();
+        app.id = "app:" + module.name();
+        app.name = module.name();
+        app.rootPath = module.root().getAbsolutePath();
+        app.packagingType = module.packagingType();
+        return app;
+    }
+
+    private void dispatchExtractors(
+            Collection<CtType<?>> types, ArchitectureModel model, String appId, BuildModule module, String tech) {
+        switch (tech) {
+            case "spring-boot", "spring" ->
+                    new SpringExtractor(new SpringConfigResolver().resolve(module.root())).extract(types, model, appId);
+            case "javaee" -> javaEEExtractor.extract(types, model, appId);
+            case "quarkus" -> quarkusExtractor.extract(types, model, appId);
+            default -> {
+                quarkusExtractor.extract(types, model, appId);
+                javaEEExtractor.extract(types, model, appId);
+                new SpringExtractor(new SpringConfigResolver().resolve(module.root())).extract(types, model, appId);
+                genericJavaExtractor.extract(types, model, appId);
+            }
+        }
+        eventBusExtractor.extract(types, model, appId);
     }
 
     private void applyMessagingBrokers(
@@ -137,112 +241,16 @@ public class ArchitectureExtractor {
         return null;
     }
 
-    /**
-     * Recursively walks the Maven module tree, registers each leaf as an AppEntry,
-     * and assigns roles based on packaging hierarchy.
-     *
-     * WAR parent  → role=deployment_unit
-     * JAR/WAR child of a WAR parent → role=internal_module, parentAppId set
-     * Everything else → role=deployment_unit (standalone)
-     */
-    private void resolveAndRegisterModules(
-            File root, String parentWarAppId, ArchitectureModel model, Map<String, CtModel> ctModels) {
-        List<String> submoduleNames = scanner.readMavenModules(root);
-        String packagingType = detectPackagingType(root.getAbsolutePath());
+    private String detectTechnology(Collection<CtType<?>> types, BuildModule module) {
+        String pluginText = String.join(" ", module.plugins()).toLowerCase();
+        if (pluginText.contains("org.springframework.boot")) return "spring-boot";
 
-        if (!submoduleNames.isEmpty()) {
-            // This is a parent POM
-            String thisAppId = null;
-            if ("war".equals(packagingType)) {
-                // A WAR parent = deployment_unit; children become internal_module
-                AppEntry warApp = buildAppEntry(root.getAbsolutePath());
-                warApp.role = "deployment_unit";
-                if (!model.applications.stream().anyMatch(a -> a.id.equals(warApp.id))) {
-                    model.applications.add(warApp);
-                }
-                thisAppId = warApp.id;
-            }
-
-            for (String sub : submoduleNames) {
-                File subDir = new File(root, sub);
-                resolveAndRegisterModules(subDir, thisAppId, model, ctModels);
-            }
-            return;
-        }
-
-        // Leaf module — register and scan
-        AppEntry app = buildAppEntry(root.getAbsolutePath());
-        if (model.applications.stream().anyMatch(a -> a.id.equals(app.id))) return;
-
-        if (parentWarAppId != null) {
-            app.role = "internal_module";
-            app.parentAppId = parentWarAppId;
-            // Link this module to the parent WAR entry
-            model.applications.stream()
-                    .filter(a -> a.id.equals(parentWarAppId))
-                    .findFirst()
-                    .ifPresent(war -> war.componentIds.addAll(app.componentIds));
-        } else {
-            app.role = "deployment_unit";
-        }
-
-        model.applications.add(app);
-
-        Launcher launcher = new Launcher();
-        launcher.getEnvironment().setNoClasspath(true);
-        launcher.getEnvironment().setAutoImports(true);
-        launcher.getEnvironment().setComplianceLevel(21);
-        launcher.getEnvironment().setShouldCompile(false);
-        scanner.addSourceRoots(launcher, root);
-        launcher.buildModel();
-        CtModel ctModel = launcher.getModel();
-        ctModels.put(app.id, ctModel);
-
-        Collection<CtType<?>> types = ctModel.getAllTypes();
-        String tech = detectTechnology(types, root.getAbsolutePath());
-        app.technology = tech;
-
-        // Apply heuristics to refine role: internal_module vs technical_library
-        if ("internal_module".equals(app.role)) {
-            app.role = moduleClassifier.classify(types, app);
-        }
-
-        switch (tech) {
-            case "javaee" -> javaEEExtractor.extract(types, model, app.id);
-            case "quarkus" -> quarkusExtractor.extract(types, model, app.id);
-            default -> {
-                quarkusExtractor.extract(types, model, app.id);
-                javaEEExtractor.extract(types, model, app.id);
-                genericJavaExtractor.extract(types, model, app.id);
-            }
-        }
-        eventBusExtractor.extract(types, model, app.id);
-
-        Map<String, MessagingConfigResolver.ChannelConfig> resolved = messagingConfigResolver.resolve(root);
-        applyMessagingBrokers(model, app.id, resolved);
-    }
-
-    private AppEntry buildAppEntry(String path) {
-        AppEntry app = new AppEntry();
-        File dir = new File(path);
-        app.id = "app:" + dir.getName();
-        app.name = dir.getName();
-        app.rootPath = path;
-        app.packagingType = detectPackagingType(path);
-        return app;
-    }
-
-    private String detectPackagingType(String path) {
-        File root = new File(path);
-        if (!new File(root, "pom.xml").exists()) return "unknown";
-        return scanner.readPackagingType(root);
-    }
-
-    private String detectTechnology(Collection<CtType<?>> types, String path) {
-        File pom = new File(path, "pom.xml");
+        File pom = new File(module.root(), "pom.xml");
         if (pom.exists()) {
             try {
                 String content = Files.readString(pom.toPath()).toLowerCase();
+                if (content.contains("spring-boot")) return "spring-boot";
+                if (content.contains("springframework")) return "spring";
                 if (content.contains("quarkus")) return "quarkus";
                 if (content.contains("wildfly")
                         || content.contains("jboss")
@@ -252,21 +260,22 @@ public class ArchitectureExtractor {
             }
         }
 
-        long quarkusHints = types.stream()
-                .flatMap(t -> t.getAnnotations().stream())
-                .filter(a -> a.getAnnotationType().getQualifiedName().startsWith("io.quarkus"))
-                .count();
-        if (quarkusHints > 0) return "quarkus";
-
-        long ejbHints = types.stream()
-                .flatMap(t -> t.getAnnotations().stream())
-                .filter(a -> {
-                    String qn = a.getAnnotationType().getQualifiedName();
-                    return qn.startsWith("javax.ejb") || qn.startsWith("jakarta.ejb");
-                })
-                .count();
-        if (ejbHints > 0) return "javaee";
-
+        if (hasAnnotationPrefix(types, "org.springframework.boot")) return "spring-boot";
+        if (hasAnnotationPrefix(types, "org.springframework")) return "spring";
+        if (hasAnnotationPrefix(types, "io.quarkus")) return "quarkus";
+        if (hasAnnotationPrefix(types, "javax.ejb") || hasAnnotationPrefix(types, "jakarta.ejb")) return "javaee";
         return "unknown";
+    }
+
+    private boolean hasAnnotationPrefix(Collection<CtType<?>> types, String prefix) {
+        return types.stream()
+                .flatMap(type -> type.getAnnotations().stream())
+                .anyMatch(annotation -> annotation.getAnnotationType().getQualifiedName().startsWith(prefix));
+    }
+
+    private String detectMavenPackagingType(String path) {
+        File root = new File(path);
+        if (!new File(root, "pom.xml").exists()) return "unknown";
+        return scanner.readPackagingType(root);
     }
 }
