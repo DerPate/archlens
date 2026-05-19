@@ -32,6 +32,8 @@ public class SpringConfigResolver {
         return new Config(values);
     }
 
+    public record ResolvedValue(String value, String propertyKey, boolean wasResolved) {}
+
     public static final class Config {
         private final Map<String, String> values;
 
@@ -43,21 +45,32 @@ public class SpringConfigResolver {
             return values.get(key);
         }
 
-        public String resolve(String value) {
-            if (value == null) return null;
+        public ResolvedValue resolveWithKey(String value) {
+            if (value == null) return new ResolvedValue(null, null, false);
             if (value.startsWith("${") && value.endsWith("}") && value.indexOf("${", 2) == -1) {
                 String key = value.substring(2, value.length() - 1);
-                return values.getOrDefault(key, value);
+                String resolved = values.get(key);
+                return new ResolvedValue(resolved != null ? resolved : value, key, resolved != null);
             }
-            // Handle embedded placeholders like "${billing.base-url}/health"
             if (value.contains("${")) {
                 String result = value;
+                String lastKey = null;
+                boolean changed = false;
                 for (Map.Entry<String, String> entry : values.entrySet()) {
-                    result = result.replace("${" + entry.getKey() + "}", entry.getValue());
+                    String token = "${" + entry.getKey() + "}";
+                    if (result.contains(token)) {
+                        result = result.replace(token, entry.getValue());
+                        lastKey = entry.getKey();
+                        changed = true;
+                    }
                 }
-                return result;
+                return new ResolvedValue(result, lastKey, changed);
             }
-            return value;
+            return new ResolvedValue(value, null, false);
+        }
+
+        public String resolve(String value) {
+            return resolveWithKey(value).value();
         }
     }
 
