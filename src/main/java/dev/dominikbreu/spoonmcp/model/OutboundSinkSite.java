@@ -24,6 +24,18 @@ public class OutboundSinkSite {
     public String calleeMethod;
     /** For MESSAGING/EVENT_BUS sites: the channel/topic name from {@code @Channel}, or null. */
     public String channel;
+    /** Messaging broker for messaging sites when known. */
+    public MessagingBroker broker;
+    /** Normalized broker destination/topic. */
+    public String topic;
+    /** Spring config property key that supplied {@link #topic}, when known. */
+    public String topicPropertyKey;
+    /** Variable name used as the outbound payload argument, when known. */
+    public String payloadVarName;
+    /** Fully-qualified payload type, when source-derived. */
+    public String payloadType;
+    /** Short evidence label explaining how this outbound site was extracted. */
+    public String linkEvidence;
     /** Source location. */
     public SourceInfo source;
 
