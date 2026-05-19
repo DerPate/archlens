@@ -77,4 +77,20 @@ class ArchitectureExtractorTest extends ExtractorTestBase {
         assertThat(model.components).anyMatch(component -> "MultiController".equals(component.name));
         assertThat(model.components).anyMatch(component -> "MultiService".equals(component.name));
     }
+
+    @Test
+    void infersRuntimeFlowForSpringRestControllerChain() {
+        ArchitectureModel model = new ArchitectureExtractor().extract(List.of(projectPath("gradle-springboot-sample")));
+
+        assertThat(model.dependencies)
+                .anyMatch(d -> d.fromId.contains("OrderController")
+                        && d.toId.contains("OrderService"));
+        assertThat(model.dependencies)
+                .anyMatch(d -> d.fromId.contains("OrderService")
+                        && d.toId.contains("OrderRepository"));
+        assertThat(model.runtimeFlows)
+                .anyMatch(flow -> flow.entrypointId.contains("OrderController#get")
+                        && flow.steps.stream().anyMatch(step -> "OrderService".equals(step.componentName))
+                        && flow.steps.stream().anyMatch(step -> "OrderRepository".equals(step.componentName)));
+    }
 }
