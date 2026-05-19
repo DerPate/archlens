@@ -94,6 +94,46 @@ class SpringExtractorTest extends ExtractorTestBase {
                         && e.componentId.contains("GradleSpringApplication"));
     }
 
+    @Test
+    void detectsFeignClientInterfaces() {
+        assertThat(model.components)
+                .anyMatch(c -> "BillingClient".equals(c.name) && c.type == ComponentType.HTTP_CLIENT);
+        assertThat(model.interfaces)
+                .anyMatch(i -> "rest_client".equals(i.type)
+                        && "https://billing.example.test".equals(i.path)
+                        && "billing".equals(i.externalServiceName));
+        assertThat(model.interfaces)
+                .anyMatch(i -> "rest_client_operation".equals(i.type)
+                        && "GET /billing/{id}".equals(i.name)
+                        && "/billing/{id}".equals(i.path));
+    }
+
+    @Test
+    void detectsRestTemplateAndWebClientOutboundInterfaces() {
+        assertThat(model.interfaces)
+                .anyMatch(i -> "rest_client_operation".equals(i.type)
+                        && i.path.equals("https://billing.example.test/health"));
+        assertThat(model.interfaces)
+                .anyMatch(i -> "rest_client_operation".equals(i.type)
+                        && i.path.equals("https://inventory.example.test/items"));
+    }
+
+    @Test
+    void detectsTemplateMessagingProducerInterfaces() {
+        assertThat(model.interfaces)
+                .anyMatch(i -> "messaging_producer".equals(i.type)
+                        && i.broker == MessagingBroker.KAFKA
+                        && "orders.created".equals(i.path));
+        assertThat(model.interfaces)
+                .anyMatch(i -> "messaging_producer".equals(i.type)
+                        && i.broker == MessagingBroker.RABBITMQ
+                        && "orders.exchange".equals(i.path));
+        assertThat(model.interfaces)
+                .anyMatch(i -> "messaging_producer".equals(i.type)
+                        && i.broker == MessagingBroker.JMS
+                        && "orders.jms".equals(i.path));
+    }
+
     private static void assertComponent(String name, ComponentType type, String technology) {
         assertThat(model.components)
                 .filteredOn(c -> name.equals(c.name))
