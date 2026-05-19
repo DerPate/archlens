@@ -1,0 +1,45 @@
+package dev.dominikbreu.spoonmcp.extractor;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
+import dev.dominikbreu.spoonmcp.model.DataFlowSink;
+import dev.dominikbreu.spoonmcp.model.MessagingBroker;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+
+class SpringPipelineExtractionTest extends ExtractorTestBase {
+
+    @Test
+    void extractsKafkaTemplateOutboundSitesWithResolvedTopicsAndPayloadTypes() {
+        ArchitectureModel model = new ArchitectureExtractor().extract(List.of(projectPath("spring-pipeline-sample")));
+
+        assertThat(model.outboundSinkSites)
+                .anySatisfy(site -> {
+                    assertThat(site.kind).isEqualTo(DataFlowSink.Kind.MESSAGING);
+                    assertThat(site.broker).isEqualTo(MessagingBroker.KAFKA);
+                    assertThat(site.topic).isEqualTo("orders.created");
+                    assertThat(site.topicPropertyKey).isEqualTo("topics.orders.created");
+                    assertThat(site.payloadVarName).isEqualTo("order");
+                    assertThat(site.payloadType).isEqualTo("com.example.pipeline.model.OrderEntity");
+                    assertThat(site.linkEvidence).isEqualTo("spring-kafka-template-send");
+                })
+                .anySatisfy(site -> {
+                    assertThat(site.kind).isEqualTo(DataFlowSink.Kind.MESSAGING);
+                    assertThat(site.topic).isEqualTo("orders.ready");
+                    assertThat(site.topicPropertyKey).isEqualTo("topics.orders.ready");
+                });
+    }
+
+    @Test
+    void listenerEntrypointsUseResolvedTopicNames() {
+        ArchitectureModel model = new ArchitectureExtractor().extract(List.of(projectPath("spring-pipeline-sample")));
+
+        assertThat(model.entrypoints)
+                .anySatisfy(entrypoint -> {
+                    assertThat(entrypoint.name).isEqualTo("onCreated");
+                    assertThat(entrypoint.channelName).isEqualTo("orders.created");
+                    assertThat(entrypoint.broker).isEqualTo(MessagingBroker.KAFKA);
+                });
+    }
+}
