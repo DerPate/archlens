@@ -6,6 +6,7 @@ import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
+import dev.dominikbreu.spoonmcp.model.MessagingBroker;
 import java.io.File;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -53,6 +54,44 @@ class SpringExtractorTest extends ExtractorTestBase {
     void restEndpointsAreStoredAsInterfaces() {
         assertThat(model.interfaces)
                 .anyMatch(i -> "rest_endpoint".equals(i.type) && "GET /api/orders/{id}".equals(i.name));
+    }
+
+    @Test
+    void detectsSchedulerEntrypoint() {
+        assertThat(model.components)
+                .anyMatch(c -> "OrderScheduler".equals(c.name) && c.type == ComponentType.SCHEDULER);
+        assertThat(model.entrypoints)
+                .anyMatch(e -> e.type == EntrypointType.SCHEDULER
+                        && "cleanUp".equals(e.name)
+                        && e.componentId.contains("OrderScheduler"));
+    }
+
+    @Test
+    void detectsMessagingListeners() {
+        assertThat(model.entrypoints)
+                .anyMatch(e -> e.type == EntrypointType.MESSAGING_CONSUMER
+                        && "orders.created".equals(e.channelName)
+                        && e.broker == MessagingBroker.KAFKA);
+        assertThat(model.entrypoints)
+                .anyMatch(e -> e.type == EntrypointType.MESSAGING_CONSUMER
+                        && "orders.queue".equals(e.channelName)
+                        && e.broker == MessagingBroker.RABBITMQ);
+        assertThat(model.entrypoints)
+                .anyMatch(e -> e.type == EntrypointType.JMS_CONSUMER
+                        && "orders.jms".equals(e.channelName)
+                        && e.broker == MessagingBroker.JMS);
+    }
+
+    @Test
+    void detectsMainAndApplicationRunnerEntrypoints() {
+        assertThat(model.entrypoints)
+                .anyMatch(e -> e.type == EntrypointType.MAIN_METHOD
+                        && "main".equals(e.name)
+                        && e.componentId.contains("GradleSpringApplication"));
+        assertThat(model.entrypoints)
+                .anyMatch(e -> e.type == EntrypointType.MAIN_METHOD
+                        && "run".equals(e.name)
+                        && e.componentId.contains("GradleSpringApplication"));
     }
 
     private static void assertComponent(String name, ComponentType type, String technology) {

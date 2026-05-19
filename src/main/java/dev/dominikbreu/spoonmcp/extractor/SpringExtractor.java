@@ -12,6 +12,7 @@ import spoon.reflect.declaration.CtAnnotation;
 import spoon.reflect.declaration.CtElement;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtType;
+import spoon.reflect.reference.CtTypeReference;
 
 public class SpringExtractor {
 
@@ -32,6 +33,10 @@ public class SpringExtractor {
     private static final Set<String> PUT_MAPPING = Set.of("org.springframework.web.bind.annotation.PutMapping");
     private static final Set<String> DELETE_MAPPING = Set.of("org.springframework.web.bind.annotation.DeleteMapping");
     private static final Set<String> PATCH_MAPPING = Set.of("org.springframework.web.bind.annotation.PatchMapping");
+    private static final Set<String> SCHEDULED = Set.of("org.springframework.scheduling.annotation.Scheduled");
+    private static final Set<String> KAFKA_LISTENER = Set.of("org.springframework.kafka.annotation.KafkaListener");
+    private static final Set<String> RABBIT_LISTENER = Set.of("org.springframework.amqp.rabbit.annotation.RabbitListener");
+    private static final Set<String> JMS_LISTENER = Set.of("org.springframework.jms.annotation.JmsListener");
 
     private final SpringConfigResolver.Config config;
 
@@ -85,6 +90,12 @@ public class SpringExtractor {
         } else if (hasAnnotation(type, CONFIGURATION)) {
             componentType = ComponentType.SERVICE;
             stereotypes.add("configuration");
+        } else if (hasScheduledMethod(type)) {
+            componentType = ComponentType.SCHEDULER;
+            stereotypes.add("scheduled");
+        } else if (hasListenerMethod(type)) {
+            componentType = ComponentType.MESSAGE_DRIVEN_BEAN;
+            stereotypes.add("messaging-listener");
         } else if (hasAnnotation(type, COMPONENT)) {
             componentType = ComponentType.SERVICE;
             stereotypes.add("component");
@@ -103,24 +114,121 @@ public class SpringExtractor {
         return component;
     }
 
+    private boolean hasScheduledMethod(CtType<?> type) {
+        return type.getMethods().stream().anyMatch(method -> hasAnnotation(method, SCHEDULED));
+    }
+
+    private boolean hasListenerMethod(CtType<?> type) {
+        return type.getMethods().stream().anyMatch(method ->
+                hasAnnotation(method, KAFKA_LISTENER)
+                        || hasAnnotation(method, RABBIT_LISTENER)
+                        || hasAnnotation(method, JMS_LISTENER));
+    }
+
     private void extractEntrypoints(CtType<?> type, Component component, ArchitectureModel model) {
         String classBase = firstMappingPath(type);
         String contextPath = config.value("server.servlet.context-path");
         for (CtMethod<?> method : type.getMethods()) {
             Mapping mapping = mapping(method);
-            if (mapping == null || component.type == ComponentType.HTTP_CLIENT) continue;
-            String fullPath = combinePaths(contextPath, combinePaths(classBase, mapping.path()));
-            Entrypoint ep = new Entrypoint();
-            ep.id = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + ":" + mapping.method();
-            ep.type = EntrypointType.REST_ENDPOINT;
-            ep.name = method.getSimpleName();
-            ep.httpMethod = mapping.method();
-            ep.path = fullPath;
-            ep.componentId = component.id;
-            ep.source = new SourceInfo(getFile(method), getLine(method), "annotation", 1.0);
-            model.entrypoints.add(ep);
-            addInterface(method, component, "rest_endpoint", mapping.method() + " " + fullPath, fullPath, model);
+            if (mapping != null && component.type != ComponentType.HTTP_CLIENT) {
+                String fullPath = combinePaths(contextPath, combinePaths(classBase, mapping.path()));
+                Entrypoint ep = new Entrypoint();
+                ep.id = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + ":" + mapping.method();
+                ep.type = EntrypointType.REST_ENDPOINT;
+                ep.name = method.getSimpleName();
+                ep.httpMethod = mapping.method();
+                ep.path = fullPath;
+                ep.componentId = component.id;
+                ep.source = new SourceInfo(getFile(method), getLine(method), "annotation", 1.0);
+                model.entrypoints.add(ep);
+                addInterface(method, component, "rest_endpoint", mapping.method() + " " + fullPath, fullPath, model);
+            }
+            if (hasAnnotation(method, SCHEDULED)) {
+                addSimpleEntrypoint(method, type, component, EntrypointType.SCHEDULER, "scheduled", model);
+            }
+            addListenerEntrypoint(method, type, component, KAFKA_LISTENER, EntrypointType.MESSAGING_CONSUMER,
+                    MessagingBroker.KAFKA, firstNonEmptyAttribute(method, KAFKA_LISTENER, "topics", "topicPattern"), model);
+            addListenerEntrypoint(method, type, component, RABBIT_LISTENER, EntrypointType.MESSAGING_CONSUMER,
+                    MessagingBroker.RABBITMQ, firstNonEmptyAttribute(method, RABBIT_LISTENER, "queues", "bindings"), model);
+            addListenerEntrypoint(method, type, component, JMS_LISTENER, EntrypointType.JMS_CONSUMER,
+                    MessagingBroker.JMS, annotationAttribute(method, JMS_LISTENER, "destination"), model);
+            if (isMainMethod(method) || isRunnerMethod(method, type)) {
+                addSimpleEntrypoint(method, type, component, EntrypointType.MAIN_METHOD, "startup", model);
+            }
         }
+    }
+
+    private void addSimpleEntrypoint(
+            CtMethod<?> method,
+            CtType<?> type,
+            Component component,
+            EntrypointType entrypointType,
+            String suffix,
+            ArchitectureModel model) {
+        String id = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + ":" + suffix;
+        if (model.entrypoints.stream().anyMatch(e -> e.id.equals(id))) return;
+        Entrypoint ep = new Entrypoint();
+        ep.id = id;
+        ep.type = entrypointType;
+        ep.name = method.getSimpleName();
+        ep.componentId = component.id;
+        ep.source = new SourceInfo(getFile(method), getLine(method), "annotation", 0.95);
+        model.entrypoints.add(ep);
+    }
+
+    private void addListenerEntrypoint(
+            CtMethod<?> method,
+            CtType<?> type,
+            Component component,
+            Set<String> annotation,
+            EntrypointType entrypointType,
+            MessagingBroker broker,
+            String channel,
+            ArchitectureModel model) {
+        if (!hasAnnotation(method, annotation)) return;
+        String resolved = config.resolve(channel);
+        if (resolved == null || resolved.isBlank()) resolved = "(unresolved)";
+        String id = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + ":spring-listener:" + broker + ":" + resolved;
+        if (model.entrypoints.stream().anyMatch(e -> e.id.equals(id))) return;
+        Entrypoint ep = new Entrypoint();
+        ep.id = id;
+        ep.type = entrypointType;
+        ep.name = method.getSimpleName();
+        ep.channelName = resolved;
+        ep.broker = broker;
+        ep.componentId = component.id;
+        ep.source = new SourceInfo(getFile(method), getLine(method), "annotation", 1.0);
+        model.entrypoints.add(ep);
+        addMessagingInterface(method, component, entrypointType == EntrypointType.JMS_CONSUMER ? "jms_consumer" : "messaging_consumer", resolved, broker, model);
+    }
+
+    private void addMessagingInterface(
+            CtElement element, Component component, String type, String channel, MessagingBroker broker, ArchitectureModel model) {
+        InterfaceEntry entry = addInterface(element, component, type, channel, channel, model);
+        if (entry != null) entry.broker = broker;
+    }
+
+    private String firstNonEmptyAttribute(CtElement element, Set<String> annotation, String first, String second) {
+        String value = annotationAttribute(element, annotation, first);
+        return value.isEmpty() ? annotationAttribute(element, annotation, second) : value;
+    }
+
+    private boolean isMainMethod(CtMethod<?> method) {
+        return "main".equals(method.getSimpleName()) && method.isStatic();
+    }
+
+    private boolean isRunnerMethod(CtMethod<?> method, CtType<?> type) {
+        if (!"run".equals(method.getSimpleName())) return false;
+        for (CtTypeReference<?> ref : type.getSuperInterfaces()) {
+            String name = ref.getQualifiedName();
+            if ("org.springframework.boot.ApplicationRunner".equals(name)
+                    || "org.springframework.boot.CommandLineRunner".equals(name)
+                    || "ApplicationRunner".equals(ref.getSimpleName())
+                    || "CommandLineRunner".equals(ref.getSimpleName())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private Mapping mapping(CtMethod<?> method) {
