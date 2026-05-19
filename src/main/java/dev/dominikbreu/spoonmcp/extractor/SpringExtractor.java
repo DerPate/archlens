@@ -37,6 +37,7 @@ public class SpringExtractor {
     private static final Set<String> KAFKA_LISTENER = Set.of("org.springframework.kafka.annotation.KafkaListener");
     private static final Set<String> RABBIT_LISTENER = Set.of("org.springframework.amqp.rabbit.annotation.RabbitListener");
     private static final Set<String> JMS_LISTENER = Set.of("org.springframework.jms.annotation.JmsListener");
+    private static final Set<String> FEIGN_CLIENT = Set.of("org.springframework.cloud.openfeign.FeignClient");
 
     private final SpringConfigResolver.Config config;
 
@@ -78,6 +79,9 @@ public class SpringExtractor {
             componentType = ComponentType.SERVICE;
             technology = "spring-boot";
             stereotypes.add("spring-boot-application");
+        } else if (hasAnnotation(type, FEIGN_CLIENT)) {
+            componentType = ComponentType.HTTP_CLIENT;
+            stereotypes.add("feign-client");
         } else if (hasAnnotation(type, REST_CONTROLLERS)) {
             componentType = ComponentType.REST_RESOURCE;
             stereotypes.add("controller");
@@ -156,6 +160,10 @@ public class SpringExtractor {
                 addSimpleEntrypoint(method, type, component, EntrypointType.MAIN_METHOD, "startup", model);
             }
         }
+        if (component.type == ComponentType.HTTP_CLIENT && hasAnnotation(type, FEIGN_CLIENT)) {
+            extractFeignInterfaces(type, component, model);
+        }
+        extractOutboundCallSites(type, component, model);
     }
 
     private void addSimpleEntrypoint(
@@ -348,6 +356,60 @@ public class SpringExtractor {
     protected int getLine(CtElement element) {
         var position = element.getPosition();
         return position.isValidPosition() ? position.getLine() : 0;
+    }
+
+    private void extractFeignInterfaces(CtType<?> type, Component component, ArchitectureModel model) {
+        String name = annotationAttribute(type, FEIGN_CLIENT, "name");
+        if (name.isEmpty()) name = annotationAttribute(type, FEIGN_CLIENT, "value");
+        if (name.isEmpty()) name = type.getSimpleName();
+        String url = config.resolve(annotationAttribute(type, FEIGN_CLIENT, "url"));
+        InterfaceEntry client = addInterface(type, component, "rest_client", component.name, url, model);
+        if (client != null) client.externalServiceName = name;
+        for (CtMethod<?> method : type.getMethods()) {
+            Mapping mapping = mapping(method);
+            if (mapping == null) continue;
+            addInterface(method, component, "rest_client_operation", mapping.method() + " " + mapping.path(), mapping.path(), model);
+        }
+    }
+
+    private void extractOutboundCallSites(CtType<?> type, Component component, ArchitectureModel model) {
+        type.getElements(element -> element instanceof spoon.reflect.code.CtInvocation<?>)
+                .forEach(element -> {
+                    spoon.reflect.code.CtInvocation<?> invocation = (spoon.reflect.code.CtInvocation<?>) element;
+                    String executable = invocation.getExecutable() == null ? "" : invocation.getExecutable().getSimpleName();
+                    List<String> args = invocation.getArguments().stream()
+                            .map(arg -> config.resolve(stripQuotes(arg.toString())))
+                            .toList();
+                    if (args.isEmpty()) return;
+                    if (Set.of("getForObject", "postForObject", "exchange", "uri").contains(executable)
+                            && looksLikeUrl(args.getFirst())) {
+                        addInterface(invocation, component, "rest_client_operation", executable + " " + args.getFirst(), args.getFirst(), model);
+                    }
+                    if ("send".equals(executable)) {
+                        addProducerInterface(invocation, component, MessagingBroker.KAFKA, args.getFirst(), model);
+                    }
+                    if ("convertAndSend".equals(executable)) {
+                        MessagingBroker broker = args.getFirst().contains("jms") ? MessagingBroker.JMS : MessagingBroker.RABBITMQ;
+                        addProducerInterface(invocation, component, broker, args.getFirst(), model);
+                    }
+                });
+    }
+
+    private void addProducerInterface(
+            CtElement element, Component component, MessagingBroker broker, String destination, ArchitectureModel model) {
+        InterfaceEntry entry = addInterface(element, component, "messaging_producer", destination, destination, model);
+        if (entry != null) entry.broker = broker;
+    }
+
+    private boolean looksLikeUrl(String value) {
+        return value != null && (value.startsWith("http://") || value.startsWith("https://"));
+    }
+
+    private String stripQuotes(String value) {
+        if (value == null) return "";
+        String out = value.trim();
+        if (out.startsWith("\"") && out.endsWith("\"")) return out.substring(1, out.length() - 1);
+        return out;
     }
 
     private record Mapping(String method, String path) {}

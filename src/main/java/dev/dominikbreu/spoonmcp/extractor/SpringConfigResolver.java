@@ -45,9 +45,17 @@ public class SpringConfigResolver {
 
         public String resolve(String value) {
             if (value == null) return null;
-            if (value.startsWith("${") && value.endsWith("}")) {
+            if (value.startsWith("${") && value.endsWith("}") && value.indexOf("${", 2) == -1) {
                 String key = value.substring(2, value.length() - 1);
                 return values.getOrDefault(key, value);
+            }
+            // Handle embedded placeholders like "${billing.base-url}/health"
+            if (value.contains("${")) {
+                String result = value;
+                for (Map.Entry<String, String> entry : values.entrySet()) {
+                    result = result.replace("${" + entry.getKey() + "}", entry.getValue());
+                }
+                return result;
             }
             return value;
         }
