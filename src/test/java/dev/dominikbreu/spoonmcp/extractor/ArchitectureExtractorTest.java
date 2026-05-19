@@ -51,4 +51,30 @@ class ArchitectureExtractorTest extends ExtractorTestBase {
                         && d.fromId.contains("PlainServer")
                         && d.toId.contains("PlainTool"));
     }
+
+    @Test
+    void detectsGradleSpringBootTechnologyAndEntrypoints() {
+        ArchitectureModel model = new ArchitectureExtractor().extract(List.of(projectPath("gradle-springboot-sample")));
+
+        assertThat(model.applications)
+                .anyMatch(app -> "gradle-springboot-sample".equals(app.name)
+                        && "spring-boot".equals(app.technology)
+                        && "boot-jar".equals(app.packagingType));
+        assertThat(model.components)
+                .anyMatch(component -> "OrderController".equals(component.name)
+                        && "spring".equals(component.technology));
+        assertThat(model.entrypoints)
+                .anyMatch(entrypoint -> entrypoint.type == EntrypointType.REST_ENDPOINT
+                        && "GET".equals(entrypoint.httpMethod)
+                        && "/api/orders/{id}".equals(entrypoint.path));
+    }
+
+    @Test
+    void extractsGradleMultiModuleSpringProject() {
+        ArchitectureModel model = new ArchitectureExtractor().extract(List.of(projectPath("gradle-multimodule-springboot-sample")));
+
+        assertThat(model.applications).extracting(app -> app.name).contains("api", "service");
+        assertThat(model.components).anyMatch(component -> "MultiController".equals(component.name));
+        assertThat(model.components).anyMatch(component -> "MultiService".equals(component.name));
+    }
 }
