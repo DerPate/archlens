@@ -7,7 +7,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import spoon.reflect.code.CtExpression;
+import spoon.reflect.code.CtInvocation;
 import spoon.reflect.code.CtLiteral;
+import spoon.reflect.code.CtVariableRead;
 import spoon.reflect.declaration.CtAnnotation;
 import spoon.reflect.declaration.CtElement;
 import spoon.reflect.declaration.CtMethod;
@@ -373,9 +375,10 @@ public class SpringExtractor {
     }
 
     private void extractOutboundCallSites(CtType<?> type, Component component, ArchitectureModel model) {
-        type.getElements(element -> element instanceof spoon.reflect.code.CtInvocation<?>)
+        type.getElements(element -> element instanceof CtInvocation<?>)
                 .forEach(element -> {
-                    spoon.reflect.code.CtInvocation<?> invocation = (spoon.reflect.code.CtInvocation<?>) element;
+                    CtInvocation<?> invocation = (CtInvocation<?>) element;
+                    addKafkaOutboundSinkSite(invocation, component, model);
                     String executable = invocation.getExecutable() == null ? "" : invocation.getExecutable().getSimpleName();
                     List<String> args = invocation.getArguments().stream()
                             .map(arg -> config.resolve(stripQuotes(arg.toString())))
@@ -393,6 +396,55 @@ public class SpringExtractor {
                         addProducerInterface(invocation, component, broker, args.getFirst(), model);
                     }
                 });
+    }
+
+    private void addKafkaOutboundSinkSite(CtInvocation<?> invocation, Component component, ArchitectureModel model) {
+        if (invocation.getArguments().isEmpty()) return;
+        String executable = invocation.getExecutable() == null ? "" : invocation.getExecutable().getSimpleName();
+        if (!"send".equals(executable)) return;
+        String declaringType = invocation.getExecutable().getDeclaringType() == null
+                ? ""
+                : invocation.getExecutable().getDeclaringType().getQualifiedName();
+        String targetType = invocation.getTarget() == null || invocation.getTarget().getType() == null
+                ? ""
+                : invocation.getTarget().getType().getQualifiedName();
+        if (!declaringType.contains("KafkaTemplate") && !targetType.contains("KafkaTemplate")) return;
+
+        SpringConfigResolver.ResolvedValue topic = config.resolveWithKey(stripQuotes(invocation.getArguments().get(0).toString()));
+        CtMethod<?> enclosingMethod = invocation.getParent(CtMethod.class);
+        if (enclosingMethod == null) return;
+        OutboundSinkSite site = new OutboundSinkSite();
+        site.id = "outbound:" + component.id + "#" + enclosingMethod.getSimpleName()
+                + ":spring-kafka:" + model.outboundSinkSites.size();
+        site.kind = DataFlowSink.Kind.MESSAGING;
+        site.componentId = component.id;
+        site.method = enclosingMethod.getSimpleName();
+        site.calleeQualifiedName = declaringType.isBlank() ? targetType : declaringType;
+        site.calleeMethod = executable;
+        site.channel = topic.value();
+        site.broker = MessagingBroker.KAFKA;
+        site.topic = topic.value();
+        site.topicPropertyKey = topic.propertyKey();
+        site.payloadVarName = payloadVarName(invocation);
+        site.payloadType = payloadType(invocation);
+        site.linkEvidence = "spring-kafka-template-send";
+        site.source = new SourceInfo(getFile(invocation), getLine(invocation), "spring-kafka-template-send", 0.95);
+        model.outboundSinkSites.add(site);
+    }
+
+    private String payloadVarName(CtInvocation<?> invocation) {
+        if (invocation.getArguments().size() < 2) return null;
+        if (invocation.getArguments().get(1) instanceof CtVariableRead<?> variableRead
+                && variableRead.getVariable() != null) {
+            return variableRead.getVariable().getSimpleName();
+        }
+        return null;
+    }
+
+    private String payloadType(CtInvocation<?> invocation) {
+        if (invocation.getArguments().size() < 2) return null;
+        spoon.reflect.reference.CtTypeReference<?> type = invocation.getArguments().get(1).getType();
+        return type == null ? null : type.getQualifiedName();
     }
 
     private void addProducerInterface(
