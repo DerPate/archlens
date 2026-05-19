@@ -29,7 +29,7 @@ Analyze one or more Java project roots and store the resulting architecture mode
 
 The extraction pipeline runs six passes:
 
-1. Components + entrypoints per module (framework detection for Quarkus, Java EE, generic Java).
+1. Components + entrypoints per module (framework detection for Quarkus, Java EE, Spring Boot, generic Java).
 2. Injection dependencies across all modules.
 3. **Call graph** — actual method invocations between components (`CallEdge` records with
    caller/callee parameter-name mappings). Also enriches each entrypoint with its method's
@@ -87,6 +87,13 @@ are referenced by both an `@Incoming` and an `@Outgoing` declaration in the same
 are tagged `IN_MEMORY` (SmallRye in-memory channel — internal handoff, no external broker,
 no external system created). The same fields are populated on `InterfaceEntry` records.
 
+Spring Boot projects are detected from Maven/Gradle build metadata and Spring annotations.
+The extractor reports Spring REST controllers as `REST_ENDPOINT` entrypoints, scheduled
+methods as `SCHEDULER`, Kafka and Rabbit listeners as `MESSAGING_CONSUMER`, and JMS
+listeners as `JMS_CONSUMER`. Feign, RestTemplate, WebClient, KafkaTemplate,
+RabbitTemplate, and JmsTemplate calls are reported as interfaces when literal or
+application config-backed destinations are visible in source.
+
 Each entrypoint also includes a `parameters` list (method parameter names populated during
 call-graph extraction), which powers `trace_data_flow`.
 
@@ -115,7 +122,7 @@ Arguments:
   `EJB_STATELESS`, `EJB_STATEFUL`, `EJB_SINGLETON`, `MESSAGE_DRIVEN_BEAN`, `SCHEDULER`,
   `HTTP_CLIENT`, `CDI_EVENT_CONSUMER`, `CDI_EVENT_PRODUCER`, `REMOTE_SERVICE`, `UTILITY`,
   `UNKNOWN`.
-- `technology` string, optional. For example `quarkus`, `javaee`, or `jpa`.
+- `technology` string, optional. For example `spring`, `quarkus`, `javaee`, or `jpa`.
 
 ---
 
