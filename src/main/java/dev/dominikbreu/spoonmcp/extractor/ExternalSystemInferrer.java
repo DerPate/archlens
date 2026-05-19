@@ -100,6 +100,7 @@ public class ExternalSystemInferrer {
             case RABBITMQ -> "RabbitMQ";
             case PULSAR -> "Pulsar";
             case IN_MEMORY -> "In-memory channel";
+            case JMS -> "JMS";
             case UNKNOWN -> "Messaging (unknown broker)";
         };
     }
