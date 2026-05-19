@@ -1,0 +1,10 @@
+server:
+  servlet:
+    context-path: /api
+topics:
+  orders:
+    created: orders.created
+    ready: orders.ready
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
