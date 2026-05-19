@@ -32,6 +32,30 @@ class SpringConfigResolverTest {
         assertThat(config.resolve("${inventory.base-url}")).isEqualTo("https://inventory.example.test");
     }
 
+    @Test
+    void resolvesPlaceholderWithPropertyKey() throws Exception {
+        File root = projectPath("spring-pipeline-sample");
+
+        SpringConfigResolver.Config config = new SpringConfigResolver().resolve(root);
+        SpringConfigResolver.ResolvedValue resolved = config.resolveWithKey("${topics.orders.created}");
+
+        assertThat(resolved.value()).isEqualTo("orders.created");
+        assertThat(resolved.propertyKey()).isEqualTo("topics.orders.created");
+        assertThat(resolved.wasResolved()).isTrue();
+    }
+
+    @Test
+    void unresolvedPlaceholderKeepsOriginalTextAndKey() throws Exception {
+        File root = projectPath("spring-pipeline-sample");
+
+        SpringConfigResolver.Config config = new SpringConfigResolver().resolve(root);
+        SpringConfigResolver.ResolvedValue resolved = config.resolveWithKey("${topics.missing}");
+
+        assertThat(resolved.value()).isEqualTo("${topics.missing}");
+        assertThat(resolved.propertyKey()).isEqualTo("topics.missing");
+        assertThat(resolved.wasResolved()).isFalse();
+    }
+
     private static File projectPath(String name) {
         try {
             var url = SpringConfigResolverTest.class.getClassLoader().getResource("testprojects/" + name);
