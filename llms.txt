@@ -209,6 +209,14 @@ Prompts are workflow templates for clients and agents; they do not replace tools
   loggers, config classes, DTO-ish types, and `UNKNOWN` components as supporting
   infrastructure unless they also bridge entrypoints, sinks, state, messaging, or
   external systems.
+- Gradle and Maven project shape is owned by `dev.dominikbreu.spoonmcp.build`.
+  Do not reintroduce build traversal in `SpoonScanner` or framework extractors.
+- Spring Boot extraction lives in `SpringExtractor` and uses `SpringConfigResolver`
+  for bounded `application.properties` / YAML evidence.
+- Gradle support is first-class at the metadata boundary. Literal parsing is the
+  current non-executing strategy; richer Gradle source sets, artifact tasks,
+  dependency metadata, convention plugins, and included builds belong in the
+  Gradle detector rather than scattered call sites.
 - Prefer projection tools before hand-drawing architecture diagrams:
   `render_architecture_view` for Mermaid/C4-style component diagrams and
   `export_likec4_model` when LikeC4-compatible context is useful. Treat these

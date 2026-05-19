@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: kotlin-orders
+  kafka:
+    template:
+      default-topic: orders.default
+inventory:
+  base-url: https://inventory.example.test

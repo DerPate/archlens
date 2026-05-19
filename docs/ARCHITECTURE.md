@@ -23,6 +23,15 @@ Workflow behavior is derived in layers:
 Do not add independent traversal rules to renderers or MCP tools. Add them to
 `WorkflowTraversalPolicy` or `WorkflowLinker`, then cover them with tests.
 
+### Build Metadata
+
+`dev.dominikbreu.spoonmcp.build` owns project-shape detection. Maven, Gradle Groovy,
+Gradle Kotlin, and plain Java roots are normalized into `BuildProject` and
+`BuildModule` records. `SpoonScanner` scans the source roots from this metadata and
+does not own build-module traversal. `ArchitectureExtractor` registers applications
+from build modules, detects technology from build and annotation evidence, and then
+dispatches framework-specific extractors.
+
 ## Source Overview
 
 ```mermaid
