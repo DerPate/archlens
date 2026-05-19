@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import dev.dominikbreu.spoonmcp.model.*;
 import java.util.List;
 import java.util.Map;
+import dev.dominikbreu.spoonmcp.model.MessagingBroker;
 import org.junit.jupiter.api.Test;
 
 class DataFlowTracerTest {
@@ -799,6 +800,44 @@ class DataFlowTracerTest {
         List<DataFlowPath> paths = tracer.trace(model);
 
         assertThat(paths).noneMatch(path -> path.entrypointId.equals("ep:shutdown"));
+    }
+
+    // ── G7: nested outbound messaging sink ───────────────────────────────────────
+
+    @Test
+    void emitsOutboundMessagingSinkFromNestedServiceMethodWhenPayloadMatchesTrackedValue() {
+        ArchitectureModel model = buildModel();
+        model.components.add(comp("Publisher", ComponentType.SERVICE));
+
+        addCallEdge(model, "comp:OrderResource", "create", "comp:OrderService", "create", Map.of("order", "order"));
+        addCallEdge(model, "comp:OrderService", "create", "comp:Publisher", "publishCreated", Map.of("order", "order"));
+
+        OutboundSinkSite site = new OutboundSinkSite();
+        site.id = "outbound:publisher";
+        site.kind = DataFlowSink.Kind.MESSAGING;
+        site.componentId = "comp:Publisher";
+        site.method = "publishCreated";
+        site.channel = "orders.created";
+        site.topic = "orders.created";
+        site.broker = MessagingBroker.KAFKA;
+        site.payloadVarName = "order";
+        site.payloadType = "com.example.Order";
+        site.linkEvidence = "spring-kafka-template-send";
+        model.outboundSinkSites.add(site);
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        assertThat(paths).anySatisfy(path -> {
+            assertThat(path.trackedParam).isEqualTo("order");
+            assertThat(path.sinks).anySatisfy(sink -> {
+                assertThat(sink.kind).isEqualTo(DataFlowSink.Kind.MESSAGING);
+                assertThat(sink.channel).isEqualTo("orders.created");
+                assertThat(sink.topic).isEqualTo("orders.created");
+                assertThat(sink.broker).isEqualTo(MessagingBroker.KAFKA);
+                assertThat(sink.payloadType).isEqualTo("com.example.Order");
+                assertThat(sink.linkEvidence).isEqualTo("spring-kafka-template-send");
+            });
+        });
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────────
