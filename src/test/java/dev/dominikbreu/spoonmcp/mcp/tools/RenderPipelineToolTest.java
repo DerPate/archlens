@@ -9,6 +9,7 @@ import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
+import dev.dominikbreu.spoonmcp.model.CallEdge;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.DataFlowStep;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
@@ -173,6 +174,35 @@ class RenderPipelineToolTest {
 
         assertThat(out).contains("ep:shutdown");
         assertThat(out).contains("ep:ingest");
+    }
+
+    @Test
+    void diagnosticExplainsWhyPipelineLinksAreMissing() throws Exception {
+        ModelCache cache = new ModelCache(null, ModelCache.CacheBackend.JSON) {
+            @Override
+            public ArchitectureModel load() {
+                ArchitectureModel model = new ArchitectureModel("diagnostic");
+                DataFlowPath path = new DataFlowPath();
+                path.id = "df:publish";
+                path.entrypointId = "ep:publish";
+                DataFlowSink sink = new DataFlowSink();
+                sink.kind = DataFlowSink.Kind.MESSAGING;
+                sink.topic = "${topics.missing}";
+                sink.channel = "${topics.missing}";
+                path.sinks.add(sink);
+                model.dataFlowPaths.add(path);
+                model.callEdges.add(new CallEdge());
+                return model;
+            }
+        };
+
+        String out = new RenderPipelineTool(cache).execute(Map.of());
+
+        assertThat(out).contains("messaging sink(s): 1");
+        assertThat(out).contains("unresolved messaging destination(s): 1");
+        assertThat(out).contains("consumer topic(s): 0");
+        assertThat(out).contains("persistence write sink(s): 0");
+        assertThat(out).contains("persistence read sink(s): 0");
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
