@@ -515,6 +515,34 @@ class ArchitectureGraphTest {
                 });
     }
 
+    @Test
+    void exposesCalleeQualifiedNameOnOutboundSinkVertex() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        Entrypoint ep = entrypoint("ep:upload", EntrypointType.REST_ENDPOINT);
+        model.entrypoints.add(ep);
+
+        DataFlowPath path = new DataFlowPath();
+        path.id = "df:ep:upload#file";
+        path.entrypointId = "ep:upload";
+        path.trackedParam = "file";
+
+        DataFlowSink sink = new DataFlowSink(
+                DataFlowSink.Kind.FILE_OUTBOUND, null, null, "write", null);
+        sink.calleeQualifiedName = "java.nio.file.Files";
+        path.sinks.add(sink);
+        model.dataFlowPaths.add(path);
+
+        ArchitectureGraph graph = new ArchitectureGraph();
+        graph.rebuild(model);
+
+        List<ArchitectureGraph.GraphNode> sinkNodes =
+                graph.findNodes("DataFlowSink", null, Map.of("calleeQualifiedName", "java.nio.file.Files"), 10);
+        assertThat(sinkNodes).hasSize(1);
+        assertThat(sinkNodes.getFirst().properties())
+                .containsEntry("calleeQualifiedName", "java.nio.file.Files")
+                .containsEntry("method", "write");
+    }
+
     private Entrypoint entrypoint(String id, EntrypointType type) {
         Entrypoint e = new Entrypoint();
         e.id = id;
