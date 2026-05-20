@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.MessagingBroker;
+import dev.dominikbreu.spoonmcp.renderer.MermaidPipelineRenderer;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -42,6 +43,19 @@ class SpringPipelineExtractionTest extends ExtractorTestBase {
                             assertThat(sink.topic).isEqualTo("orders.created");
                             assertThat(sink.linkedPathIds).isNotEmpty();
                         }));
+    }
+
+    @Test
+    void springPipelineSampleRendersEndToEndPipeline() {
+        ArchitectureModel model = new ArchitectureExtractor().extract(List.of(projectPath("spring-pipeline-sample")));
+
+        List<PipelineGraphBuilder.Chain> chains = new PipelineGraphBuilder().build(model, 8);
+
+        assertThat(chains).isNotEmpty();
+        String mermaid = new MermaidPipelineRenderer().render(chains.getFirst(), model);
+        assertThat(mermaid).contains("orders.created");
+        assertThat(mermaid).contains("OrderController.create");
+        assertThat(mermaid).contains("OrderCreatedListener.onCreated");
     }
 
     @Test
