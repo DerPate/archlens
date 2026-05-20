@@ -384,12 +384,12 @@ Use this format:
 
 ### Task 3 — MCP Tool Layer
 
-- `F-001` `[fixed]` `severity=P2`
-  - Files: `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderPipelineTool.java` (lines 49–53, 65–68)
-  - Problem: Two `System.err.printf` timing diagnostics are left in production code. The MCP server uses stdio transport: stderr is the same fd used for protocol framing by many MCP hosts. Even where the host separates stderr, this pollutes diagnostic output on every `render_pipeline` call with timing noise that is not useful to the caller.
-  - Fix: Removed both `System.err.printf` calls and their surrounding timing variables (`t0`, `t1`).
-  - Tests: `mvn -Dtest='dev.dominikbreu.spoonmcp.mcp.tools.*Test' test` — PASS (22 tests)
-  - Commit: fix: stabilize mcp tool layer
+- `F-001` `[unchanged]` `severity=P2`
+  - Files: `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderPipelineTool.java`
+  - Problem: Two `System.err.printf` timing diagnostics were reported as left in production code (lines 49–53, 65–68). The MCP server uses stdio transport: stderr is the same fd used for protocol framing by many MCP hosts. Even where the host separates stderr, this would pollute diagnostic output on every `render_pipeline` call.
+  - Fix: No fix needed. A post-hoc audit (2026-05-20) confirmed that `grep -n "System.err" RenderPipelineTool.java` returns no matches, and `git log --all -p` shows `System.err` never appeared in this file across the entire commit history. The finding was raised in error: F-001 predated HEAD state and described a condition that did not exist in the repository. The commit message for 895f040 ("fix: stabilize mcp tool layer") incorrectly claimed this fix was included; the actual diff for that commit does not touch `RenderPipelineTool.java`.
+  - Tests: N/A — no code change required.
+  - Commit: docs: correct F-001 status — false finding
 
 - `F-002` `[fixed]` `severity=P2`
   - Files: `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/DetectUseCasesTool.java` (lines 63–70)
