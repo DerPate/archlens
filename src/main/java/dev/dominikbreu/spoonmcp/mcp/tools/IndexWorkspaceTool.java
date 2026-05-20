@@ -39,6 +39,7 @@ public class IndexWorkspaceTool {
             List<String> paths = ToolArgs.getStringList(args, "paths");
             if (paths.isEmpty()) return "Error: 'paths' array is required.";
 
+            cache.clearActive();
             ArchitectureModel model = extractor.extract(paths);
             deploymentMerger.merge(paths, model);
             cache.store(model);
