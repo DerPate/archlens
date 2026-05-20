@@ -29,19 +29,19 @@ Date: 2026-05-20
 
 ## File Inventory
 
-- [ ] `AGENTS.md`
+- [x] `AGENTS.md`
 - [ ] `CHANGELOG.md`
 - [ ] `.classpath`
 - [ ] `.codex`
 - [ ] `CONTRIBUTING.md`
 - [ ] `dependency-check-suppressions.xml`
 - [ ] `docs/API_GATEWAY_TARGET_ARCHITECTURE_POC.md`
-- [ ] `docs/ARCHITECTURE.md`
+- [x] `docs/ARCHITECTURE.md`
 - [ ] `docs/INSTALL.md`
 - [ ] `docs/SOURCE_ARCHITECTURE_POC.md`
 - [ ] `docs/superpowers/specs/2026-05-18-spring-gradle-build-system-design.md`
 - [ ] `docs/superpowers/specs/2026-05-20-whole-repo-stabilization-design.md`
-- [ ] `docs/TOOLS.md`
+- [x] `docs/TOOLS.md`
 - [ ] `docs/WORKFLOW_GRAPHS.md`
 - [ ] `.editorconfig`
 - [ ] `examples/agents/AGENTS.md`
@@ -63,12 +63,12 @@ Date: 2026-05-20
 - [ ] `.gitignore`
 - [ ] `jreleaser.yml`
 - [ ] `LICENSE`
-- [ ] `llms.txt`
+- [x] `llms.txt`
 - [ ] `log.file`
 - [ ] `.onedev-buildspec.yml`
-- [ ] `pom.xml`
+- [x] `pom.xml`
 - [ ] `.project`
-- [ ] `README.md`
+- [x] `README.md`
 - [ ] `scripts/self-doc.py`
 - [ ] `scripts/self-test-architecture-views.sh`
 - [ ] `scripts/self-test-generic-object-flow.sh`
@@ -384,12 +384,10 @@ Use this format:
 
 ## Test Evidence
 
-Use this format:
-
-- Command:
-- Expected:
-- Actual:
-- Result:
+- Command: `mvn test`
+- Expected: PASS
+- Actual: BUILD SUCCESS — Tests run: 387, Failures: 0, Errors: 0, Skipped: 0 (6.431 s)
+- Result: PASS
 
 ## Deferred Follow-Ups
 
