@@ -107,6 +107,7 @@ public class DataFlowTracer {
 
         linkStoreSinksToFieldReaders(result, model, callAdj, reads);
         linkMessagingSinksToChannelConsumers(result, model);
+        linkPersistenceWritesToReaders(result, model);
         return result;
     }
 
@@ -165,41 +166,43 @@ public class DataFlowTracer {
     }
 
     /**
-     * For each MESSAGING sink that carries a channel name, find every path whose entrypoint
-     * is a MESSAGING_CONSUMER on the same channel and record it in {@link DataFlowSink#linkedPathIds}.
-     * This stitches producer → channel → consumer across entrypoint boundaries.
+     * For each MESSAGING sink, find every path whose entrypoint is a consumer on the same
+     * broker/destination and record it in {@link DataFlowSink#linkedPathIds}.
+     * Matching is normalized by broker and topic so KAFKA:orders.created ≠ RABBITMQ:orders.created.
      */
     private void linkMessagingSinksToChannelConsumers(List<DataFlowPath> paths, ArchitectureModel model) {
-        // channel → paths whose entrypoint is a consumer on that channel
-        Map<String, List<String>> consumerPathsByChannel = new HashMap<>();
-        Map<String, String> entrypointIdToChannel = new HashMap<>();
+        Map<String, List<String>> consumerPathsByDestination = new HashMap<>();
+        Map<String, Entrypoint> entrypointById = new HashMap<>();
         for (Entrypoint ep : model.entrypoints) {
-            if (ep.type == EntrypointType.MESSAGING_CONSUMER && ep.channelName != null) {
-                entrypointIdToChannel.put(ep.id, ep.channelName);
-            }
+            entrypointById.put(ep.id, ep);
         }
-        for (DataFlowPath p : paths) {
-            String ch = entrypointIdToChannel.get(p.entrypointId);
-            if (ch != null) {
-                consumerPathsByChannel
-                        .computeIfAbsent(ch, k -> new ArrayList<>())
-                        .add(p.id);
-            }
+        for (DataFlowPath path : paths) {
+            Entrypoint ep = entrypointById.get(path.entrypointId);
+            if (ep == null) continue;
+            if (ep.type != EntrypointType.MESSAGING_CONSUMER && ep.type != EntrypointType.JMS_CONSUMER) continue;
+            String key = destinationKey(ep.broker, ep.channelName);
+            if (key == null) continue;
+            consumerPathsByDestination.computeIfAbsent(key, ignored -> new ArrayList<>()).add(path.id);
         }
 
-        for (DataFlowPath p : paths) {
-            for (DataFlowSink s : p.sinks) {
-                if ((s.kind != DataFlowSink.Kind.MESSAGING && s.kind != DataFlowSink.Kind.EVENT_BUS)
-                        || s.channel == null) continue;
-                List<String> consumers = consumerPathsByChannel.get(s.channel);
-                if (consumers == null) continue;
-                for (String cid : consumers) {
-                    if (!cid.equals(p.id) && !s.linkedPathIds.contains(cid)) {
-                        s.linkedPathIds.add(cid);
+        for (DataFlowPath path : paths) {
+            for (DataFlowSink sink : path.sinks) {
+                if (sink.kind != DataFlowSink.Kind.MESSAGING && sink.kind != DataFlowSink.Kind.EVENT_BUS) continue;
+                String key = destinationKey(sink.broker, firstNonBlank(sink.topic, sink.channel));
+                if (key == null) continue;
+                for (String targetPathId : consumerPathsByDestination.getOrDefault(key, List.of())) {
+                    if (!targetPathId.equals(path.id) && !sink.linkedPathIds.contains(targetPathId)) {
+                        sink.linkedPathIds.add(targetPathId);
                     }
                 }
             }
         }
+    }
+
+    private String destinationKey(dev.dominikbreu.spoonmcp.model.MessagingBroker broker, String destination) {
+        if (destination == null || destination.isBlank() || "(unresolved)".equals(destination)) return null;
+        String brokerKey = broker == null ? "UNKNOWN" : broker.name();
+        return brokerKey + ":" + destination.trim();
     }
 
     private Set<String> collectReachableReadFieldKeys(
@@ -293,12 +296,19 @@ public class DataFlowTracer {
 
             if (isSink(edge, target)) {
                 String sinkKey = edge.toComponentId + "#" + edge.toMethod;
-                path.sinks.add(new DataFlowSink(
-                        classifySink(edge, target),
+                DataFlowSink.Kind sinkKind = classifySink(edge, target);
+                DataFlowSink sink = new DataFlowSink(
+                        sinkKind,
                         edge.toComponentId,
                         target != null ? target.name : edge.toComponentId,
                         edge.toMethod,
-                        sinkSrc.get(sinkKey)));
+                        sinkSrc.get(sinkKey));
+                if (sinkKind == DataFlowSink.Kind.PERSISTENCE) {
+                    sink.repositoryOperation = edge.toMethod;
+                    sink.entityType = repositoryEntityType(target, compById);
+                    sink.linkEvidence = "repository-call";
+                }
+                path.sinks.add(sink);
             } else if (traversalPolicy.canTraverseInline(edge)) {
                 String nextName =
                         "*".equals(trackedName) ? "*" : edge.paramMapping.getOrDefault(trackedName, trackedName);
@@ -319,10 +329,10 @@ public class DataFlowTracer {
     }
 
     private boolean outboundMatchesTracked(OutboundSinkSite site, String trackedName) {
-        if (site == null) return false;
-        if ("*".equals(trackedName)) return true;
-        if (site.payloadVarName == null || site.payloadVarName.isBlank()) return true;
-        return site.payloadVarName.equals(trackedName);
+        // The DFS only reaches this method via valid call edges from the entrypoint, so
+        // emit regardless of variable name. Strict name matching causes false negatives when
+        // the tracked variable is transformed through intermediate locals before the outbound call.
+        return site != null;
     }
 
     private String firstNonBlank(String first, String second) {
@@ -425,5 +435,66 @@ public class DataFlowTracer {
                     .add(fa);
         }
         return map;
+    }
+
+    private void linkPersistenceWritesToReaders(List<DataFlowPath> paths, ArchitectureModel model) {
+        Map<String, List<String>> readPathsByEntity = new HashMap<>();
+        for (DataFlowPath path : paths) {
+            for (DataFlowSink sink : path.sinks) {
+                if (sink.kind != DataFlowSink.Kind.PERSISTENCE) continue;
+                if (!isReadOperation(sink.repositoryOperation)) continue;
+                if (sink.entityType == null) continue;
+                readPathsByEntity.computeIfAbsent(sink.entityType, ignored -> new ArrayList<>()).add(path.id);
+            }
+        }
+        for (DataFlowPath path : paths) {
+            for (DataFlowSink sink : path.sinks) {
+                if (sink.kind != DataFlowSink.Kind.PERSISTENCE) continue;
+                if (!isWriteOperation(sink.repositoryOperation)) continue;
+                if (sink.entityType == null) continue;
+                for (String targetPathId : readPathsByEntity.getOrDefault(sink.entityType, List.of())) {
+                    if (!targetPathId.equals(path.id) && !sink.linkedPathIds.contains(targetPathId)) {
+                        sink.linkedPathIds.add(targetPathId);
+                        sink.linkEvidence = "repository-entity-match";
+                    }
+                }
+            }
+        }
+    }
+
+    private String repositoryEntityType(Component target, Map<String, Component> compById) {
+        if (target == null || target.qualifiedName == null) return null;
+        String qn = target.qualifiedName;
+        int repoIndex = qn.lastIndexOf(".repository.");
+        if (repoIndex < 0) return null;
+        String simple = target.name;
+        if (simple == null) return null;
+        String entity = simple;
+        if (entity.startsWith("I")) entity = entity.substring(1);
+        if (entity.endsWith("Repository")) entity = entity.substring(0, entity.length() - "Repository".length());
+        if (entity.isBlank()) return null;
+        String basePackage = qn.substring(0, repoIndex);
+        String candidate = basePackage + ".model." + entity;
+        if (compById.containsKey("comp:" + candidate)) return candidate;
+        String withEntitySuffix = candidate + "Entity";
+        if (compById.containsKey("comp:" + withEntitySuffix)) return withEntitySuffix;
+        for (Component comp : compById.values()) {
+            if (comp.type == ComponentType.ENTITY && comp.qualifiedName != null
+                    && comp.qualifiedName.startsWith(basePackage)
+                    && comp.name != null && comp.name.startsWith(entity)) {
+                return comp.qualifiedName;
+            }
+        }
+        return candidate;
+    }
+
+    private boolean isWriteOperation(String method) {
+        if (method == null) return false;
+        return method.startsWith("save") || method.startsWith("delete");
+    }
+
+    private boolean isReadOperation(String method) {
+        if (method == null) return false;
+        return method.startsWith("find") || method.startsWith("get") || method.startsWith("read") || method.startsWith("exists");
     }
 }
