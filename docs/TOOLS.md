@@ -692,10 +692,10 @@ Useful graph properties include:
   `stepCount`, `sinkCount`.
 - DataFlowSink nodes (label `DataFlowSink`): `sinkKind` (`persistence`, `messaging`,
   `http-outbound`, `event-bus`, `store`, `file-outbound`, `object-storage`, `unknown`),
-  `pathId`, `componentId`, `method`, `fieldName`, `fieldOwnerComponentId`,
-  `calleeQualifiedName` (fully-qualified declaring type of the outbound callee, e.g.
-  `java.nio.file.Files`; null for non-outbound kinds), `calleeMethod` (method name on
-  the callee, e.g. `writeString`; null for non-outbound kinds).
+  `pathId`, `componentId`, `method` (callee method name for outbound sinks, e.g.
+  `writeString`; call site method for non-outbound sinks), `fieldName`,
+  `fieldOwnerComponentId`, `calleeQualifiedName` (fully-qualified declaring type of the
+  outbound callee, e.g. `java.nio.file.Files`; absent for non-outbound kinds).
 - PipelineChain nodes (label `PipelineChain`): one vertex per end-to-end pipeline
   produced by stitching typed workflow links forward across entrypoint
   boundaries. Properties: `segmentCount`, `rootEntrypointId`, `linkKinds`

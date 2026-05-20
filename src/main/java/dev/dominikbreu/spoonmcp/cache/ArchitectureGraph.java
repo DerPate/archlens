@@ -482,6 +482,7 @@ public class ArchitectureGraph {
             set(sinkVertex, "method", sink.method);
             set(sinkVertex, "fieldName", sink.fieldName);
             set(sinkVertex, "fieldOwnerComponentId", sink.fieldOwnerComponentId);
+            set(sinkVertex, "calleeQualifiedName", sink.calleeQualifiedName);
             setSource(sinkVertex, sink.source);
 
             addEdge(path.id, sinkId, "REACHES", Map.of("sinkKind", sink.kind != null ? sink.kind.value() : ""));

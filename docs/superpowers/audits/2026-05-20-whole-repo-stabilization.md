@@ -87,9 +87,9 @@ Date: 2026-05-20
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/build/GradleBuildProjectDetector.java`
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/build/MavenBuildProjectDetector.java`
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/build/UnknownBuildProjectDetector.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/cache/ArchitectureGraph.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/cache/ArchitectureRelevanceScorer.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/cache/ModelCache.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/cache/ArchitectureGraph.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/cache/ArchitectureRelevanceScorer.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/cache/ModelCache.java`
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/extractor/ArchitectureExtractor.java`
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/extractor/CallGraphExtractor.java`
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/extractor/ContainerInferrer.java`
@@ -143,29 +143,29 @@ Date: 2026-05-20
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/merger/AnsibleMerger.java`
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/merger/DeploymentMerger.java`
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/merger/DockerComposeMerger.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/AppEntry.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/ArchitectureModel.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/CallEdge.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/Component.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/ComponentType.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/Container.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/DataFlowPath.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/DataFlowSink.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/DataFlowStep.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/Dependency.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/DeploymentEntry.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/Entrypoint.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/EntrypointType.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/ExternalSystem.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/FieldAccess.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/InterfaceEntry.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/MessagingBroker.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/OutboundSinkSite.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/RuntimeFlow.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/RuntimeFlowStep.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/SourceInfo.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/UseCase.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/model/UseCaseNamingConfig.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/AppEntry.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/ArchitectureModel.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/CallEdge.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/Component.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/ComponentType.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/Container.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/DataFlowPath.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/DataFlowSink.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/DataFlowStep.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/Dependency.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/DeploymentEntry.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/Entrypoint.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/EntrypointType.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/ExternalSystem.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/FieldAccess.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/InterfaceEntry.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/MessagingBroker.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/OutboundSinkSite.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/RuntimeFlow.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/RuntimeFlowStep.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/SourceInfo.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/UseCase.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/model/UseCaseNamingConfig.java`
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/renderer/ArchitectureViewMermaidRenderer.java`
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/renderer/LikeC4ModelRenderer.java`
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/renderer/MermaidCallFlowRenderer.java`
@@ -397,6 +397,22 @@ Use this format:
   - Fix: Added `configLoadError` helper that captures the exception message; `execute` now surfaces it as "Error: could not load naming config — <cause>". `loadConfig` retains its signature for the success path. Follow-up fix (2026-05-20): removed the double I/O by inlining config loading into `execute` — the config file is now loaded exactly once; the two helper methods (`configLoadError`, `loadConfig`) were replaced by a single try/catch block in `execute`.
   - Tests: `mvn -Dtest='dev.dominikbreu.spoonmcp.mcp.tools.*Test' test` — PASS (22 tests)
   - Commit: fix: stabilize mcp tool layer; fix: load detect-use-cases config once instead of twice
+
+### Task 4 — Model / Cache / Graph
+
+- `F-003` `[fixed]` `severity=P2`
+  - Files: `src/main/java/dev/dominikbreu/spoonmcp/cache/ArchitectureGraph.java` (method `addDataFlowEdges`, ~line 477)
+  - Problem: `DataFlowSink.calleeQualifiedName` is populated by `DataFlowTracer` for `file-outbound` and `object-storage` sinks, and is documented in `docs/TOOLS.md` as a filterable graph node property. However, `addDataFlowEdges()` never called `set(sinkVertex, "calleeQualifiedName", ...)`, so the property was silently absent on all `DataFlowSink` graph vertices. A graph query like `find_nodes` with `calleeQualifiedName: "java.nio.file.Files"` always returned zero results.
+  - Fix: Added `set(sinkVertex, "calleeQualifiedName", sink.calleeQualifiedName)` in `addDataFlowEdges()` after the existing `set` calls for the sink vertex.
+  - Tests: `mvn -Dtest='dev.dominikbreu.spoonmcp.model.*Test,dev.dominikbreu.spoonmcp.cache.*Test' test` — PASS (17 tests)
+  - Commit: fix: stabilize model cache and graph semantics
+
+- `F-004` `[fixed]` `severity=P3`
+  - Files: `docs/TOOLS.md`
+  - Problem: `docs/TOOLS.md` documented `calleeMethod` as a separate `DataFlowSink` graph node property, but `DataFlowSink` has no `calleeMethod` field. The callee method name is stored in `sink.method` (which IS set on the graph vertex as `method`). The documentation implied a non-existent property, causing agent queries on `calleeMethod` to silently return nothing.
+  - Fix: Removed the `calleeMethod` documentation from the `DataFlowSink` node property list in `docs/TOOLS.md`. Added a note clarifying that `method` holds the callee method name for outbound sinks.
+  - Tests: N/A — docs only.
+  - Commit: fix: stabilize model cache and graph semantics
 
 ## Test Evidence
 
