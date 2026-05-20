@@ -53,7 +53,7 @@ Audited via `git diff` before touching any code. Contents preserved exactly.
 - [ ] `docs/superpowers/specs/2026-05-18-spring-gradle-build-system-design.md`
 - [ ] `docs/superpowers/specs/2026-05-20-whole-repo-stabilization-design.md`
 - [x] `docs/TOOLS.md`
-- [ ] `docs/WORKFLOW_GRAPHS.md`
+- [x] `docs/WORKFLOW_GRAPHS.md`
 - [ ] `.editorconfig`
 - [ ] `examples/agents/AGENTS.md`
 - [ ] `examples/agents/CLAUDE.md`
@@ -183,18 +183,18 @@ Audited via `git diff` before touching any code. Contents preserved exactly.
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/renderer/MermaidDependencyMapRenderer.java`
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/renderer/MermaidDependencySliceRenderer.java`
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/renderer/MermaidFlowchartRenderer.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/renderer/MermaidPipelineRenderer.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/renderer/MermaidPipelineRenderer.java`
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/renderer/MermaidSourceOverviewRenderer.java`
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/renderer/MermaidUseCaseTimelineRenderer.java`
 - [x] `src/main/java/dev/dominikbreu/spoonmcp/scanner/SpoonScanner.java`
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/view/ArchitectureViewKind.java`
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/view/ArchitectureViewProjection.java`
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/view/ArchitectureViewProjector.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/workflow/WorkflowGraphBuilder.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/workflow/WorkflowGraph.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/workflow/WorkflowLinker.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/workflow/WorkflowLink.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/workflow/WorkflowTraversalPolicy.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/workflow/WorkflowGraphBuilder.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/workflow/WorkflowGraph.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/workflow/WorkflowLinker.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/workflow/WorkflowLink.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/workflow/WorkflowTraversalPolicy.java`
 - [ ] `src/test/java/dev/dominikbreu/spoonmcp/build/BuildMetadataServiceTest.java`
 - [ ] `src/test/java/dev/dominikbreu/spoonmcp/cache/ArchitectureGraphTest.java`
 - [ ] `src/test/java/dev/dominikbreu/spoonmcp/cache/ModelCacheGraphBackendTest.java`
@@ -213,7 +213,7 @@ Audited via `git diff` before touching any code. Contents preserved exactly.
 - [ ] `src/test/java/dev/dominikbreu/spoonmcp/extractor/MessagingConfigResolverTest.java`
 - [ ] `src/test/java/dev/dominikbreu/spoonmcp/extractor/objectflow/ObjectFlowIndexBuilderTest.java`
 - [ ] `src/test/java/dev/dominikbreu/spoonmcp/extractor/PersistenceWorkflowLinkTest.java`
-- [ ] `src/test/java/dev/dominikbreu/spoonmcp/extractor/PipelineGraphBuilderTest.java`
+- [x] `src/test/java/dev/dominikbreu/spoonmcp/extractor/PipelineGraphBuilderTest.java`
 - [ ] `src/test/java/dev/dominikbreu/spoonmcp/extractor/QuarkusExtractorTest.java`
 - [ ] `src/test/java/dev/dominikbreu/spoonmcp/extractor/RuntimeFlowInferrerTest.java`
 - [ ] `src/test/java/dev/dominikbreu/spoonmcp/extractor/SchedulerHubIntegrationTest.java`
@@ -227,7 +227,7 @@ Audited via `git diff` before touching any code. Contents preserved exactly.
 - [ ] `src/test/java/dev/dominikbreu/spoonmcp/mcp/tools/IndexWorkspaceToolTest.java`
 - [ ] `src/test/java/dev/dominikbreu/spoonmcp/mcp/tools/QueryArchitectureGraphToolTest.java`
 - [ ] `src/test/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderArchitectureViewToolTest.java`
-- [ ] `src/test/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderPipelineToolTest.java`
+- [x] `src/test/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderPipelineToolTest.java`
 - [ ] `src/test/java/dev/dominikbreu/spoonmcp/mcp/tools/ToolTestFixtures.java`
 - [ ] `src/test/java/dev/dominikbreu/spoonmcp/merger/AnsibleMergerTest.java`
 - [ ] `src/test/java/dev/dominikbreu/spoonmcp/merger/DockerComposeMergerTest.java`
@@ -238,12 +238,12 @@ Audited via `git diff` before touching any code. Contents preserved exactly.
 - [ ] `src/test/java/dev/dominikbreu/spoonmcp/renderer/MermaidDependencyMapRendererTest.java`
 - [ ] `src/test/java/dev/dominikbreu/spoonmcp/renderer/MermaidFlowchartRendererTest.java`
 - [ ] `src/test/java/dev/dominikbreu/spoonmcp/renderer/MermaidUseCaseTimelineRendererTest.java`
-- [ ] `src/test/java/dev/dominikbreu/spoonmcp/renderer/PipelineRendererIntegrationTest.java`
+- [x] `src/test/java/dev/dominikbreu/spoonmcp/renderer/PipelineRendererIntegrationTest.java`
 - [ ] `src/test/java/dev/dominikbreu/spoonmcp/scanner/SpoonScannerMultiModuleTest.java`
 - [ ] `src/test/java/dev/dominikbreu/spoonmcp/view/ArchitectureViewProjectorTest.java`
-- [ ] `src/test/java/dev/dominikbreu/spoonmcp/workflow/WorkflowGraphBuilderTest.java`
-- [ ] `src/test/java/dev/dominikbreu/spoonmcp/workflow/WorkflowLinkerTest.java`
-- [ ] `src/test/java/dev/dominikbreu/spoonmcp/workflow/WorkflowTraversalPolicyTest.java`
+- [x] `src/test/java/dev/dominikbreu/spoonmcp/workflow/WorkflowGraphBuilderTest.java`
+- [x] `src/test/java/dev/dominikbreu/spoonmcp/workflow/WorkflowLinkerTest.java`
+- [x] `src/test/java/dev/dominikbreu/spoonmcp/workflow/WorkflowTraversalPolicyTest.java`
 - [ ] `src/test/resources/testprojects/ansible-sample/deploy.yml`
 - [ ] `src/test/resources/testprojects/ansible-sample/inventory`
 - [ ] `src/test/resources/testprojects/compose-sample/docker-compose.yml`
@@ -425,6 +425,18 @@ Use this format:
   - Tests: N/A — no code change.
   - Commit: docs: extractor audit — no findings
 
+### Task 6 — Workflow and Pipeline
+
+No actionable findings. All patterns inspected:
+
+- `WorkflowTraversalPolicy.isLifecycleEntrypoint` correctly gates CDI observers by keyword; `RenderPipelineTool.isLifecycleChain` additionally suppresses `MAIN_METHOD` and `RMI_ENDPOINT` roots at tool level. The two policies are intentionally layered and do not conflict.
+- `WorkflowGraphBuilder` root filter (paths with no incoming links AND at least one outgoing link) is correct. Single-segment paths without continuations are excluded from the chain list by `emit()` — this is intended and tested.
+- `WorkflowLinker.kindFor` returning `null` for non-linkable sink kinds is intentional — those sinks are filtered before building workflow edges.
+- Cycle handling in `PipelineGraphBuilder.extend()` uses both a path-ID stack and an entrypoint-ID stack to detect STORE loops. Both cycles emit the chain up to the repeated node, which is the correct truncation strategy.
+- `MermaidPipelineRenderer.boundaryClass` default case emits `"store"` styling for unexpected sink kinds. In practice only `STORE/PERSISTENCE/MESSAGING/EVENT_BUS` sinks become boundary nodes (they are the only kinds that produce `WorkflowLink` edges), so the default is unreachable.
+- `System.err.printf` timing diagnostics in `PipelineGraphBuilder` (lines 88–89, 98–99, 103–104) are the user's uncommitted working-tree changes (same as F-005 in Task 5). Preserved as-is.
+- Docs (`WORKFLOW_GRAPHS.md`, `llms.txt`, `TOOLS.md`) are consistent with code.
+
 ### Task 4 — Model / Cache / Graph
 
 - `F-003` `[fixed]` `severity=P2`
@@ -446,6 +458,13 @@ Use this format:
 - Command: `mvn test`
 - Expected: PASS
 - Actual: BUILD SUCCESS — Tests run: 387, Failures: 0, Errors: 0, Skipped: 0 (6.431 s)
+- Result: PASS
+
+### Task 6 — Workflow and Pipeline test run
+
+- Command: `mvn -Dtest='dev.dominikbreu.spoonmcp.workflow.*Test,dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilderTest,dev.dominikbreu.spoonmcp.mcp.tools.RenderPipelineToolTest,dev.dominikbreu.spoonmcp.renderer.PipelineRendererIntegrationTest' test`
+- Expected: PASS
+- Actual: BUILD SUCCESS — Tests run: 33, Failures: 0, Errors: 0, Skipped: 0 (2.301 s)
 - Result: PASS
 
 ### Task 5 — Build / Scanner / Extractor test run
