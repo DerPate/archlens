@@ -164,18 +164,63 @@ public class RenderPipelineTool {
 
     private String diagnostic(ArchitectureModel model) {
         int totalPaths = model.dataFlowPaths.size();
-        int linked = 0;
-        for (DataFlowPath p : model.dataFlowPaths) {
-            for (DataFlowSink s : p.sinks) {
-                if (s.linkedPathIds != null && !s.linkedPathIds.isEmpty()) {
-                    linked++;
-                    break;
-                }
+        int linkedPaths = 0;
+        int messagingSinks = 0;
+        int unresolvedMessaging = 0;
+        int persistenceWrites = 0;
+        int persistenceReads = 0;
+        java.util.Set<String> consumerTopics = new java.util.LinkedHashSet<>();
+
+        for (Entrypoint ep : model.entrypoints) {
+            if ((ep.type == EntrypointType.MESSAGING_CONSUMER || ep.type == EntrypointType.JMS_CONSUMER)
+                    && ep.channelName != null
+                    && !ep.channelName.isBlank()
+                    && !"(unresolved)".equals(ep.channelName)) {
+                consumerTopics.add(ep.channelName);
             }
         }
-        return "No pipeline chains: " + totalPaths + " data-flow path(s) present, "
-                + linked + " carry linkedPathIds. Either no path links to another (e.g. channel "
-                + "names unresolved or no consumer indexed for the produced channel), or store/messaging "
-                + "stitching in DataFlowTracer found no matching readers/consumers.";
+
+        for (DataFlowPath path : model.dataFlowPaths) {
+            boolean pathLinked = false;
+            for (DataFlowSink sink : path.sinks) {
+                if (sink.linkedPathIds != null && !sink.linkedPathIds.isEmpty()) {
+                    pathLinked = true;
+                }
+                if (sink.kind == DataFlowSink.Kind.MESSAGING || sink.kind == DataFlowSink.Kind.EVENT_BUS) {
+                    messagingSinks++;
+                    String destination = sink.topic != null ? sink.topic : sink.channel;
+                    if (destination == null || destination.isBlank() || destination.contains("${") || "(unresolved)".equals(destination)) {
+                        unresolvedMessaging++;
+                    }
+                }
+                if (sink.kind == DataFlowSink.Kind.PERSISTENCE && isWriteOperation(sink.repositoryOperation)) {
+                    persistenceWrites++;
+                }
+                if (sink.kind == DataFlowSink.Kind.PERSISTENCE && isReadOperation(sink.repositoryOperation)) {
+                    persistenceReads++;
+                }
+            }
+            if (pathLinked) linkedPaths++;
+        }
+
+        return "No pipeline chains:\n"
+                + "- data-flow path(s): " + totalPaths + "\n"
+                + "- path(s) with linked sinks: " + linkedPaths + "\n"
+                + "- messaging sink(s): " + messagingSinks + "\n"
+                + "- unresolved messaging destination(s): " + unresolvedMessaging + "\n"
+                + "- consumer topic(s): " + consumerTopics.size() + "\n"
+                + "- persistence write sink(s): " + persistenceWrites + "\n"
+                + "- persistence read sink(s): " + persistenceReads + "\n"
+                + "Re-index after improving topic/property resolution or repository handoff metadata.";
+    }
+
+    private boolean isWriteOperation(String method) {
+        if (method == null) return false;
+        return method.startsWith("save") || method.startsWith("delete");
+    }
+
+    private boolean isReadOperation(String method) {
+        if (method == null) return false;
+        return method.startsWith("find") || method.startsWith("get") || method.startsWith("read") || method.startsWith("exists");
     }
 }
