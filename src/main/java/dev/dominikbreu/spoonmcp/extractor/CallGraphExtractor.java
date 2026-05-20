@@ -118,6 +118,36 @@ public class CallGraphExtractor {
     }
 
     /**
+     * One-pass method scan: collects all invocations in source order and records, at
+     * each invocation site, which local names have been reassigned (killed) prior to that point.
+     * Replaces the prior {@code computeKilledSnapshots} + 4 separate {@code getElements}
+     * traversals with a single walk of the method body.
+     */
+    private record MethodScan(
+            List<CtInvocation<?>> invocations,
+            Map<CtInvocation<?>, Set<String>> killedSnapshots) {}
+
+    private static MethodScan scanMethod(CtMethod<?> method) {
+        List<CtInvocation<?>> invocations = new ArrayList<>();
+        Map<CtInvocation<?>, Set<String>> snapshots = new java.util.IdentityHashMap<>();
+        Set<String> killed = new LinkedHashSet<>();
+        for (var element : method.getElements(new TypeFilter<>(spoon.reflect.declaration.CtElement.class))) {
+            if (element instanceof CtInvocation<?> inv) {
+                snapshots.put(inv, new LinkedHashSet<>(killed));
+                invocations.add(inv);
+            } else if (element instanceof CtAssignment<?, ?> assign
+                    && assign.getAssignment() instanceof CtInvocation<?>
+                    && assign.getAssigned() instanceof CtVariableWrite<?> vw) {
+                killed.add(vw.getVariable().getSimpleName());
+            } else if (element instanceof CtLocalVariable<?> lv
+                    && lv.getDefaultExpression() instanceof CtInvocation<?>) {
+                killed.add(lv.getSimpleName());
+            }
+        }
+        return new MethodScan(invocations, snapshots);
+    }
+
+    /**
      * Extracts call edges from the supplied Spoon model and appends them to
      * {@code model.callEdges}.
      *
@@ -132,7 +162,9 @@ public class CallGraphExtractor {
             bySimpleName.put(c.name, c);
         }
 
-        Set<String> existingIds = model.callEdges.stream().map(e -> e.id).collect(Collectors.toSet());
+        Set<String> callEdgeIds = model.callEdges.stream().map(e -> e.id).collect(Collectors.toSet());
+        Set<String> outboundSinkIds = model.outboundSinkSites.stream().map(s -> s.id).collect(Collectors.toSet());
+        Set<String> fieldAccessIds = model.fieldAccesses.stream().map(s -> s.id).collect(Collectors.toSet());
 
         Map<String, List<String>> entrypointParams = buildEntrypointParamMap(model);
 
@@ -148,10 +180,11 @@ public class CallGraphExtractor {
                     type.getMethods().stream().map(CtMethod::getSimpleName).collect(Collectors.toSet());
 
             for (CtMethod<?> method : type.getMethods()) {
-                extractFromMethod(method, fromComp, fieldToComp, model, existingIds);
-                extractIntraComponentCalls(method, fromComp, ownMethodNames, model, existingIds);
-                extractFieldAccesses(method, fromComp, sharedStateFields, model);
-                extractOutboundSinkSites(method, fromComp, model);
+                MethodScan scan = scanMethod(method);
+                extractFromMethod(scan, method, fromComp, fieldToComp, model, callEdgeIds, byId);
+                extractIntraComponentCalls(scan, method, fromComp, ownMethodNames, model, callEdgeIds);
+                extractFieldAccesses(scan, method, fromComp, sharedStateFields, model, fieldAccessIds);
+                extractOutboundSinkSites(scan, method, fromComp, model, outboundSinkIds);
                 enrichEntrypointParameters(method, fromId, entrypointParams, model);
             }
         }
@@ -193,8 +226,13 @@ public class CallGraphExtractor {
     }
 
     private void extractFieldAccesses(
-            CtMethod<?> method, Component fromComp, Set<String> sharedStateFields, ArchitectureModel model) {
-        extractAccessorChainFieldAccesses(method, fromComp, model);
+            MethodScan scan,
+            CtMethod<?> method,
+            Component fromComp,
+            Set<String> sharedStateFields,
+            ArchitectureModel model,
+            Set<String> fieldAccessIds) {
+        extractAccessorChainFieldAccesses(scan, method, fromComp, model, fieldAccessIds);
         if (sharedStateFields.isEmpty()) return;
         String methodName = method.getSimpleName();
 
@@ -212,7 +250,7 @@ public class CallGraphExtractor {
                     FieldAccess.Kind.WRITE, fromComp, methodName, fieldName, srcVar, srcField, assign.getPosition()));
         }
 
-        for (CtInvocation<?> inv : method.getElements(new TypeFilter<>(CtInvocation.class))) {
+        for (CtInvocation<?> inv : scan.invocations()) {
             if (!(inv.getTarget() instanceof CtFieldAccess<?> fa)) continue;
             String fieldName = fa.getVariable().getSimpleName();
             if (!sharedStateFields.contains(fieldName)) continue;
@@ -270,10 +308,10 @@ public class CallGraphExtractor {
         return fa;
     }
 
-    private void extractAccessorChainFieldAccesses(CtMethod<?> method, Component fromComp, ArchitectureModel model) {
+    private void extractAccessorChainFieldAccesses(
+            MethodScan scan, CtMethod<?> method, Component fromComp, ArchitectureModel model, Set<String> fieldAccessIds) {
         String methodName = method.getSimpleName();
-        Set<String> existingIds = model.fieldAccesses.stream().map(access -> access.id).collect(Collectors.toSet());
-        for (CtInvocation<?> inv : method.getElements(new TypeFilter<>(CtInvocation.class))) {
+        for (CtInvocation<?> inv : scan.invocations()) {
             String terminalMethod = inv.getExecutable().getSimpleName();
             FieldAccess.Kind kind;
             if (WRITE_METHODS.contains(terminalMethod)) {
@@ -296,7 +334,7 @@ public class CallGraphExtractor {
                     continue;
                 }
                 FieldAccess access = buildAccessorAccess(kind, fromComp, methodName, owner, fieldName, inv);
-                if (existingIds.add(access.id)) {
+                if (fieldAccessIds.add(access.id)) {
                     model.fieldAccesses.add(access);
                 }
             }
@@ -351,13 +389,14 @@ public class CallGraphExtractor {
      * the intermediate hop is a private method that the field-read filter would skip.
      */
     private void extractIntraComponentCalls(
+            MethodScan scan,
             CtMethod<?> method,
             Component fromComp,
             Set<String> ownMethodNames,
             ArchitectureModel model,
             Set<String> existingIds) {
         String fromMethod = method.getSimpleName();
-        for (CtInvocation<?> inv : method.getElements(new TypeFilter<>(CtInvocation.class))) {
+        for (CtInvocation<?> inv : scan.invocations()) {
             if (inv.getTarget() instanceof CtFieldRead<?>) continue; // cross-component, handled elsewhere
             if (inv.getTarget() instanceof CtTypeAccess<?>) continue; // static call
             String toMethod = inv.getExecutable().getSimpleName();
@@ -392,19 +431,20 @@ public class CallGraphExtractor {
     }
 
     private void extractFromMethod(
+            MethodScan scan,
             CtMethod<?> method,
             Component fromComp,
             Map<String, Component> fieldToComp,
             ArchitectureModel model,
-            Set<String> existingIds) {
+            Set<String> existingIds,
+            Map<String, Component> byId) {
         String fromMethod = method.getSimpleName();
-        Map<CtInvocation<?>, Set<String>> killedSnapshots = computeKilledSnapshots(method);
 
-        for (CtInvocation<?> inv : method.getElements(new TypeFilter<>(CtInvocation.class))) {
+        for (CtInvocation<?> inv : scan.invocations()) {
             List<ReceiverTarget> receiverTargets = objectFlowIndex.resolveReceiver(inv);
             if (!receiverTargets.isEmpty()) {
                 for (ReceiverTarget target : receiverTargets) {
-                    Component toComp = byComponentId(model, target.componentId());
+                    Component toComp = byId.get(target.componentId());
                     if (toComp == null || toComp.id.equals(fromComp.id)) continue;
                     emitCallEdge(
                             inv,
@@ -417,7 +457,7 @@ public class CallGraphExtractor {
                             target.expansionCapped(),
                             model,
                             existingIds,
-                            killedSnapshots.get(inv));
+                            scan.killedSnapshots().get(inv));
                 }
                 continue;
             }
@@ -440,7 +480,7 @@ public class CallGraphExtractor {
                     false,
                     model,
                     existingIds,
-                    killedSnapshots.get(inv),
+                    scan.killedSnapshots().get(inv),
                     callKind);
         }
     }
@@ -506,31 +546,6 @@ public class CallGraphExtractor {
         emitCallerSideFieldReadIfGetter(inv, fromComp, fromMethod, toComp, model);
     }
 
-    /**
-     * Walks the method body in source order and snapshots, at every CtInvocation, which
-     * caller-method local names have been reassigned (via another invocation result or
-     * cross-component call) prior to that point. The snapshot is consumed when emitting
-     * the corresponding cross-component {@link CallEdge}.
-     */
-    private Map<CtInvocation<?>, Set<String>> computeKilledSnapshots(CtMethod<?> method) {
-        Map<CtInvocation<?>, Set<String>> snapshots = new java.util.IdentityHashMap<>();
-        Set<String> killed = new LinkedHashSet<>();
-        for (var element : method.getElements(new TypeFilter<>(spoon.reflect.declaration.CtElement.class))) {
-            if (element instanceof CtInvocation<?> inv) {
-                snapshots.put(inv, new LinkedHashSet<>(killed));
-            } else if (element instanceof CtAssignment<?, ?> assign
-                    && assign.getAssignment() instanceof CtInvocation<?>
-                    && assign.getAssigned() instanceof CtVariableWrite<?> vw) {
-                killed.add(vw.getVariable().getSimpleName());
-            } else if (element instanceof CtLocalVariable<?> lv
-                    && lv.getDefaultExpression() instanceof CtInvocation<?>) {
-                // a fresh local declaration shadows any prior name — same effect for tracker.
-                killed.add(lv.getSimpleName());
-            }
-        }
-        return snapshots;
-    }
-
     private String resolveAssignedToVar(CtInvocation<?> inv) {
         var parent = inv.getParent();
         if (parent instanceof CtLocalVariable<?> lv) {
@@ -542,12 +557,11 @@ public class CallGraphExtractor {
         return null;
     }
 
-    private void extractOutboundSinkSites(CtMethod<?> method, Component fromComp, ArchitectureModel model) {
+    private void extractOutboundSinkSites(
+            MethodScan scan, CtMethod<?> method, Component fromComp, ArchitectureModel model, Set<String> existingIds) {
         String methodName = method.getSimpleName();
-        Set<String> existingIds =
-                model.outboundSinkSites.stream().map(s -> s.id).collect(Collectors.toSet());
         int index = 0;
-        for (CtInvocation<?> inv : method.getElements(new TypeFilter<>(CtInvocation.class))) {
+        for (CtInvocation<?> inv : scan.invocations()) {
             var declaringType = inv.getExecutable().getDeclaringType();
             if (declaringType == null) continue;
             String qn = declaringType.getQualifiedName();

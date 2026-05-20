@@ -3,6 +3,11 @@ package dev.dominikbreu.spoonmcp.cache;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import tools.jackson.databind.SerializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -13,6 +18,8 @@ public class ModelCache {
 
     private static final String DEFAULT_CACHE_DIR = ".spoon-mcp-cache";
     private static final String MODEL_FILE = "architecture-model.json";
+    private static final String WORKSPACES_DIR = "workspaces";
+    private static final String ACTIVE_WORKSPACE_FILE = "active-workspace.txt";
     private static final String BACKEND_PROPERTY = "spoonmcp.cache.backend";
     private static final String BACKEND_ENV = "SPOON_MCP_CACHE_BACKEND";
 
@@ -59,14 +66,30 @@ public class ModelCache {
      */
     public void store(ArchitectureModel model) throws IOException {
         this.current = model;
-        File dir = new File(cacheDir);
+        File dir = workspaceDir(model);
         if (!dir.exists() && !dir.mkdirs()) {
             throw new IOException("Failed to create cache directory: " + dir.getAbsolutePath());
         }
         mapper.writeValue(new File(dir, MODEL_FILE), model);
+        writeActiveWorkspace(workspaceKey(model));
         if (backend == CacheBackend.GRAPH) {
             graph.rebuild(model);
         }
+    }
+
+    /**
+     * Clears the active in-memory and on-disk workspace pointer.
+     *
+     * <p>Previously stored workspace snapshots remain available on disk, but
+     * subsequent tool calls will not accidentally operate on an older project
+     * after a new index attempt fails.</p>
+     *
+     * @throws IOException if the active pointer cannot be removed
+     */
+    public void clearActive() throws IOException {
+        this.current = null;
+        graph.rebuild(null);
+        Files.deleteIfExists(activeWorkspaceFile().toPath());
     }
 
     /**
@@ -77,7 +100,9 @@ public class ModelCache {
      */
     public ArchitectureModel load() throws IOException {
         if (current != null) return current;
-        File f = new File(cacheDir, MODEL_FILE);
+        String key = readActiveWorkspace();
+        if (key == null) return null;
+        File f = new File(new File(new File(cacheDir, WORKSPACES_DIR), key), MODEL_FILE);
         if (f.exists()) {
             current = mapper.readValue(f, ArchitectureModel.class);
             if (backend == CacheBackend.GRAPH) {
@@ -141,6 +166,55 @@ public class ModelCache {
      */
     public String getCacheDir() {
         return cacheDir;
+    }
+
+    private File workspaceDir(ArchitectureModel model) {
+        return new File(new File(cacheDir, WORKSPACES_DIR), workspaceKey(model));
+    }
+
+    private String workspaceKey(ArchitectureModel model) {
+        String workspacePath = model != null && model.workspacePath != null ? model.workspacePath : "unknown";
+        String hash = sha256(workspacePath).substring(0, 16);
+        String suffix = workspacePath.replace('\\', '/');
+        int slash = suffix.lastIndexOf('/');
+        if (slash >= 0 && slash < suffix.length() - 1) {
+            suffix = suffix.substring(slash + 1);
+        }
+        suffix = suffix.replaceAll("[^A-Za-z0-9._-]+", "-");
+        if (suffix.isBlank()) {
+            suffix = "workspace";
+        }
+        return hash + "-" + suffix;
+    }
+
+    private void writeActiveWorkspace(String key) throws IOException {
+        File dir = new File(cacheDir);
+        if (!dir.exists() && !dir.mkdirs()) {
+            throw new IOException("Failed to create cache directory: " + dir.getAbsolutePath());
+        }
+        Files.writeString(activeWorkspaceFile().toPath(), key, StandardCharsets.UTF_8);
+    }
+
+    private String readActiveWorkspace() throws IOException {
+        File active = activeWorkspaceFile();
+        if (!active.exists()) {
+            return null;
+        }
+        String key = Files.readString(active.toPath(), StandardCharsets.UTF_8).trim();
+        return key.isBlank() ? null : key;
+    }
+
+    private File activeWorkspaceFile() {
+        return new File(cacheDir, ACTIVE_WORKSPACE_FILE);
+    }
+
+    private static String sha256(String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is not available", e);
+        }
     }
 
     private static CacheBackend configuredBackend() {
