@@ -557,8 +557,23 @@ typed workflow links derived from `DataFlowSink.linkedPathIds` — i.e. channel
 names and field names must be resolvable from source. When a sink carries no
 `linkedPathIds` the diagram ends at that sink node and no forwarding arc is drawn;
 this is correct behaviour, not a rendering error. When no chains are found at all
-the tool returns a single-line diagnostic explaining how many paths exist and
-how many carry `linkedPathIds`.
+the tool returns a structured diagnostic with counts for data-flow paths, linked
+sinks, messaging sinks, unresolved destinations, consumer topics, persistence
+writes, and persistence reads.
+
+Spring pipeline stitching supports these handoff kinds:
+
+- `MESSAGING`: source-derived Spring messaging producers such as `KafkaTemplate.send(...)`
+  are linked to `@KafkaListener` / `@RabbitListener` / `@JmsListener` entrypoints when
+  broker and destination match after Spring config placeholder resolution.
+- `STATE_HANDOFF`: shared-field writes are linked to downstream entrypoints that read the
+  same `(fieldOwnerComponentId, fieldName)` pair.
+- `PERSISTENCE_HANDOFF`: repository write sinks such as `save*` / `delete*` are linked to
+  downstream repository read paths such as `find*` / `get*` / `exists*` when entity metadata
+  matches. These links carry lower confidence than direct messaging links.
+
+When no chains render, use the diagnostic counts to decide whether config resolution,
+producer extraction, or repository handoff metadata is missing.
 
 Example output sketch (single chain, two segments):
 
@@ -722,10 +737,11 @@ Edge labels:
   → channel → consumer) are made explicit in the graph.
 - `WORKFLOW_LINK` — DataFlowPath → DataFlowPath canonical workflow continuation
   edge produced by the shared workflow linker. Properties include `kind`
-  (`MESSAGING`, `EVENT_BUS`, `STATE_HANDOFF`), `confidence`, `fromEntrypointId`,
-  `toEntrypointId`, and where applicable `channel` / `viaChannel` or `fieldName` /
-  `viaField` / `fieldOwnerComponentId`. Prefer this over reconstructing pipelines
-  from raw `DataFlowSink.linkedPathIds`.
+  (`MESSAGING`, `EVENT_BUS`, `STATE_HANDOFF`, `PERSISTENCE_HANDOFF`), `confidence`,
+  `fromEntrypointId`, `toEntrypointId`, and where applicable `channel` / `viaChannel`
+  or `fieldName` / `viaField` / `fieldOwnerComponentId`. `PERSISTENCE_HANDOFF` links
+  additionally carry `entityType`, `repositoryOperation`, and `evidence`. Prefer this
+  over reconstructing pipelines from raw `DataFlowSink.linkedPathIds`.
 - `HAS_SEGMENT` — PipelineChain → DataFlowPath, one edge per segment.  Carries
   `segmentIndex` (0-based traversal order). For non-root segments it also carries
   `linkKind`, `incomingSinkId` (the upstream `DataFlowSink` vertex that bridged into
