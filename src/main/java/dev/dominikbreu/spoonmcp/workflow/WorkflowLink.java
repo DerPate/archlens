@@ -12,11 +12,15 @@ public record WorkflowLink(
         String channel,
         String fieldOwnerComponentId,
         String fieldName,
+        String entityType,
+        String repositoryOperation,
+        String evidence,
         double confidence) {
 
     public enum Kind {
         MESSAGING,
         EVENT_BUS,
-        STATE_HANDOFF
+        STATE_HANDOFF,
+        PERSISTENCE_HANDOFF
     }
 }
