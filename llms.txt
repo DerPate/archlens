@@ -196,6 +196,12 @@ Prompts are workflow templates for clients and agents; they do not replace tools
 - Prefer `WORKFLOW_LINK` over reconstructing pipelines from raw `linkedPathIds`.
   `WORKFLOW_LINK` is the canonical query edge for messaging/event-bus/state-handoff
   continuation between `DataFlowPath` nodes.
+- Pipeline rendering is evidence-driven. Prefer `WORKFLOW_LINK` edges over reconstructing
+  chains manually. For Spring projects, `MESSAGING` links come from producer sink metadata
+  (`KafkaTemplate.send`, listener topic resolution) and `PERSISTENCE_HANDOFF` links come
+  from repository write/read entity matching. If `render_pipeline` returns diagnostics
+  instead of Mermaid, inspect unresolved messaging destinations and persistence write/read
+  counts first.
 - Plain Java object flow is source-derived through `ObjectFlowIndex`. Prefer call edges
   with `receiverEvidence` and `receiverConfidence` over guessing from class names.
   Polymorphic receiver expansion is capped at 25 implementation targets by default; if
