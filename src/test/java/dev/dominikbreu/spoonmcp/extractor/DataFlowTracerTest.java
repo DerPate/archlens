@@ -840,6 +840,58 @@ class DataFlowTracerTest {
         });
     }
 
+    // ── G8: messaging link by normalized broker/topic ────────────────────────────
+
+    @Test
+    void linksMessagingSinkToConsumerPathByNormalizedTopic() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("Publisher", ComponentType.SERVICE));
+        model.components.add(comp("Consumer", ComponentType.MESSAGE_DRIVEN_BEAN));
+
+        Entrypoint publisherEp = new Entrypoint();
+        publisherEp.id = "ep:publish";
+        publisherEp.name = "publish";
+        publisherEp.type = EntrypointType.REST_ENDPOINT;
+        publisherEp.componentId = "comp:Publisher";
+        publisherEp.parameters.add("order");
+        model.entrypoints.add(publisherEp);
+
+        Entrypoint consumerEp = new Entrypoint();
+        consumerEp.id = "ep:consume";
+        consumerEp.name = "consume";
+        consumerEp.type = EntrypointType.MESSAGING_CONSUMER;
+        consumerEp.componentId = "comp:Consumer";
+        consumerEp.channelName = "orders.created";
+        consumerEp.broker = MessagingBroker.KAFKA;
+        consumerEp.parameters.add("order");
+        model.entrypoints.add(consumerEp);
+
+        OutboundSinkSite site = new OutboundSinkSite();
+        site.id = "outbound:publish";
+        site.kind = DataFlowSink.Kind.MESSAGING;
+        site.componentId = "comp:Publisher";
+        site.method = "publish";
+        site.channel = "orders.created";
+        site.topic = "orders.created";
+        site.broker = MessagingBroker.KAFKA;
+        site.payloadVarName = "order";
+        model.outboundSinkSites.add(site);
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        DataFlowPath publishPath = paths.stream()
+                .filter(path -> path.entrypointId.equals("ep:publish"))
+                .findFirst()
+                .orElseThrow();
+        DataFlowPath consumePath = paths.stream()
+                .filter(path -> path.entrypointId.equals("ep:consume"))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(publishPath.sinks)
+                .anySatisfy(sink -> assertThat(sink.linkedPathIds).contains(consumePath.id));
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────────
 
     private static ArchitectureModel buildModel() {

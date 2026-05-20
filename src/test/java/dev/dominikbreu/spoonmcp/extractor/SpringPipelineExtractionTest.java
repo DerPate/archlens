@@ -32,6 +32,19 @@ class SpringPipelineExtractionTest extends ExtractorTestBase {
     }
 
     @Test
+    void springPipelineSampleProducesWorkflowLinkAcrossKafkaTopic() {
+        ArchitectureModel model = new ArchitectureExtractor().extract(List.of(projectPath("spring-pipeline-sample")));
+
+        assertThat(model.dataFlowPaths)
+                .anySatisfy(path -> assertThat(path.sinks)
+                        .anySatisfy(sink -> {
+                            assertThat(sink.kind).isEqualTo(DataFlowSink.Kind.MESSAGING);
+                            assertThat(sink.topic).isEqualTo("orders.created");
+                            assertThat(sink.linkedPathIds).isNotEmpty();
+                        }));
+    }
+
+    @Test
     void listenerEntrypointsUseResolvedTopicNames() {
         ArchitectureModel model = new ArchitectureExtractor().extract(List.of(projectPath("spring-pipeline-sample")));
 
