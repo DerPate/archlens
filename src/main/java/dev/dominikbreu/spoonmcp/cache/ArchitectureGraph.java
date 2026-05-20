@@ -549,6 +549,9 @@ public class ArchitectureGraph {
                 props.put("fieldName", link.fieldName());
                 props.put("viaField", link.fieldName());
             }
+            if (link.entityType() != null) props.put("entityType", link.entityType());
+            if (link.repositoryOperation() != null) props.put("repositoryOperation", link.repositoryOperation());
+            if (link.evidence() != null) props.put("evidence", link.evidence());
             addEdge(link.fromPathId(), link.toPathId(), "WORKFLOW_LINK", props);
         }
     }

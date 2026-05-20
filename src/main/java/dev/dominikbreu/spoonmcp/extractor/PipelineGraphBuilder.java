@@ -214,6 +214,7 @@ public class PipelineGraphBuilder {
             if (link.kind() == WorkflowLink.Kind.MESSAGING && sink.kind == DataFlowSink.Kind.MESSAGING) return sink;
             if (link.kind() == WorkflowLink.Kind.EVENT_BUS && sink.kind == DataFlowSink.Kind.EVENT_BUS) return sink;
             if (link.kind() == WorkflowLink.Kind.STATE_HANDOFF && sink.kind == DataFlowSink.Kind.STORE) return sink;
+            if (link.kind() == WorkflowLink.Kind.PERSISTENCE_HANDOFF && sink.kind == DataFlowSink.Kind.PERSISTENCE) return sink;
         }
         return null;
     }

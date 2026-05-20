@@ -221,4 +221,26 @@ class PipelineRendererIntegrationTest {
                 .as("'Scheduler.tick' node must appear exactly once — no duplicate header")
                 .isEqualTo(1);
     }
+
+    @Test
+    void rendersPersistenceHandoffBoundary() {
+        ArchitectureModel model = buildModel();
+        DataFlowSink persistence = new DataFlowSink();
+        persistence.kind = DataFlowSink.Kind.PERSISTENCE;
+        persistence.componentId = "comp:Repo";
+        persistence.componentName = "Repo";
+        persistence.method = "save";
+        persistence.entityType = "com.example.Order";
+        persistence.repositoryOperation = "save";
+        persistence.linkEvidence = "repository-entity-match";
+        persistence.linkedPathIds.add("df:schedule");
+        model.dataFlowPaths.get(0).sinks.clear();
+        model.dataFlowPaths.get(0).sinks.add(persistence);
+
+        PipelineGraphBuilder.Chain chain = new PipelineGraphBuilder().build(model, 8).getFirst();
+        String mermaid = new MermaidPipelineRenderer().render(chain, model);
+
+        assertThat(mermaid).contains("com.example.Order");
+        assertThat(mermaid).containsPattern("\\[\\(\"com\\.example\\.Order\"\\)]");
+    }
 }
