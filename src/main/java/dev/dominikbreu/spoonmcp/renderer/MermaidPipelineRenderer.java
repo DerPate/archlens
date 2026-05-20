@@ -180,7 +180,7 @@ public class MermaidPipelineRenderer {
     private String boundaryShape(DataFlowSink sink, String label) {
         String safe = escape(label);
         return switch (sink.kind) {
-            case STORE -> "[(\"" + safe + "\")]";
+            case STORE, PERSISTENCE -> "[(\"" + safe + "\")]";
             case EVENT_BUS -> "((\"" + safe + "\"))";
             case MESSAGING -> "(\"" + safe + "\")";
             default -> "[\"" + safe + "\"]";
@@ -197,6 +197,9 @@ public class MermaidPipelineRenderer {
         if (sink.kind == DataFlowSink.Kind.MESSAGING || sink.kind == DataFlowSink.Kind.EVENT_BUS) {
             return sink.channel != null ? sink.channel : "channel";
         }
+        if (sink.kind == DataFlowSink.Kind.PERSISTENCE) {
+            return sink.entityType != null ? sink.entityType : (sink.componentName != null ? sink.componentName : "?");
+        }
         return sink.componentName != null ? sink.componentName : sink.kind.value();
     }
 
@@ -205,6 +208,7 @@ public class MermaidPipelineRenderer {
             case STORE -> "store";
             case MESSAGING -> "messaging";
             case EVENT_BUS -> "eventbus";
+            case PERSISTENCE -> "persistence";
             default -> "store";
         };
     }

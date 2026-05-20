@@ -482,4 +482,45 @@ class ArchitectureGraphTest {
                         && "comp:DeviceStateDataService".equals(e.toId()));
         assertThat(hasServiceSelfEdge).isFalse();
     }
+
+    @Test
+    void workflowLinkEdgesExposePersistenceHandoffMetadata() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        DataFlowPath writer = new DataFlowPath();
+        writer.id = "df:writer";
+        writer.entrypointId = "ep:writer";
+        DataFlowSink sink = new DataFlowSink();
+        sink.kind = DataFlowSink.Kind.PERSISTENCE;
+        sink.entityType = "com.example.Order";
+        sink.repositoryOperation = "save";
+        sink.linkEvidence = "repository-entity-match";
+        sink.linkedPathIds.add("df:reader");
+        writer.sinks.add(sink);
+        DataFlowPath reader = new DataFlowPath();
+        reader.id = "df:reader";
+        reader.entrypointId = "ep:reader";
+        model.dataFlowPaths.add(writer);
+        model.dataFlowPaths.add(reader);
+        model.entrypoints.add(entrypoint("ep:writer", EntrypointType.REST_ENDPOINT));
+        model.entrypoints.add(entrypoint("ep:reader", EntrypointType.SCHEDULER));
+
+        ArchitectureGraph graph = new ArchitectureGraph();
+        graph.rebuild(model);
+
+        assertThat(graph.findEdges("WORKFLOW_LINK", Map.of("kind", "PERSISTENCE_HANDOFF"), 10))
+                .anySatisfy(edge -> {
+                    assertThat(edge.properties().get("entityType")).isEqualTo("com.example.Order");
+                    assertThat(edge.properties().get("repositoryOperation")).isEqualTo("save");
+                    assertThat(edge.properties().get("evidence")).isEqualTo("repository-entity-match");
+                });
+    }
+
+    private Entrypoint entrypoint(String id, EntrypointType type) {
+        Entrypoint e = new Entrypoint();
+        e.id = id;
+        e.name = id.substring(id.indexOf(':') + 1);
+        e.type = type;
+        e.componentId = "comp:" + e.name;
+        return e;
+    }
 }
