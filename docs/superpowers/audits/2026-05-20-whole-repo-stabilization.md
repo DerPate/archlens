@@ -394,9 +394,9 @@ Use this format:
 - `F-002` `[fixed]` `severity=P2`
   - Files: `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/DetectUseCasesTool.java` (lines 63–70)
   - Problem: `loadConfig` caught any exception from config file parsing and returned `null`, swallowing the cause. The caller then returned a generic "Error: could not load naming config. Check the configFile path." with no indication of what actually went wrong (e.g., FileNotFoundException vs. JSON parse error).
-  - Fix: Added `configLoadError` helper that captures the exception message; `execute` now surfaces it as "Error: could not load naming config — <cause>". `loadConfig` retains its signature for the success path.
+  - Fix: Added `configLoadError` helper that captures the exception message; `execute` now surfaces it as "Error: could not load naming config — <cause>". `loadConfig` retains its signature for the success path. Follow-up fix (2026-05-20): removed the double I/O by inlining config loading into `execute` — the config file is now loaded exactly once; the two helper methods (`configLoadError`, `loadConfig`) were replaced by a single try/catch block in `execute`.
   - Tests: `mvn -Dtest='dev.dominikbreu.spoonmcp.mcp.tools.*Test' test` — PASS (22 tests)
-  - Commit: fix: stabilize mcp tool layer
+  - Commit: fix: stabilize mcp tool layer; fix: load detect-use-cases config once instead of twice
 
 ## Test Evidence
 
