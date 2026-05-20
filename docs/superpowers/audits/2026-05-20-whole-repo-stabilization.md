@@ -115,31 +115,31 @@ Date: 2026-05-20
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/extractor/SpringConfigResolver.java`
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/extractor/SpringExtractor.java`
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/extractor/UseCaseDetector.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/Main.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/McpServer.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/DetectUseCasesTool.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/ExplainArchitectureTool.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/ExportArchitectureDocsTool.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/ExportGraphArchitecturePocTool.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/ExportLikeC4ModelTool.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/FindComponentsTool.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/FindEntrypointsTool.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/GetComponentDependenciesTool.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/GetRuntimeFlowTool.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/IndexWorkspaceTool.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/InferContainersTool.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/ListAppsTool.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/QueryArchitectureGraphTool.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderArchitectureViewTool.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderCallFlowTool.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderComponentDependencyDiagramTool.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderDependencyMapTool.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderMermaidFlowchartTool.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderPipelineTool.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderSourceOverviewTool.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderUseCaseTimelineTool.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/ToolArgs.java`
-- [ ] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/TraceDataFlowTool.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/Main.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/McpServer.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/DetectUseCasesTool.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/ExplainArchitectureTool.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/ExportArchitectureDocsTool.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/ExportGraphArchitecturePocTool.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/ExportLikeC4ModelTool.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/FindComponentsTool.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/FindEntrypointsTool.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/GetComponentDependenciesTool.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/GetRuntimeFlowTool.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/IndexWorkspaceTool.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/InferContainersTool.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/ListAppsTool.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/QueryArchitectureGraphTool.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderArchitectureViewTool.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderCallFlowTool.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderComponentDependencyDiagramTool.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderDependencyMapTool.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderMermaidFlowchartTool.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderPipelineTool.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderSourceOverviewTool.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderUseCaseTimelineTool.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/ToolArgs.java`
+- [x] `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/TraceDataFlowTool.java`
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/merger/AnsibleMerger.java`
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/merger/DeploymentMerger.java`
 - [ ] `src/main/java/dev/dominikbreu/spoonmcp/merger/DockerComposeMerger.java`
@@ -381,6 +381,22 @@ Use this format:
   - Fix:
   - Tests:
   - Commit:
+
+### Task 3 — MCP Tool Layer
+
+- `F-001` `[fixed]` `severity=P2`
+  - Files: `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/RenderPipelineTool.java` (lines 49–53, 65–68)
+  - Problem: Two `System.err.printf` timing diagnostics are left in production code. The MCP server uses stdio transport: stderr is the same fd used for protocol framing by many MCP hosts. Even where the host separates stderr, this pollutes diagnostic output on every `render_pipeline` call with timing noise that is not useful to the caller.
+  - Fix: Removed both `System.err.printf` calls and their surrounding timing variables (`t0`, `t1`).
+  - Tests: `mvn -Dtest='dev.dominikbreu.spoonmcp.mcp.tools.*Test' test` — PASS (22 tests)
+  - Commit: fix: stabilize mcp tool layer
+
+- `F-002` `[fixed]` `severity=P2`
+  - Files: `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/DetectUseCasesTool.java` (lines 63–70)
+  - Problem: `loadConfig` caught any exception from config file parsing and returned `null`, swallowing the cause. The caller then returned a generic "Error: could not load naming config. Check the configFile path." with no indication of what actually went wrong (e.g., FileNotFoundException vs. JSON parse error).
+  - Fix: Added `configLoadError` helper that captures the exception message; `execute` now surfaces it as "Error: could not load naming config — <cause>". `loadConfig` retains its signature for the success path.
+  - Tests: `mvn -Dtest='dev.dominikbreu.spoonmcp.mcp.tools.*Test' test` — PASS (22 tests)
+  - Commit: fix: stabilize mcp tool layer
 
 ## Test Evidence
 

@@ -40,8 +40,9 @@ public class DetectUseCasesTool {
             ArchitectureModel model = cache.load();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
 
+            String configError = configLoadError(args);
+            if (configError != null) return "Error: could not load naming config — " + configError;
             UseCaseNamingConfig config = loadConfig(args);
-            if (config == null) return "Error: could not load naming config. Check the configFile path.";
 
             String filterModule = ToolArgs.getString(args, "module");
             int maxDepth = ToolArgs.getInt(args, "maxDepth", 5);
@@ -60,13 +61,25 @@ public class DetectUseCasesTool {
         }
     }
 
+    /** Returns the error message if the config file cannot be loaded, or null on success. */
+    private String configLoadError(Map<String, Object> args) {
+        String configFile = ToolArgs.getString(args, "configFile");
+        if (configFile == null) return null;
+        try {
+            UseCaseNamingConfig.loadFrom(mapper, configFile);
+            return null;
+        } catch (Exception e) {
+            return e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+        }
+    }
+
     private UseCaseNamingConfig loadConfig(Map<String, Object> args) {
         String configFile = ToolArgs.getString(args, "configFile");
         if (configFile == null) return UseCaseNamingConfig.empty();
         try {
             return UseCaseNamingConfig.loadFrom(mapper, configFile);
         } catch (Exception e) {
-            return null;
+            return UseCaseNamingConfig.empty();
         }
     }
 
