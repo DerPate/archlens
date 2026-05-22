@@ -7,6 +7,11 @@ import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.workflow.WorkflowGraph;
 import dev.dominikbreu.spoonmcp.workflow.WorkflowGraphBuilder;
 import dev.dominikbreu.spoonmcp.workflow.WorkflowLink;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Scope;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -83,14 +88,65 @@ public class PipelineGraphBuilder {
         if (model == null || model.dataFlowPaths == null || model.dataFlowPaths.isEmpty()) {
             return List.of();
         }
-        WorkflowGraph workflowGraph = new WorkflowGraphBuilder().build(model);
+        Tracer t = tracer();
+        Span buildSpan = t.spanBuilder("pipeline.build").startSpan();
+        try (Scope buildScope = buildSpan.makeCurrent()) {
 
-        List<Chain> chains = new ArrayList<>();
-        for (DataFlowPath p : workflowGraph.rootPaths()) {
-            extend(new ArrayList<>(), p, null, null, workflowGraph, chains, maxDepth,
-                    new LinkedHashSet<>(), new LinkedHashSet<>());
+            WorkflowGraph workflowGraph;
+            Span wfSpan = t.spanBuilder("pipeline.workflow-graph").startSpan();
+            try (Scope scopeWf = wfSpan.makeCurrent()) {
+                workflowGraph = new WorkflowGraphBuilder().build(model);
+                wfSpan.setAttribute("roots", (long) workflowGraph.rootPaths().size());
+                wfSpan.setAttribute("links", (long) workflowGraph.totalLinks());
+            } catch (RuntimeException e) {
+                wfSpan.recordException(e);
+                wfSpan.setStatus(StatusCode.ERROR, e.getMessage());
+                throw e;
+            } finally {
+                wfSpan.end();
+            }
+
+            List<Chain> chains = new ArrayList<>();
+            Span dfsSpan = t.spanBuilder("pipeline.dfs").startSpan();
+            try (Scope scopeDfs = dfsSpan.makeCurrent()) {
+                for (DataFlowPath p : workflowGraph.rootPaths()) {
+                    extend(new ArrayList<>(), p, null, null, workflowGraph, chains, maxDepth,
+                            new LinkedHashSet<>(), new LinkedHashSet<>());
+                }
+                dfsSpan.setAttribute("raw-chains", (long) chains.size());
+            } catch (RuntimeException e) {
+                dfsSpan.recordException(e);
+                dfsSpan.setStatus(StatusCode.ERROR, e.getMessage());
+                throw e;
+            } finally {
+                dfsSpan.end();
+            }
+
+            List<Chain> result;
+            Span dedupSpan = t.spanBuilder("pipeline.dedup").startSpan();
+            try (Scope scopeDedup = dedupSpan.makeCurrent()) {
+                result = removeDuplicateChains(removePrefixChains(chains));
+                dedupSpan.setAttribute("final-chains", (long) result.size());
+            } catch (RuntimeException e) {
+                dedupSpan.recordException(e);
+                dedupSpan.setStatus(StatusCode.ERROR, e.getMessage());
+                throw e;
+            } finally {
+                dedupSpan.end();
+            }
+
+            return result;
+        } catch (RuntimeException e) {
+            buildSpan.recordException(e);
+            buildSpan.setStatus(StatusCode.ERROR, e.getMessage());
+            throw e;
+        } finally {
+            buildSpan.end();
         }
-        return removeDuplicateChains(removePrefixChains(chains));
+    }
+
+    private static Tracer tracer() {
+        return GlobalOpenTelemetry.getTracer("dev.dominikbreu.spoonmcp");
     }
 
     /**
