@@ -62,6 +62,7 @@ public class ArchitectureExtractor {
             try (Scope s1 = pass1.makeCurrent()) {
                 for (ModuleWork work : modules) {
                     CtModel ctModel = buildCtModel(work.module(), "pass1-scan");
+                    work.ctModel = ctModel;
                     Collection<CtType<?>> types = ctModel.getAllTypes();
                     String tech = detectTechnology(types, work.module());
                     work.app().technology = tech;
@@ -86,14 +87,18 @@ public class ArchitectureExtractor {
                 pass1.end();
             }
 
-            // Phase 2: full extraction with complete component registry, one CtModel at a time
-            Span pass2 = t.spanBuilder("pass2-callgraph").startSpan();
+            // Phase 2: enrich the component registry using the pass-1 Spoon models.
+            Span pass2 = t.spanBuilder("pass2-enrichment").startSpan();
             try (Scope s2 = pass2.makeCurrent()) {
                 for (ModuleWork work : modules) {
-                    CtModel ctModel = buildCtModel(work.module(), "pass2-callgraph");
-                    dependencyExtractor.extract(ctModel, model);
+                    CtModel ctModel = work.ctModel;
+                    if (ctModel == null) {
+                        ctModel = buildCtModel(work.module(), "pass2-enrichment");
+                    }
+                    extractDependencies(ctModel, model, work.module());
                     ObjectFlowIndex objectFlowIndex = new ObjectFlowIndexBuilder().build(ctModel, model);
                     new CallGraphExtractor(objectFlowIndex).extract(ctModel, model);
+                    work.ctModel = null;
                 }
                 pass2.setAttribute("modules", (long) modules.size());
             } catch (RuntimeException e) {
@@ -177,7 +182,39 @@ public class ArchitectureExtractor {
         }
     }
 
-    private record ModuleWork(AppEntry app, BuildModule module) {}
+    private void extractDependencies(CtModel ctModel, ArchitectureModel model, BuildModule module) {
+        Span span = tracer().spanBuilder("dependency.extract")
+                .setAttribute("module", module.name())
+                .startSpan();
+        try (Scope scope = span.makeCurrent()) {
+            dependencyExtractor.extract(ctModel, model);
+        } catch (RuntimeException e) {
+            span.recordException(e);
+            span.setStatus(StatusCode.ERROR, e.getMessage());
+            throw e;
+        } finally {
+            span.end();
+        }
+    }
+
+    private static final class ModuleWork {
+        private final AppEntry app;
+        private final BuildModule module;
+        private CtModel ctModel;
+
+        private ModuleWork(AppEntry app, BuildModule module) {
+            this.app = app;
+            this.module = module;
+        }
+
+        private AppEntry app() {
+            return app;
+        }
+
+        private BuildModule module() {
+            return module;
+        }
+    }
 
     private List<ModuleWork> collectAllModules(List<String> projectPaths, ArchitectureModel model) {
         List<ModuleWork> result = new ArrayList<>();
