@@ -136,26 +136,34 @@ public class CallGraphExtractor {
      */
     private record MethodScan(
             List<CtInvocation<?>> invocations,
-            Map<CtInvocation<?>, Set<String>> killedSnapshots) {}
+            Map<CtInvocation<?>, Set<String>> killedSnapshots,
+            List<CtAssignment<?, ?>> assignments,
+            List<CtFieldRead<?>> fieldReads) {}
 
     private static MethodScan scanMethod(CtMethod<?> method) {
         List<CtInvocation<?>> invocations = new ArrayList<>();
         Map<CtInvocation<?>, Set<String>> snapshots = new java.util.IdentityHashMap<>();
+        List<CtAssignment<?, ?>> assignments = new ArrayList<>();
+        List<CtFieldRead<?>> fieldReads = new ArrayList<>();
         Set<String> killed = new LinkedHashSet<>();
         for (var element : method.getElements(new TypeFilter<>(spoon.reflect.declaration.CtElement.class))) {
             if (element instanceof CtInvocation<?> inv) {
                 snapshots.put(inv, new LinkedHashSet<>(killed));
                 invocations.add(inv);
-            } else if (element instanceof CtAssignment<?, ?> assign
-                    && assign.getAssignment() instanceof CtInvocation<?>
-                    && assign.getAssigned() instanceof CtVariableWrite<?> vw) {
-                killed.add(vw.getVariable().getSimpleName());
+            } else if (element instanceof CtAssignment<?, ?> assign) {
+                assignments.add(assign);
+                if (assign.getAssignment() instanceof CtInvocation<?>
+                        && assign.getAssigned() instanceof CtVariableWrite<?> vw) {
+                    killed.add(vw.getVariable().getSimpleName());
+                }
+            } else if (element instanceof CtFieldRead<?> read) {
+                fieldReads.add(read);
             } else if (element instanceof CtLocalVariable<?> lv
                     && lv.getDefaultExpression() instanceof CtInvocation<?>) {
                 killed.add(lv.getSimpleName());
             }
         }
-        return new MethodScan(invocations, snapshots);
+        return new MethodScan(invocations, snapshots, assignments, fieldReads);
     }
 
     /**
@@ -168,36 +176,29 @@ public class CallGraphExtractor {
     public void extract(CtModel ctModel, ArchitectureModel model) {
         Span span = tracer().spanBuilder("callgraph.extract").startSpan();
         try (Scope scope = span.makeCurrent()) {
-            Map<String, Component> byId = new HashMap<>();
-            Map<String, Component> bySimpleName = new LinkedHashMap<>();
-            for (Component c : model.components) {
-                byId.put(c.id, c);
-                bySimpleName.put(c.name, c);
-            }
-
-            Set<String> callEdgeIds = model.callEdges.stream().map(e -> e.id).collect(Collectors.toSet());
-            Set<String> outboundSinkIds = model.outboundSinkSites.stream().map(s -> s.id).collect(Collectors.toSet());
-            Set<String> fieldAccessIds = model.fieldAccesses.stream().map(s -> s.id).collect(Collectors.toSet());
-
+            ExtractionContext ctx = new ExtractionContext(ComponentIndex.build(model.components));
+            model.callEdges.forEach(edge -> ctx.addSeenId(edge.id));
+            model.outboundSinkSites.forEach(site -> ctx.addSeenId(site.id));
+            model.fieldAccesses.forEach(access -> ctx.addSeenId(access.id));
             Map<String, List<String>> entrypointParams = buildEntrypointParamMap(model);
 
             for (CtType<?> type : ctModel.getAllTypes()) {
                 String fromId = "comp:" + type.getQualifiedName();
-                Component fromComp = byId.get(fromId);
+                Component fromComp = ctx.components.get(fromId);
                 if (fromComp == null) continue;
 
-                Map<String, Component> fieldToComp = buildFieldMap(type, fromId, byId, bySimpleName);
-                Set<String> sharedStateFields = buildSharedStateFieldSet(type);
+                Map<String, Component> fieldToComp = buildFieldMap(type, fromId, ctx);
+                Set<String> sharedStateFields = ctx.sharedStateFieldsFor(type, this::buildSharedStateFieldSet);
 
                 Set<String> ownMethodNames =
                         type.getMethods().stream().map(CtMethod::getSimpleName).collect(Collectors.toSet());
 
                 for (CtMethod<?> method : type.getMethods()) {
                     MethodScan scan = scanMethod(method);
-                    extractFromMethod(scan, method, fromComp, fieldToComp, model, callEdgeIds, byId);
-                    extractIntraComponentCalls(scan, method, fromComp, ownMethodNames, model, callEdgeIds);
-                    extractFieldAccesses(scan, method, fromComp, sharedStateFields, model, fieldAccessIds);
-                    extractOutboundSinkSites(scan, method, fromComp, model, outboundSinkIds);
+                    extractFromMethod(scan, method, fromComp, fieldToComp, model, ctx);
+                    extractIntraComponentCalls(scan, method, fromComp, ownMethodNames, model, ctx);
+                    extractFieldAccesses(scan, method, fromComp, sharedStateFields, model, ctx);
+                    extractOutboundSinkSites(scan, method, fromComp, model, ctx);
                     enrichEntrypointParameters(method, fromId, entrypointParams, model);
                 }
             }
@@ -251,12 +252,12 @@ public class CallGraphExtractor {
             Component fromComp,
             Set<String> sharedStateFields,
             ArchitectureModel model,
-            Set<String> fieldAccessIds) {
-        extractAccessorChainFieldAccesses(scan, method, fromComp, model, fieldAccessIds);
+            ExtractionContext ctx) {
+        extractAccessorChainFieldAccesses(scan, method, fromComp, model, ctx);
         if (sharedStateFields.isEmpty()) return;
         String methodName = method.getSimpleName();
 
-        for (CtAssignment<?, ?> assign : method.getElements(new TypeFilter<>(CtAssignment.class))) {
+        for (CtAssignment<?, ?> assign : scan.assignments()) {
             CtExpression<?> assigned = assign.getAssigned();
             if (!(assigned instanceof CtFieldWrite<?> fw)) continue;
             String fieldName = fw.getVariable().getSimpleName();
@@ -294,7 +295,7 @@ public class CallGraphExtractor {
             }
         }
 
-        for (CtFieldRead<?> read : method.getElements(new TypeFilter<>(CtFieldRead.class))) {
+        for (CtFieldRead<?> read : scan.fieldReads()) {
             String fieldName = read.getVariable().getSimpleName();
             if (!sharedStateFields.contains(fieldName)) continue;
             if (read.getParent() instanceof CtInvocation<?> inv && inv.getTarget() == read) continue;
@@ -329,7 +330,7 @@ public class CallGraphExtractor {
     }
 
     private void extractAccessorChainFieldAccesses(
-            MethodScan scan, CtMethod<?> method, Component fromComp, ArchitectureModel model, Set<String> fieldAccessIds) {
+            MethodScan scan, CtMethod<?> method, Component fromComp, ArchitectureModel model, ExtractionContext ctx) {
         String methodName = method.getSimpleName();
         for (CtInvocation<?> inv : scan.invocations()) {
             String terminalMethod = inv.getExecutable().getSimpleName();
@@ -344,17 +345,17 @@ public class CallGraphExtractor {
             if (!(inv.getTarget() instanceof CtInvocation<?> accessor)) {
                 continue;
             }
-            String fieldName = accessorReturnedSharedFieldName(accessor);
+            String fieldName = accessorReturnedSharedFieldName(accessor, ctx);
             if (fieldName == null) {
                 continue;
             }
             for (ReceiverTarget target : objectFlowIndex.resolveReceiver(inv)) {
-                Component owner = byComponentId(model, target.componentId());
+                Component owner = ctx.components.get(target.componentId());
                 if (owner == null) {
                     continue;
                 }
                 FieldAccess access = buildAccessorAccess(kind, fromComp, methodName, owner, fieldName, inv);
-                if (fieldAccessIds.add(access.id)) {
+                if (ctx.addSeenId(access.id)) {
                     model.fieldAccesses.add(access);
                 }
             }
@@ -383,7 +384,7 @@ public class CallGraphExtractor {
         return access;
     }
 
-    private String accessorReturnedSharedFieldName(CtInvocation<?> accessor) {
+    private String accessorReturnedSharedFieldName(CtInvocation<?> accessor, ExtractionContext ctx) {
         var executable = accessor.getExecutable().getDeclaration();
         if (!(executable instanceof CtMethod<?> accessorMethod)) {
             return null;
@@ -392,7 +393,7 @@ public class CallGraphExtractor {
         if (owner == null) {
             return null;
         }
-        Set<String> sharedStateFields = buildSharedStateFieldSet(owner);
+        Set<String> sharedStateFields = ctx.sharedStateFieldsFor(owner, this::buildSharedStateFieldSet);
         for (CtReturn<?> ret : accessorMethod.getElements(new TypeFilter<>(CtReturn.class))) {
             String fieldName = returnedSharedFieldName(ret.getReturnedExpression(), sharedStateFields);
             if (fieldName != null) {
@@ -414,7 +415,7 @@ public class CallGraphExtractor {
             Component fromComp,
             Set<String> ownMethodNames,
             ArchitectureModel model,
-            Set<String> existingIds) {
+            ExtractionContext ctx) {
         String fromMethod = method.getSimpleName();
         for (CtInvocation<?> inv : scan.invocations()) {
             if (inv.getTarget() instanceof CtFieldRead<?>) continue; // cross-component, handled elsewhere
@@ -423,7 +424,7 @@ public class CallGraphExtractor {
             if (!ownMethodNames.contains(toMethod)) continue;
             if (toMethod.equals(fromMethod)) continue; // ignore trivial self-call
             String edgeId = "call:" + fromComp.id + "#" + fromMethod + "->" + fromComp.id + "#" + toMethod;
-            if (!existingIds.add(edgeId)) continue;
+            if (!ctx.addSeenId(edgeId)) continue;
             CallEdge edge = new CallEdge();
             edge.id = edgeId;
             edge.fromComponentId = fromComp.id;
@@ -436,13 +437,12 @@ public class CallGraphExtractor {
         }
     }
 
-    private Map<String, Component> buildFieldMap(
-            CtType<?> type, String ownId, Map<String, Component> byId, Map<String, Component> bySimpleName) {
+    private Map<String, Component> buildFieldMap(CtType<?> type, String ownId, ExtractionContext ctx) {
         Map<String, Component> map = new HashMap<>();
         for (CtField<?> field : type.getFields()) {
             if (field.getType() == null) continue;
-            Component target = resolveType(
-                    field.getType().getQualifiedName(), field.getType().getSimpleName(), byId, bySimpleName);
+            Component target =
+                    ctx.components.find(field.getType().getQualifiedName(), field.getType().getSimpleName());
             if (target != null && !target.id.equals(ownId)) {
                 map.put(field.getSimpleName(), target);
             }
@@ -456,15 +456,14 @@ public class CallGraphExtractor {
             Component fromComp,
             Map<String, Component> fieldToComp,
             ArchitectureModel model,
-            Set<String> existingIds,
-            Map<String, Component> byId) {
+            ExtractionContext ctx) {
         String fromMethod = method.getSimpleName();
 
         for (CtInvocation<?> inv : scan.invocations()) {
             List<ReceiverTarget> receiverTargets = objectFlowIndex.resolveReceiver(inv);
             if (!receiverTargets.isEmpty()) {
                 for (ReceiverTarget target : receiverTargets) {
-                    Component toComp = byId.get(target.componentId());
+                    Component toComp = ctx.components.get(target.componentId());
                     if (toComp == null || toComp.id.equals(fromComp.id)) continue;
                     emitCallEdge(
                             inv,
@@ -476,7 +475,7 @@ public class CallGraphExtractor {
                             target.confidence(),
                             target.expansionCapped(),
                             model,
-                            existingIds,
+                            ctx,
                             scan.killedSnapshots().get(inv));
                 }
                 continue;
@@ -499,7 +498,7 @@ public class CallGraphExtractor {
                     0.85,
                     false,
                     model,
-                    existingIds,
+                    ctx,
                     scan.killedSnapshots().get(inv),
                     callKind);
         }
@@ -515,7 +514,7 @@ public class CallGraphExtractor {
             double receiverConfidence,
             boolean receiverExpansionCapped,
             ArchitectureModel model,
-            Set<String> existingIds,
+            ExtractionContext ctx,
             Set<String> killedSnapshot) {
         emitCallEdge(
                 inv,
@@ -527,7 +526,7 @@ public class CallGraphExtractor {
                 receiverConfidence,
                 receiverExpansionCapped,
                 model,
-                existingIds,
+                ctx,
                 killedSnapshot,
                 "direct");
     }
@@ -542,11 +541,11 @@ public class CallGraphExtractor {
             double receiverConfidence,
             boolean receiverExpansionCapped,
             ArchitectureModel model,
-            Set<String> existingIds,
+            ExtractionContext ctx,
             Set<String> killedSnapshot,
             String callKind) {
         String edgeId = "call:" + fromComp.id + "#" + fromMethod + "->" + toComp.id + "#" + toMethod;
-        if (!existingIds.add(edgeId)) return;
+        if (!ctx.addSeenId(edgeId)) return;
         CallEdge edge = new CallEdge();
         edge.id = edgeId;
         edge.fromComponentId = fromComp.id;
@@ -560,10 +559,10 @@ public class CallGraphExtractor {
         edge.receiverExpansionCapped = receiverExpansionCapped;
         buildParamMapping(inv, edge);
         edge.assignedToVar = resolveAssignedToVar(inv);
-        edge.returnsTracked = calleeReturnsTracked(inv);
+        edge.returnsTracked = calleeReturnsTracked(inv, ctx);
         if (killedSnapshot != null) edge.killedTrackedNames.addAll(killedSnapshot);
         model.callEdges.add(edge);
-        emitCallerSideFieldReadIfGetter(inv, fromComp, fromMethod, toComp, model);
+        emitCallerSideFieldReadIfGetter(inv, fromComp, fromMethod, toComp, model, ctx);
     }
 
     private String resolveAssignedToVar(CtInvocation<?> inv) {
@@ -578,7 +577,7 @@ public class CallGraphExtractor {
     }
 
     private void extractOutboundSinkSites(
-            MethodScan scan, CtMethod<?> method, Component fromComp, ArchitectureModel model, Set<String> existingIds) {
+            MethodScan scan, CtMethod<?> method, Component fromComp, ArchitectureModel model, ExtractionContext ctx) {
         String methodName = method.getSimpleName();
         int index = 0;
         for (CtInvocation<?> inv : scan.invocations()) {
@@ -601,7 +600,7 @@ public class CallGraphExtractor {
             if (kind == null) continue;
 
             String id = "outbound:" + fromComp.id + "#" + methodName + ":" + (index++);
-            if (!existingIds.add(id)) continue;
+            if (!ctx.addSeenId(id)) continue;
 
             OutboundSinkSite site = new OutboundSinkSite();
             site.id = id;
@@ -660,7 +659,7 @@ public class CallGraphExtractor {
         return null;
     }
 
-    private boolean calleeReturnsTracked(CtInvocation<?> inv) {
+    private boolean calleeReturnsTracked(CtInvocation<?> inv, ExtractionContext ctx) {
         var executable = inv.getExecutable().getDeclaration();
         if (!(executable instanceof CtMethod<?> calleeMethod)) return false;
         if (calleeMethod.getBody() == null) return false;
@@ -668,7 +667,8 @@ public class CallGraphExtractor {
                 .map(CtParameter::getSimpleName)
                 .collect(Collectors.toSet());
         CtType<?> calleeType = calleeMethod.getDeclaringType();
-        Set<String> calleeSharedState = calleeType != null ? buildSharedStateFieldSet(calleeType) : Set.of();
+        Set<String> calleeSharedState =
+                calleeType != null ? ctx.sharedStateFieldsFor(calleeType, this::buildSharedStateFieldSet) : Set.of();
         for (CtReturn<?> ret : calleeMethod.getElements(new TypeFilter<>(CtReturn.class))) {
             CtExpression<?> ex = ret.getReturnedExpression();
             if (ex == null) continue;
@@ -680,13 +680,18 @@ public class CallGraphExtractor {
     }
 
     private void emitCallerSideFieldReadIfGetter(
-            CtInvocation<?> inv, Component fromComp, String fromMethod, Component toComp, ArchitectureModel model) {
+            CtInvocation<?> inv,
+            Component fromComp,
+            String fromMethod,
+            Component toComp,
+            ArchitectureModel model,
+            ExtractionContext ctx) {
         var executable = inv.getExecutable().getDeclaration();
         if (!(executable instanceof CtMethod<?> calleeMethod)) return;
         if (calleeMethod.getBody() == null) return;
         CtType<?> calleeType = calleeMethod.getDeclaringType();
         if (calleeType == null) return;
-        Set<String> calleeSharedState = buildSharedStateFieldSet(calleeType);
+        Set<String> calleeSharedState = ctx.sharedStateFieldsFor(calleeType, this::buildSharedStateFieldSet);
         if (calleeSharedState.isEmpty()) return;
         for (CtReturn<?> ret : calleeMethod.getElements(new TypeFilter<>(CtReturn.class))) {
             CtExpression<?> ex = ret.getReturnedExpression();
@@ -812,20 +817,6 @@ public class CallGraphExtractor {
                 .filter(ep -> ep.componentId.equals(compId) && ep.name.equals(method.getSimpleName()))
                 .filter(ep -> ep.parameters.isEmpty())
                 .forEach(ep -> ep.parameters.addAll(names));
-    }
-
-    private Component resolveType(
-            String qualifiedName, String simpleName, Map<String, Component> byId, Map<String, Component> bySimpleName) {
-        Component c = byId.get("comp:" + qualifiedName);
-        if (c != null) return c;
-        return bySimpleName.get(simpleName);
-    }
-
-    private Component byComponentId(ArchitectureModel model, String id) {
-        for (Component component : model.components) {
-            if (component.id.equals(id)) return component;
-        }
-        return null;
     }
 
     private String resolveCallKind(CtFieldRead<?> fieldRead) {
