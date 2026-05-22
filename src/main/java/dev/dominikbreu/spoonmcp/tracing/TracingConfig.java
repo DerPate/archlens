@@ -47,9 +47,7 @@ public class TracingConfig {
                                         .build())
                                 .build())
                         .build();
-                default -> SdkTracerProvider.builder()
-                        .setResource(resource)
-                        .build();
+                default -> throw new IllegalStateException("unreachable: mode=" + mode);
             };
 
             return OpenTelemetrySdk.builder()
