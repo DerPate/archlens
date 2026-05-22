@@ -1,6 +1,7 @@
 package dev.dominikbreu.spoonmcp.extractor.objectflow;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 import dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor;
 import dev.dominikbreu.spoonmcp.extractor.ExtractorTestBase;
@@ -148,6 +149,31 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
                     assertThat(target.evidence()).isEqualTo(ObjectFlowEvidence.DECLARED_INTERFACE_ONLY);
                     assertThat(target.confidence()).isEqualTo(ObjectFlowEvidence.DECLARED_INTERFACE_ONLY.confidence());
                 });
+    }
+
+    @Test
+    void toleratesUnresolvedNoClasspathVariableReceivers() {
+        Launcher launcher = new Launcher();
+        launcher.getEnvironment().setNoClasspath(true);
+        launcher.getEnvironment().setComplianceLevel(21);
+        launcher.getEnvironment().setShouldCompile(false);
+        launcher.addInputResource(new VirtualFile(
+                """
+                package example;
+                class UsesMissingReceiver {
+                    void test() {
+                        missingReceiver.run();
+                    }
+                }
+                """,
+                "UsesMissingReceiver.java"));
+        launcher.buildModel();
+
+        ArchitectureModel architecture = new ArchitectureModel("test");
+        architecture.components.add(component("example.UsesMissingReceiver"));
+
+        assertThatCode(() -> new ObjectFlowIndexBuilder().build(launcher.getModel(), architecture))
+                .doesNotThrowAnyException();
     }
 
     @Test

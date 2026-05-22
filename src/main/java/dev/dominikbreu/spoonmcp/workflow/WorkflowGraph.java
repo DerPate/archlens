@@ -17,4 +17,8 @@ public record WorkflowGraph(
     public List<WorkflowLink> linksFrom(String pathId) {
         return linksBySourcePathId.getOrDefault(pathId, List.of());
     }
+
+    public int totalLinks() {
+        return linksBySourcePathId.values().stream().mapToInt(List::size).sum();
+    }
 }

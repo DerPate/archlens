@@ -36,6 +36,12 @@ public class CallEdge {
      */
     public Map<String, String> paramMapping = new LinkedHashMap<>();
     /**
+     * Callee-parameter-name → resolved constant string value for arguments that are
+     * string literals or resolvable static-final field reads at the call site.
+     * Used by the data-flow tracer to substitute parameter-named topics in outbound sinks.
+     */
+    public Map<String, String> resolvedLiteralArgs = new LinkedHashMap<>();
+    /**
      * Callee parameter names whose mapping was synthesised by descending into a non-trivial
      * argument expression (constructor calls, nested invocations, ternaries, casts) rather
      * than read directly as a top-level {@code CtVariableRead}. Tracer can downgrade
