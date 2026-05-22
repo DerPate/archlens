@@ -21,7 +21,7 @@ class ArchitectureExtractorTracingTest extends ExtractorTestBase {
     }
 
     @Test
-    void emitsDetailedBuildAndObjectFlowSpans() {
+    void reusesPassOneModelAndEmitsDetailedPassTwoSpans() {
         PrintStream originalOut = System.out;
         ByteArrayOutputStream captured = new ByteArrayOutputStream();
         System.setOut(new PrintStream(captured));
@@ -42,7 +42,10 @@ class ArchitectureExtractorTracingTest extends ExtractorTestBase {
         assertThat(captured.toString())
                 .contains("ctmodel.build")
                 .contains("phase=pass1-scan")
-                .contains("phase=pass2-callgraph")
+                .doesNotContain("phase=pass2-callgraph")
+                .contains("pass2-enrichment")
+                .contains("dependency.extract")
                 .contains("objectflow.build");
+        assertThat(captured.toString().split("ctmodel\\.build", -1).length - 1).isEqualTo(1);
     }
 }
