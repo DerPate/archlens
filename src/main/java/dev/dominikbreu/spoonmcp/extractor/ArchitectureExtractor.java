@@ -55,15 +55,29 @@ public class ArchitectureExtractor {
                 .startSpan();
         try (Scope extractScope = extractSpan.makeCurrent()) {
 
-            // Pass 1: components + entrypoints per project/module, with WAR role assignment
-            Map<String, CtModel> ctModels = new LinkedHashMap<>();
+            List<ModuleWork> modules = collectAllModules(projectPaths, model);
+
+            // Phase 1: lightweight scan — components + entrypoints only, one CtModel at a time
             Span pass1 = t.spanBuilder("pass1-scan").startSpan();
-            try (Scope scope1 = pass1.makeCurrent()) {
-                for (String path : projectPaths) {
-                    BuildProject project = buildMetadataService.detect(new File(path));
-                    registerBuildProject(project, model, ctModels);
+            try (Scope s1 = pass1.makeCurrent()) {
+                for (ModuleWork work : modules) {
+                    CtModel ctModel = buildCtModel(work.module());
+                    Collection<CtType<?>> types = ctModel.getAllTypes();
+                    String tech = detectTechnology(types, work.module());
+                    work.app().technology = tech;
+
+                    if ("internal_module".equals(work.app().role)) {
+                        work.app().role = moduleClassifier.classify(types, work.app());
+                    }
+
+                    dispatchExtractors(types, model, work.app().id, work.module(), tech);
+
+                    Map<String, MessagingConfigResolver.ChannelConfig> resolved =
+                            messagingConfigResolver.resolve(work.module().root());
+                    applyMessagingBrokers(model, work.app().id, resolved);
                 }
-                pass1.setAttribute("modules", (long) ctModels.size());
+                eventBusExtractor.linkCrossModuleEvents(model);
+                pass1.setAttribute("modules", (long) modules.size());
             } catch (RuntimeException e) {
                 pass1.recordException(e);
                 pass1.setStatus(StatusCode.ERROR, e.getMessage());
@@ -72,13 +86,16 @@ public class ArchitectureExtractor {
                 pass1.end();
             }
 
-            // Pass 2: injection dependencies (needs all components to be known)
-            Span pass2 = t.spanBuilder("pass2-deps").startSpan();
-            try (Scope scope2 = pass2.makeCurrent()) {
-                for (CtModel ctModel : ctModels.values()) {
+            // Phase 2: full extraction with complete component registry, one CtModel at a time
+            Span pass2 = t.spanBuilder("pass2-callgraph").startSpan();
+            try (Scope s2 = pass2.makeCurrent()) {
+                for (ModuleWork work : modules) {
+                    CtModel ctModel = buildCtModel(work.module());
                     dependencyExtractor.extract(ctModel, model);
+                    ObjectFlowIndex objectFlowIndex = new ObjectFlowIndexBuilder().build(ctModel, model);
+                    new CallGraphExtractor(objectFlowIndex).extract(ctModel, model);
                 }
-                eventBusExtractor.linkCrossModuleEvents(model);
+                pass2.setAttribute("modules", (long) modules.size());
             } catch (RuntimeException e) {
                 pass2.recordException(e);
                 pass2.setStatus(StatusCode.ERROR, e.getMessage());
@@ -87,26 +104,12 @@ public class ArchitectureExtractor {
                 pass2.end();
             }
 
-            // Pass 2b: call graph — actual method invocations between components
-            Span pass2b = t.spanBuilder("pass2b-callgraph").startSpan();
-            try (Scope scope2b = pass2b.makeCurrent()) {
-                pass2b.setAttribute("modules", (long) ctModels.size());
-                for (CtModel ctModel : ctModels.values()) {
-                    ObjectFlowIndex objectFlowIndex = new ObjectFlowIndexBuilder().build(ctModel, model);
-                    new CallGraphExtractor(objectFlowIndex).extract(ctModel, model);
-                }
-            } catch (RuntimeException e) {
-                pass2b.recordException(e);
-                pass2b.setStatus(StatusCode.ERROR, e.getMessage());
-                throw e;
-            } finally {
-                pass2b.end();
-            }
+            ModelIndex modelIndex = ModelIndex.build(model);
 
             // Pass 2c: data-flow tracing — parameter propagation to sinks
             Span pass2c = t.spanBuilder("pass2c-dataflow").startSpan();
-            try (Scope scope2c = pass2c.makeCurrent()) {
-                List<DataFlowPath> paths = dataFlowTracer.trace(model);
+            try (Scope s2c = pass2c.makeCurrent()) {
+                List<DataFlowPath> paths = dataFlowTracer.trace(model, modelIndex);
                 model.dataFlowPaths.addAll(paths);
                 pass2c.setAttribute("paths-found", (long) paths.size());
             } catch (RuntimeException e) {
@@ -117,14 +120,13 @@ public class ArchitectureExtractor {
                 pass2c.end();
             }
 
-            // Pass 3: container inference
-            // Pass 4: messaging broker resolution + external system inference
+            // Pass 3-4: container inference + runtime flows
             Span pass34 = t.spanBuilder("pass3-4-runtime").startSpan();
-            try (Scope scope34 = pass34.makeCurrent()) {
+            try (Scope s34 = pass34.makeCurrent()) {
                 model.containers.addAll(containerInferrer.infer(model.components));
                 externalSystemInferrer.infer(model);
                 for (Entrypoint entrypoint : model.entrypoints) {
-                    RuntimeFlow flow = runtimeFlowInferrer.infer(entrypoint.id, 5, model);
+                    RuntimeFlow flow = runtimeFlowInferrer.infer(entrypoint.id, 5, model, modelIndex);
                     if (flow != null) {
                         model.runtimeFlows.add(flow);
                     }
@@ -151,7 +153,29 @@ public class ArchitectureExtractor {
         return GlobalOpenTelemetry.getTracer("dev.dominikbreu.spoonmcp");
     }
 
-    private void registerBuildProject(BuildProject project, ArchitectureModel model, Map<String, CtModel> ctModels) {
+    private CtModel buildCtModel(BuildModule module) {
+        Launcher launcher = new Launcher();
+        launcher.getEnvironment().setNoClasspath(true);
+        launcher.getEnvironment().setAutoImports(true);
+        launcher.getEnvironment().setComplianceLevel(21);
+        launcher.getEnvironment().setShouldCompile(false);
+        scanner.addSourceRoots(launcher, module);
+        launcher.buildModel();
+        return launcher.getModel();
+    }
+
+    private record ModuleWork(AppEntry app, BuildModule module) {}
+
+    private List<ModuleWork> collectAllModules(List<String> projectPaths, ArchitectureModel model) {
+        List<ModuleWork> result = new ArrayList<>();
+        for (String path : projectPaths) {
+            BuildProject project = buildMetadataService.detect(new File(path));
+            collectProjectModules(project, model, result);
+        }
+        return result;
+    }
+
+    private void collectProjectModules(BuildProject project, ArchitectureModel model, List<ModuleWork> result) {
         List<BuildModule> modules = project.modules();
 
         // Pre-register WAR parent when all modules share the same parent name and the
@@ -177,51 +201,24 @@ public class ArchitectureExtractor {
         }
 
         for (BuildModule module : modules) {
-            registerBuildModule(module, model, ctModels);
+            AppEntry app = buildAppEntry(module);
+            if (model.applications.stream().anyMatch(a -> a.id.equals(app.id))) continue;
+            app.role = "deployment_unit";
+
+            // Assign internal_module role when parent is a WAR deployment unit
+            if (module.parentName() != null) {
+                model.applications.stream()
+                        .filter(a -> a.name.equals(module.parentName()) && "war".equals(a.packagingType))
+                        .findFirst()
+                        .ifPresent(parent -> {
+                            app.role = "internal_module";
+                            app.parentAppId = parent.id;
+                        });
+            }
+
+            model.applications.add(app);
+            result.add(new ModuleWork(app, module));
         }
-    }
-
-    private void registerBuildModule(BuildModule module, ArchitectureModel model, Map<String, CtModel> ctModels) {
-        AppEntry app = buildAppEntry(module);
-        if (model.applications.stream().anyMatch(a -> a.id.equals(app.id))) return;
-        app.role = "deployment_unit";
-
-        // Assign internal_module role when parent is a WAR deployment unit
-        if (module.parentName() != null) {
-            model.applications.stream()
-                    .filter(a -> a.name.equals(module.parentName()) && "war".equals(a.packagingType))
-                    .findFirst()
-                    .ifPresent(parent -> {
-                        app.role = "internal_module";
-                        app.parentAppId = parent.id;
-                    });
-        }
-
-        model.applications.add(app);
-
-        Launcher launcher = new Launcher();
-        launcher.getEnvironment().setNoClasspath(true);
-        launcher.getEnvironment().setAutoImports(true);
-        launcher.getEnvironment().setComplianceLevel(21);
-        launcher.getEnvironment().setShouldCompile(false);
-        scanner.addSourceRoots(launcher, module);
-        launcher.buildModel();
-        CtModel ctModel = launcher.getModel();
-        ctModels.put(app.id, ctModel);
-
-        Collection<CtType<?>> types = ctModel.getAllTypes();
-        String tech = detectTechnology(types, module);
-        app.technology = tech;
-
-        // Apply heuristics to refine role: internal_module vs technical_library
-        if ("internal_module".equals(app.role)) {
-            app.role = moduleClassifier.classify(types, app);
-        }
-
-        dispatchExtractors(types, model, app.id, module, tech);
-
-        Map<String, MessagingConfigResolver.ChannelConfig> resolved = messagingConfigResolver.resolve(module.root());
-        applyMessagingBrokers(model, app.id, resolved);
     }
 
     private AppEntry buildAppEntry(BuildModule module) {
