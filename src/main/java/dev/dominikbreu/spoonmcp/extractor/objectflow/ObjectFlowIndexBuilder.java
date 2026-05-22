@@ -2,6 +2,11 @@ package dev.dominikbreu.spoonmcp.extractor.objectflow;
 
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Scope;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.IdentityHashMap;
@@ -29,46 +34,60 @@ import spoon.reflect.visitor.filter.TypeFilter;
  * Builds the object-flow index from source and architecture metadata.
  */
 public class ObjectFlowIndexBuilder {
+
+    private static Tracer tracer() {
+        return GlobalOpenTelemetry.getTracer("dev.dominikbreu.spoonmcp");
+    }
+
     public ObjectFlowIndex build(CtModel ctModel, ArchitectureModel architecture) {
-        Map<String, Component> componentByQualifiedName = componentByQualifiedName(architecture);
-        Map<String, ObjectFlowIndex.TypeFact> types = new LinkedHashMap<>();
-        Map<String, List<ObjectFlowIndex.TypeFact>> implementations = new LinkedHashMap<>();
-        Map<String, CtType<?>> projectTypeByQualifiedName = new LinkedHashMap<>();
+        Span span = tracer().spanBuilder("objectflow.build").startSpan();
+        try (Scope scope = span.makeCurrent()) {
+            Map<String, Component> componentByQualifiedName = componentByQualifiedName(architecture);
+            Map<String, ObjectFlowIndex.TypeFact> types = new LinkedHashMap<>();
+            Map<String, List<ObjectFlowIndex.TypeFact>> implementations = new LinkedHashMap<>();
+            Map<String, CtType<?>> projectTypeByQualifiedName = new LinkedHashMap<>();
 
-        List<CtType<?>> modelTypes = ctModel.getAllTypes().stream()
-                .sorted(Comparator.comparing(CtType::getQualifiedName))
-                .toList();
-        for (CtType<?> type : modelTypes) {
-            projectTypeByQualifiedName.put(type.getQualifiedName(), type);
-        }
-
-        List<CtType<?>> projectTypes = modelTypes.stream()
-                .filter(type -> componentByQualifiedName.containsKey(type.getQualifiedName()))
-                .toList();
-
-        for (CtType<?> type : projectTypes) {
-            Component component = componentByQualifiedName.get(type.getQualifiedName());
-            boolean abstractOrInterface = type.isInterface() || type.hasModifier(ModifierKind.ABSTRACT);
-            ObjectFlowIndex.TypeFact typeFact =
-                    new ObjectFlowIndex.TypeFact(type.getQualifiedName(), component.id, abstractOrInterface);
-            types.put(typeFact.qualifiedName(), typeFact);
-        }
-
-        for (CtType<?> type : projectTypes) {
-            ObjectFlowIndex.TypeFact concreteType = types.get(type.getQualifiedName());
-            if (concreteType == null || concreteType.abstractOrInterface()) {
-                continue;
+            List<CtType<?>> modelTypes = ctModel.getAllTypes().stream()
+                    .sorted(Comparator.comparing(CtType::getQualifiedName))
+                    .toList();
+            for (CtType<?> type : modelTypes) {
+                projectTypeByQualifiedName.put(type.getQualifiedName(), type);
             }
-            for (String supertype : supertypeClosure(type, projectTypeByQualifiedName)) {
-                registerImplementation(implementations, supertype, concreteType);
-            }
-        }
 
-        ObjectFlowIndex index = new ObjectFlowIndex(
-                types,
-                implementations,
-                receiverTargets(ctModel, projectTypes, types, implementations));
-        return index;
+            List<CtType<?>> projectTypes = modelTypes.stream()
+                    .filter(type -> componentByQualifiedName.containsKey(type.getQualifiedName()))
+                    .toList();
+
+            for (CtType<?> type : projectTypes) {
+                Component component = componentByQualifiedName.get(type.getQualifiedName());
+                boolean abstractOrInterface = type.isInterface() || type.hasModifier(ModifierKind.ABSTRACT);
+                ObjectFlowIndex.TypeFact typeFact =
+                        new ObjectFlowIndex.TypeFact(type.getQualifiedName(), component.id, abstractOrInterface);
+                types.put(typeFact.qualifiedName(), typeFact);
+            }
+
+            for (CtType<?> type : projectTypes) {
+                ObjectFlowIndex.TypeFact concreteType = types.get(type.getQualifiedName());
+                if (concreteType == null || concreteType.abstractOrInterface()) {
+                    continue;
+                }
+                for (String supertype : supertypeClosure(type, projectTypeByQualifiedName)) {
+                    registerImplementation(implementations, supertype, concreteType);
+                }
+            }
+
+            ObjectFlowIndex index = new ObjectFlowIndex(
+                    types,
+                    implementations,
+                    receiverTargets(ctModel, projectTypes, types, implementations));
+            return index;
+        } catch (RuntimeException e) {
+            span.recordException(e);
+            span.setStatus(StatusCode.ERROR, e.getMessage());
+            throw e;
+        } finally {
+            span.end();
+        }
     }
 
     private static Map<CtInvocation<?>, List<ReceiverTarget>> receiverTargets(
@@ -128,6 +147,11 @@ public class ObjectFlowIndexBuilder {
         CtVariable<?> variable = variable(target);
         if (variable != null && variable.getType() != null) {
             return typeIndex.expandDeclaredType(elementOrDeclaredType(variable.getType()), methodName);
+        }
+        if (target instanceof CtVariableRead<?> variableRead
+                && variableRead.getVariable() != null
+                && variableRead.getVariable().getType() != null) {
+            return typeIndex.expandDeclaredType(elementOrDeclaredType(variableRead.getVariable().getType()), methodName);
         }
         return List.of();
     }
@@ -246,13 +270,27 @@ public class ObjectFlowIndexBuilder {
     }
 
     private static String variableName(CtExpression<?> expression) {
+        if (expression instanceof CtVariableRead<?> variableRead && variableRead.getVariable() != null) {
+            return variableRead.getVariable().getSimpleName();
+        }
         CtVariable<?> variable = variable(expression);
         return variable != null ? variable.getSimpleName() : null;
     }
 
     private static CtVariable<?> variable(CtExpression<?> expression) {
         if (expression instanceof CtVariableRead<?> variableRead) {
-            return variableRead.getVariable().getDeclaration();
+            var reference = variableRead.getVariable();
+            if (reference == null) {
+                return null;
+            }
+            try {
+                CtVariable<?> declaration = reference.getDeclaration();
+                if (declaration != null) {
+                    return declaration;
+                }
+            } catch (RuntimeException ignored) {
+                // Spoon can fail declaration lookup for unresolved no-classpath locals.
+            }
         }
         return null;
     }

@@ -3,6 +3,11 @@ package dev.dominikbreu.spoonmcp.extractor;
 import dev.dominikbreu.spoonmcp.extractor.objectflow.ObjectFlowIndex;
 import dev.dominikbreu.spoonmcp.extractor.objectflow.ReceiverTarget;
 import dev.dominikbreu.spoonmcp.model.*;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Scope;
 import java.util.*;
 import java.util.stream.Collectors;
 import spoon.reflect.CtModel;
@@ -22,7 +27,9 @@ import spoon.reflect.code.CtVariableWrite;
 import spoon.reflect.declaration.CtField;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtParameter;
+import spoon.reflect.code.CtLiteral;
 import spoon.reflect.declaration.CtType;
+import spoon.reflect.reference.CtFieldReference;
 import spoon.reflect.reference.CtTypeReference;
 import spoon.reflect.visitor.filter.TypeFilter;
 
@@ -117,6 +124,10 @@ public class CallGraphExtractor {
         this.objectFlowIndex = objectFlowIndex == null ? ObjectFlowIndex.empty() : objectFlowIndex;
     }
 
+    private static Tracer tracer() {
+        return GlobalOpenTelemetry.getTracer("dev.dominikbreu.spoonmcp");
+    }
+
     /**
      * One-pass method scan: collects all invocations in source order and records, at
      * each invocation site, which local names have been reassigned (killed) prior to that point.
@@ -155,38 +166,47 @@ public class CallGraphExtractor {
      * @param model   architecture model to update
      */
     public void extract(CtModel ctModel, ArchitectureModel model) {
-        Map<String, Component> byId = new HashMap<>();
-        Map<String, Component> bySimpleName = new LinkedHashMap<>();
-        for (Component c : model.components) {
-            byId.put(c.id, c);
-            bySimpleName.put(c.name, c);
-        }
-
-        Set<String> callEdgeIds = model.callEdges.stream().map(e -> e.id).collect(Collectors.toSet());
-        Set<String> outboundSinkIds = model.outboundSinkSites.stream().map(s -> s.id).collect(Collectors.toSet());
-        Set<String> fieldAccessIds = model.fieldAccesses.stream().map(s -> s.id).collect(Collectors.toSet());
-
-        Map<String, List<String>> entrypointParams = buildEntrypointParamMap(model);
-
-        for (CtType<?> type : ctModel.getAllTypes()) {
-            String fromId = "comp:" + type.getQualifiedName();
-            Component fromComp = byId.get(fromId);
-            if (fromComp == null) continue;
-
-            Map<String, Component> fieldToComp = buildFieldMap(type, fromId, byId, bySimpleName);
-            Set<String> sharedStateFields = buildSharedStateFieldSet(type);
-
-            Set<String> ownMethodNames =
-                    type.getMethods().stream().map(CtMethod::getSimpleName).collect(Collectors.toSet());
-
-            for (CtMethod<?> method : type.getMethods()) {
-                MethodScan scan = scanMethod(method);
-                extractFromMethod(scan, method, fromComp, fieldToComp, model, callEdgeIds, byId);
-                extractIntraComponentCalls(scan, method, fromComp, ownMethodNames, model, callEdgeIds);
-                extractFieldAccesses(scan, method, fromComp, sharedStateFields, model, fieldAccessIds);
-                extractOutboundSinkSites(scan, method, fromComp, model, outboundSinkIds);
-                enrichEntrypointParameters(method, fromId, entrypointParams, model);
+        Span span = tracer().spanBuilder("callgraph.extract").startSpan();
+        try (Scope scope = span.makeCurrent()) {
+            Map<String, Component> byId = new HashMap<>();
+            Map<String, Component> bySimpleName = new LinkedHashMap<>();
+            for (Component c : model.components) {
+                byId.put(c.id, c);
+                bySimpleName.put(c.name, c);
             }
+
+            Set<String> callEdgeIds = model.callEdges.stream().map(e -> e.id).collect(Collectors.toSet());
+            Set<String> outboundSinkIds = model.outboundSinkSites.stream().map(s -> s.id).collect(Collectors.toSet());
+            Set<String> fieldAccessIds = model.fieldAccesses.stream().map(s -> s.id).collect(Collectors.toSet());
+
+            Map<String, List<String>> entrypointParams = buildEntrypointParamMap(model);
+
+            for (CtType<?> type : ctModel.getAllTypes()) {
+                String fromId = "comp:" + type.getQualifiedName();
+                Component fromComp = byId.get(fromId);
+                if (fromComp == null) continue;
+
+                Map<String, Component> fieldToComp = buildFieldMap(type, fromId, byId, bySimpleName);
+                Set<String> sharedStateFields = buildSharedStateFieldSet(type);
+
+                Set<String> ownMethodNames =
+                        type.getMethods().stream().map(CtMethod::getSimpleName).collect(Collectors.toSet());
+
+                for (CtMethod<?> method : type.getMethods()) {
+                    MethodScan scan = scanMethod(method);
+                    extractFromMethod(scan, method, fromComp, fieldToComp, model, callEdgeIds, byId);
+                    extractIntraComponentCalls(scan, method, fromComp, ownMethodNames, model, callEdgeIds);
+                    extractFieldAccesses(scan, method, fromComp, sharedStateFields, model, fieldAccessIds);
+                    extractOutboundSinkSites(scan, method, fromComp, model, outboundSinkIds);
+                    enrichEntrypointParameters(method, fromId, entrypointParams, model);
+                }
+            }
+        } catch (RuntimeException e) {
+            span.recordException(e);
+            span.setStatus(StatusCode.ERROR, e.getMessage());
+            throw e;
+        } finally {
+            span.end();
         }
     }
 
@@ -718,12 +738,32 @@ public class CallGraphExtractor {
                 edge.paramMapping.put(direct.getVariable().getSimpleName(), calleeParam);
                 continue;
             }
+            String literal = resolveArgToLiteral(arg);
+            if (literal != null) {
+                edge.resolvedLiteralArgs.put(calleeParam, literal);
+                continue;
+            }
             String synthesised = findFirstVarRead(arg);
             if (synthesised != null) {
                 edge.paramMapping.put(synthesised, calleeParam);
                 edge.syntheticParamMappings.add(calleeParam);
             }
         }
+    }
+
+    private static String resolveArgToLiteral(CtExpression<?> arg) {
+        if (arg instanceof CtLiteral<?> lit) {
+            return lit.getValue() == null ? "" : lit.getValue().toString();
+        }
+        if (arg instanceof CtVariableRead<?> read && read.getVariable() instanceof CtFieldReference<?> ref) {
+            try {
+                CtField<?> decl = ref.getDeclaration();
+                if (decl != null && decl.getDefaultExpression() instanceof CtLiteral<?> lit) {
+                    return lit.getValue() == null ? "" : lit.getValue().toString();
+                }
+            } catch (Exception ignored) {}
+        }
+        return null;
     }
 
     private static String findFirstVarRead(CtExpression<?> expr) {
