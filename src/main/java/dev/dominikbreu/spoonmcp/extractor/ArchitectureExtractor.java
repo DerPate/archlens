@@ -240,12 +240,7 @@ public class ArchitectureExtractor {
                     new SpringExtractor(new SpringConfigResolver().resolve(module.root())).extract(types, model, appId);
             case "javaee" -> javaEEExtractor.extract(types, model, appId);
             case "quarkus" -> quarkusExtractor.extract(types, model, appId);
-            default -> {
-                quarkusExtractor.extract(types, model, appId);
-                javaEEExtractor.extract(types, model, appId);
-                new SpringExtractor(new SpringConfigResolver().resolve(module.root())).extract(types, model, appId);
-                genericJavaExtractor.extract(types, model, appId);
-            }
+            default -> genericJavaExtractor.extract(types, model, appId);
         }
         eventBusExtractor.extract(types, model, appId);
     }
@@ -328,17 +323,37 @@ public class ArchitectureExtractor {
             }
         }
 
-        if (hasAnnotationPrefix(types, "org.springframework.boot")) return "spring-boot";
-        if (hasAnnotationPrefix(types, "org.springframework")) return "spring";
-        if (hasAnnotationPrefix(types, "io.quarkus")) return "quarkus";
-        if (hasAnnotationPrefix(types, "javax.ejb") || hasAnnotationPrefix(types, "jakarta.ejb")) return "javaee";
+        return detectTechnologyFromAnnotations(types);
+    }
+
+    private String detectTechnologyFromAnnotations(Collection<CtType<?>> types) {
+        for (CtType<?> type : types) {
+            for (var annotation : type.getAnnotations()) {
+                String technology = technologyFromAnnotationName(annotation.getAnnotationType().getQualifiedName());
+                if (technology != null) return technology;
+            }
+            for (var method : type.getMethods()) {
+                for (var annotation : method.getAnnotations()) {
+                    String technology = technologyFromAnnotationName(annotation.getAnnotationType().getQualifiedName());
+                    if (technology != null) return technology;
+                }
+            }
+            for (var field : type.getFields()) {
+                for (var annotation : field.getAnnotations()) {
+                    String technology = technologyFromAnnotationName(annotation.getAnnotationType().getQualifiedName());
+                    if (technology != null) return technology;
+                }
+            }
+        }
         return "unknown";
     }
 
-    private boolean hasAnnotationPrefix(Collection<CtType<?>> types, String prefix) {
-        return types.stream()
-                .flatMap(type -> type.getAnnotations().stream())
-                .anyMatch(annotation -> annotation.getAnnotationType().getQualifiedName().startsWith(prefix));
+    private String technologyFromAnnotationName(String qualifiedName) {
+        if (qualifiedName.startsWith("org.springframework.boot")) return "spring-boot";
+        if (qualifiedName.startsWith("org.springframework")) return "spring";
+        if (qualifiedName.startsWith("io.quarkus")) return "quarkus";
+        if (qualifiedName.startsWith("javax.ejb") || qualifiedName.startsWith("jakarta.ejb")) return "javaee";
+        return null;
     }
 
     private String detectMavenPackagingType(String path) {
