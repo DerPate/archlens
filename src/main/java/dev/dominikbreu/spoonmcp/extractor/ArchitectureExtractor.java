@@ -61,7 +61,7 @@ public class ArchitectureExtractor {
             Span pass1 = t.spanBuilder("pass1-scan").startSpan();
             try (Scope s1 = pass1.makeCurrent()) {
                 for (ModuleWork work : modules) {
-                    CtModel ctModel = buildCtModel(work.module());
+                    CtModel ctModel = buildCtModel(work.module(), "pass1-scan");
                     Collection<CtType<?>> types = ctModel.getAllTypes();
                     String tech = detectTechnology(types, work.module());
                     work.app().technology = tech;
@@ -90,7 +90,7 @@ public class ArchitectureExtractor {
             Span pass2 = t.spanBuilder("pass2-callgraph").startSpan();
             try (Scope s2 = pass2.makeCurrent()) {
                 for (ModuleWork work : modules) {
-                    CtModel ctModel = buildCtModel(work.module());
+                    CtModel ctModel = buildCtModel(work.module(), "pass2-callgraph");
                     dependencyExtractor.extract(ctModel, model);
                     ObjectFlowIndex objectFlowIndex = new ObjectFlowIndexBuilder().build(ctModel, model);
                     new CallGraphExtractor(objectFlowIndex).extract(ctModel, model);
@@ -153,15 +153,28 @@ public class ArchitectureExtractor {
         return GlobalOpenTelemetry.getTracer("dev.dominikbreu.spoonmcp");
     }
 
-    private CtModel buildCtModel(BuildModule module) {
-        Launcher launcher = new Launcher();
-        launcher.getEnvironment().setNoClasspath(true);
-        launcher.getEnvironment().setAutoImports(true);
-        launcher.getEnvironment().setComplianceLevel(21);
-        launcher.getEnvironment().setShouldCompile(false);
-        scanner.addSourceRoots(launcher, module);
-        launcher.buildModel();
-        return launcher.getModel();
+    private CtModel buildCtModel(BuildModule module, String phase) {
+        Span span = tracer().spanBuilder("ctmodel.build")
+                .setAttribute("phase", phase)
+                .setAttribute("module", module.name())
+                .setAttribute("source-roots", (long) module.sourceRoots().size())
+                .startSpan();
+        try (Scope scope = span.makeCurrent()) {
+            Launcher launcher = new Launcher();
+            launcher.getEnvironment().setNoClasspath(true);
+            launcher.getEnvironment().setAutoImports(true);
+            launcher.getEnvironment().setComplianceLevel(21);
+            launcher.getEnvironment().setShouldCompile(false);
+            scanner.addSourceRoots(launcher, module);
+            launcher.buildModel();
+            return launcher.getModel();
+        } catch (RuntimeException e) {
+            span.recordException(e);
+            span.setStatus(StatusCode.ERROR, e.getMessage());
+            throw e;
+        } finally {
+            span.end();
+        }
     }
 
     private record ModuleWork(AppEntry app, BuildModule module) {}
