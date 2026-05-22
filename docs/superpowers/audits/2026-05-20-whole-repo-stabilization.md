@@ -501,11 +501,26 @@ No actionable findings. All patterns inspected:
 - Actual: BUILD SUCCESS — Tests run: 276, Failures: 0, Errors: 0, Skipped: 0 (5.448 s)
 - Result: PASS
 
+### Task 8 — Whole-repo closeout (2026-05-22)
+
+- Command: `mvn test`
+- Expected: PASS
+- Actual: BUILD SUCCESS — Tests run: 397, Failures: 0, Errors: 0, Skipped: 0 (6.600 s)
+- Result: PASS
+
+- Command: `mvn package -DskipTests`
+- Expected: PASS, `target/spoon-mcp-server.jar` produced
+- Actual: BUILD SUCCESS — `target/spoon-mcp-server.jar` (36.7 MB)
+- Result: PASS
+
+Note: test count increased from 387 (Task 2 baseline) to 397 due to OTel tracing tests added in `dev.dominikbreu.spoonmcp.tracing.*Test`. New files added post-inventory: `src/main/java/dev/dominikbreu/spoonmcp/tracing/TracingConfig.java`, `src/main/java/dev/dominikbreu/spoonmcp/tracing/StdoutSpanExporter.java`, `src/test/java/dev/dominikbreu/spoonmcp/tracing/TracingConfigTest.java`, `src/test/java/dev/dominikbreu/spoonmcp/tracing/StdoutSpanExporterTest.java`.
+
 ## Deferred Follow-Ups
 
 - Reason: `System.err.printf` timing diagnostics in `ArchitectureExtractor` and `PipelineGraphBuilder` were added by the user as uncommitted profiling instrumentation. They cannot be removed in this task. When the user is ready to commit the extractor changes, consider gating them behind a debug flag or logging framework.
   - Files: `src/main/java/dev/dominikbreu/spoonmcp/extractor/ArchitectureExtractor.java`, `src/main/java/dev/dominikbreu/spoonmcp/extractor/PipelineGraphBuilder.java`
   - Suggested next action: Gate timing output with `System.getenv("SPOON_MCP_DEBUG") != null` check, or replace with a proper SLF4J logger at DEBUG level.
+  - **RESOLVED (2026-05-22):** Replaced by OTel tracing implementation — all `System.err.printf` timing calls replaced with proper OpenTelemetry spans. New package `dev.dominikbreu.spoonmcp.tracing` added (`TracingConfig`, `StdoutSpanExporter`). Controlled via `-Dspoon.traces=none|console|otlp` (default: none, zero overhead). Commits: `9c43ca6`–`39a2a35`.
 
 - Reason: `catch (Exception ignored)` in `MavenBuildProjectDetector.readModel()` and `GradleBuildProjectDetector.readFirstExisting()` silently swallows I/O errors on corrupt/unreadable build files.
   - Files: `src/main/java/dev/dominikbreu/spoonmcp/build/MavenBuildProjectDetector.java`, `src/main/java/dev/dominikbreu/spoonmcp/build/GradleBuildProjectDetector.java`
