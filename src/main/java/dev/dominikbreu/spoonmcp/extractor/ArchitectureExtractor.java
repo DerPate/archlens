@@ -7,6 +7,11 @@ import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.scanner.SpoonScanner;
 import dev.dominikbreu.spoonmcp.extractor.objectflow.ObjectFlowIndex;
 import dev.dominikbreu.spoonmcp.extractor.objectflow.ObjectFlowIndexBuilder;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Scope;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.*;
@@ -44,43 +49,85 @@ public class ArchitectureExtractor {
      */
     public ArchitectureModel extract(List<String> projectPaths) {
         ArchitectureModel model = new ArchitectureModel(String.join(",", projectPaths));
+        Span extractSpan = tracer().spanBuilder("extract")
+                .setAttribute("workspace-path", model.workspacePath)
+                .startSpan();
+        try (Scope extractScope = extractSpan.makeCurrent()) {
 
-        // Pass 1: components + entrypoints per project/module, with WAR role assignment
-        Map<String, CtModel> ctModels = new LinkedHashMap<>();
-        for (String path : projectPaths) {
-            BuildProject project = buildMetadataService.detect(new File(path));
-            registerBuildProject(project, model, ctModels);
-        }
-
-        // Pass 2: injection dependencies (needs all components to be known)
-        for (CtModel ctModel : ctModels.values()) {
-            dependencyExtractor.extract(ctModel, model);
-        }
-        eventBusExtractor.linkCrossModuleEvents(model);
-
-        // Pass 2b: call graph — actual method invocations between components
-        for (CtModel ctModel : ctModels.values()) {
-            ObjectFlowIndex objectFlowIndex = new ObjectFlowIndexBuilder().build(ctModel, model);
-            new CallGraphExtractor(objectFlowIndex).extract(ctModel, model);
-        }
-
-        // Pass 2c: data-flow tracing — parameter propagation to sinks
-        model.dataFlowPaths.addAll(dataFlowTracer.trace(model));
-
-        // Pass 3: container inference
-        model.containers.addAll(containerInferrer.infer(model.components));
-
-        // Pass 4: messaging broker resolution + external system inference
-        externalSystemInferrer.infer(model);
-
-        for (Entrypoint entrypoint : model.entrypoints) {
-            RuntimeFlow flow = runtimeFlowInferrer.infer(entrypoint.id, 5, model);
-            if (flow != null) {
-                model.runtimeFlows.add(flow);
+            // Pass 1: components + entrypoints per project/module, with WAR role assignment
+            Map<String, CtModel> ctModels = new LinkedHashMap<>();
+            Span pass1 = tracer().spanBuilder("pass1-scan").startSpan();
+            try (Scope s = pass1.makeCurrent()) {
+                for (String path : projectPaths) {
+                    BuildProject project = buildMetadataService.detect(new File(path));
+                    registerBuildProject(project, model, ctModels);
+                }
+                pass1.setAttribute("modules", (long) ctModels.size());
+            } finally {
+                pass1.end();
             }
-        }
 
+            // Pass 2: injection dependencies (needs all components to be known)
+            Span pass2 = tracer().spanBuilder("pass2-deps").startSpan();
+            try (Scope s = pass2.makeCurrent()) {
+                for (CtModel ctModel : ctModels.values()) {
+                    dependencyExtractor.extract(ctModel, model);
+                }
+                eventBusExtractor.linkCrossModuleEvents(model);
+            } finally {
+                pass2.end();
+            }
+
+            // Pass 2b: call graph — actual method invocations between components
+            Span pass2b = tracer().spanBuilder("pass2b-callgraph").startSpan();
+            try (Scope s = pass2b.makeCurrent()) {
+                pass2b.setAttribute("modules", (long) ctModels.size());
+                for (CtModel ctModel : ctModels.values()) {
+                    ObjectFlowIndex objectFlowIndex = new ObjectFlowIndexBuilder().build(ctModel, model);
+                    new CallGraphExtractor(objectFlowIndex).extract(ctModel, model);
+                }
+            } finally {
+                pass2b.end();
+            }
+
+            // Pass 2c: data-flow tracing — parameter propagation to sinks
+            Span pass2c = tracer().spanBuilder("pass2c-dataflow").startSpan();
+            try (Scope s = pass2c.makeCurrent()) {
+                List<DataFlowPath> paths = dataFlowTracer.trace(model);
+                model.dataFlowPaths.addAll(paths);
+                pass2c.setAttribute("paths-found", (long) paths.size());
+            } finally {
+                pass2c.end();
+            }
+
+            // Pass 3: container inference
+            // Pass 4: messaging broker resolution + external system inference
+            Span pass34 = tracer().spanBuilder("pass3-4-runtime").startSpan();
+            try (Scope s = pass34.makeCurrent()) {
+                model.containers.addAll(containerInferrer.infer(model.components));
+                externalSystemInferrer.infer(model);
+                for (Entrypoint entrypoint : model.entrypoints) {
+                    RuntimeFlow flow = runtimeFlowInferrer.infer(entrypoint.id, 5, model);
+                    if (flow != null) {
+                        model.runtimeFlows.add(flow);
+                    }
+                }
+            } finally {
+                pass34.end();
+            }
+
+        } catch (RuntimeException e) {
+            extractSpan.recordException(e);
+            extractSpan.setStatus(StatusCode.ERROR, e.getMessage());
+            throw e;
+        } finally {
+            extractSpan.end();
+        }
         return model;
+    }
+
+    private static Tracer tracer() {
+        return GlobalOpenTelemetry.getTracer("dev.dominikbreu.spoonmcp");
     }
 
     private void registerBuildProject(BuildProject project, ArchitectureModel model, Map<String, CtModel> ctModels) {
