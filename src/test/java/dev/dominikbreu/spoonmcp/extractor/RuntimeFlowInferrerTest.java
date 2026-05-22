@@ -38,6 +38,18 @@ class RuntimeFlowInferrerTest {
     }
 
     @Test
+    void acceptsPrebuiltModelIndex() {
+        ArchitectureModel model = threeLayerModel();
+        Entrypoint ep = model.entrypoints.get(0);
+        ModelIndex index = ModelIndex.build(model);
+
+        RuntimeFlow flow = inferrer.infer(ep.id, 5, model, index);
+
+        assertThat(flow).isNotNull();
+        assertThat(flow.entrypointId).isEqualTo(ep.id);
+    }
+
+    @Test
     void stepsHaveCorrectOrderField() {
         ArchitectureModel model = threeLayerModel();
         RuntimeFlow flow = inferrer.infer(model.entrypoints.get(0).id, 5, model);

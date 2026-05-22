@@ -36,24 +36,21 @@ public class RuntimeFlowInferrer {
      * @return inferred runtime flow, or null when the entrypoint is not found
      */
     public RuntimeFlow infer(String entrypointRef, int maxDepth, ArchitectureModel model) {
+        return infer(entrypointRef, maxDepth, model, ModelIndex.build(model));
+    }
+
+    public RuntimeFlow infer(String entrypointRef, int maxDepth, ArchitectureModel model, ModelIndex index) {
         Entrypoint ep = findEntrypoint(entrypointRef, model);
         if (ep == null) return null;
 
         return model.callEdges.isEmpty()
-                ? inferFromDependencies(ep, maxDepth, model)
-                : inferFromCallGraph(ep, maxDepth, model);
+                ? inferFromDependencies(ep, maxDepth, index)
+                : inferFromCallGraph(ep, maxDepth, index);
     }
 
     // ── call-graph DFS ────────────────────────────────────────────────────────
 
-    private RuntimeFlow inferFromCallGraph(Entrypoint ep, int maxDepth, ArchitectureModel model) {
-        Map<String, List<CallEdge>> adj = new HashMap<>();
-        for (CallEdge edge : model.callEdges) {
-            adj.computeIfAbsent(edge.fromComponentId + "#" + edge.fromMethod, k -> new ArrayList<>())
-                    .add(edge);
-        }
-        Map<String, Component> compById = buildCompById(model);
-
+    private RuntimeFlow inferFromCallGraph(Entrypoint ep, int maxDepth, ModelIndex index) {
         RuntimeFlow flow = new RuntimeFlow();
         flow.id = "flow:" + ep.id;
         flow.entrypointId = ep.id;
@@ -69,8 +66,7 @@ public class RuntimeFlowInferrer {
                 null,
                 0,
                 maxDepth,
-                adj,
-                compById,
+                index,
                 visitedKeys,
                 visitedComps,
                 visitedEdges,
@@ -86,13 +82,12 @@ public class RuntimeFlowInferrer {
             String fromCompId,
             int depth,
             int maxDepth,
-            Map<String, List<CallEdge>> adj,
-            Map<String, Component> compById,
+            ModelIndex index,
             Set<String> visitedKeys,
             Set<String> visitedComps,
             Set<String> visitedEdges,
             RuntimeFlow flow) {
-        Component comp = compById.get(compId);
+        Component comp = index.components.get(compId);
         boolean visible = traversalPolicy.isHumanVisible(comp);
 
         if (!visitedComps.contains(compId)) {
@@ -117,7 +112,7 @@ public class RuntimeFlowInferrer {
         visitedKeys.add(key);
 
         String nextFromCompId = visible ? compId : fromCompId;
-        for (CallEdge edge : adj.getOrDefault(key, List.of())) {
+        for (CallEdge edge : index.callAdj.edgesByKey(key)) {
             if (!traversalPolicy.canTraverseInline(edge)) continue;
             dfsCallGraph(
                     edge.toComponentId,
@@ -126,8 +121,7 @@ public class RuntimeFlowInferrer {
                     nextFromCompId,
                     depth + 1,
                     maxDepth,
-                    adj,
-                    compById,
+                    index,
                     visitedKeys,
                     visitedComps,
                     visitedEdges,
@@ -137,10 +131,7 @@ public class RuntimeFlowInferrer {
 
     // ── injection-dependency BFS (fallback) ───────────────────────────────────
 
-    private RuntimeFlow inferFromDependencies(Entrypoint ep, int maxDepth, ArchitectureModel model) {
-        Map<String, Map<String, String>> adj = buildAdjacencyWithKinds(model.dependencies);
-        Map<String, Component> compById = buildCompById(model);
-
+    private RuntimeFlow inferFromDependencies(Entrypoint ep, int maxDepth, ModelIndex index) {
         RuntimeFlow flow = new RuntimeFlow();
         flow.id = "flow:" + ep.id;
         flow.entrypointId = ep.id;
@@ -166,7 +157,7 @@ public class RuntimeFlowInferrer {
 
             visited.add(compId);
 
-            Component comp = compById.get(compId);
+            Component comp = index.components.get(compId);
 
             boolean visible = traversalPolicy.isHumanVisible(comp);
             if (visible) {
@@ -177,8 +168,7 @@ public class RuntimeFlowInferrer {
                 }
             }
 
-            for (Map.Entry<String, String> next :
-                    adj.getOrDefault(compId, Map.of()).entrySet()) {
+            for (Map.Entry<String, String> next : index.depAdj.targets(compId).entrySet()) {
                 String nextId = next.getKey();
                 if (!visited.contains(nextId)) {
                     depths.put(nextId, depth + 1);
@@ -217,17 +207,4 @@ public class RuntimeFlowInferrer {
         return null;
     }
 
-    private Map<String, Component> buildCompById(ArchitectureModel model) {
-        Map<String, Component> map = new HashMap<>();
-        for (Component c : model.components) map.put(c.id, c);
-        return map;
-    }
-
-    private Map<String, Map<String, String>> buildAdjacencyWithKinds(List<Dependency> deps) {
-        Map<String, Map<String, String>> adj = new LinkedHashMap<>();
-        for (Dependency dep : deps) {
-            adj.computeIfAbsent(dep.fromId, k -> new LinkedHashMap<>()).put(dep.toId, dep.kind);
-        }
-        return adj;
-    }
 }
