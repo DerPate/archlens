@@ -7,9 +7,17 @@ import dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor;
 import dev.dominikbreu.spoonmcp.extractor.ExtractorTestBase;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
+import dev.dominikbreu.spoonmcp.tracing.StdoutSpanExporter;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
+import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import spoon.Launcher;
@@ -28,6 +36,49 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
         ArchitectureModel architecture =
                 new ArchitectureExtractor().extract(List.of(projectPath("generic-object-flow")));
         index = new ObjectFlowIndexBuilder().build(ctModel, architecture);
+    }
+
+    @AfterEach
+    void resetGlobalTracing() {
+        GlobalOpenTelemetry.resetForTest();
+    }
+
+    @Test
+    void emitsObjectFlowStageSpansAndScanCounters() {
+        ArchitectureModel architecture =
+                new ArchitectureExtractor().extract(List.of(projectPath("generic-object-flow")));
+        PrintStream originalOut = System.out;
+        ByteArrayOutputStream captured = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(captured));
+        try {
+            GlobalOpenTelemetry.resetForTest();
+            SdkTracerProvider provider = SdkTracerProvider.builder()
+                    .addSpanProcessor(SimpleSpanProcessor.create(new StdoutSpanExporter()))
+                    .build();
+            GlobalOpenTelemetry.set(OpenTelemetrySdk.builder().setTracerProvider(provider).build());
+
+            new ObjectFlowIndexBuilder().build(ctModel, architecture);
+
+            provider.forceFlush();
+        } finally {
+            System.setOut(originalOut);
+        }
+
+        assertThat(captured.toString())
+                .contains("objectflow.build")
+                .contains("objectflow.component-index")
+                .contains("objectflow.type-index")
+                .contains("objectflow.implementation-index")
+                .contains("objectflow.receiver-targets")
+                .contains("model-types=")
+                .contains("project-types=")
+                .contains("executable-bodies=")
+                .contains("invocations=")
+                .contains("resolved-invocations=")
+                .contains("receiver-targets=")
+                .contains("local-assignment-targets=")
+                .contains("field-targets=")
+                .contains("declared-type-targets=");
     }
 
     @Test

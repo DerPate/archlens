@@ -23,6 +23,7 @@ import spoon.reflect.code.CtInvocation;
 import spoon.reflect.code.CtNewArray;
 import spoon.reflect.code.CtVariableRead;
 import spoon.reflect.declaration.CtField;
+import spoon.reflect.declaration.CtExecutable;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtType;
 import spoon.reflect.declaration.CtVariable;
@@ -43,6 +44,8 @@ public class ObjectFlowIndexBuilder {
         Span span = tracer().spanBuilder("objectflow.build").startSpan();
         try (Scope scope = span.makeCurrent()) {
             Map<String, Component> componentByQualifiedName = componentByQualifiedName(architecture);
+            span.setAttribute("components", (long) componentByQualifiedName.size());
+
             Map<String, ObjectFlowIndex.TypeFact> types = new LinkedHashMap<>();
             Map<String, List<ObjectFlowIndex.TypeFact>> implementations = new LinkedHashMap<>();
             Map<String, CtType<?>> projectTypeByQualifiedName = new LinkedHashMap<>();
@@ -53,34 +56,92 @@ public class ObjectFlowIndexBuilder {
             for (CtType<?> type : modelTypes) {
                 projectTypeByQualifiedName.put(type.getQualifiedName(), type);
             }
+            span.setAttribute("model-types", (long) modelTypes.size());
 
             List<CtType<?>> projectTypes = modelTypes.stream()
                     .filter(type -> componentByQualifiedName.containsKey(type.getQualifiedName()))
                     .toList();
+            span.setAttribute("project-types", (long) projectTypes.size());
 
+            indexTypes(projectTypes, componentByQualifiedName, types);
+
+            indexImplementations(projectTypes, projectTypeByQualifiedName, types, implementations);
+
+            Map<CtInvocation<?>, List<ReceiverTarget>> receiverTargets =
+                    receiverTargets(ctModel, projectTypes, types, implementations);
+            ObjectFlowIndex index = new ObjectFlowIndex(types, implementations, receiverTargets);
+            span.setAttribute("implementation-groups", (long) implementations.size());
+            span.setAttribute("receiver-target-map-size", (long) receiverTargets.size());
+            return index;
+        } catch (RuntimeException e) {
+            span.recordException(e);
+            span.setStatus(StatusCode.ERROR, e.getMessage());
+            throw e;
+        } finally {
+            span.end();
+        }
+    }
+
+    private static void indexTypes(
+            List<CtType<?>> projectTypes,
+            Map<String, Component> componentByQualifiedName,
+            Map<String, ObjectFlowIndex.TypeFact> types) {
+        Span span = tracer().spanBuilder("objectflow.type-index").startSpan();
+        try (Scope scope = span.makeCurrent()) {
+            long abstractOrInterfaceCount = 0;
             for (CtType<?> type : projectTypes) {
                 Component component = componentByQualifiedName.get(type.getQualifiedName());
                 boolean abstractOrInterface = type.isInterface() || type.hasModifier(ModifierKind.ABSTRACT);
+                if (abstractOrInterface) {
+                    abstractOrInterfaceCount++;
+                }
                 ObjectFlowIndex.TypeFact typeFact =
                         new ObjectFlowIndex.TypeFact(type.getQualifiedName(), component.id, abstractOrInterface);
                 types.put(typeFact.qualifiedName(), typeFact);
             }
+            span.setAttribute("project-types", (long) projectTypes.size());
+            span.setAttribute("indexed-types", (long) types.size());
+            span.setAttribute("abstract-or-interface-types", abstractOrInterfaceCount);
+        } catch (RuntimeException e) {
+            span.recordException(e);
+            span.setStatus(StatusCode.ERROR, e.getMessage());
+            throw e;
+        } finally {
+            span.end();
+        }
+    }
 
+    private static void indexImplementations(
+            List<CtType<?>> projectTypes,
+            Map<String, CtType<?>> projectTypeByQualifiedName,
+            Map<String, ObjectFlowIndex.TypeFact> types,
+            Map<String, List<ObjectFlowIndex.TypeFact>> implementations) {
+        Span span = tracer().spanBuilder("objectflow.implementation-index").startSpan();
+        try (Scope scope = span.makeCurrent()) {
+            long concreteTypes = 0;
+            long supertypeEdges = 0;
+            long implementationLinks = 0;
+            long duplicateImplementationLinks = 0;
             for (CtType<?> type : projectTypes) {
                 ObjectFlowIndex.TypeFact concreteType = types.get(type.getQualifiedName());
                 if (concreteType == null || concreteType.abstractOrInterface()) {
                     continue;
                 }
+                concreteTypes++;
                 for (String supertype : supertypeClosure(type, projectTypeByQualifiedName)) {
-                    registerImplementation(implementations, supertype, concreteType);
+                    supertypeEdges++;
+                    if (registerImplementation(implementations, supertype, concreteType)) {
+                        implementationLinks++;
+                    } else {
+                        duplicateImplementationLinks++;
+                    }
                 }
             }
-
-            ObjectFlowIndex index = new ObjectFlowIndex(
-                    types,
-                    implementations,
-                    receiverTargets(ctModel, projectTypes, types, implementations));
-            return index;
+            span.setAttribute("concrete-types", concreteTypes);
+            span.setAttribute("supertype-edges", supertypeEdges);
+            span.setAttribute("implementation-groups", (long) implementations.size());
+            span.setAttribute("implementation-links", implementationLinks);
+            span.setAttribute("duplicate-implementation-links", duplicateImplementationLinks);
         } catch (RuntimeException e) {
             span.recordException(e);
             span.setStatus(StatusCode.ERROR, e.getMessage());
@@ -95,65 +156,87 @@ public class ObjectFlowIndexBuilder {
             List<CtType<?>> projectTypes,
             Map<String, ObjectFlowIndex.TypeFact> types,
             Map<String, List<ObjectFlowIndex.TypeFact>> implementations) {
-        ObjectFlowIndex typeIndex = new ObjectFlowIndex(types, implementations);
-        Map<CtInvocation<?>, List<ReceiverTarget>> targets = new IdentityHashMap<>();
-        for (CtInvocation<?> invocation : ctModel.getElements(new TypeFilter<>(CtInvocation.class))) {
-            List<ReceiverTarget> resolved = resolveInvocation(invocation, projectTypes, typeIndex);
-            if (!resolved.isEmpty()) {
-                targets.put(invocation, resolved);
+        Span span = tracer().spanBuilder("objectflow.receiver-targets").startSpan();
+        try (Scope scope = span.makeCurrent()) {
+            ObjectFlowIndex typeIndex = new ObjectFlowIndex(types, implementations);
+            Map<CtInvocation<?>, List<ReceiverTarget>> targets = new IdentityHashMap<>();
+            ReceiverResolutionStats stats = new ReceiverResolutionStats();
+            List<CtInvocation<?>> invocations = ctModel.getElements(new TypeFilter<>(CtInvocation.class));
+            span.setAttribute("executable-bodies", (long) ctModel.getElements(new TypeFilter<>(CtExecutable.class)).size());
+            span.setAttribute("invocations", (long) invocations.size());
+            for (CtInvocation<?> invocation : invocations) {
+                ReceiverResolution resolved = resolveInvocation(invocation, projectTypes, typeIndex);
+                stats.record(resolved);
+                if (!resolved.targets().isEmpty()) {
+                    targets.put(invocation, resolved.targets());
+                }
             }
+            stats.apply(span);
+            span.setAttribute("receiver-target-map-size", (long) targets.size());
+            return targets;
+        } catch (RuntimeException e) {
+            span.recordException(e);
+            span.setStatus(StatusCode.ERROR, e.getMessage());
+            throw e;
+        } finally {
+            span.end();
         }
-        return targets;
     }
 
-    private static List<ReceiverTarget> resolveInvocation(
+    private static ReceiverResolution resolveInvocation(
             CtInvocation<?> invocation, List<CtType<?>> projectTypes, ObjectFlowIndex typeIndex) {
         CtExpression<?> target = invocation.getTarget();
         if (target == null) {
-            return List.of();
+            return ReceiverResolution.unresolved();
         }
         String methodName = invocation.getExecutable().getSimpleName();
 
         if (target instanceof CtArrayRead<?> arrayRead) {
             String arrayName = variableName(arrayRead.getTarget());
             if (arrayName != null) {
-                return resolveArrayField(invocation, arrayName, methodName, typeIndex);
+                return ReceiverResolution.of(
+                        resolveArrayField(invocation, arrayName, methodName, typeIndex),
+                        ReceiverResolutionPath.ARRAY_FIELD);
             }
         }
 
         if (target instanceof CtInvocation<?> targetInvocation) {
             List<ReceiverTarget> accessorTargets = resolveAccessorTarget(targetInvocation, projectTypes, methodName);
             if (!accessorTargets.isEmpty()) {
-                return accessorTargets;
+                return ReceiverResolution.of(accessorTargets, ReceiverResolutionPath.ACCESSOR);
             }
         }
 
         String variableName = variableName(target);
         if (variableName == null) {
-            return List.of();
+            return ReceiverResolution.unresolved();
         }
 
         List<ReceiverTarget> localTargets =
                 ObjectFlowMethodAnalyzer.resolveLocalVariableTargets(invocation, variableName, methodName);
         if (!localTargets.isEmpty()) {
-            return localTargets;
+            return ReceiverResolution.of(localTargets, ReceiverResolutionPath.LOCAL);
         }
 
         List<ReceiverTarget> fieldTargets = resolveField(invocation, variableName, methodName, typeIndex);
         if (!fieldTargets.isEmpty()) {
-            return fieldTargets;
+            return ReceiverResolution.of(fieldTargets, ReceiverResolutionPath.FIELD);
         }
 
         CtVariable<?> variable = variable(target);
         if (variable != null && variable.getType() != null) {
-            return typeIndex.expandDeclaredType(elementOrDeclaredType(variable.getType()), methodName);
+            return ReceiverResolution.of(
+                    typeIndex.expandDeclaredType(elementOrDeclaredType(variable.getType()), methodName),
+                    ReceiverResolutionPath.DECLARED_VARIABLE);
         }
         if (target instanceof CtVariableRead<?> variableRead
                 && variableRead.getVariable() != null
                 && variableRead.getVariable().getType() != null) {
-            return typeIndex.expandDeclaredType(elementOrDeclaredType(variableRead.getVariable().getType()), methodName);
+            return ReceiverResolution.of(
+                    typeIndex.expandDeclaredType(elementOrDeclaredType(variableRead.getVariable().getType()), methodName),
+                    ReceiverResolutionPath.DECLARED_VARIABLE);
         }
-        return List.of();
+        return ReceiverResolution.unresolved();
     }
 
     private static List<ReceiverTarget> resolveField(
@@ -296,13 +379,24 @@ public class ObjectFlowIndexBuilder {
     }
 
     private static Map<String, Component> componentByQualifiedName(ArchitectureModel architecture) {
-        Map<String, Component> components = new LinkedHashMap<>();
-        for (Component component : architecture.components) {
-            if (component.qualifiedName != null && !component.qualifiedName.isBlank()) {
-                components.putIfAbsent(component.qualifiedName, component);
+        Span span = tracer().spanBuilder("objectflow.component-index").startSpan();
+        try (Scope scope = span.makeCurrent()) {
+            Map<String, Component> components = new LinkedHashMap<>();
+            for (Component component : architecture.components) {
+                if (component.qualifiedName != null && !component.qualifiedName.isBlank()) {
+                    components.putIfAbsent(component.qualifiedName, component);
+                }
             }
+            span.setAttribute("architecture-components", (long) architecture.components.size());
+            span.setAttribute("qualified-components", (long) components.size());
+            return components;
+        } catch (RuntimeException e) {
+            span.recordException(e);
+            span.setStatus(StatusCode.ERROR, e.getMessage());
+            throw e;
+        } finally {
+            span.end();
         }
-        return components;
     }
 
     private static List<String> supertypeClosure(
@@ -355,17 +449,95 @@ public class ObjectFlowIndexBuilder {
                 .toList();
     }
 
-    private static void registerImplementation(
+    private static boolean registerImplementation(
             Map<String, List<ObjectFlowIndex.TypeFact>> implementations,
             String declaredQualifiedName,
             ObjectFlowIndex.TypeFact concreteType) {
         if (declaredQualifiedName == null || declaredQualifiedName.equals(concreteType.qualifiedName())) {
-            return;
+            return false;
         }
         List<ObjectFlowIndex.TypeFact> typeImplementations =
                 implementations.computeIfAbsent(declaredQualifiedName, ignored -> new ArrayList<>());
         if (!typeImplementations.contains(concreteType)) {
             typeImplementations.add(concreteType);
+            return true;
+        }
+        return false;
+    }
+
+    private record ReceiverResolution(List<ReceiverTarget> targets, ReceiverResolutionPath path) {
+        private static ReceiverResolution of(List<ReceiverTarget> targets, ReceiverResolutionPath path) {
+            if (targets.isEmpty()) {
+                return unresolved();
+            }
+            return new ReceiverResolution(targets, path);
+        }
+
+        private static ReceiverResolution unresolved() {
+            return new ReceiverResolution(List.of(), ReceiverResolutionPath.UNRESOLVED);
+        }
+    }
+
+    private enum ReceiverResolutionPath {
+        ARRAY_FIELD,
+        ACCESSOR,
+        LOCAL,
+        FIELD,
+        DECLARED_VARIABLE,
+        UNRESOLVED
+    }
+
+    private static final class ReceiverResolutionStats {
+        private long unresolvedInvocations;
+        private long resolvedInvocations;
+        private long receiverTargets;
+        private long fieldTargets;
+        private long constructorAssignmentTargets;
+        private long localAssignmentTargets;
+        private long collectionElementTargets;
+        private long arrayElementTargets;
+        private long accessorTargets;
+        private long declaredTypeTargets;
+        private long declaredInterfaceOnlyTargets;
+        private long polymorphicTargets;
+
+        private void record(ReceiverResolution resolved) {
+            if (resolved.targets().isEmpty()) {
+                unresolvedInvocations++;
+                return;
+            }
+            resolvedInvocations++;
+            receiverTargets += resolved.targets().size();
+            if (resolved.path() == ReceiverResolutionPath.FIELD || resolved.path() == ReceiverResolutionPath.ARRAY_FIELD) {
+                fieldTargets += resolved.targets().size();
+            }
+            for (ReceiverTarget target : resolved.targets()) {
+                switch (target.evidence()) {
+                    case CONSTRUCTOR_ASSIGNMENT -> constructorAssignmentTargets++;
+                    case LOCAL_ASSIGNMENT -> localAssignmentTargets++;
+                    case COLLECTION_ELEMENT_ALLOCATION -> collectionElementTargets++;
+                    case ARRAY_ELEMENT_ALLOCATION -> arrayElementTargets++;
+                    case ACCESSOR_RETURN -> accessorTargets++;
+                    case DECLARED_FIELD_TYPE, GENERIC_ELEMENT_TYPE -> declaredTypeTargets++;
+                    case DECLARED_INTERFACE_ONLY -> declaredInterfaceOnlyTargets++;
+                    case SMALL_POLYMORPHIC_EXPANSION -> polymorphicTargets++;
+                }
+            }
+        }
+
+        private void apply(Span span) {
+            span.setAttribute("resolved-invocations", resolvedInvocations);
+            span.setAttribute("unresolved-invocations", unresolvedInvocations);
+            span.setAttribute("receiver-targets", receiverTargets);
+            span.setAttribute("constructor-assignment-targets", constructorAssignmentTargets);
+            span.setAttribute("field-targets", fieldTargets);
+            span.setAttribute("local-assignment-targets", localAssignmentTargets);
+            span.setAttribute("collection-element-targets", collectionElementTargets);
+            span.setAttribute("array-element-targets", arrayElementTargets);
+            span.setAttribute("accessor-targets", accessorTargets);
+            span.setAttribute("declared-type-targets", declaredTypeTargets);
+            span.setAttribute("declared-interface-only-targets", declaredInterfaceOnlyTargets);
+            span.setAttribute("polymorphic-targets", polymorphicTargets);
         }
     }
 }
