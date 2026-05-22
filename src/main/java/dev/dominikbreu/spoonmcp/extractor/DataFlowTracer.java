@@ -58,19 +58,17 @@ public class DataFlowTracer {
      * @return list of data-flow paths; paths with no sinks are omitted
      */
     public List<DataFlowPath> trace(ArchitectureModel model) {
+        return trace(model, ModelIndex.build(model));
+    }
+
+    public List<DataFlowPath> trace(ArchitectureModel model, ModelIndex index) {
         Span span = tracer().spanBuilder("dataflow.trace").startSpan();
         try (Scope scope = span.makeCurrent()) {
-            Map<String, Component> compById = buildCompById(model);
-            Map<String, List<CallEdge>> callAdj = buildCallAdj(model);
-            Map<String, SourceInfo> sinkSrc = buildSinkSourceMap(model);
-            Map<String, List<FieldAccess>> writes = buildFieldAccessIndex(model, FieldAccess.Kind.WRITE);
-            Map<String, List<FieldAccess>> reads = buildFieldAccessIndex(model, FieldAccess.Kind.READ);
-            Map<String, List<OutboundSinkSite>> outbound = buildOutboundIndex(model);
-
             List<DataFlowPath> result = new ArrayList<>();
 
             for (Entrypoint ep : model.entrypoints) {
                 if (!traversalPolicy.isWorkflowRoot(ep)) continue;
+
                 LinkedHashSet<String> trackedNames = new LinkedHashSet<>();
                 if (ep.parameters.isEmpty()) {
                     trackedNames.add("*");
@@ -81,43 +79,37 @@ public class DataFlowTracer {
                 if (ep.parameters.isEmpty()
                         || ep.type == EntrypointType.MESSAGING_PRODUCER
                         || ep.type == EntrypointType.SCHEDULER) {
-                    trackedNames.addAll(collectReachableReadFields(ep, callAdj, reads));
+                    trackedNames.addAll(collectReachableReadFields(ep, index));
                 }
 
-                for (CallEdge e : callAdj.getOrDefault(ep.componentId + "#" + ep.name, List.of())) {
+                for (CallEdge e : index.callAdj.edges(ep.componentId, ep.name)) {
                     if (e.returnsTracked && e.assignedToVar != null) {
                         trackedNames.add(e.assignedToVar);
                     }
                 }
 
+                Map<String, DataFlowPath> pathsByOriginal = new LinkedHashMap<>();
+                Map<String, String> currentToOriginal = new LinkedHashMap<>();
                 for (String tracked : trackedNames) {
                     DataFlowPath path = new DataFlowPath();
                     path.id = "df:" + ep.id + "#" + tracked;
                     path.entrypointId = ep.id;
                     path.trackedParam = tracked;
+                    pathsByOriginal.put(tracked, path);
+                    currentToOriginal.put(tracked, tracked);
+                }
 
-                    Set<String> visitedKeys = new LinkedHashSet<>();
-                    dfs(
-                            ep.componentId,
-                            ep.name,
-                            tracked,
-                            0,
-                            path,
-                            callAdj,
-                            compById,
-                            sinkSrc,
-                            writes,
-                            outbound,
-                            visitedKeys,
-                            Map.of());
+                Set<String> onCurrentPath = new HashSet<>();
+                dfs(ep.componentId, ep.name, currentToOriginal, pathsByOriginal, 0, index, onCurrentPath, Map.of());
 
+                for (DataFlowPath path : pathsByOriginal.values()) {
                     boolean hasSinks = !path.sinks.isEmpty();
                     boolean isConsumerWithSteps = ep.type == EntrypointType.MESSAGING_CONSUMER && !path.steps.isEmpty();
                     if (hasSinks || isConsumerWithSteps) result.add(path);
                 }
             }
 
-            linkStoreSinksToFieldReaders(result, model, callAdj, reads);
+            linkStoreSinksToFieldReaders(result, model, index);
             linkMessagingSinksToChannelConsumers(result, model);
             linkPersistenceWritesToReaders(result, model);
             span.setAttribute("paths-found", (long) result.size());
@@ -140,12 +132,11 @@ public class DataFlowTracer {
     private void linkStoreSinksToFieldReaders(
             List<DataFlowPath> paths,
             ArchitectureModel model,
-            Map<String, List<CallEdge>> callAdj,
-            Map<String, List<FieldAccess>> reads) {
+            ModelIndex index) {
         // Build entrypointId → set of (fieldOwnerComponentId, fieldName) pairs read transitively.
         Map<String, Set<String>> readsByEntrypoint = new HashMap<>();
         for (Entrypoint ep : model.entrypoints) {
-            readsByEntrypoint.put(ep.id, collectReachableReadFieldKeys(ep, callAdj, reads));
+            readsByEntrypoint.put(ep.id, collectReachableReadFieldKeys(ep, index));
         }
 
         // Index reader paths by (owner, field) → pathIds.
@@ -225,8 +216,7 @@ public class DataFlowTracer {
         return brokerKey + ":" + destination.trim();
     }
 
-    private Set<String> collectReachableReadFieldKeys(
-            Entrypoint ep, Map<String, List<CallEdge>> callAdj, Map<String, List<FieldAccess>> reads) {
+    private Set<String> collectReachableReadFieldKeys(Entrypoint ep, ModelIndex index) {
         Set<String> keys = new LinkedHashSet<>();
         Deque<String> stack = new ArrayDeque<>();
         Set<String> seen = new HashSet<>();
@@ -236,12 +226,13 @@ public class DataFlowTracer {
         int budget = 64;
         while (!stack.isEmpty() && budget-- > 0) {
             String key = stack.pop();
-            for (FieldAccess r : reads.getOrDefault(key, List.of())) {
+            String[] parts = key.split("#", 2);
+            for (FieldAccess r : index.fieldAccess.reads(parts[0], parts[1])) {
                 if (r.fieldOwnerComponentId != null && r.fieldName != null) {
                     keys.add(r.fieldOwnerComponentId + "@" + r.fieldName);
                 }
             }
-            for (CallEdge edge : callAdj.getOrDefault(key, List.of())) {
+            for (CallEdge edge : index.callAdj.edgesByKey(key)) {
                 if (!traversalPolicy.canTraverseInline(edge)) continue;
                 String next = edge.toComponentId + "#" + edge.toMethod;
                 if (seen.add(next)) stack.push(next);
@@ -253,110 +244,110 @@ public class DataFlowTracer {
     private void dfs(
             String compId,
             String method,
-            String trackedName,
+            Map<String, String> currentToOriginal,
+            Map<String, DataFlowPath> pathsByOriginal,
             int depth,
-            DataFlowPath path,
-            Map<String, List<CallEdge>> callAdj,
-            Map<String, Component> compById,
-            Map<String, SourceInfo> sinkSrc,
-            Map<String, List<FieldAccess>> writes,
-            Map<String, List<OutboundSinkSite>> outbound,
-            Set<String> visitedKeys,
+            ModelIndex index,
+            Set<String> onCurrentPath,
             Map<String, String> resolvedCallerArgs) {
 
-        String key = compId + "#" + method + "@" + trackedName;
-        if (visitedKeys.contains(key) || depth > MAX_DEPTH) return;
-        visitedKeys.add(key);
+        String nodeKey = compId + "#" + method;
+        if (onCurrentPath.contains(nodeKey) || depth > MAX_DEPTH) return;
+        onCurrentPath.add(nodeKey);
 
-        Component comp = compById.get(compId);
-        String compName = comp != null ? comp.name : compId;
+        try {
+            Component comp = index.components.get(compId);
+            String compName = comp != null ? comp.name : compId;
 
-        path.steps.add(new DataFlowStep(path.steps.size(), compId, compName, method, trackedName));
-
-        for (OutboundSinkSite site : outbound.getOrDefault(compId + "#" + method, List.of())) {
-            if (!outboundMatchesTracked(site, trackedName)) {
-                continue;
-            }
-            String topic = site.topic != null ? resolvedCallerArgs.getOrDefault(site.topic, site.topic) : null;
-            String channel = site.channel != null ? resolvedCallerArgs.getOrDefault(site.channel, site.channel) : null;
-            DataFlowSink sink = new DataFlowSink(site.kind, site.componentId, compName, site.calleeMethod, site.source);
-            sink.channel = firstNonBlank(topic, channel);
-            sink.broker = site.broker;
-            sink.topic = topic;
-            sink.topicPropertyKey = site.topicPropertyKey;
-            sink.payloadType = site.payloadType;
-            sink.linkEvidence = site.linkEvidence;
-            sink.calleeQualifiedName = site.calleeQualifiedName;
-            path.sinks.add(sink);
-        }
-
-        for (FieldAccess fw : writes.getOrDefault(compId + "#" + method, List.of())) {
-            // At depth 0 we are directly inside the entrypoint method body. Any write to
-            // shared state here is causally connected to the entrypoint invocation even
-            // when the stored value was derived from the parameter (e.g. extracted into a
-            // local variable) and the sourceVarName therefore differs from trackedName.
-            boolean isEntrypointBody = depth == 0 && !"*".equals(trackedName);
-            if (isEntrypointBody
-                    || matchesTracked(trackedName, fw.sourceVarName)
-                    || matchesTracked(trackedName, fw.sourceFieldName)) {
-                path.sinks.add(new DataFlowSink(
-                        DataFlowSink.Kind.STORE,
-                        fw.fieldOwnerComponentId,
-                        compName,
-                        fw.fieldName,
-                        fw.source,
-                        fw.fieldName,
-                        fw.fieldOwnerComponentId));
-            }
-        }
-
-        for (CallEdge edge : callAdj.getOrDefault(compId + "#" + method, List.of())) {
-            Component target = compById.get(edge.toComponentId);
-
-            if (!"*".equals(trackedName) && edge.killedTrackedNames.contains(trackedName)) {
-                continue;
+            for (Map.Entry<String, String> e : currentToOriginal.entrySet()) {
+                DataFlowPath path = pathsByOriginal.get(e.getValue());
+                path.steps.add(new DataFlowStep(path.steps.size(), compId, compName, method, e.getKey()));
             }
 
-            if (isSink(edge, target)) {
-                String sinkKey = edge.toComponentId + "#" + edge.toMethod;
-                DataFlowSink.Kind sinkKind = classifySink(edge, target);
-                DataFlowSink sink = new DataFlowSink(
-                        sinkKind,
-                        edge.toComponentId,
-                        target != null ? target.name : edge.toComponentId,
-                        edge.toMethod,
-                        sinkSrc.get(sinkKey));
-                if (sinkKind == DataFlowSink.Kind.PERSISTENCE) {
-                    sink.repositoryOperation = edge.toMethod;
-                    sink.entityType = repositoryEntityType(target, compById);
-                    sink.linkEvidence = "repository-call";
+            for (OutboundSinkSite site : index.outboundSinks.sites(compId, method)) {
+                String topic = site.topic != null ? resolvedCallerArgs.getOrDefault(site.topic, site.topic) : null;
+                String channel = site.channel != null ? resolvedCallerArgs.getOrDefault(site.channel, site.channel) : null;
+                for (String origName : currentToOriginal.values()) {
+                    DataFlowSink sink =
+                            new DataFlowSink(site.kind, site.componentId, compName, site.calleeMethod, site.source);
+                    sink.channel = firstNonBlank(topic, channel);
+                    sink.broker = site.broker;
+                    sink.topic = topic;
+                    sink.topicPropertyKey = site.topicPropertyKey;
+                    sink.payloadType = site.payloadType;
+                    sink.linkEvidence = site.linkEvidence;
+                    sink.calleeQualifiedName = site.calleeQualifiedName;
+                    pathsByOriginal.get(origName).sinks.add(sink);
                 }
-                path.sinks.add(sink);
-            } else if (traversalPolicy.canTraverseInline(edge)) {
-                String nextName =
-                        "*".equals(trackedName) ? "*" : edge.paramMapping.getOrDefault(trackedName, trackedName);
-                dfs(
-                        edge.toComponentId,
-                        edge.toMethod,
-                        nextName,
-                        depth + 1,
-                        path,
-                        callAdj,
-                        compById,
-                        sinkSrc,
-                        writes,
-                        outbound,
-                        visitedKeys,
-                        edge.resolvedLiteralArgs);
             }
-        }
-    }
 
-    private boolean outboundMatchesTracked(OutboundSinkSite site, String trackedName) {
-        // The DFS only reaches this method via valid call edges from the entrypoint, so
-        // emit regardless of variable name. Strict name matching causes false negatives when
-        // the tracked variable is transformed through intermediate locals before the outbound call.
-        return site != null;
+            for (FieldAccess fw : index.fieldAccess.writes(compId, method)) {
+                for (Map.Entry<String, String> e : currentToOriginal.entrySet()) {
+                    String currentName = e.getKey();
+                    boolean isEntrypointBody = depth == 0 && !"*".equals(currentName);
+                    if (isEntrypointBody
+                            || matchesTracked(currentName, fw.sourceVarName)
+                            || matchesTracked(currentName, fw.sourceFieldName)) {
+                        pathsByOriginal.get(e.getValue())
+                                .sinks.add(new DataFlowSink(
+                                        DataFlowSink.Kind.STORE,
+                                        fw.fieldOwnerComponentId,
+                                        compName,
+                                        fw.fieldName,
+                                        fw.source,
+                                        fw.fieldName,
+                                        fw.fieldOwnerComponentId));
+                    }
+                }
+            }
+
+            for (CallEdge edge : index.callAdj.edges(compId, method)) {
+                Component target = index.components.get(edge.toComponentId);
+
+                if (isSink(edge, target)) {
+                    DataFlowSink.Kind sinkKind = classifySink(edge, target);
+                    for (Map.Entry<String, String> e : currentToOriginal.entrySet()) {
+                        String currentName = e.getKey();
+                        if (!"*".equals(currentName) && edge.killedTrackedNames.contains(currentName)) continue;
+                        DataFlowSink sink = new DataFlowSink(
+                                sinkKind,
+                                edge.toComponentId,
+                                target != null ? target.name : edge.toComponentId,
+                                edge.toMethod,
+                                edge.source);
+                        if (sinkKind == DataFlowSink.Kind.PERSISTENCE) {
+                            sink.repositoryOperation = edge.toMethod;
+                            sink.entityType = repositoryEntityType(target, index);
+                            sink.linkEvidence = "repository-call";
+                        }
+                        pathsByOriginal.get(e.getValue()).sinks.add(sink);
+                    }
+                } else if (traversalPolicy.canTraverseInline(edge)) {
+                    Map<String, String> nextMapping = new LinkedHashMap<>();
+                    for (Map.Entry<String, String> e : currentToOriginal.entrySet()) {
+                        String currentName = e.getKey();
+                        if (!"*".equals(currentName) && edge.killedTrackedNames.contains(currentName)) continue;
+                        String nextName = "*".equals(currentName)
+                                ? "*"
+                                : edge.paramMapping.getOrDefault(currentName, currentName);
+                        nextMapping.put(nextName, e.getValue());
+                    }
+                    if (!nextMapping.isEmpty()) {
+                        dfs(
+                                edge.toComponentId,
+                                edge.toMethod,
+                                nextMapping,
+                                pathsByOriginal,
+                                depth + 1,
+                                index,
+                                onCurrentPath,
+                                edge.resolvedLiteralArgs);
+                    }
+                }
+            }
+        } finally {
+            onCurrentPath.remove(nodeKey);
+        }
     }
 
     private String firstNonBlank(String first, String second) {
@@ -369,8 +360,7 @@ public class DataFlowTracer {
         return trackedName.equals(sourceVarName);
     }
 
-    private Set<String> collectReachableReadFields(
-            Entrypoint ep, Map<String, List<CallEdge>> callAdj, Map<String, List<FieldAccess>> reads) {
+    private Set<String> collectReachableReadFields(Entrypoint ep, ModelIndex index) {
         Set<String> fields = new LinkedHashSet<>();
         Deque<String> stack = new ArrayDeque<>();
         Set<String> seen = new HashSet<>();
@@ -380,10 +370,11 @@ public class DataFlowTracer {
         int budget = 64;
         while (!stack.isEmpty() && budget-- > 0) {
             String key = stack.pop();
-            for (FieldAccess r : reads.getOrDefault(key, List.of())) {
+            String[] parts = key.split("#", 2);
+            for (FieldAccess r : index.fieldAccess.reads(parts[0], parts[1])) {
                 fields.add(r.fieldName);
             }
-            for (CallEdge edge : callAdj.getOrDefault(key, List.of())) {
+            for (CallEdge edge : index.callAdj.edgesByKey(key)) {
                 if (!traversalPolicy.canTraverseInline(edge)) continue;
                 String next = edge.toComponentId + "#" + edge.toMethod;
                 if (seen.add(next)) stack.push(next);
@@ -417,48 +408,6 @@ public class DataFlowTracer {
 
     private boolean hasStereotype(Component c, String stereotype) {
         return c != null && c.stereotypes != null && c.stereotypes.contains(stereotype);
-    }
-
-    private Map<String, Component> buildCompById(ArchitectureModel model) {
-        Map<String, Component> map = new HashMap<>();
-        for (Component c : model.components) map.put(c.id, c);
-        return map;
-    }
-
-    private Map<String, List<CallEdge>> buildCallAdj(ArchitectureModel model) {
-        Map<String, List<CallEdge>> adj = new HashMap<>();
-        for (CallEdge e : model.callEdges) {
-            adj.computeIfAbsent(e.fromComponentId + "#" + e.fromMethod, k -> new ArrayList<>())
-                    .add(e);
-        }
-        return adj;
-    }
-
-    private Map<String, SourceInfo> buildSinkSourceMap(ArchitectureModel model) {
-        Map<String, SourceInfo> map = new HashMap<>();
-        for (CallEdge e : model.callEdges) {
-            map.put(e.toComponentId + "#" + e.toMethod, e.source);
-        }
-        return map;
-    }
-
-    private Map<String, List<OutboundSinkSite>> buildOutboundIndex(ArchitectureModel model) {
-        Map<String, List<OutboundSinkSite>> map = new HashMap<>();
-        for (OutboundSinkSite s : model.outboundSinkSites) {
-            map.computeIfAbsent(s.componentId + "#" + s.method, k -> new ArrayList<>())
-                    .add(s);
-        }
-        return map;
-    }
-
-    private Map<String, List<FieldAccess>> buildFieldAccessIndex(ArchitectureModel model, FieldAccess.Kind kind) {
-        Map<String, List<FieldAccess>> map = new HashMap<>();
-        for (FieldAccess fa : model.fieldAccesses) {
-            if (fa.kind != kind) continue;
-            map.computeIfAbsent(fa.componentId + "#" + fa.method, k -> new ArrayList<>())
-                    .add(fa);
-        }
-        return map;
     }
 
     // Pure request-response entrypoints are triggered by a client call, never by DB state changes,
@@ -505,7 +454,7 @@ public class DataFlowTracer {
         }
     }
 
-    private String repositoryEntityType(Component target, Map<String, Component> compById) {
+    private String repositoryEntityType(Component target, ModelIndex index) {
         if (target == null || target.qualifiedName == null) return null;
         String qn = target.qualifiedName;
         int repoIndex = qn.lastIndexOf(".repository.");
@@ -518,20 +467,10 @@ public class DataFlowTracer {
         if (entity.isBlank()) return null;
         String basePackage = qn.substring(0, repoIndex);
         String candidate = basePackage + ".model." + entity;
-        if (compById.containsKey("comp:" + candidate)) return candidate;
+        if (index.components.get("comp:" + candidate) != null) return candidate;
         String withEntitySuffix = candidate + "Entity";
-        if (compById.containsKey("comp:" + withEntitySuffix)) return withEntitySuffix;
-        for (Component comp : compById.values()) {
-            if (comp.type == ComponentType.ENTITY && comp.qualifiedName != null
-                    && comp.qualifiedName.startsWith(basePackage)
-                    && comp.name != null
-                    && (comp.name.equals(entity) || comp.name.equals(entity + "Entity"))) {
-                return comp.qualifiedName;
-            }
-        }
-        // Only return the candidate when a component actually exists; a fabricated key would
-        // link unrelated paths that share a manufactured entity-type string.
-        return null;
+        if (index.components.get("comp:" + withEntitySuffix) != null) return withEntitySuffix;
+        return index.entityIndex.resolve(basePackage, entity);
     }
 
     private boolean isWriteOperation(String method) {
