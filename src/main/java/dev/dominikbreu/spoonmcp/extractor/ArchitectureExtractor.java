@@ -49,61 +49,78 @@ public class ArchitectureExtractor {
      */
     public ArchitectureModel extract(List<String> projectPaths) {
         ArchitectureModel model = new ArchitectureModel(String.join(",", projectPaths));
-        Span extractSpan = tracer().spanBuilder("extract")
+        Tracer t = tracer();
+        Span extractSpan = t.spanBuilder("extract")
                 .setAttribute("workspace-path", model.workspacePath)
                 .startSpan();
         try (Scope extractScope = extractSpan.makeCurrent()) {
 
             // Pass 1: components + entrypoints per project/module, with WAR role assignment
             Map<String, CtModel> ctModels = new LinkedHashMap<>();
-            Span pass1 = tracer().spanBuilder("pass1-scan").startSpan();
-            try (Scope s = pass1.makeCurrent()) {
+            Span pass1 = t.spanBuilder("pass1-scan").startSpan();
+            try (Scope scope1 = pass1.makeCurrent()) {
                 for (String path : projectPaths) {
                     BuildProject project = buildMetadataService.detect(new File(path));
                     registerBuildProject(project, model, ctModels);
                 }
                 pass1.setAttribute("modules", (long) ctModels.size());
+            } catch (RuntimeException e) {
+                pass1.recordException(e);
+                pass1.setStatus(StatusCode.ERROR, e.getMessage());
+                throw e;
             } finally {
                 pass1.end();
             }
 
             // Pass 2: injection dependencies (needs all components to be known)
-            Span pass2 = tracer().spanBuilder("pass2-deps").startSpan();
-            try (Scope s = pass2.makeCurrent()) {
+            Span pass2 = t.spanBuilder("pass2-deps").startSpan();
+            try (Scope scope2 = pass2.makeCurrent()) {
                 for (CtModel ctModel : ctModels.values()) {
                     dependencyExtractor.extract(ctModel, model);
                 }
                 eventBusExtractor.linkCrossModuleEvents(model);
+            } catch (RuntimeException e) {
+                pass2.recordException(e);
+                pass2.setStatus(StatusCode.ERROR, e.getMessage());
+                throw e;
             } finally {
                 pass2.end();
             }
 
             // Pass 2b: call graph — actual method invocations between components
-            Span pass2b = tracer().spanBuilder("pass2b-callgraph").startSpan();
-            try (Scope s = pass2b.makeCurrent()) {
+            Span pass2b = t.spanBuilder("pass2b-callgraph").startSpan();
+            try (Scope scope2b = pass2b.makeCurrent()) {
                 pass2b.setAttribute("modules", (long) ctModels.size());
                 for (CtModel ctModel : ctModels.values()) {
                     ObjectFlowIndex objectFlowIndex = new ObjectFlowIndexBuilder().build(ctModel, model);
                     new CallGraphExtractor(objectFlowIndex).extract(ctModel, model);
                 }
+            } catch (RuntimeException e) {
+                pass2b.recordException(e);
+                pass2b.setStatus(StatusCode.ERROR, e.getMessage());
+                throw e;
             } finally {
                 pass2b.end();
             }
 
             // Pass 2c: data-flow tracing — parameter propagation to sinks
-            Span pass2c = tracer().spanBuilder("pass2c-dataflow").startSpan();
-            try (Scope s = pass2c.makeCurrent()) {
+            Span pass2c = t.spanBuilder("pass2c-dataflow").startSpan();
+            try (Scope scope2c = pass2c.makeCurrent()) {
                 List<DataFlowPath> paths = dataFlowTracer.trace(model);
                 model.dataFlowPaths.addAll(paths);
                 pass2c.setAttribute("paths-found", (long) paths.size());
+            } catch (RuntimeException e) {
+                pass2c.recordException(e);
+                pass2c.setStatus(StatusCode.ERROR, e.getMessage());
+                throw e;
             } finally {
                 pass2c.end();
             }
 
             // Pass 3: container inference
             // Pass 4: messaging broker resolution + external system inference
-            Span pass34 = tracer().spanBuilder("pass3-4-runtime").startSpan();
-            try (Scope s = pass34.makeCurrent()) {
+            Span pass34 = t.spanBuilder("pass3-4-runtime").startSpan();
+            try (Scope scope34 = pass34.makeCurrent()) {
                 model.containers.addAll(containerInferrer.infer(model.components));
                 externalSystemInferrer.infer(model);
                 for (Entrypoint entrypoint : model.entrypoints) {
@@ -112,6 +129,10 @@ public class ArchitectureExtractor {
                         model.runtimeFlows.add(flow);
                     }
                 }
+            } catch (RuntimeException e) {
+                pass34.recordException(e);
+                pass34.setStatus(StatusCode.ERROR, e.getMessage());
+                throw e;
             } finally {
                 pass34.end();
             }
