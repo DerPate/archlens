@@ -1,6 +1,11 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.*;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Scope;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -9,11 +14,14 @@ import java.util.Set;
 import spoon.reflect.code.CtExpression;
 import spoon.reflect.code.CtInvocation;
 import spoon.reflect.code.CtLiteral;
+import spoon.reflect.code.CtNewArray;
 import spoon.reflect.code.CtVariableRead;
 import spoon.reflect.declaration.CtAnnotation;
 import spoon.reflect.declaration.CtElement;
+import spoon.reflect.declaration.CtField;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtType;
+import spoon.reflect.reference.CtFieldReference;
 import spoon.reflect.reference.CtTypeReference;
 
 public class SpringExtractor {
@@ -37,6 +45,7 @@ public class SpringExtractor {
     private static final Set<String> PATCH_MAPPING = Set.of("org.springframework.web.bind.annotation.PatchMapping");
     private static final Set<String> SCHEDULED = Set.of("org.springframework.scheduling.annotation.Scheduled");
     private static final Set<String> KAFKA_LISTENER = Set.of("org.springframework.kafka.annotation.KafkaListener");
+    private static final Set<String> KAFKA_HANDLER = Set.of("org.springframework.kafka.annotation.KafkaHandler");
     private static final Set<String> RABBIT_LISTENER = Set.of("org.springframework.amqp.rabbit.annotation.RabbitListener");
     private static final Set<String> JMS_LISTENER = Set.of("org.springframework.jms.annotation.JmsListener");
     private static final Set<String> FEIGN_CLIENT = Set.of("org.springframework.cloud.openfeign.FeignClient");
@@ -51,20 +60,33 @@ public class SpringExtractor {
         this.config = config;
     }
 
+    private static Tracer tracer() {
+        return GlobalOpenTelemetry.getTracer("dev.dominikbreu.spoonmcp");
+    }
+
     public void extract(Collection<CtType<?>> types, ArchitectureModel model, String appId) {
-        Set<String> existingIds = new HashSet<>();
-        for (Component component : model.components) existingIds.add(component.id);
+        Span span = tracer().spanBuilder("spring.extract").startSpan();
+        try (Scope scope = span.makeCurrent()) {
+            Set<String> existingIds = new HashSet<>();
+            for (Component component : model.components) existingIds.add(component.id);
 
-        for (CtType<?> type : types) {
-            Component component = tryExtractComponent(type, appId);
-            if (component == null || !existingIds.add(component.id)) continue;
+            for (CtType<?> type : types) {
+                Component component = tryExtractComponent(type, appId);
+                if (component == null || !existingIds.add(component.id)) continue;
 
-            model.components.add(component);
-            model.applications.stream()
-                    .filter(app -> app.id.equals(appId))
-                    .findFirst()
-                    .ifPresent(app -> app.componentIds.add(component.id));
-            extractEntrypoints(type, component, model);
+                model.components.add(component);
+                model.applications.stream()
+                        .filter(app -> app.id.equals(appId))
+                        .findFirst()
+                        .ifPresent(app -> app.componentIds.add(component.id));
+                extractEntrypoints(type, component, model);
+            }
+        } catch (RuntimeException e) {
+            span.recordException(e);
+            span.setStatus(StatusCode.ERROR, e.getMessage());
+            throw e;
+        } finally {
+            span.end();
         }
     }
 
@@ -125,6 +147,10 @@ public class SpringExtractor {
     }
 
     private boolean hasListenerMethod(CtType<?> type) {
+        // Class-level @KafkaListener (multi-method listener with @KafkaHandler on methods)
+        if (hasAnnotation(type, KAFKA_LISTENER) || hasAnnotation(type, RABBIT_LISTENER) || hasAnnotation(type, JMS_LISTENER)) {
+            return true;
+        }
         return type.getMethods().stream().anyMatch(method ->
                 hasAnnotation(method, KAFKA_LISTENER)
                         || hasAnnotation(method, RABBIT_LISTENER)
@@ -154,6 +180,12 @@ public class SpringExtractor {
             }
             addListenerEntrypoint(method, type, component, KAFKA_LISTENER, EntrypointType.MESSAGING_CONSUMER,
                     MessagingBroker.KAFKA, firstNonEmptyAttribute(method, KAFKA_LISTENER, "topics", "topicPattern"), model);
+            // Class-level @KafkaListener with @KafkaHandler on individual methods
+            if (hasAnnotation(type, KAFKA_LISTENER) && hasAnnotation(method, KAFKA_HANDLER)) {
+                String topics = firstNonEmptyAttribute(type, KAFKA_LISTENER, "topics", "topicPattern");
+                addListenerEntrypoint(method, type, component, KAFKA_HANDLER,
+                        EntrypointType.MESSAGING_CONSUMER, MessagingBroker.KAFKA, topics, model);
+            }
             addListenerEntrypoint(method, type, component, RABBIT_LISTENER, EntrypointType.MESSAGING_CONSUMER,
                     MessagingBroker.RABBITMQ, firstNonEmptyAttribute(method, RABBIT_LISTENER, "queues", "bindings"), model);
             addListenerEntrypoint(method, type, component, JMS_LISTENER, EntrypointType.JMS_CONSUMER,
@@ -306,16 +338,36 @@ public class SpringExtractor {
                 CtExpression<?> value = annotation.getValue(attribute);
                 if (value == null && "value".equals(attribute)) value = annotation.getValue("path");
                 if (value == null) return "";
-                if (value instanceof CtLiteral<?> literal) {
-                    Object raw = literal.getValue();
-                    return raw == null ? "" : stripArray(raw.toString());
-                }
-                return stripArray(value.toString().replace("\"", ""));
+                return stripArray(resolveAnnotationValue(value));
             } catch (Exception ignored) {
                 return "";
             }
         }
         return "";
+    }
+
+    private String resolveAnnotationValue(CtExpression<?> value) {
+        if (value instanceof CtLiteral<?> literal) {
+            Object raw = literal.getValue();
+            return raw == null ? "" : raw.toString();
+        }
+        if (value instanceof CtNewArray<?> array) {
+            for (CtExpression<?> element : array.getElements()) {
+                String resolved = resolveAnnotationValue(element);
+                if (!resolved.isBlank()) return resolved;
+            }
+            return "";
+        }
+        if (value instanceof CtVariableRead<?> read && read.getVariable() instanceof CtFieldReference<?> fieldRef) {
+            try {
+                CtField<?> field = fieldRef.getDeclaration();
+                if (field != null && field.getDefaultExpression() instanceof CtLiteral<?> lit) {
+                    Object raw = lit.getValue();
+                    return raw == null ? "" : raw.toString();
+                }
+            } catch (Exception ignored) {}
+        }
+        return value.toString().replace("\"", "");
     }
 
     private boolean annotationMatches(CtAnnotation<?> annotation, Set<String> names) {
