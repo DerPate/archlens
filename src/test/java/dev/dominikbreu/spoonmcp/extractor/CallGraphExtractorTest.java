@@ -59,6 +59,27 @@ class CallGraphExtractorTest extends ExtractorTestBase {
     }
 
     @Test
+    void sourceFactBackedCallGraphResolvesConstructorInjectedInterfaceFields() {
+        CtModel ctModel = scan("constructor-injection-sample");
+        ArchitectureModel sourceModel = emptyModel("app:constructor-injection-sample");
+        sourceModel.components.add(component("com.example.constructor.AccountController"));
+        sourceModel.components.add(component("com.example.constructor.AccountService"));
+
+        SourceFactIndex sourceFacts =
+                new SourceFactIndexBuilder().build(ctModel, "constructor-injection-sample", 1);
+        new CallGraphExtractor(ObjectFlowIndex.empty(), sourceFacts).extract(ctModel, sourceModel);
+
+        assertThat(sourceModel.callEdges)
+                .anySatisfy(edge -> {
+                    assertThat(edge.fromComponentId).isEqualTo("comp:com.example.constructor.AccountController");
+                    assertThat(edge.fromMethod).isEqualTo("get");
+                    assertThat(edge.toComponentId).isEqualTo("comp:com.example.constructor.AccountService");
+                    assertThat(edge.toMethod).isEqualTo("getById");
+                    assertThat(edge.receiverEvidence).isEqualTo("legacy-field-read");
+                });
+    }
+
+    @Test
     void extractsEdgeFromServiceToRepository() {
         assertThat(model.callEdges)
                 .as("OrderService.find -> OrderRepository.findById edge")
@@ -331,5 +352,15 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                     assertThat(access.fieldOwnerComponentId).isEqualTo("comp:com.example.objectflow.StateStore");
                     assertThat(access.fieldName).isEqualTo("cache");
                 });
+    }
+
+    private static Component component(String qualifiedName) {
+        Component component = new Component();
+        component.id = "comp:" + qualifiedName;
+        component.name = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1);
+        component.qualifiedName = qualifiedName;
+        component.module = "app:constructor-injection-sample";
+        component.technology = "java";
+        return component;
     }
 }

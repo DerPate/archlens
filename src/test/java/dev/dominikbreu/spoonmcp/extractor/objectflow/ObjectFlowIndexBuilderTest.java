@@ -146,6 +146,22 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
     }
 
     @Test
+    void sourceFactBackedBuilderExpandsInterfaceWithoutInterfaceComponent() {
+        CtModel constructorModel = scan("constructor-injection-sample");
+        ArchitectureModel architecture = new ArchitectureModel("test");
+        architecture.components.add(component("com.example.constructor.AccountController"));
+        architecture.components.add(component("com.example.constructor.AccountService"));
+        SourceFactIndex facts = new SourceFactIndexBuilder()
+                .build(constructorModel, "constructor-injection-sample", 1);
+
+        ObjectFlowIndex factBacked = new ObjectFlowIndexBuilder().build(constructorModel, architecture, facts);
+
+        assertThat(factBacked.expandDeclaredType("com.example.constructor.IAccountService", "getById"))
+                .extracting(ReceiverTarget::componentId)
+                .containsExactly("comp:com.example.constructor.AccountService");
+    }
+
+    @Test
     void capsPolymorphicExpansionAtTwentyFiveTargets() {
         List<ReceiverTarget> targets =
                 index.expandDeclaredType("com.example.objectflow.TooManyHandler", "handle");

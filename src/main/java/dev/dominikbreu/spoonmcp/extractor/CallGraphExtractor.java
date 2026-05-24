@@ -5,6 +5,7 @@ import dev.dominikbreu.spoonmcp.extractor.objectflow.ReceiverTarget;
 import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndex;
 import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndexBuilder;
 import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceInjectionPoint;
+import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceType;
 import dev.dominikbreu.spoonmcp.model.*;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
@@ -451,7 +452,7 @@ public class CallGraphExtractor {
         if (sourceFacts != null) {
             for (SourceInjectionPoint injection : sourceFacts.injectionPoints(SourceFactIndexBuilder.typeId(type.getQualifiedName()))) {
                 if (injection.fieldName() == null || injection.targetType() == null) continue;
-                Component target = ctx.components.find(injection.targetType(), simpleName(injection.targetType()));
+                Component target = resolveSourceFactType(injection.targetType(), ownId, ctx);
                 if (target != null && !target.id.equals(ownId)) {
                     map.put(injection.fieldName(), target);
                 }
@@ -459,13 +460,33 @@ public class CallGraphExtractor {
         }
         for (CtField<?> field : type.getFields()) {
             if (field.getType() == null) continue;
-            Component target =
-                    ctx.components.find(field.getType().getQualifiedName(), field.getType().getSimpleName());
+            Component target = sourceFacts == null
+                    ? ctx.components.find(field.getType().getQualifiedName(), field.getType().getSimpleName())
+                    : resolveSourceFactType(field.getType().getQualifiedName(), ownId, ctx);
             if (target != null && !target.id.equals(ownId)) {
                 map.put(field.getSimpleName(), target);
             }
         }
         return map;
+    }
+
+    private Component resolveSourceFactType(String qualifiedName, String ownId, ExtractionContext ctx) {
+        Component direct = ctx.components.find(qualifiedName, simpleName(qualifiedName));
+        if (direct != null && !direct.id.equals(ownId)) {
+            return direct;
+        }
+        if (sourceFacts == null) {
+            return null;
+        }
+
+        List<Component> implementationComponents = sourceFacts.implementations(qualifiedName).stream()
+                .map(SourceType::qualifiedName)
+                .map(implementation -> ctx.components.find(implementation, simpleName(implementation)))
+                .filter(Objects::nonNull)
+                .filter(component -> !component.id.equals(ownId))
+                .distinct()
+                .toList();
+        return implementationComponents.size() == 1 ? implementationComponents.get(0) : null;
     }
 
     private static String simpleName(String qualifiedName) {
