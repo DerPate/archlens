@@ -2,6 +2,7 @@ package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder;
+import dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Chain;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Segment;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
@@ -114,7 +115,7 @@ public class RenderPipelineTool {
         String lower = filter.toLowerCase();
         if (ep == null) return root.path.entrypointId.toLowerCase().contains(lower);
         if (ep.name != null && ep.name.toLowerCase().contains(lower)) return true;
-        if (ep.path != null && ep.path.toLowerCase().contains(lower)) return true;
+        if (RuntimeFlowInferrer.pathPrefixMatches(ep.path, filter)) return true;
         if (ep.channelName != null && ep.channelName.toLowerCase().contains(lower)) return true;
         return ep.id != null && ep.id.toLowerCase().contains(lower);
     }

@@ -1,6 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer;
 import dev.dominikbreu.spoonmcp.model.*;
 import java.util.List;
 import java.util.Map;
@@ -63,8 +64,7 @@ public class TraceDataFlowTool {
                                     .orElse(null);
                             return ep != null
                                     && (ep.name.toLowerCase().contains(lower)
-                                            || (ep.path != null
-                                                    && ep.path.toLowerCase().contains(lower)));
+                                            || RuntimeFlowInferrer.pathPrefixMatches(ep.path, nameFilter));
                         })
                         .collect(Collectors.toList());
             }

@@ -188,7 +188,7 @@ public class RuntimeFlowInferrer {
         return ep.type != null ? ep.type.name().toLowerCase() : "trigger";
     }
 
-    static boolean pathPrefixMatches(String epPath, String ref) {
+    public static boolean pathPrefixMatches(String epPath, String ref) {
         if (epPath == null || ref == null) return false;
         if (!ref.startsWith("/")) return false;
         String lp = epPath.toLowerCase();

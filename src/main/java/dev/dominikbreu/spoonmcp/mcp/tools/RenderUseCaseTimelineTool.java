@@ -1,6 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer;
 import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.renderer.MermaidUseCaseTimelineRenderer;
 import java.util.List;
@@ -62,7 +63,7 @@ public class RenderUseCaseTimelineTool {
                                     .orElse(null);
                             if (ep == null) return f.entrypointId.toLowerCase().contains(lower);
                             return (ep.name != null && ep.name.toLowerCase().contains(lower))
-                                    || (ep.path != null && ep.path.toLowerCase().contains(lower))
+                                    || RuntimeFlowInferrer.pathPrefixMatches(ep.path, epNameFilter)
                                     || (ep.channelName != null
                                             && ep.channelName.toLowerCase().contains(lower));
                         })
