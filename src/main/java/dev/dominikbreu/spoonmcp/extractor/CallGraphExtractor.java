@@ -2,6 +2,9 @@ package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.extractor.objectflow.ObjectFlowIndex;
 import dev.dominikbreu.spoonmcp.extractor.objectflow.ReceiverTarget;
+import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndex;
+import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndexBuilder;
+import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceInjectionPoint;
 import dev.dominikbreu.spoonmcp.model.*;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
@@ -114,14 +117,20 @@ public class CallGraphExtractor {
             "get", "containsKey", "containsValue", "values", "keySet", "entrySet", "size", "isEmpty");
 
     private final ObjectFlowIndex objectFlowIndex;
+    private final SourceFactIndex sourceFacts;
 
     /** Creates a call graph extractor using default resolution rules. */
     public CallGraphExtractor() {
-        this(ObjectFlowIndex.empty());
+        this(ObjectFlowIndex.empty(), null);
     }
 
     public CallGraphExtractor(ObjectFlowIndex objectFlowIndex) {
+        this(objectFlowIndex, null);
+    }
+
+    public CallGraphExtractor(ObjectFlowIndex objectFlowIndex, SourceFactIndex sourceFacts) {
         this.objectFlowIndex = objectFlowIndex == null ? ObjectFlowIndex.empty() : objectFlowIndex;
+        this.sourceFacts = sourceFacts;
     }
 
     private static Tracer tracer() {
@@ -439,6 +448,15 @@ public class CallGraphExtractor {
 
     private Map<String, Component> buildFieldMap(CtType<?> type, String ownId, ExtractionContext ctx) {
         Map<String, Component> map = new HashMap<>();
+        if (sourceFacts != null) {
+            for (SourceInjectionPoint injection : sourceFacts.injectionPoints(SourceFactIndexBuilder.typeId(type.getQualifiedName()))) {
+                if (injection.fieldName() == null || injection.targetType() == null) continue;
+                Component target = ctx.components.find(injection.targetType(), simpleName(injection.targetType()));
+                if (target != null && !target.id.equals(ownId)) {
+                    map.put(injection.fieldName(), target);
+                }
+            }
+        }
         for (CtField<?> field : type.getFields()) {
             if (field.getType() == null) continue;
             Component target =
@@ -448,6 +466,11 @@ public class CallGraphExtractor {
             }
         }
         return map;
+    }
+
+    private static String simpleName(String qualifiedName) {
+        int dot = qualifiedName.lastIndexOf('.');
+        return dot < 0 ? qualifiedName : qualifiedName.substring(dot + 1);
     }
 
     private void extractFromMethod(
