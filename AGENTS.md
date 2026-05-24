@@ -73,3 +73,70 @@ Most behavior has focused tests by package. When changing:
 - Mermaid output: run renderer tests.
 - deployment merge behavior: run merger tests.
 - MCP tool surface: run the full suite with `mvn test`.
+
+## Driving the MCP Server in Scripts (Mandatory Pattern)
+
+The server is a stdio JSON-RPC process. Violating this pattern causes silent hangs.
+
+**Three rules that must all be followed:**
+
+1. **Use `subprocess.Popen` with `stderr` directed to a file or `sys.stderr` — never `stderr=subprocess.PIPE`.**  
+   Spoon logs flood stderr during indexing. If stderr is piped, the OS buffer fills and deadlocks the process.
+
+2. **Send `notifications/initialized` after `initialize` before any tool call.**  
+   The MCP protocol requires this notification. Without it the server never processes subsequent requests and `readline()` blocks forever.
+
+3. **Send one request, read one response, repeat.** Do not batch requests without reading responses in between.
+
+Canonical pattern (mirrors `scripts/self-doc.py`):
+
+```python
+import json, subprocess, sys
+
+JAR = "target/spoon-mcp-server.jar"
+PROJECT_ROOT = "."  # working directory for the jar process
+
+proc = subprocess.Popen(
+    ["java", "-jar", JAR],
+    stdin=subprocess.PIPE,
+    stdout=subprocess.PIPE,
+    stderr=sys.stderr,   # ← never subprocess.PIPE
+    cwd=PROJECT_ROOT,
+)
+
+_id = [0]
+
+def call(method, params=None):
+    _id[0] += 1
+    msg = {"jsonrpc": "2.0", "id": _id[0], "method": method}
+    if params:
+        msg["params"] = params
+    proc.stdin.write((json.dumps(msg) + "\n").encode())
+    proc.stdin.flush()
+    return json.loads(proc.stdout.readline()).get("result")
+
+def notify(method, params=None):
+    msg = {"jsonrpc": "2.0", "method": method}
+    if params:
+        msg["params"] = params
+    proc.stdin.write((json.dumps(msg) + "\n").encode())
+    proc.stdin.flush()
+
+def tool(name, args):
+    return call("tools/call", {"name": name, "arguments": args})["content"][0]["text"]
+
+# Handshake — always in this order
+call("initialize", {
+    "protocolVersion": "2024-11-05",
+    "capabilities": {},
+    "clientInfo": {"name": "script", "version": "1"},
+})
+notify("notifications/initialized", {})  # ← mandatory, no response expected
+
+# Now call tools
+print(tool("index_workspace", {"paths": ["/path/to/project"]}))
+print(tool("list_apps", {}))
+
+proc.stdin.close()
+proc.wait()
+```

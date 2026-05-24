@@ -30,4 +30,16 @@ public class OrderController {
     public void delete(@PathVariable String id) {
         service.delete(id);
     }
+
+    // Array-style annotation where method path starts with a path variable (no leading /)
+    @GetMapping(value = {"{id}/items/{itemId}"})
+    public String getItem(@PathVariable String id, @PathVariable String itemId) {
+        return service.get(id + "/" + itemId);
+    }
+
+    // Array-style annotation with leading / — should work the same as before
+    @DeleteMapping(value = {"/{id}/items/{itemId}"})
+    public void deleteItem(@PathVariable String id, @PathVariable String itemId) {
+        service.delete(id + "/" + itemId);
+    }
 }

@@ -383,7 +383,12 @@ public class SpringExtractor {
 
     private String stripArray(String value) {
         String out = value == null ? "" : value.trim();
-        if (out.startsWith("{") && out.endsWith("}")) out = out.substring(1, out.length() - 1).trim();
+        // Only strip Java array braces when the inner content is a string literal ("...").
+        // Path values can start with { (a path variable like {id}) — those must not be stripped.
+        if (out.startsWith("{") && out.endsWith("}")) {
+            String inner = out.substring(1, out.length() - 1).trim();
+            if (inner.isEmpty() || inner.startsWith("\"")) out = inner;
+        }
         return out;
     }
 

@@ -74,6 +74,9 @@ The server is designed for consumption by LLM agents and MCP-capable clients
 - Trace component dependencies with configurable depth and condensation.
 - Extract runtime flows for entry points using call-graph DFS when available, falling
   back to injection-edge BFS for pre-call-graph models.
+- Filter entrypoints by HTTP verb (`httpMethod`) and path prefix (`path`) via
+  `find_entrypoints`. Path filtering is discovery-aware: `/customer` returns the
+  collection endpoint and all sub-resources; `/customer/{id}` returns sub-resources only.
 - Render Mermaid flowcharts (system/container/module/component levels), call-flow
   diagrams with component-shape encoding and method-name edge labels, dependency maps,
   source overviews, focused dependency slices, and use-case Gantt timelines.
@@ -234,6 +237,15 @@ Prompts are workflow templates for clients and agents; they do not replace tools
   `PipelineChain`/`WORKFLOW_LINK` before inferring workflow pivots from fan-in alone.
   Self-only state reads/writes are local implementation detail and should not outrank
   cross-component handoffs or workflow/business components.
+- `find_entrypoints` supports `httpMethod` (case-insensitive verb filter: `GET`, `POST`,
+  `PUT`, `DELETE`, …) and `path` (discovery-mode prefix: `/customer/{id}` returns
+  sub-resources but not the bare `/customer` collection endpoint). Combine with `appId`
+  and `type` freely.
+- Every `entrypointName` parameter in `get_runtime_flow`, `render_call_flow`,
+  `render_use_case_timeline`, `trace_data_flow`, and `render_pipeline` accepts a
+  `"METHOD /path"` prefix (e.g. `"GET /account"`, `"POST /account"`) to disambiguate
+  when multiple handlers share the same path. Without the prefix, exact path match wins
+  over prefix match; if still ambiguous, the first registered handler is returned.
 - Tool argument schemas in `McpServer.java` are the authoritative source — keep
   `docs/TOOLS.md` in sync when changing them.
 - Generated artifacts (`target/`, `.spoon-mcp-cache/`, `dependency-reduced-pom.xml`)

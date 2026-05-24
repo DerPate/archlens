@@ -10,6 +10,9 @@ public class OrderListeners {
     @KafkaListener(topics = "${orders.topic}")
     public void onKafka(String payload) {}
 
+    @KafkaListener(topics = {OrderTopics.RETRY_TOPIC})
+    public void onKafkaRetry(String payload) {}
+
     @RabbitListener(queues = "orders.queue")
     public void onRabbit(String payload) {}
 

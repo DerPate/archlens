@@ -66,7 +66,7 @@ Arguments: none.
 
 ## `find_entrypoints`
 
-Return architecturally relevant entry points.
+Return architecturally relevant entry points. All filters are combinable.
 
 Arguments:
 
@@ -75,6 +75,13 @@ Arguments:
   `MESSAGING_PRODUCER`, `CDI_EVENT_OBSERVER`, `SCHEDULER`, `EJB_BUSINESS_METHOD`,
   `RMI_ENDPOINT`, `MAIN_METHOD`, `EVENT_BUS_CONSUMER`, `WEBSOCKET_ENDPOINT`,
   `SSE_ENDPOINT`, `GRPC_METHOD`, `UNKNOWN`.
+- `httpMethod` string, optional. Filter REST endpoints by HTTP verb: `GET`, `POST`, `PUT`,
+  `DELETE`, `PATCH`, `HEAD`, or `OPTIONS`. Case-insensitive.
+- `path` string, optional. Filter by path prefix — returns all REST endpoints at or below
+  this path. Works with and without path variables: `/customer` returns `/customer`,
+  `/customer/{id}`, `/customer/{id}/address/{aid}`, …; `/customer/{id}` returns
+  `/customer/{id}`, `/customer/{id}/address/{aid}`, … but not the bare `/customer`
+  collection endpoint.
 
 Messaging entrypoints carry `channelName` (Reactive Messaging channel), `broker`
 (`KAFKA`, `MQTT`, `AMQP`, `RABBITMQ`, `PULSAR`, `IN_MEMORY`, or `UNKNOWN`), and `topic`
@@ -97,10 +104,40 @@ application config-backed destinations are visible in source.
 Each entrypoint also includes a `parameters` list (method parameter names populated during
 call-graph extraction), which powers `trace_data_flow`.
 
-Example — find all REST endpoints:
+Example — all GET endpoints:
+
+```json
+{ "httpMethod": "GET" }
+```
+
+Example — all endpoints under `/customer`:
+
+```json
+{ "path": "/customer" }
+```
+
+Example — all GET endpoints under `/customer` (resource collection + individual reads):
+
+```json
+{ "httpMethod": "GET", "path": "/customer" }
+```
+
+Example — all sub-resources of a specific customer (not the collection endpoint):
+
+```json
+{ "path": "/customer/{id}" }
+```
+
+Example — all REST endpoints:
 
 ```json
 { "type": "REST_ENDPOINT" }
+```
+
+Example — all PUT REST endpoints:
+
+```json
+{ "type": "REST_ENDPOINT", "httpMethod": "PUT" }
 ```
 
 Example — find messaging consumers in a specific module:
@@ -189,13 +226,21 @@ available (older cached models), it falls back to BFS over dependency edges.
 Arguments:
 
 - `entrypointId` string, optional. Entrypoint ID from `find_entrypoints`.
-- `entrypointName` string, optional. Partial entrypoint name match.
+- `entrypointName` string, optional. Partial entrypoint name or HTTP path match. Prefix
+  with an HTTP verb to disambiguate same-path endpoints: `"GET /account"` selects the GET
+  handler, `"POST /account"` selects the POST handler.
 - `maxDepth` integer, optional. Default `5`.
 
 Example:
 
 ```json
 { "entrypointName": "createOrder" }
+```
+
+Example — disambiguate by HTTP verb:
+
+```json
+{ "entrypointName": "GET /account" }
 ```
 
 ---
@@ -219,13 +264,21 @@ Client shows the HTTP method+path or channel name. No return arrows — executio
 Arguments:
 
 - `entrypointId` string, optional. Entrypoint ID from `find_entrypoints`.
-- `entrypointName` string, optional. Entrypoint name or HTTP path (partial match).
+- `entrypointName` string, optional. Entrypoint name or HTTP path (partial match). Prefix
+  with an HTTP verb to disambiguate same-path endpoints: `"GET /account"` selects the GET
+  handler, `"POST /account"` selects the POST handler.
 - `maxDepth` integer, optional. Default `5`.
 
 Example:
 
 ```json
 { "entrypointName": "createOrder" }
+```
+
+Example — disambiguate by HTTP verb:
+
+```json
+{ "entrypointName": "POST /account" }
 ```
 
 Sample output:
@@ -257,6 +310,8 @@ Arguments:
 
 - `entrypointId` string, optional. Filter to a single use case by entrypoint ID.
 - `entrypointName` string, optional. Filter by entrypoint name or HTTP path (partial match).
+  Prefix with an HTTP verb to disambiguate same-path endpoints: `"GET /account"` selects the
+  GET handler, `"POST /account"` selects the POST handler.
 - `maxUseCases` integer, optional. Maximum sections to render. Default `10`.
 - `maxDepth` integer, optional. Maximum call-chain steps per section. Default `5`.
 
@@ -432,6 +487,8 @@ Arguments:
 
 - `entrypointId` string, optional. Filter by entrypoint ID (partial match).
 - `entrypointName` string, optional. Filter by entrypoint name or HTTP path (partial match).
+  Prefix with an HTTP verb to disambiguate same-path endpoints: `"GET /account"` selects the
+  GET handler, `"POST /account"` selects the POST handler.
 - `param` string, optional. Filter by tracked parameter name.
 - `sinkKind` string, optional. Filter by sink kind: `persistence`, `messaging`,
   `http-outbound`, `event-bus`, `store`, `file-outbound`, `object-storage`, or `unknown`.
@@ -543,8 +600,9 @@ stadium for SCHEDULER / MESSAGING_CONSUMER, etc.).
 
 Arguments:
 
-- `entrypointName` string, optional. Filter chains whose root entrypoint name
-  or HTTP path contains this substring.
+- `entrypointName` string, optional. Filter chains whose root entrypoint name or HTTP path
+  contains this substring. Prefix with an HTTP verb to disambiguate same-path endpoints:
+  `"GET /account"` selects the GET handler, `"POST /account"` selects the POST handler.
 - `channel` string, optional. Filter chains that pass through a messaging link
   whose channel name contains this substring.
 - `maxDepth` integer, optional (default 8). Maximum number of pipeline segments
