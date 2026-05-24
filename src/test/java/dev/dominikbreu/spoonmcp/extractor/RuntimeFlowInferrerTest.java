@@ -201,6 +201,43 @@ class RuntimeFlowInferrerTest {
     }
 
     @Test
+    void exactPathWinsOverPrefixMatchRegardlessOfIterationOrder() {
+        // When both an exact /customer endpoint and a /customer/{id}/sub endpoint exist
+        // and the sub-path comes first in the model, the exact match must still be returned.
+        ArchitectureModel m = new ArchitectureModel("test");
+        Component ctrl = comp("CustomerController", ComponentType.REST_RESOURCE);
+        m.components.add(ctrl);
+        Entrypoint sub = new Entrypoint();
+        sub.id = "ep:CustomerController#addContact:POST";
+        sub.name = "addContact";
+        sub.componentId = ctrl.id;
+        sub.type = EntrypointType.REST_ENDPOINT;
+        sub.path = "/customer/{id}/contactPerson";
+        sub.httpMethod = "POST";
+        m.entrypoints.add(sub); // added first so it appears before the exact match
+        Entrypoint exact = new Entrypoint();
+        exact.id = "ep:CustomerController#getAll:GET";
+        exact.name = "getAll";
+        exact.componentId = ctrl.id;
+        exact.type = EntrypointType.REST_ENDPOINT;
+        exact.path = "/customer";
+        exact.httpMethod = "GET";
+        m.entrypoints.add(exact);
+
+        Entrypoint found = inferrer.findEntrypoint("/customer", m);
+        assertThat(found).isNotNull();
+        assertThat(found.id).isEqualTo("ep:CustomerController#getAll:GET");
+    }
+
+    @Test
+    void doesNotMatchSubPathWhenRefIsParameterized() {
+        // /absence/{id} must NOT match /absence/{id}/cancel — ref already contains a
+        // path variable so only an exact match is valid.
+        assertThat(RuntimeFlowInferrer.pathPrefixMatches("/absence/{id}/cancel", "/absence/{id}")).isFalse();
+        assertThat(RuntimeFlowInferrer.pathPrefixMatches("/absence/{id}", "/absence/{id}")).isTrue();
+    }
+
+    @Test
     void doesNotMatchPathSubstring() {
         // "/budgetControl/orders/{id}" must NOT be matched for ref "/orders"
         ArchitectureModel model = threeLayerModel();
