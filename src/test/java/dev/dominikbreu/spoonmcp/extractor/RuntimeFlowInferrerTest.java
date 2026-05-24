@@ -238,6 +238,54 @@ class RuntimeFlowInferrerTest {
     }
 
     @Test
+    void doesNotMatchLongerPathWithMultiplePathVariables() {
+        // GET /customer/{customerId}/address/{addressId} must NOT match
+        // PATCH /customer/{customerId}/address/{addressId}/update even though
+        // the latter starts with the former.  Multiple {id} segments must all be
+        // considered "specific" and trigger exact-only matching.
+        assertThat(RuntimeFlowInferrer.pathPrefixMatches(
+                "/customer/{customerId}/address/{addressId}/update",
+                "/customer/{customerId}/address/{addressId}")).isFalse();
+        // …and the exact path must still match itself.
+        assertThat(RuntimeFlowInferrer.pathPrefixMatches(
+                "/customer/{customerId}/address/{addressId}",
+                "/customer/{customerId}/address/{addressId}")).isTrue();
+    }
+
+    @Test
+    void findEntrypointPrefersExactMatchForMultiSegmentParameterizedPath() {
+        // Model has two endpoints sharing the same parameterised prefix:
+        //   GET  /customer/{customerId}/address/{addressId}
+        //   PATCH /customer/{customerId}/address/{addressId}/update
+        // When the caller passes the GET path, only the GET endpoint must be returned.
+        ArchitectureModel m = new ArchitectureModel("test");
+        Component ctrl = comp("CustomerController", ComponentType.REST_RESOURCE);
+        m.components.add(ctrl);
+
+        Entrypoint patch = new Entrypoint();
+        patch.id = "ep:CustomerController#updateAddress:PATCH";
+        patch.name = "updateAddress";
+        patch.componentId = ctrl.id;
+        patch.type = EntrypointType.REST_ENDPOINT;
+        patch.path = "/customer/{customerId}/address/{addressId}/update";
+        patch.httpMethod = "PATCH";
+        m.entrypoints.add(patch); // comes before the GET in iteration order
+
+        Entrypoint get = new Entrypoint();
+        get.id = "ep:CustomerController#getAddress:GET";
+        get.name = "getAddress";
+        get.componentId = ctrl.id;
+        get.type = EntrypointType.REST_ENDPOINT;
+        get.path = "/customer/{customerId}/address/{addressId}";
+        get.httpMethod = "GET";
+        m.entrypoints.add(get);
+
+        Entrypoint found = inferrer.findEntrypoint("/customer/{customerId}/address/{addressId}", m);
+        assertThat(found).isNotNull();
+        assertThat(found.id).isEqualTo("ep:CustomerController#getAddress:GET");
+    }
+
+    @Test
     void doesNotMatchPathSubstring() {
         // "/budgetControl/orders/{id}" must NOT be matched for ref "/orders"
         ArchitectureModel model = threeLayerModel();
