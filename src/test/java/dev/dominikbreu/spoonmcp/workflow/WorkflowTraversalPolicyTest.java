@@ -47,6 +47,22 @@ class WorkflowTraversalPolicyTest {
     }
 
     @Test
+    void doesNotTraverseCappedPolymorphicExpansionEdges() {
+        CallEdge cappedEdge = new CallEdge();
+        cappedEdge.callKind = "direct";
+        cappedEdge.receiverExpansionCapped = true;
+        cappedEdge.receiverConfidence = 0.65;
+
+        CallEdge uncappedEdge = new CallEdge();
+        uncappedEdge.callKind = "direct";
+        uncappedEdge.receiverExpansionCapped = false;
+        uncappedEdge.receiverConfidence = 0.65;
+
+        assertThat(policy.canTraverseInline(cappedEdge)).isFalse();
+        assertThat(policy.canTraverseInline(uncappedEdge)).isTrue();
+    }
+
+    @Test
     void hidesUtilityAndRawMessagingInfrastructureButKeepsUnknownApplicationCodeVisible() {
         Component mapper = component(ComponentType.UTILITY);
         Component unknown = component(ComponentType.UNKNOWN);
