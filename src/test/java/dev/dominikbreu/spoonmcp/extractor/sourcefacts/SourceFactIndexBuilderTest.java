@@ -59,4 +59,25 @@ class SourceFactIndexBuilderTest extends ExtractorTestBase {
         assertThat(index.method(method.id())).isSameAs(method);
         assertThat(index.methods("type:missing")).isEmpty();
     }
+
+    @Test
+    void buildsTypesMembersAnnotationsAndLocationsFromQuarkusSample() {
+        SourceFactIndex index = new SourceFactIndexBuilder().build(scan("quarkus-sample"), "quarkus-sample", 1);
+
+        SourceType orderResource = index.type("com.example.api.OrderResource");
+        assertThat(orderResource).isNotNull();
+        assertThat(orderResource.simpleName()).isEqualTo("OrderResource");
+        assertThat(orderResource.location().file()).endsWith("OrderResource.java");
+        assertThat(orderResource.location().line()).isGreaterThan(0);
+
+        assertThat(index.methods(orderResource.id()))
+                .extracting(SourceMethod::name)
+                .contains("get");
+        assertThat(index.fields(orderResource.id()))
+                .extracting(SourceField::name)
+                .contains("orderService");
+        assertThat(index.annotations(orderResource.id()))
+                .extracting(SourceAnnotation::qualifiedName)
+                .anyMatch(name -> name.endsWith(".Path") || name.equals("Path"));
+    }
 }
