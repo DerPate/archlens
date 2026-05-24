@@ -184,6 +184,44 @@ class RuntimeFlowInferrerTest {
     }
 
     @Test
+    void matchesByExactPath() {
+        ArchitectureModel model = threeLayerModel();
+        RuntimeFlow flow = inferrer.infer("/orders/{id}", 5, model);
+        assertThat(flow).isNotNull();
+        assertThat(flow.entrypointId).isEqualTo(model.entrypoints.get(0).id);
+    }
+
+    @Test
+    void matchesByPathPrefix() {
+        // ref "/orders" should match "/orders/{id}"
+        ArchitectureModel model = threeLayerModel();
+        RuntimeFlow flow = inferrer.infer("/orders", 5, model);
+        assertThat(flow).isNotNull();
+        assertThat(flow.entrypointId).isEqualTo(model.entrypoints.get(0).id);
+    }
+
+    @Test
+    void doesNotMatchPathSubstring() {
+        // "/budgetControl/orders/{id}" must NOT be matched for ref "/orders"
+        ArchitectureModel model = threeLayerModel();
+        Component ctrl = comp("OtherController", ComponentType.REST_RESOURCE);
+        model.components.add(ctrl);
+        Entrypoint nested = new Entrypoint();
+        nested.id = "ep:OtherController#get";
+        nested.name = "get";
+        nested.componentId = ctrl.id;
+        nested.type = EntrypointType.REST_ENDPOINT;
+        nested.path = "/budgetControl/orders/{id}";
+        nested.httpMethod = "GET";
+        model.entrypoints.add(nested);
+
+        // The first entrypoint (path "/orders/{id}") must still be the match
+        RuntimeFlow flow = inferrer.infer("/orders", 5, model);
+        assertThat(flow).isNotNull();
+        assertThat(flow.entrypointId).isEqualTo(model.entrypoints.get(0).id);
+    }
+
+    @Test
     void noVisitedNodeAppearsMoreThanOnce() {
         ArchitectureModel model = threeLayerModel();
         RuntimeFlow flow = inferrer.infer(model.entrypoints.get(0).id, 5, model);
