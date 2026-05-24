@@ -80,4 +80,16 @@ class SourceFactIndexBuilderTest extends ExtractorTestBase {
                 .extracting(SourceAnnotation::qualifiedName)
                 .anyMatch(name -> name.endsWith(".Path") || name.equals("Path"));
     }
+
+    @Test
+    void indexesImplementationsFromGenericObjectFlow() {
+        SourceFactIndex index = new SourceFactIndexBuilder().build(scan("generic-object-flow"), "generic-object-flow", 1);
+
+        assertThat(index.implementations("com.example.objectflow.Player"))
+                .extracting(SourceType::qualifiedName)
+                .contains("com.example.objectflow.RandomPlayer", "com.example.objectflow.SimplePlayer");
+        assertThat(index.implementations("com.example.objectflow.Move"))
+                .extracting(SourceType::qualifiedName)
+                .contains("com.example.objectflow.Rock", "com.example.objectflow.Paper");
+    }
 }

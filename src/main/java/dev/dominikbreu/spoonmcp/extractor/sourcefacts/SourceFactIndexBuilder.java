@@ -6,9 +6,11 @@ import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Scope;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import spoon.reflect.CtModel;
 import spoon.reflect.code.CtExpression;
 import spoon.reflect.declaration.CtAnnotation;
@@ -19,6 +21,7 @@ import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.declaration.CtType;
 import spoon.reflect.declaration.CtTypeMember;
+import spoon.reflect.reference.CtTypeReference;
 
 public class SourceFactIndexBuilder {
 
@@ -39,6 +42,8 @@ public class SourceFactIndexBuilder {
 
             buildMembers(ctModel, types, methods, fields, annotations);
 
+            Map<String, List<SourceType>> implementations = buildImplementations(ctModel, types);
+
             SourceFactIndex index = new SourceFactIndex(
                     types,
                     methods,
@@ -48,7 +53,7 @@ public class SourceFactIndexBuilder {
                     List.of(),
                     List.of(),
                     List.of(),
-                    Map.of());
+                    implementations);
             setBuildCounts(span, index);
             return index;
         } catch (RuntimeException e) {
@@ -57,6 +62,64 @@ public class SourceFactIndexBuilder {
             throw e;
         } finally {
             span.end();
+        }
+    }
+
+    private Map<String, List<SourceType>> buildImplementations(CtModel ctModel, List<SourceType> sourceTypes) {
+        Span span = tracer().spanBuilder("sourcefacts.inheritance").startSpan();
+        try (Scope scope = span.makeCurrent()) {
+            Map<String, SourceType> factsByQualifiedName = new LinkedHashMap<>();
+            Map<String, CtType<?>> spoonTypesByQualifiedName = new LinkedHashMap<>();
+            for (SourceType sourceType : sourceTypes) {
+                factsByQualifiedName.put(sourceType.qualifiedName(), sourceType);
+            }
+            for (CtType<?> type : ctModel.getAllTypes()) {
+                spoonTypesByQualifiedName.put(type.getQualifiedName(), type);
+            }
+
+            Map<String, List<SourceType>> implementations = new LinkedHashMap<>();
+            for (CtType<?> type : ctModel.getAllTypes()) {
+                SourceType concrete = factsByQualifiedName.get(type.getQualifiedName());
+                if (concrete == null || concrete.interfaceType() || concrete.abstractType()) continue;
+
+                for (String supertype : supertypeClosure(type, spoonTypesByQualifiedName)) {
+                    SourceType superFact = factsByQualifiedName.get(supertype);
+                    if (superFact != null) {
+                        implementations.computeIfAbsent(superFact.qualifiedName(), ignored -> new ArrayList<>())
+                                .add(concrete);
+                    }
+                }
+            }
+            span.setAttribute("implementation-groups", (long) implementations.size());
+            span.setAttribute("implementation-links", implementations.values().stream().mapToLong(List::size).sum());
+            return implementations;
+        } finally {
+            span.end();
+        }
+    }
+
+    private Set<String> supertypeClosure(CtType<?> type, Map<String, CtType<?>> spoonTypesByQualifiedName) {
+        Set<String> result = new LinkedHashSet<>();
+        collectSupertypes(type, spoonTypesByQualifiedName, result);
+        return result;
+    }
+
+    private void collectSupertypes(
+            CtType<?> type, Map<String, CtType<?>> spoonTypesByQualifiedName, Set<String> result) {
+        for (CtTypeReference<?> iface : type.getSuperInterfaces()) {
+            collectTypeReference(iface, spoonTypesByQualifiedName, result);
+        }
+        collectTypeReference(type.getSuperclass(), spoonTypesByQualifiedName, result);
+    }
+
+    private void collectTypeReference(
+            CtTypeReference<?> reference, Map<String, CtType<?>> spoonTypesByQualifiedName, Set<String> result) {
+        if (reference == null || reference.getQualifiedName() == null) return;
+        String qualifiedName = reference.getQualifiedName();
+        if (!result.add(qualifiedName)) return;
+        CtType<?> declaration = spoonTypesByQualifiedName.get(qualifiedName);
+        if (declaration != null) {
+            collectSupertypes(declaration, spoonTypesByQualifiedName, result);
         }
     }
 
