@@ -53,7 +53,8 @@ public class SourceFactIndexBuilder {
             List<SourceAssignment> assignments = new ArrayList<>();
             List<SourceReturn> returns = new ArrayList<>();
 
-            buildMembers(ctModel, types, methods, fields, annotations, injectionPoints);
+            buildMembers(ctModel, types, methods, fields, annotations);
+            buildInjectionFacts(ctModel, annotations, injectionPoints);
             buildCodeFlowFacts(ctModel, invocations, assignments, returns);
 
             Map<String, List<SourceType>> implementations = buildImplementations(ctModel, types);
@@ -142,8 +143,7 @@ public class SourceFactIndexBuilder {
             List<SourceType> types,
             List<SourceMethod> methods,
             List<SourceField> fields,
-            List<SourceAnnotation> annotations,
-            List<SourceInjectionPoint> injectionPoints) {
+            List<SourceAnnotation> annotations) {
         Span span = tracer().spanBuilder("sourcefacts.members").startSpan();
         try (Scope scope = span.makeCurrent()) {
             for (CtType<?> type : ctModel.getAllTypes()) {
@@ -163,18 +163,7 @@ public class SourceFactIndexBuilder {
                     String fieldType = field.getType() == null ? null : field.getType().getQualifiedName();
                     String fieldId = fieldId(type.getQualifiedName(), field.getSimpleName());
                     fields.add(new SourceField(fieldId, typeId, field.getSimpleName(), fieldType, location(field)));
-                    List<SourceAnnotation> fieldAnnotations = annotations(fieldId, field);
-                    annotations.addAll(fieldAnnotations);
-                    if (fieldAnnotations.stream().anyMatch(this::isInjectionAnnotation)) {
-                        injectionPoints.add(new SourceInjectionPoint(
-                                typeId,
-                                fieldType,
-                                field.getSimpleName(),
-                                null,
-                                SourceEvidence.FIELD_INJECTION,
-                                FactConfidence.KNOWN,
-                                location(field)));
-                    }
+                    annotations.addAll(annotations(fieldId, field));
                 }
 
                 for (CtTypeMember member : type.getTypeMembers()) {
@@ -195,7 +184,38 @@ public class SourceFactIndexBuilder {
             span.setAttribute("methods", (long) methods.size());
             span.setAttribute("fields", (long) fields.size());
             span.setAttribute("annotations", (long) annotations.size());
-            span.setAttribute("injection-points", (long) injectionPoints.size());
+        } finally {
+            span.end();
+        }
+    }
+
+    private void buildInjectionFacts(
+            CtModel ctModel, List<SourceAnnotation> annotations, List<SourceInjectionPoint> injectionPoints) {
+        Span span = tracer().spanBuilder("sourcefacts.injection").startSpan();
+        try (Scope scope = span.makeCurrent()) {
+            Map<String, List<SourceAnnotation>> annotationsByOwner = new LinkedHashMap<>();
+            for (SourceAnnotation annotation : annotations) {
+                annotationsByOwner.computeIfAbsent(annotation.ownerId(), ignored -> new ArrayList<>()).add(annotation);
+            }
+            for (CtType<?> type : ctModel.getAllTypes()) {
+                String typeId = typeId(type.getQualifiedName());
+                for (CtField<?> field : type.getFields()) {
+                    String fieldId = fieldId(type.getQualifiedName(), field.getSimpleName());
+                    if (annotationsByOwner.getOrDefault(fieldId, List.of()).stream()
+                            .anyMatch(this::isInjectionAnnotation)) {
+                        String fieldType = field.getType() == null ? null : field.getType().getQualifiedName();
+                        injectionPoints.add(new SourceInjectionPoint(
+                                typeId,
+                                fieldType,
+                                field.getSimpleName(),
+                                null,
+                                SourceEvidence.FIELD_INJECTION,
+                                FactConfidence.KNOWN,
+                                location(field)));
+                    }
+                }
+            }
+            span.setAttribute("injection-point-count", (long) injectionPoints.size());
         } finally {
             span.end();
         }
