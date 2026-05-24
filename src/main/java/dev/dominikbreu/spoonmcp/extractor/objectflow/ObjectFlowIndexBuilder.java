@@ -1,5 +1,7 @@
 package dev.dominikbreu.spoonmcp.extractor.objectflow;
 
+import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndex;
+import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceType;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import io.opentelemetry.api.GlobalOpenTelemetry;
@@ -41,6 +43,10 @@ public class ObjectFlowIndexBuilder {
     }
 
     public ObjectFlowIndex build(CtModel ctModel, ArchitectureModel architecture) {
+        return build(ctModel, architecture, null);
+    }
+
+    public ObjectFlowIndex build(CtModel ctModel, ArchitectureModel architecture, SourceFactIndex sourceFacts) {
         Span span = tracer().spanBuilder("objectflow.build").startSpan();
         try (Scope scope = span.makeCurrent()) {
             Map<String, Component> componentByQualifiedName = componentByQualifiedName(architecture);
@@ -63,9 +69,13 @@ public class ObjectFlowIndexBuilder {
                     .toList();
             span.setAttribute("project-types", (long) projectTypes.size());
 
-            indexTypes(projectTypes, componentByQualifiedName, types);
-
-            indexImplementations(projectTypes, projectTypeByQualifiedName, types, implementations);
+            if (sourceFacts == null) {
+                indexTypes(projectTypes, componentByQualifiedName, types);
+                indexImplementations(projectTypes, projectTypeByQualifiedName, types, implementations);
+            } else {
+                indexTypes(sourceFacts, componentByQualifiedName, types);
+                indexImplementations(sourceFacts, types, implementations);
+            }
 
             Map<CtInvocation<?>, List<ReceiverTarget>> receiverTargets =
                     receiverTargets(ctModel, projectTypes, types, implementations);
@@ -73,6 +83,38 @@ public class ObjectFlowIndexBuilder {
             span.setAttribute("implementation-groups", (long) implementations.size());
             span.setAttribute("receiver-target-map-size", (long) receiverTargets.size());
             return index;
+        } catch (RuntimeException e) {
+            span.recordException(e);
+            span.setStatus(StatusCode.ERROR, e.getMessage());
+            throw e;
+        } finally {
+            span.end();
+        }
+    }
+
+    private static void indexTypes(
+            SourceFactIndex sourceFacts,
+            Map<String, Component> componentByQualifiedName,
+            Map<String, ObjectFlowIndex.TypeFact> types) {
+        Span span = tracer().spanBuilder("objectflow.type-index").startSpan();
+        try (Scope scope = span.makeCurrent()) {
+            long projectTypes = 0;
+            long abstractOrInterfaceCount = 0;
+            for (SourceType sourceType : sourceFacts.types()) {
+                Component component = componentByQualifiedName.get(sourceType.qualifiedName());
+                if (component == null) continue;
+                projectTypes++;
+                boolean abstractOrInterface = sourceType.interfaceType() || sourceType.abstractType();
+                if (abstractOrInterface) {
+                    abstractOrInterfaceCount++;
+                }
+                ObjectFlowIndex.TypeFact typeFact =
+                        new ObjectFlowIndex.TypeFact(sourceType.qualifiedName(), component.id, abstractOrInterface);
+                types.put(typeFact.qualifiedName(), typeFact);
+            }
+            span.setAttribute("project-types", projectTypes);
+            span.setAttribute("indexed-types", (long) types.size());
+            span.setAttribute("abstract-or-interface-types", abstractOrInterfaceCount);
         } catch (RuntimeException e) {
             span.recordException(e);
             span.setStatus(StatusCode.ERROR, e.getMessage());
@@ -139,6 +181,39 @@ public class ObjectFlowIndexBuilder {
             }
             span.setAttribute("concrete-types", concreteTypes);
             span.setAttribute("supertype-edges", supertypeEdges);
+            span.setAttribute("implementation-groups", (long) implementations.size());
+            span.setAttribute("implementation-links", implementationLinks);
+            span.setAttribute("duplicate-implementation-links", duplicateImplementationLinks);
+        } catch (RuntimeException e) {
+            span.recordException(e);
+            span.setStatus(StatusCode.ERROR, e.getMessage());
+            throw e;
+        } finally {
+            span.end();
+        }
+    }
+
+    private static void indexImplementations(
+            SourceFactIndex sourceFacts,
+            Map<String, ObjectFlowIndex.TypeFact> types,
+            Map<String, List<ObjectFlowIndex.TypeFact>> implementations) {
+        Span span = tracer().spanBuilder("objectflow.implementation-index").startSpan();
+        try (Scope scope = span.makeCurrent()) {
+            long implementationLinks = 0;
+            long duplicateImplementationLinks = 0;
+            for (ObjectFlowIndex.TypeFact supertype : types.values()) {
+                for (SourceType implementation : sourceFacts.implementations(supertype.qualifiedName())) {
+                    ObjectFlowIndex.TypeFact concreteType = types.get(implementation.qualifiedName());
+                    if (concreteType == null) continue;
+                    if (registerImplementation(implementations, supertype.qualifiedName(), concreteType)) {
+                        implementationLinks++;
+                    } else {
+                        duplicateImplementationLinks++;
+                    }
+                }
+            }
+            span.setAttribute("concrete-types", types.values().stream().filter(t -> !t.abstractOrInterface()).count());
+            span.setAttribute("supertype-edges", implementationLinks + duplicateImplementationLinks);
             span.setAttribute("implementation-groups", (long) implementations.size());
             span.setAttribute("implementation-links", implementationLinks);
             span.setAttribute("duplicate-implementation-links", duplicateImplementationLinks);
