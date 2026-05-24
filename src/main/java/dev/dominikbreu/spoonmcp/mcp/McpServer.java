@@ -104,12 +104,14 @@ public class McpServer {
 
         specs.add(toolSpec(
                 "find_entrypoints",
-                "Return architecturally relevant entry points: REST endpoints, JMS/messaging consumers, schedulers, EJB methods, CDI event observers, Vert.x EventBus consumers, WebSocket/SSE/gRPC endpoints, and more.",
+                "Return architecturally relevant entry points: REST endpoints, JMS/messaging consumers, schedulers, EJB methods, CDI event observers, Vert.x EventBus consumers, WebSocket/SSE/gRPC endpoints, and more. All filters are combinable.",
                 schema().opt("appId", "string", "Filter by app ID (partial match)")
                         .opt(
                                 "type",
                                 "string",
-                                "REST_ENDPOINT | JMS_CONSUMER | MESSAGING_CONSUMER | MESSAGING_PRODUCER | CDI_EVENT_OBSERVER | SCHEDULER | EJB_BUSINESS_METHOD | RMI_ENDPOINT | MAIN_METHOD | EVENT_BUS_CONSUMER | WEBSOCKET_ENDPOINT | SSE_ENDPOINT | GRPC_METHOD | UNKNOWN"),
+                                "REST_ENDPOINT | JMS_CONSUMER | MESSAGING_CONSUMER | MESSAGING_PRODUCER | CDI_EVENT_OBSERVER | SCHEDULER | EJB_BUSINESS_METHOD | RMI_ENDPOINT | MAIN_METHOD | EVENT_BUS_CONSUMER | WEBSOCKET_ENDPOINT | SSE_ENDPOINT | GRPC_METHOD | UNKNOWN")
+                        .opt("httpMethod", "string", "Filter REST endpoints by HTTP verb: GET | POST | PUT | DELETE | PATCH | HEAD | OPTIONS")
+                        .opt("path", "string", "Filter by path prefix — returns all endpoints at or below this path (e.g. '/customer' returns /customer, /customer/{id}, /customer/{id}/address/{aid}, ...)"),
                 entrypointsTool::execute));
 
         specs.add(toolSpec(

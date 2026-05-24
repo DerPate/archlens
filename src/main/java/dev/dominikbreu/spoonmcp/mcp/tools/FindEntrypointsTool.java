@@ -1,6 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
@@ -35,12 +36,17 @@ public class FindEntrypointsTool {
             ArchitectureModel model = cache.load();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
 
-            String appId = ToolArgs.getString(args, "appId");
-            String typeFilter = ToolArgs.getString(args, "type");
+            String appId        = ToolArgs.getString(args, "appId");
+            String typeFilter   = ToolArgs.getString(args, "type");
+            String methodFilter = ToolArgs.getString(args, "httpMethod");
+            String pathFilter   = ToolArgs.getString(args, "path");
 
             List<Entrypoint> eps = model.entrypoints.stream()
                     .filter(ep -> appId == null || ep.componentId.contains(appId))
                     .filter(ep -> typeFilter == null || matchesType(ep.type, typeFilter))
+                    .filter(ep -> methodFilter == null
+                            || methodFilter.equalsIgnoreCase(ep.httpMethod))
+                    .filter(ep -> pathFilter == null || pathPrefixMatchesForDiscovery(ep.path, pathFilter))
                     .collect(Collectors.toList());
 
             if (eps.isEmpty()) return "No entrypoints found matching the given criteria.";
@@ -78,5 +84,20 @@ public class FindEntrypointsTool {
         } catch (IllegalArgumentException e) {
             return type.name().toLowerCase().contains(filter.toLowerCase());
         }
+    }
+
+    /**
+     * Discovery-mode path filter: returns true when {@code epPath} is at or below
+     * {@code filterPath} in the path hierarchy.
+     *
+     * <p>Unlike {@link RuntimeFlowInferrer#pathPrefixMatches}, this variant always
+     * allows prefix matching even when {@code filterPath} contains path variables —
+     * e.g. {@code /customer/{id}} should discover {@code /customer/{id}/address/{aid}}.
+     */
+    static boolean pathPrefixMatchesForDiscovery(String epPath, String filterPath) {
+        if (epPath == null || filterPath == null) return false;
+        String lp = epPath.toLowerCase();
+        String lf = filterPath.toLowerCase();
+        return lp.equals(lf) || lp.startsWith(lf + "/") || lp.startsWith(lf + "{");
     }
 }
