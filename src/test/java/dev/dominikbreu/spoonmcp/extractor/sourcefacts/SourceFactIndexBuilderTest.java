@@ -92,4 +92,48 @@ class SourceFactIndexBuilderTest extends ExtractorTestBase {
                 .extracting(SourceType::qualifiedName)
                 .contains("com.example.objectflow.Rock", "com.example.objectflow.Paper");
     }
+
+    @Test
+    void indexesInvocationsAssignmentsReturnsAndInjectionFacts() {
+        SourceFactIndex index = new SourceFactIndexBuilder().build(scan("generic-object-flow"), "generic-object-flow", 1);
+        SourceType mainApp = index.type("com.example.objectflow.MainApp");
+        SourceMethod run = index.methods(mainApp.id()).stream()
+                .filter(method -> method.name().equals("run"))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(index.invocations(run.id()))
+                .extracting(SourceInvocation::executableName)
+                .contains("run", "printStats");
+        assertThat(index.assignments(run.id()))
+                .anySatisfy(assignment -> {
+                    assertThat(assignment.target()).contains("localGame");
+                    assertThat(assignment.evidence()).isIn(SourceEvidence.LOCAL_ASSIGNMENT, SourceEvidence.CONSTRUCTOR_CALL);
+                });
+
+        SourceType provider = index.type("com.example.objectflow.StateStoreProvider");
+        SourceMethod store = index.methods(provider.id()).stream()
+                .filter(method -> method.name().equals("store"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(index.returns(store.id()))
+                .anySatisfy(ret -> {
+                    assertThat(ret.referencedField()).isEqualTo("store");
+                    assertThat(ret.evidence()).isEqualTo(SourceEvidence.METHOD_RETURNS_FIELD);
+                });
+    }
+
+    @Test
+    void indexesFieldInjectionFromQuarkusSample() {
+        SourceFactIndex index = new SourceFactIndexBuilder().build(scan("quarkus-sample"), "quarkus-sample", 1);
+        SourceType orderResource = index.type("com.example.api.OrderResource");
+
+        assertThat(index.injectionPoints(orderResource.id()))
+                .anySatisfy(injection -> {
+                    assertThat(injection.fieldName()).isEqualTo("orderService");
+                    assertThat(injection.targetType()).isEqualTo("com.example.service.OrderService");
+                    assertThat(injection.evidence()).isEqualTo(SourceEvidence.FIELD_INJECTION);
+                    assertThat(injection.confidence()).isEqualTo(FactConfidence.KNOWN);
+                });
+    }
 }
