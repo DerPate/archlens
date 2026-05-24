@@ -193,6 +193,10 @@ public class RuntimeFlowInferrer {
         if (!ref.startsWith("/")) return false;
         String lp = epPath.toLowerCase();
         String lr = ref.toLowerCase();
+        // Once the ref already carries a path variable it is specific enough that only
+        // exact matching is correct.  Without this guard, /absence/{id} would also match
+        // /absence/{id}/cancel because that ep path starts with the ref + "/".
+        if (lr.contains("{")) return lp.equals(lr);
         return lp.equals(lr) || lp.startsWith(lr + "/") || lp.startsWith(lr + "{");
     }
 
@@ -204,15 +208,19 @@ public class RuntimeFlowInferrer {
      * @return matching entrypoint, or null when none matches
      */
     public Entrypoint findEntrypoint(String ref, ArchitectureModel model) {
+        Entrypoint prefixCandidate = null;
         for (Entrypoint ep : model.entrypoints) {
-            if (ep.id.equals(ref)
-                    || ep.name.equals(ref)
-                    || ep.id.contains(ref)
-                    || pathPrefixMatches(ep.path, ref)) {
+            if (ep.id.equals(ref) || ep.name.equals(ref) || ep.id.contains(ref)) {
                 return ep;
             }
+            if (ep.path != null && ep.path.equalsIgnoreCase(ref)) {
+                return ep; // exact path match — always preferred over any prefix match
+            }
+            if (prefixCandidate == null && pathPrefixMatches(ep.path, ref)) {
+                prefixCandidate = ep; // remember first prefix match as fallback
+            }
         }
-        return null;
+        return prefixCandidate;
     }
 
 }
