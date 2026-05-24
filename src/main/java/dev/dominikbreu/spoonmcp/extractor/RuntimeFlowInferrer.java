@@ -188,6 +188,14 @@ public class RuntimeFlowInferrer {
         return ep.type != null ? ep.type.name().toLowerCase() : "trigger";
     }
 
+    static boolean pathPrefixMatches(String epPath, String ref) {
+        if (epPath == null || ref == null) return false;
+        if (!ref.startsWith("/")) return false;
+        String lp = epPath.toLowerCase();
+        String lr = ref.toLowerCase();
+        return lp.equals(lr) || lp.startsWith(lr + "/") || lp.startsWith(lr + "{");
+    }
+
     /**
      * Finds an entrypoint by id, name, path, or partial identifier.
      *
@@ -200,7 +208,7 @@ public class RuntimeFlowInferrer {
             if (ep.id.equals(ref)
                     || ep.name.equals(ref)
                     || ep.id.contains(ref)
-                    || (ep.path != null && ep.path.equals(ref))) {
+                    || pathPrefixMatches(ep.path, ref)) {
                 return ep;
             }
         }
