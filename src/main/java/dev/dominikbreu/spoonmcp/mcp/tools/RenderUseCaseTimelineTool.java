@@ -54,7 +54,9 @@ public class RenderUseCaseTimelineTool {
                         .filter(f -> f.entrypointId.equals(filter) || f.entrypointId.contains(filter))
                         .collect(Collectors.toList());
             } else if (epNameFilter != null) {
-                final String lower = epNameFilter.toLowerCase();
+                String methodFilter = RuntimeFlowInferrer.extractMethodFromRef(epNameFilter);
+                String pathFilter = RuntimeFlowInferrer.extractPathFromRef(epNameFilter);
+                final String lower = pathFilter.toLowerCase();
                 flows = flows.stream()
                         .filter(f -> {
                             Entrypoint ep = model.entrypoints.stream()
@@ -62,8 +64,9 @@ public class RenderUseCaseTimelineTool {
                                     .findFirst()
                                     .orElse(null);
                             if (ep == null) return f.entrypointId.toLowerCase().contains(lower);
+                            if (methodFilter != null && !methodFilter.equalsIgnoreCase(ep.httpMethod)) return false;
                             return (ep.name != null && ep.name.toLowerCase().contains(lower))
-                                    || RuntimeFlowInferrer.pathPrefixMatches(ep.path, epNameFilter)
+                                    || RuntimeFlowInferrer.pathPrefixMatches(ep.path, pathFilter)
                                     || (ep.channelName != null
                                             && ep.channelName.toLowerCase().contains(lower));
                         })

@@ -188,6 +188,31 @@ public class RuntimeFlowInferrer {
         return ep.type != null ? ep.type.name().toLowerCase() : "trigger";
     }
 
+    private static final List<String> HTTP_METHODS =
+            List.of("GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS");
+
+    /**
+     * Extracts the HTTP method from a ref of the form {@code "GET /path"}.
+     * Returns null for plain paths or name-based refs.
+     */
+    public static String extractMethodFromRef(String ref) {
+        if (ref == null) return null;
+        String upper = ref.toUpperCase();
+        for (String m : HTTP_METHODS) {
+            if (upper.startsWith(m + " /")) return m;
+        }
+        return null;
+    }
+
+    /**
+     * Strips the leading {@code "METHOD "} prefix from a ref, returning the bare path.
+     * Returns the original ref unchanged when no HTTP method prefix is present.
+     */
+    public static String extractPathFromRef(String ref) {
+        String method = extractMethodFromRef(ref);
+        return method != null ? ref.substring(method.length() + 1) : ref;
+    }
+
     public static boolean pathPrefixMatches(String epPath, String ref) {
         if (epPath == null || ref == null) return false;
         if (!ref.startsWith("/")) return false;
@@ -208,16 +233,25 @@ public class RuntimeFlowInferrer {
      * @return matching entrypoint, or null when none matches
      */
     public Entrypoint findEntrypoint(String ref, ArchitectureModel model) {
+        String method = extractMethodFromRef(ref);
+        String pathRef = extractPathFromRef(ref);
+
         Entrypoint prefixCandidate = null;
         for (Entrypoint ep : model.entrypoints) {
-            if (ep.id.equals(ref) || ep.name.equals(ref) || ep.id.contains(ref)) {
+            // Non-path exact matches (id / name) apply only when no HTTP method is specified.
+            if (method == null && (ep.id.equals(ref) || ep.name.equals(ref) || ep.id.contains(ref))) {
                 return ep;
             }
-            if (ep.path != null && ep.path.equalsIgnoreCase(ref)) {
-                return ep; // exact path match — always preferred over any prefix match
+            // When an HTTP method is present, skip endpoints with a different method.
+            if (method != null && !method.equalsIgnoreCase(ep.httpMethod)) {
+                continue;
             }
-            if (prefixCandidate == null && pathPrefixMatches(ep.path, ref)) {
-                prefixCandidate = ep; // remember first prefix match as fallback
+            // Exact path match — always preferred over any prefix match.
+            if (ep.path != null && ep.path.equalsIgnoreCase(pathRef)) {
+                return ep;
+            }
+            if (prefixCandidate == null && pathPrefixMatches(ep.path, pathRef)) {
+                prefixCandidate = ep;
             }
         }
         return prefixCandidate;

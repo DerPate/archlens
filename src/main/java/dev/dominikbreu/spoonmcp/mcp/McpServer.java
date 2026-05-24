@@ -152,7 +152,7 @@ public class McpServer {
                 "get_runtime_flow",
                 "Return a reduced runtime path for a use case or entry point by following injection dependencies.",
                 schema().opt("entrypointId", "string", "Entrypoint ID (from find_entrypoints)")
-                        .opt("entrypointName", "string", "Entrypoint name (partial match)")
+                        .opt("entrypointName", "string", "Entrypoint path, name, or 'METHOD /path' (e.g. 'GET /account') for HTTP-method disambiguation")
                         .opt("maxDepth", "integer", "Max traversal depth (default 5)"),
                 runtimeFlowTool::execute));
 
@@ -160,7 +160,7 @@ public class McpServer {
                 "render_call_flow",
                 "Render a Mermaid flowchart showing the execution path from an entry point through its call chain. Component shapes reflect architectural role (cylinder=repository, parallelogram=http-client, etc.). Edge labels show the actual called method name.",
                 schema().opt("entrypointId", "string", "Entrypoint ID (from find_entrypoints)")
-                        .opt("entrypointName", "string", "Entrypoint name or path (partial match)")
+                        .opt("entrypointName", "string", "Entrypoint path, name, or 'METHOD /path' (e.g. 'GET /account') for HTTP-method disambiguation")
                         .opt("maxDepth", "integer", "Max traversal depth (default 5)"),
                 callFlowTool::execute));
 
@@ -264,7 +264,7 @@ public class McpServer {
                 "trace_data_flow",
                 "Trace how entrypoint parameters flow through the call graph to sinks (persistence, messaging, http-outbound, event-bus, store, file-outbound, object-storage). Requires call-graph data from index_workspace.",
                 schema().opt("entrypointId", "string", "Filter by entrypoint ID (partial match)")
-                        .opt("entrypointName", "string", "Filter by entrypoint name or path (partial match)")
+                        .opt("entrypointName", "string", "Filter by path, name, or 'METHOD /path' (e.g. 'GET /account') for HTTP-method disambiguation")
                         .opt("param", "string", "Filter by tracked parameter name")
                         .opt(
                                 "sinkKind",
@@ -276,7 +276,7 @@ public class McpServer {
                 "render_use_case_timeline",
                 "Render a Mermaid gantt chart showing sequential execution steps across use cases. Each use case is a section; each component hop is a task bar positioned by call depth. Useful for comparing execution depth and component involvement across entry points.",
                 schema().opt("entrypointId", "string", "Filter to a single use case by entrypoint ID")
-                        .opt("entrypointName", "string", "Filter by entrypoint name or HTTP path (partial match)")
+                        .opt("entrypointName", "string", "Filter by path, name, or 'METHOD /path' (e.g. 'GET /account') for HTTP-method disambiguation")
                         .opt("maxUseCases", "integer", "Maximum sections to render (default 10)")
                         .opt("maxDepth", "integer", "Maximum steps per section (default 5)"),
                 useCaseTimelineTool::execute));
@@ -287,7 +287,7 @@ public class McpServer {
                 schema().opt(
                                 "entrypointName",
                                 "string",
-                                "Filter chains whose root entrypoint name or HTTP path contains this substring")
+                                "Filter chains by root entrypoint path, name, or 'METHOD /path' (e.g. 'POST /account') for HTTP-method disambiguation")
                         .opt(
                                 "channel",
                                 "string",
