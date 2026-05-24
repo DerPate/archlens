@@ -201,8 +201,10 @@ public class ObjectFlowIndexBuilder {
         try (Scope scope = span.makeCurrent()) {
             long implementationLinks = 0;
             long duplicateImplementationLinks = 0;
-            for (ObjectFlowIndex.TypeFact supertype : types.values()) {
+            long supertypeEdges = 0;
+            for (SourceType supertype : sourceFacts.types()) {
                 for (SourceType implementation : sourceFacts.implementations(supertype.qualifiedName())) {
+                    supertypeEdges++;
                     ObjectFlowIndex.TypeFact concreteType = types.get(implementation.qualifiedName());
                     if (concreteType == null) continue;
                     if (registerImplementation(implementations, supertype.qualifiedName(), concreteType)) {
@@ -213,7 +215,7 @@ public class ObjectFlowIndexBuilder {
                 }
             }
             span.setAttribute("concrete-types", types.values().stream().filter(t -> !t.abstractOrInterface()).count());
-            span.setAttribute("supertype-edges", implementationLinks + duplicateImplementationLinks);
+            span.setAttribute("supertype-edges", supertypeEdges);
             span.setAttribute("implementation-groups", (long) implementations.size());
             span.setAttribute("implementation-links", implementationLinks);
             span.setAttribute("duplicate-implementation-links", duplicateImplementationLinks);

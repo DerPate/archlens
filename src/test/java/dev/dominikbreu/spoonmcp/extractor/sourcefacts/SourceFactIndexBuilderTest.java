@@ -136,4 +136,30 @@ class SourceFactIndexBuilderTest extends ExtractorTestBase {
                     assertThat(injection.confidence()).isEqualTo(FactConfidence.KNOWN);
                 });
     }
+
+    @Test
+    void indexesConstructorInjectionAssignments() {
+        SourceFactIndex index = new SourceFactIndexBuilder()
+                .build(scan("constructor-injection-sample"), "constructor-injection-sample", 1);
+        SourceType controller = index.type("com.example.constructor.AccountController");
+        SourceMethod constructor = index.methods(controller.id()).stream()
+                .filter(SourceMethod::constructor)
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(index.injectionPoints(controller.id()))
+                .anySatisfy(injection -> {
+                    assertThat(injection.fieldName()).isEqualTo("accountService");
+                    assertThat(injection.parameterName()).isEqualTo("accountService");
+                    assertThat(injection.targetType()).isEqualTo("com.example.constructor.IAccountService");
+                    assertThat(injection.evidence()).isEqualTo(SourceEvidence.CONSTRUCTOR_INJECTION);
+                    assertThat(injection.confidence()).isEqualTo(FactConfidence.KNOWN);
+                });
+        assertThat(index.assignments(constructor.id()))
+                .anySatisfy(assignment -> {
+                    assertThat(assignment.target()).contains("accountService");
+                    assertThat(assignment.valueExpression()).isEqualTo("accountService");
+                    assertThat(assignment.evidence()).isEqualTo(SourceEvidence.FIELD_ASSIGNMENT);
+                });
+    }
 }

@@ -16,6 +16,7 @@ import spoon.reflect.code.CtAssignment;
 import spoon.reflect.code.CtConstructorCall;
 import spoon.reflect.code.CtExpression;
 import spoon.reflect.code.CtFieldRead;
+import spoon.reflect.code.CtFieldWrite;
 import spoon.reflect.code.CtInvocation;
 import spoon.reflect.code.CtLocalVariable;
 import spoon.reflect.code.CtReturn;
@@ -214,10 +215,46 @@ public class SourceFactIndexBuilder {
                                 location(field)));
                     }
                 }
+                for (CtTypeMember member : type.getTypeMembers()) {
+                    if (member instanceof CtConstructor<?> constructor) {
+                        addConstructorInjectionFacts(type, constructor, injectionPoints);
+                    }
+                }
             }
             span.setAttribute("injection-point-count", (long) injectionPoints.size());
         } finally {
             span.end();
+        }
+    }
+
+    private void addConstructorInjectionFacts(
+            CtType<?> type, CtConstructor<?> constructor, List<SourceInjectionPoint> injectionPoints) {
+        Map<String, CtParameter<?>> parametersByName = new LinkedHashMap<>();
+        for (CtParameter<?> parameter : constructor.getParameters()) {
+            parametersByName.put(parameter.getSimpleName(), parameter);
+        }
+        if (parametersByName.isEmpty()) {
+            return;
+        }
+
+        String typeId = typeId(type.getQualifiedName());
+        for (CtAssignment<?, ?> assignment : constructor.getElements(new TypeFilter<>(CtAssignment.class))) {
+            String fieldName = assignedFieldName(assignment);
+            String parameterName = assignedParameterName(assignment);
+            if (fieldName == null || parameterName == null) continue;
+
+            CtParameter<?> parameter = parametersByName.get(parameterName);
+            if (parameter == null) continue;
+
+            String targetType = parameter.getType() == null ? null : parameter.getType().getQualifiedName();
+            injectionPoints.add(new SourceInjectionPoint(
+                    typeId,
+                    targetType,
+                    fieldName,
+                    parameterName,
+                    SourceEvidence.CONSTRUCTOR_INJECTION,
+                    FactConfidence.KNOWN,
+                    location(assignment)));
         }
     }
 
@@ -291,7 +328,9 @@ public class SourceFactIndexBuilder {
     }
 
     private SourceAssignment assignmentFact(String methodId, CtAssignment<?, ?> assignment, int index) {
-        SourceEvidence evidence = assignment.getAssignment() instanceof CtConstructorCall<?>
+        SourceEvidence evidence = assignment.getAssigned() instanceof CtFieldWrite<?>
+                ? SourceEvidence.FIELD_ASSIGNMENT
+                : assignment.getAssignment() instanceof CtConstructorCall<?>
                 ? SourceEvidence.CONSTRUCTOR_CALL
                 : SourceEvidence.LOCAL_ASSIGNMENT;
         return new SourceAssignment(
@@ -416,6 +455,22 @@ public class SourceFactIndexBuilder {
 
     private String referencedParameter(CtExpression<?> expression) {
         if (expression instanceof CtVariableRead<?> variableRead
+                && variableRead.getVariable() != null
+                && variableRead.getVariable().getDeclaration() instanceof CtParameter<?>) {
+            return variableRead.getVariable().getSimpleName();
+        }
+        return null;
+    }
+
+    private String assignedFieldName(CtAssignment<?, ?> assignment) {
+        if (assignment.getAssigned() instanceof CtFieldWrite<?> fieldWrite && fieldWrite.getVariable() != null) {
+            return fieldWrite.getVariable().getSimpleName();
+        }
+        return null;
+    }
+
+    private String assignedParameterName(CtAssignment<?, ?> assignment) {
+        if (assignment.getAssignment() instanceof CtVariableRead<?> variableRead
                 && variableRead.getVariable() != null
                 && variableRead.getVariable().getDeclaration() instanceof CtParameter<?>) {
             return variableRead.getVariable().getSimpleName();
