@@ -97,14 +97,11 @@ public class GetRuntimeFlowTool {
     }
 
     private RuntimeFlow findStoredFlow(String ref, int maxDepth, ArchitectureModel model) {
+        Entrypoint ep = inferrer.findEntrypoint(ref, model);
+        if (ep == null) return null;
         return model.runtimeFlows.stream()
+                .filter(f -> f.entrypointId.equals(ep.id))
                 .filter(f -> maxDepth >= Math.max(0, f.steps.size() - 1))
-                .filter(f -> f.entrypointId.equals(ref)
-                        || f.entrypointId.toLowerCase().contains(ref.toLowerCase())
-                        || model.entrypoints.stream()
-                                .anyMatch(e -> e.id.equals(f.entrypointId)
-                                        && e.name != null
-                                        && e.name.toLowerCase().contains(ref.toLowerCase())))
                 .findFirst()
                 .orElse(null);
     }
