@@ -3,6 +3,9 @@ package dev.dominikbreu.spoonmcp.extractor;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
+import dev.dominikbreu.spoonmcp.extractor.objectflow.ObjectFlowIndex;
+import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndex;
+import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndexBuilder;
 import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import java.util.List;
@@ -33,6 +36,25 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                     assertThat(e.toComponentId).isEqualTo("comp:com.example.service.OrderService");
                     assertThat(e.toMethod).isEqualTo("find");
                     assertThat(e.callKind).isEqualTo("direct");
+                });
+    }
+
+    @Test
+    void sourceFactBackedCallGraphPreservesFieldInjectionEdges() {
+        CtModel ctModel = scan("quarkus-sample");
+        ArchitectureModel sourceModel = emptyModel(QUARKUS_APP_ID);
+        new QuarkusExtractor().extract(ctModel.getAllTypes(), sourceModel, QUARKUS_APP_ID);
+        new DependencyExtractor().extract(ctModel, sourceModel);
+
+        SourceFactIndex sourceFacts = new SourceFactIndexBuilder().build(ctModel, "quarkus-sample", 1);
+        new CallGraphExtractor(ObjectFlowIndex.empty(), sourceFacts).extract(ctModel, sourceModel);
+
+        assertThat(sourceModel.callEdges)
+                .anySatisfy(edge -> {
+                    assertThat(edge.fromComponentId).isEqualTo("comp:com.example.api.OrderResource");
+                    assertThat(edge.fromMethod).isEqualTo("get");
+                    assertThat(edge.toComponentId).isEqualTo("comp:com.example.service.OrderService");
+                    assertThat(edge.toMethod).isEqualTo("find");
                 });
     }
 
