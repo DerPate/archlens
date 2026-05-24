@@ -365,9 +365,28 @@ public class ObjectFlowIndexBuilder {
         return List.of();
     }
 
+    // Java API method names that are too generic to reliably identify a project-component accessor.
+    // When a method chain passes through one of these (e.g. Optional.get(), Stream.findFirst()),
+    // the project-type name scan would pick whichever component happens to have a method by that
+    // name — producing spurious ACCESSOR_RETURN edges (Lombok-blindness false positives).
+    private static final Set<String> GENERIC_JAVA_API_METHODS = Set.of(
+            // java.util.Optional
+            "get", "orElse", "orElseGet", "orElseThrow", "isPresent", "isEmpty",
+            // java.util.stream.Stream / Collectors
+            "stream", "findFirst", "findAny", "filter", "map", "flatMap",
+            "collect", "toList", "count", "sorted", "distinct", "limit", "skip",
+            "anyMatch", "allMatch", "noneMatch", "min", "max", "reduce", "forEach",
+            // java.util.Collection / List / Iterator
+            "size", "iterator", "listIterator", "first", "last", "peek", "poll",
+            // java.util.Map
+            "values", "keySet", "entrySet");
+
     private static List<ReceiverTarget> resolveAccessorTarget(
             CtInvocation<?> targetInvocation, List<CtType<?>> projectTypes, String outerMethodName) {
         String accessorName = targetInvocation.getExecutable().getSimpleName();
+        if (GENERIC_JAVA_API_METHODS.contains(accessorName)) {
+            return List.of();
+        }
         return projectTypes.stream()
                 .filter(type -> hasMethod(type, accessorName))
                 .findFirst()

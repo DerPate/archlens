@@ -67,6 +67,16 @@ class SpringExtractorTest extends ExtractorTestBase {
     }
 
     @Test
+    void kafkaListenerWithConstantTopicResolvesChannelName() {
+        // @KafkaListener(topics = {OrderTopics.RETRY_TOPIC}) where RETRY_TOPIC = "orders.retry"
+        // resolveAnnotationValue must follow the CtFieldReference to the literal value.
+        assertThat(model.entrypoints)
+                .anyMatch(e -> e.type == EntrypointType.MESSAGING_CONSUMER
+                        && "orders.retry".equals(e.channelName)
+                        && e.broker == MessagingBroker.KAFKA);
+    }
+
+    @Test
     void detectsMessagingListeners() {
         assertThat(model.entrypoints)
                 .anyMatch(e -> e.type == EntrypointType.MESSAGING_CONSUMER
@@ -132,6 +142,22 @@ class SpringExtractorTest extends ExtractorTestBase {
                 .anyMatch(i -> "messaging_producer".equals(i.type)
                         && i.broker == MessagingBroker.JMS
                         && "orders.jms".equals(i.path));
+    }
+
+    @Test
+    void pathVariableAtStartOfArrayAnnotation_isNotGarbled() {
+        // @GetMapping(value = {"{id}/items/{itemId}"}) — array syntax, method path starts with {
+        // must produce /api/orders/{id}/items/{itemId}, NOT /api/orders/id}/items/{itemId}
+        // (test project has server.servlet.context-path=/api)
+        assertThat(model.entrypoints)
+                .anyMatch(e -> e.type == EntrypointType.REST_ENDPOINT
+                        && "GET".equals(e.httpMethod)
+                        && "/api/orders/{id}/items/{itemId}".equals(e.path));
+        // @DeleteMapping(value = {"/{id}/items/{itemId}"}) — array syntax with leading / must also work
+        assertThat(model.entrypoints)
+                .anyMatch(e -> e.type == EntrypointType.REST_ENDPOINT
+                        && "DELETE".equals(e.httpMethod)
+                        && "/api/orders/{id}/items/{itemId}".equals(e.path));
     }
 
     private static void assertComponent(String name, ComponentType type, String technology) {

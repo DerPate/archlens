@@ -327,6 +327,48 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
                 .contains("polymorphic expansion capped at " + ObjectFlowIndex.DEFAULT_POLYMORPHIC_TARGET_CAP);
     }
 
+    @Test
+    void doesNotMisresolveAccessorChainThroughCommonJavaApiMethod() {
+        // Represents: opt.get().doWork() where opt is java.util.Optional<Worker>
+        // and Other happens to have a get() method too.
+        // Without the denylist, resolveAccessorTarget picks Other (it has "get"),
+        // producing a spurious ACCESSOR_RETURN edge to Other.doWork.
+        Launcher launcher = new Launcher();
+        launcher.getEnvironment().setNoClasspath(true);
+        launcher.getEnvironment().setComplianceLevel(21);
+        launcher.getEnvironment().setShouldCompile(false);
+        launcher.addInputResource(new VirtualFile(
+                """
+                package example;
+                class Caller {
+                    void test(java.util.Optional<Worker> opt) {
+                        opt.get().doWork();
+                    }
+                }
+                class Worker { void doWork() {} }
+                class Other { void get() {} }
+                """,
+                "GenericApiFixture.java"));
+        launcher.buildModel();
+
+        ArchitectureModel architecture = new ArchitectureModel("test");
+        architecture.components.add(component("example.Caller"));
+        architecture.components.add(component("example.Worker"));
+        architecture.components.add(component("example.Other"));
+
+        ObjectFlowIndex idx = new ObjectFlowIndexBuilder().build(launcher.getModel(), architecture);
+
+        CtInvocation<?> doWorkCall = launcher.getModel()
+                .getElements(new TypeFilter<>(CtInvocation.class)).stream()
+                .filter(inv -> "doWork".equals(inv.getExecutable().getSimpleName()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("no doWork invocation found"));
+
+        assertThat(idx.resolveReceiver(doWorkCall))
+                .as("doWork() must not resolve to Other via get() name-match")
+                .noneMatch(t -> t.componentId().equals("comp:example.Other"));
+    }
+
     private static Component component(String qualifiedName) {
         Component component = new Component();
         component.id = "comp:" + qualifiedName;
