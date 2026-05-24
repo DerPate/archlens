@@ -183,6 +183,71 @@ class RuntimeFlowInferrerTest {
         assertThat(flow).isNotNull();
     }
 
+    // ── extractMethodFromRef / extractPathFromRef ─────────────────────────────
+
+    @Test
+    void extractMethodFromRef_parsesUppercaseMethod() {
+        assertThat(RuntimeFlowInferrer.extractMethodFromRef("GET /account")).isEqualTo("GET");
+        assertThat(RuntimeFlowInferrer.extractMethodFromRef("POST /account")).isEqualTo("POST");
+        assertThat(RuntimeFlowInferrer.extractMethodFromRef("DELETE /account/{id}")).isEqualTo("DELETE");
+        assertThat(RuntimeFlowInferrer.extractMethodFromRef("PATCH /customer/{id}/address/{aid}")).isEqualTo("PATCH");
+    }
+
+    @Test
+    void extractMethodFromRef_isCaseInsensitive() {
+        assertThat(RuntimeFlowInferrer.extractMethodFromRef("get /account")).isEqualTo("GET");
+        assertThat(RuntimeFlowInferrer.extractMethodFromRef("Post /account")).isEqualTo("POST");
+    }
+
+    @Test
+    void extractMethodFromRef_returnsNullForPlainPath() {
+        assertThat(RuntimeFlowInferrer.extractMethodFromRef("/account")).isNull();
+        assertThat(RuntimeFlowInferrer.extractMethodFromRef("getAll")).isNull();
+        assertThat(RuntimeFlowInferrer.extractMethodFromRef("GET")).isNull(); // no space+slash
+    }
+
+    @Test
+    void extractPathFromRef_stripsMethodPrefix() {
+        assertThat(RuntimeFlowInferrer.extractPathFromRef("GET /account")).isEqualTo("/account");
+        assertThat(RuntimeFlowInferrer.extractPathFromRef("POST /customer/{id}")).isEqualTo("/customer/{id}");
+    }
+
+    @Test
+    void extractPathFromRef_returnsOriginalWhenNoMethod() {
+        assertThat(RuntimeFlowInferrer.extractPathFromRef("/account")).isEqualTo("/account");
+        assertThat(RuntimeFlowInferrer.extractPathFromRef("getAll")).isEqualTo("getAll");
+    }
+
+    // ── findEntrypoint — HTTP-method disambiguation ───────────────────────────
+
+    @Test
+    void findEntrypoint_byMethodAndPath_disambiguatesGetFromPost() {
+        ArchitectureModel m = new ArchitectureModel("test");
+        Component ctrl = comp("AccountController", ComponentType.REST_RESOURCE);
+        m.components.add(ctrl);
+        Entrypoint post = ep("ep:AccountController#add:POST", "add", ctrl.id, "POST", "/account");
+        Entrypoint get  = ep("ep:AccountController#getAll:GET", "getAll", ctrl.id, "GET", "/account");
+        m.entrypoints.add(post); // POST registered first
+        m.entrypoints.add(get);
+
+        assertThat(inferrer.findEntrypoint("GET /account",  m).id).isEqualTo("ep:AccountController#getAll:GET");
+        assertThat(inferrer.findEntrypoint("POST /account", m).id).isEqualTo("ep:AccountController#add:POST");
+    }
+
+    @Test
+    void findEntrypoint_plainPathFallsBackToFirstMatch() {
+        // Without a method prefix the first registered endpoint is returned (existing behaviour).
+        ArchitectureModel m = new ArchitectureModel("test");
+        Component ctrl = comp("AccountController", ComponentType.REST_RESOURCE);
+        m.components.add(ctrl);
+        Entrypoint post = ep("ep:AccountController#add:POST", "add", ctrl.id, "POST", "/account");
+        Entrypoint get  = ep("ep:AccountController#getAll:GET", "getAll", ctrl.id, "GET", "/account");
+        m.entrypoints.add(post);
+        m.entrypoints.add(get);
+
+        assertThat(inferrer.findEntrypoint("/account", m).id).isEqualTo("ep:AccountController#add:POST");
+    }
+
     @Test
     void matchesByExactPath() {
         ArchitectureModel model = threeLayerModel();

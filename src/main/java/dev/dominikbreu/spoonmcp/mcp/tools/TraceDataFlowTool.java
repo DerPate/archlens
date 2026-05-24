@@ -55,16 +55,19 @@ public class TraceDataFlowTool {
                         .collect(Collectors.toList());
             }
             if (nameFilter != null) {
-                String lower = nameFilter.toLowerCase();
+                String methodFilter = RuntimeFlowInferrer.extractMethodFromRef(nameFilter);
+                String pathFilter = RuntimeFlowInferrer.extractPathFromRef(nameFilter);
+                String lower = pathFilter.toLowerCase();
                 paths = paths.stream()
                         .filter(p -> {
                             Entrypoint ep = model.entrypoints.stream()
                                     .filter(e -> e.id.equals(p.entrypointId))
                                     .findFirst()
                                     .orElse(null);
-                            return ep != null
-                                    && (ep.name.toLowerCase().contains(lower)
-                                            || RuntimeFlowInferrer.pathPrefixMatches(ep.path, nameFilter));
+                            if (ep == null) return false;
+                            if (methodFilter != null && !methodFilter.equalsIgnoreCase(ep.httpMethod)) return false;
+                            return ep.name.toLowerCase().contains(lower)
+                                    || RuntimeFlowInferrer.pathPrefixMatches(ep.path, pathFilter);
                         })
                         .collect(Collectors.toList());
             }
