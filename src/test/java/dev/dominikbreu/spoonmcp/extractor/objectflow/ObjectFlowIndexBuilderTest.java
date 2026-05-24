@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 
 import dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor;
 import dev.dominikbreu.spoonmcp.extractor.ExtractorTestBase;
+import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndex;
+import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndexBuilder;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.tracing.StdoutSpanExporter;
@@ -125,6 +127,22 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
                     assertThat(target.methodName()).isEqualTo("put");
                     assertThat(target.evidence()).isEqualTo(ObjectFlowEvidence.ACCESSOR_RETURN);
                 });
+    }
+
+    @Test
+    void sourceFactBackedBuilderPreservesReceiverResolution() {
+        ArchitectureModel architecture =
+                new ArchitectureExtractor().extract(List.of(projectPath("generic-object-flow")));
+        SourceFactIndex facts = new SourceFactIndexBuilder().build(ctModel, "generic-object-flow", 1);
+
+        ObjectFlowIndex factBacked = new ObjectFlowIndexBuilder().build(ctModel, architecture, facts);
+
+        assertThat(factBacked.resolveReceiver(invocation("provider.store().cache().put")))
+                .extracting(ReceiverTarget::componentId)
+                .contains("comp:com.example.objectflow.StateStore");
+        assertThat(factBacked.expandDeclaredType("com.example.objectflow.Player", "nextMove"))
+                .extracting(ReceiverTarget::componentId)
+                .contains("comp:com.example.objectflow.RandomPlayer", "comp:com.example.objectflow.SimplePlayer");
     }
 
     @Test

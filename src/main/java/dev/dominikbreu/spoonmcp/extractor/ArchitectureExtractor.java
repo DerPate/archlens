@@ -102,7 +102,7 @@ public class ArchitectureExtractor {
                     SourceFactIndex sourceFacts =
                             sourceFactIndexBuilder.build(ctModel, work.module().name(), work.module().sourceRoots().size());
                     sourceFacts.typeCount();
-                    ObjectFlowIndex objectFlowIndex = new ObjectFlowIndexBuilder().build(ctModel, model);
+                    ObjectFlowIndex objectFlowIndex = new ObjectFlowIndexBuilder().build(ctModel, model, sourceFacts);
                     new CallGraphExtractor(objectFlowIndex).extract(ctModel, model);
                     work.ctModel = null;
                 }
