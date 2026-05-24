@@ -23,4 +23,40 @@ class SourceFactIndexBuilderTest extends ExtractorTestBase {
         assertThat(type.qualifiedName()).isEqualTo("com.example.Example");
         assertThat(type.location()).isSameAs(location);
     }
+
+    @Test
+    void sourceFactIndexReturnsImmutableFactsByStableIds() {
+        SourceType type = new SourceType(
+                "type:example.Service",
+                "example.Service",
+                "Service",
+                "example",
+                false,
+                false,
+                SourceLocation.unknown());
+        SourceMethod method = new SourceMethod(
+                "method:example.Service#handle(java.lang.String)",
+                type.id(),
+                "handle",
+                "handle(java.lang.String)",
+                false,
+                java.util.List.of("payload"),
+                java.util.List.of("java.lang.String"),
+                SourceLocation.unknown());
+        SourceFactIndex index = new SourceFactIndex(
+                java.util.List.of(type),
+                java.util.List.of(method),
+                java.util.List.of(),
+                java.util.List.of(),
+                java.util.List.of(),
+                java.util.List.of(),
+                java.util.List.of(),
+                java.util.List.of(),
+                java.util.Map.of());
+
+        assertThat(index.type("example.Service")).isSameAs(type);
+        assertThat(index.methods(type.id())).containsExactly(method);
+        assertThat(index.method(method.id())).isSameAs(method);
+        assertThat(index.methods("type:missing")).isEmpty();
+    }
 }
