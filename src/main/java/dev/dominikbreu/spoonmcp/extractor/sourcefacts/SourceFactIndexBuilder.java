@@ -12,16 +12,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import spoon.reflect.CtModel;
+import spoon.reflect.code.CtAssignment;
+import spoon.reflect.code.CtConstructorCall;
 import spoon.reflect.code.CtExpression;
+import spoon.reflect.code.CtFieldRead;
+import spoon.reflect.code.CtInvocation;
+import spoon.reflect.code.CtLocalVariable;
+import spoon.reflect.code.CtReturn;
+import spoon.reflect.code.CtVariableRead;
 import spoon.reflect.declaration.CtAnnotation;
 import spoon.reflect.declaration.CtConstructor;
 import spoon.reflect.declaration.CtElement;
 import spoon.reflect.declaration.CtField;
+import spoon.reflect.declaration.CtExecutable;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.declaration.CtType;
 import spoon.reflect.declaration.CtTypeMember;
 import spoon.reflect.reference.CtTypeReference;
+import spoon.reflect.visitor.filter.TypeFilter;
 
 public class SourceFactIndexBuilder {
 
@@ -39,8 +48,13 @@ public class SourceFactIndexBuilder {
             List<SourceMethod> methods = new ArrayList<>();
             List<SourceField> fields = new ArrayList<>();
             List<SourceAnnotation> annotations = new ArrayList<>();
+            List<SourceInjectionPoint> injectionPoints = new ArrayList<>();
+            List<SourceInvocation> invocations = new ArrayList<>();
+            List<SourceAssignment> assignments = new ArrayList<>();
+            List<SourceReturn> returns = new ArrayList<>();
 
-            buildMembers(ctModel, types, methods, fields, annotations);
+            buildMembers(ctModel, types, methods, fields, annotations, injectionPoints);
+            buildCodeFlowFacts(ctModel, invocations, assignments, returns);
 
             Map<String, List<SourceType>> implementations = buildImplementations(ctModel, types);
 
@@ -49,10 +63,10 @@ public class SourceFactIndexBuilder {
                     methods,
                     fields,
                     annotations,
-                    List.of(),
-                    List.of(),
-                    List.of(),
-                    List.of(),
+                    injectionPoints,
+                    invocations,
+                    assignments,
+                    returns,
                     implementations);
             setBuildCounts(span, index);
             return index;
@@ -128,7 +142,8 @@ public class SourceFactIndexBuilder {
             List<SourceType> types,
             List<SourceMethod> methods,
             List<SourceField> fields,
-            List<SourceAnnotation> annotations) {
+            List<SourceAnnotation> annotations,
+            List<SourceInjectionPoint> injectionPoints) {
         Span span = tracer().spanBuilder("sourcefacts.members").startSpan();
         try (Scope scope = span.makeCurrent()) {
             for (CtType<?> type : ctModel.getAllTypes()) {
@@ -148,7 +163,18 @@ public class SourceFactIndexBuilder {
                     String fieldType = field.getType() == null ? null : field.getType().getQualifiedName();
                     String fieldId = fieldId(type.getQualifiedName(), field.getSimpleName());
                     fields.add(new SourceField(fieldId, typeId, field.getSimpleName(), fieldType, location(field)));
-                    annotations.addAll(annotations(fieldId, field));
+                    List<SourceAnnotation> fieldAnnotations = annotations(fieldId, field);
+                    annotations.addAll(fieldAnnotations);
+                    if (fieldAnnotations.stream().anyMatch(this::isInjectionAnnotation)) {
+                        injectionPoints.add(new SourceInjectionPoint(
+                                typeId,
+                                fieldType,
+                                field.getSimpleName(),
+                                null,
+                                SourceEvidence.FIELD_INJECTION,
+                                FactConfidence.KNOWN,
+                                location(field)));
+                    }
                 }
 
                 for (CtTypeMember member : type.getTypeMembers()) {
@@ -169,9 +195,131 @@ public class SourceFactIndexBuilder {
             span.setAttribute("methods", (long) methods.size());
             span.setAttribute("fields", (long) fields.size());
             span.setAttribute("annotations", (long) annotations.size());
+            span.setAttribute("injection-points", (long) injectionPoints.size());
         } finally {
             span.end();
         }
+    }
+
+    private void buildCodeFlowFacts(
+            CtModel ctModel,
+            List<SourceInvocation> invocations,
+            List<SourceAssignment> assignments,
+            List<SourceReturn> returns) {
+        Span invocationSpan = tracer().spanBuilder("sourcefacts.invocations").startSpan();
+        Span assignmentSpan = tracer().spanBuilder("sourcefacts.assignments").startSpan();
+        Span returnSpan = tracer().spanBuilder("sourcefacts.returns").startSpan();
+        try (Scope ignored = invocationSpan.makeCurrent()) {
+            int invocationIndex = 0;
+            int assignmentIndex = 0;
+            int returnIndex = 0;
+            for (CtType<?> type : ctModel.getAllTypes()) {
+                for (CtExecutable<?> executable : executables(type)) {
+                    String methodId = methodId(type.getQualifiedName(), executable.getSignature());
+                    for (CtElement element : executable.getElements(new TypeFilter<>(CtElement.class))) {
+                        if (element instanceof CtInvocation<?> invocation) {
+                            invocations.add(invocationFact(methodId, invocation, invocationIndex++));
+                        } else if (element instanceof CtAssignment<?, ?> assignment) {
+                            assignments.add(assignmentFact(methodId, assignment, assignmentIndex++));
+                        } else if (element instanceof CtLocalVariable<?> localVariable
+                                && localVariable.getDefaultExpression() != null) {
+                            assignments.add(localAssignmentFact(methodId, localVariable, assignmentIndex++));
+                        } else if (element instanceof CtReturn<?> ctReturn) {
+                            returns.add(returnFact(methodId, ctReturn, returnIndex++));
+                        }
+                    }
+                }
+            }
+            invocationSpan.setAttribute("invocation-count", (long) invocations.size());
+            assignmentSpan.setAttribute("assignment-count", (long) assignments.size());
+            returnSpan.setAttribute("return-fact-count", (long) returns.size());
+        } finally {
+            returnSpan.end();
+            assignmentSpan.end();
+            invocationSpan.end();
+        }
+    }
+
+    private List<CtExecutable<?>> executables(CtType<?> type) {
+        List<CtExecutable<?>> result = new ArrayList<>();
+        for (CtTypeMember member : type.getTypeMembers()) {
+            if (member instanceof CtExecutable<?> executable) {
+                result.add(executable);
+            }
+        }
+        return result;
+    }
+
+    private SourceInvocation invocationFact(String methodId, CtInvocation<?> invocation, int index) {
+        CtElement parent = invocation.getParent();
+        String assignedTo = null;
+        if (parent instanceof CtAssignment<?, ?> assignment) {
+            assignedTo = expressionText(assignment.getAssigned());
+        } else if (parent instanceof CtLocalVariable<?> localVariable) {
+            assignedTo = localVariable.getSimpleName();
+        }
+        return new SourceInvocation(
+                methodId + "@invocation:" + index,
+                methodId,
+                expressionText(invocation.getTarget()),
+                invocation.getExecutable() == null ? null : invocation.getExecutable().getSimpleName(),
+                invocation.getArguments().stream().map(this::expressionText).toList(),
+                assignedTo,
+                SourceEvidence.DIRECT_TYPE_REFERENCE,
+                FactConfidence.KNOWN,
+                location(invocation));
+    }
+
+    private SourceAssignment assignmentFact(String methodId, CtAssignment<?, ?> assignment, int index) {
+        SourceEvidence evidence = assignment.getAssignment() instanceof CtConstructorCall<?>
+                ? SourceEvidence.CONSTRUCTOR_CALL
+                : SourceEvidence.LOCAL_ASSIGNMENT;
+        return new SourceAssignment(
+                methodId + "@assignment:" + index,
+                methodId,
+                expressionText(assignment.getAssigned()),
+                expressionText(assignment.getAssignment()),
+                expressionType(assignment.getAssignment()),
+                evidence,
+                FactConfidence.KNOWN,
+                location(assignment));
+    }
+
+    private SourceAssignment localAssignmentFact(String methodId, CtLocalVariable<?> localVariable, int index) {
+        SourceEvidence evidence = localVariable.getDefaultExpression() instanceof CtConstructorCall<?>
+                ? SourceEvidence.CONSTRUCTOR_CALL
+                : SourceEvidence.LOCAL_ASSIGNMENT;
+        return new SourceAssignment(
+                methodId + "@assignment:" + index,
+                methodId,
+                localVariable.getSimpleName(),
+                expressionText(localVariable.getDefaultExpression()),
+                expressionType(localVariable.getDefaultExpression()),
+                evidence,
+                FactConfidence.KNOWN,
+                location(localVariable));
+    }
+
+    private SourceReturn returnFact(String methodId, CtReturn<?> ctReturn, int index) {
+        CtExpression<?> returnedExpression = ctReturn.getReturnedExpression();
+        String referencedField = referencedField(returnedExpression);
+        String referencedParameter = referencedParameter(returnedExpression);
+        SourceEvidence evidence = referencedField != null
+                ? SourceEvidence.METHOD_RETURNS_FIELD
+                : referencedParameter != null
+                        ? SourceEvidence.METHOD_RETURNS_PARAMETER
+                        : returnedExpression instanceof CtInvocation<?>
+                                ? SourceEvidence.METHOD_RETURNS_INVOCATION
+                                : SourceEvidence.METHOD_RETURNS_LOCAL;
+        return new SourceReturn(
+                methodId + "@return:" + index,
+                methodId,
+                expressionText(returnedExpression),
+                referencedField,
+                referencedParameter,
+                evidence,
+                FactConfidence.KNOWN,
+                location(ctReturn));
     }
 
     private SourceMethod methodFact(
@@ -220,6 +368,39 @@ public class SourceFactIndexBuilder {
         } catch (RuntimeException e) {
             return "(unknown)";
         }
+    }
+
+    private boolean isInjectionAnnotation(SourceAnnotation annotation) {
+        String qn = annotation.qualifiedName();
+        return qn.endsWith(".Inject")
+                || qn.equals("Inject")
+                || qn.endsWith(".Autowired")
+                || qn.endsWith(".Resource")
+                || qn.equals("Resource");
+    }
+
+    private String expressionText(Object expression) {
+        return expression == null ? null : expression.toString();
+    }
+
+    private String expressionType(CtExpression<?> expression) {
+        return expression == null || expression.getType() == null ? null : expression.getType().getQualifiedName();
+    }
+
+    private String referencedField(CtExpression<?> expression) {
+        if (expression instanceof CtFieldRead<?> fieldRead) {
+            return fieldRead.getVariable() == null ? null : fieldRead.getVariable().getSimpleName();
+        }
+        return null;
+    }
+
+    private String referencedParameter(CtExpression<?> expression) {
+        if (expression instanceof CtVariableRead<?> variableRead
+                && variableRead.getVariable() != null
+                && variableRead.getVariable().getDeclaration() instanceof CtParameter<?>) {
+            return variableRead.getVariable().getSimpleName();
+        }
+        return null;
     }
 
     @SuppressWarnings("rawtypes")
