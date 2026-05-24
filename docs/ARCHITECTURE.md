@@ -32,6 +32,11 @@ does not own build-module traversal. `ArchitectureExtractor` registers applicati
 from build modules, detects technology from build and annotation evidence, and then
 dispatches framework-specific extractors.
 
+`dev.dominikbreu.spoonmcp.extractor.sourcefacts` normalizes Spoon-derived types,
+members, annotations, invocations, assignments, returns, injection points, and
+implementation facts into a reusable source-fact index for object-flow and call-graph
+extraction.
+
 ## Source Overview
 
 ```mermaid

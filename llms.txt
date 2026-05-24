@@ -43,6 +43,7 @@ The server is designed for consumption by LLM agents and MCP-capable clients
 - Tool implementations: ./src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/
 - Spoon-based scanners: ./src/main/java/dev/dominikbreu/spoonmcp/scanner/
 - Component extractors: ./src/main/java/dev/dominikbreu/spoonmcp/extractor/
+- Source fact indexes: ./src/main/java/dev/dominikbreu/spoonmcp/extractor/sourcefacts/
 - Deployment / asset mergers: ./src/main/java/dev/dominikbreu/spoonmcp/merger/
 - Architecture model: ./src/main/java/dev/dominikbreu/spoonmcp/model/
 - Cache & graph projection: ./src/main/java/dev/dominikbreu/spoonmcp/cache/
