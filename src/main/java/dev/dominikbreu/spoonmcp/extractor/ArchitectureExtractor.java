@@ -7,6 +7,8 @@ import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.scanner.SpoonScanner;
 import dev.dominikbreu.spoonmcp.extractor.objectflow.ObjectFlowIndex;
 import dev.dominikbreu.spoonmcp.extractor.objectflow.ObjectFlowIndexBuilder;
+import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndex;
+import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndexBuilder;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
@@ -37,6 +39,7 @@ public class ArchitectureExtractor {
     private final ExternalSystemInferrer externalSystemInferrer = new ExternalSystemInferrer();
     private final DataFlowTracer dataFlowTracer = new DataFlowTracer();
     private final BuildMetadataService buildMetadataService = new BuildMetadataService();
+    private final SourceFactIndexBuilder sourceFactIndexBuilder = new SourceFactIndexBuilder();
 
     /** Creates an extractor with the default scanner and extraction passes. */
     public ArchitectureExtractor() {}
@@ -96,6 +99,9 @@ public class ArchitectureExtractor {
                         ctModel = buildCtModel(work.module(), "pass2-enrichment");
                     }
                     extractDependencies(ctModel, model, work.module());
+                    SourceFactIndex sourceFacts =
+                            sourceFactIndexBuilder.build(ctModel, work.module().name(), work.module().sourceRoots().size());
+                    sourceFacts.typeCount();
                     ObjectFlowIndex objectFlowIndex = new ObjectFlowIndexBuilder().build(ctModel, model);
                     new CallGraphExtractor(objectFlowIndex).extract(ctModel, model);
                     work.ctModel = null;

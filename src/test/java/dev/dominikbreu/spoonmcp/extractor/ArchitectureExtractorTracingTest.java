@@ -45,7 +45,10 @@ class ArchitectureExtractorTracingTest extends ExtractorTestBase {
                 .doesNotContain("phase=pass2-callgraph")
                 .contains("pass2-enrichment")
                 .contains("dependency.extract")
-                .contains("objectflow.build");
+                .contains("objectflow.build")
+                .contains("sourcefacts.build")
+                .contains("sourcefacts.members")
+                .contains("sourcefacts.inheritance");
         assertThat(captured.toString().split("ctmodel\\.build", -1).length - 1).isEqualTo(1);
     }
 }
