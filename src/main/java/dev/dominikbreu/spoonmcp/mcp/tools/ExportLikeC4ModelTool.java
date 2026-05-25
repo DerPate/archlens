@@ -2,6 +2,7 @@ package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import dev.dominikbreu.spoonmcp.likec4.LikeC4WorkspaceProjector;
 import dev.dominikbreu.spoonmcp.model.AppEntry;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.renderer.LikeC4ModelRenderer;
@@ -12,6 +13,7 @@ public final class ExportLikeC4ModelTool {
 
     private final ModelCache cache;
     private final ArchitectureViewProjector projector = new ArchitectureViewProjector();
+    private final LikeC4WorkspaceProjector workspaceProjector = new LikeC4WorkspaceProjector();
     private final LikeC4ModelRenderer renderer = new LikeC4ModelRenderer();
 
     public ExportLikeC4ModelTool(ModelCache cache) {
@@ -25,12 +27,15 @@ public final class ExportLikeC4ModelTool {
                 return "No workspace indexed yet. Call index_workspace first.";
             }
             ArchitectureGraph graph = cache.graph();
-            String view = ToolArgs.getString(args, "view", "component");
-            if (!"component".equalsIgnoreCase(view)) {
-                return "Only view=component is supported. Received: " + view;
-            }
+            String view = ToolArgs.getString(args, "view", "workspace");
             int maxNodes = ToolArgs.getInt(args, "maxNodes", 18);
             AppEntry app = RenderArchitectureViewTool.resolveApp(model, ToolArgs.getString(args, "app", ""));
+            if ("workspace".equalsIgnoreCase(view)) {
+                return renderer.render(workspaceProjector.projectWorkspace(graph, model, app, maxNodes));
+            }
+            if (!"component".equalsIgnoreCase(view)) {
+                return "Supported views are workspace and component. Received: " + view;
+            }
             String scopeId = app != null ? app.id : "";
             String title = (app != null ? app.name : model.workspacePath) + " - Component View";
             return renderer.render(projector.projectComponentView(graph, scopeId, title, maxNodes));
