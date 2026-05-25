@@ -52,6 +52,147 @@ class DataFlowTracerTest {
     }
 
     @Test
+    void doesNotPropagateUnmappedParameterAcrossCallEdge() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("AbsenceResource", ComponentType.REST_RESOURCE));
+        model.components.add(comp("AbsenceService", ComponentType.SERVICE));
+        model.components.add(comp("AbsenceRepository", ComponentType.REPOSITORY));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:add-absence";
+        ep.name = "add";
+        ep.type = EntrypointType.REST_ENDPOINT;
+        ep.httpMethod = "POST";
+        ep.componentId = "comp:AbsenceResource";
+        ep.parameters.add("selectedOfficeLocation");
+        ep.parameters.add("personAbsenceClientModel");
+        model.entrypoints.add(ep);
+
+        addCallEdge(
+                model,
+                "comp:AbsenceResource",
+                "add",
+                "comp:AbsenceService",
+                "add",
+                Map.of("personAbsenceClientModel", "personAbsenceClientModel"));
+        addCallEdge(
+                model,
+                "comp:AbsenceService",
+                "add",
+                "comp:AbsenceRepository",
+                "save",
+                Map.of("personAbsenceClientModel", "entity"));
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        assertThat(paths).anySatisfy(path -> {
+            assertThat(path.trackedParam).isEqualTo("personAbsenceClientModel");
+            assertThat(path.sinks).anySatisfy(sink -> assertThat(sink.kind).isEqualTo(DataFlowSink.Kind.PERSISTENCE));
+        });
+        assertThat(paths)
+                .noneMatch(path -> "selectedOfficeLocation".equals(path.trackedParam)
+                        && path.sinks.stream().anyMatch(sink -> sink.kind == DataFlowSink.Kind.PERSISTENCE));
+    }
+
+    @Test
+    void doesNotFollowReceiverAccessorWhenReceiverIsNotTrackedValue() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("AbsenceResource", ComponentType.REST_RESOURCE));
+        model.components.add(comp("AbsenceService", ComponentType.SERVICE));
+        model.components.add(comp("PersonAbsence", ComponentType.ENTITY));
+        model.components.add(comp("AbsenceRepository", ComponentType.REPOSITORY));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:add-absence";
+        ep.name = "add";
+        ep.type = EntrypointType.REST_ENDPOINT;
+        ep.httpMethod = "POST";
+        ep.componentId = "comp:AbsenceResource";
+        ep.parameters.add("personAbsenceClientModel");
+        model.entrypoints.add(ep);
+
+        addCallEdge(
+                model,
+                "comp:AbsenceResource",
+                "add",
+                "comp:AbsenceService",
+                "checkOverlapAndSave",
+                Map.of("personAbsenceClientModel", "personAbsenceClientModel"));
+
+        CallEdge trackedAccessor = callEdge(
+                "comp:AbsenceService",
+                "checkOverlapAndSave",
+                "comp:PersonAbsence",
+                "getToDate",
+                Map.of());
+        trackedAccessor.receiverLocalName = "personAbsenceClientModel";
+        model.callEdges.add(trackedAccessor);
+
+        CallEdge loopEntityAccessor = callEdge(
+                "comp:AbsenceService",
+                "checkOverlapAndSave",
+                "comp:PersonAbsence",
+                "getFromDate",
+                Map.of());
+        loopEntityAccessor.receiverLocalName = "pa";
+        model.callEdges.add(loopEntityAccessor);
+
+        addCallEdge(
+                model,
+                "comp:PersonAbsence",
+                "getToDate",
+                "comp:AbsenceRepository",
+                "save",
+                Map.of("personAbsenceClientModel", "entity"));
+        addCallEdge(model, "comp:PersonAbsence", "getFromDate", "comp:AbsenceRepository", "delete", Map.of("pa", "entity"));
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        DataFlowPath bodyPath = paths.stream()
+                .filter(path -> "personAbsenceClientModel".equals(path.trackedParam))
+                .findFirst()
+                .orElseThrow();
+        assertThat(bodyPath.steps).anySatisfy(step -> assertThat(step.method).isEqualTo("getToDate"));
+        assertThat(bodyPath.steps).noneSatisfy(step -> assertThat(step.method).isEqualTo("getFromDate"));
+        assertThat(bodyPath.sinks).anySatisfy(sink -> assertThat(sink.method).isEqualTo("save"));
+        assertThat(bodyPath.sinks).noneSatisfy(sink -> assertThat(sink.method).isEqualTo("delete"));
+    }
+
+    @Test
+    void followsGetIdExtractionWhenReceiverIsTrackedBusinessObject() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("InvoiceResource", ComponentType.REST_RESOURCE));
+        model.components.add(comp("Invoice", ComponentType.ENTITY));
+        model.components.add(comp("InvoiceRepository", ComponentType.REPOSITORY));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:check-invoice";
+        ep.name = "check";
+        ep.type = EntrypointType.REST_ENDPOINT;
+        ep.httpMethod = "POST";
+        ep.componentId = "comp:InvoiceResource";
+        ep.parameters.add("invoice");
+        model.entrypoints.add(ep);
+
+        CallEdge getId = callEdge("comp:InvoiceResource", "check", "comp:Invoice", "getId", Map.of());
+        getId.receiverLocalName = "invoice";
+        model.callEdges.add(getId);
+        addCallEdge(model, "comp:Invoice", "getId", "comp:InvoiceRepository", "findById", Map.of("invoice", "id"));
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        DataFlowPath invoicePath = paths.stream()
+                .filter(path -> "invoice".equals(path.trackedParam))
+                .findFirst()
+                .orElseThrow();
+        assertThat(invoicePath.steps).anySatisfy(step -> assertThat(step.method).isEqualTo("getId"));
+        assertThat(invoicePath.sinks).anySatisfy(sink -> {
+            assertThat(sink.kind).isEqualTo(DataFlowSink.Kind.PERSISTENCE);
+            assertThat(sink.method).isEqualTo("findById");
+        });
+    }
+
+    @Test
     void classifiesMessagingCallKindAsSink() {
         ArchitectureModel model = buildModel();
 
@@ -948,5 +1089,22 @@ class DataFlowTracerTest {
         e.callKind = callKind;
         e.paramMapping.putAll(paramMapping);
         model.callEdges.add(e);
+    }
+
+    private static CallEdge callEdge(
+            String fromComp,
+            String fromMethod,
+            String toComp,
+            String toMethod,
+            Map<String, String> paramMapping) {
+        CallEdge e = new CallEdge();
+        e.id = "call:" + fromComp + "#" + fromMethod + "->" + toComp + "#" + toMethod;
+        e.fromComponentId = fromComp;
+        e.fromMethod = fromMethod;
+        e.toComponentId = toComp;
+        e.toMethod = toMethod;
+        e.callKind = "direct";
+        e.paramMapping.putAll(paramMapping);
+        return e;
     }
 }

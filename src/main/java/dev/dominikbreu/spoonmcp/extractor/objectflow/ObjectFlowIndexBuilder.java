@@ -278,7 +278,7 @@ public class ObjectFlowIndexBuilder {
         }
 
         if (target instanceof CtInvocation<?> targetInvocation) {
-            List<ReceiverTarget> accessorTargets = resolveAccessorTarget(targetInvocation, projectTypes, methodName);
+            List<ReceiverTarget> accessorTargets = resolveAccessorTarget(targetInvocation, projectTypes, methodName, typeIndex);
             if (!accessorTargets.isEmpty()) {
                 return ReceiverResolution.of(accessorTargets, ReceiverResolutionPath.ACCESSOR);
             }
@@ -368,7 +368,7 @@ public class ObjectFlowIndexBuilder {
     // Java API method names that are too generic to reliably identify a project-component accessor.
     // When a method chain passes through one of these (e.g. Optional.get(), Stream.findFirst()),
     // the project-type name scan would pick whichever component happens to have a method by that
-    // name — producing spurious ACCESSOR_RETURN edges (Lombok-blindness false positives).
+    // name — producing spurious accessor fallback edges (Lombok-blindness false positives).
     private static final Set<String> GENERIC_JAVA_API_METHODS = Set.of(
             // java.util.Optional
             "get", "orElse", "orElseGet", "orElseThrow", "isPresent", "isEmpty",
@@ -381,16 +381,42 @@ public class ObjectFlowIndexBuilder {
             // java.util.Map
             "values", "keySet", "entrySet");
 
+    private static final Set<String> COLLECTION_STATE_ACCESS_METHODS = Set.of(
+            "put", "putAll", "putIfAbsent", "compute", "computeIfAbsent", "computeIfPresent",
+            "merge", "remove", "replace", "clear", "add", "addAll", "offer", "poll",
+            "get", "containsKey", "containsValue", "values", "keySet", "entrySet", "size",
+            "isEmpty", "contains", "iterator", "stream", "forEach");
+
     private static List<ReceiverTarget> resolveAccessorTarget(
-            CtInvocation<?> targetInvocation, List<CtType<?>> projectTypes, String outerMethodName) {
+            CtInvocation<?> targetInvocation, List<CtType<?>> projectTypes, String outerMethodName, ObjectFlowIndex typeIndex) {
+        if (targetInvocation.getType() != null) {
+            List<ReceiverTarget> declaredTargets =
+                    typeIndex.expandDeclaredType(elementOrDeclaredType(targetInvocation.getType()), outerMethodName);
+            if (!declaredTargets.isEmpty()) {
+                return declaredTargets.stream()
+                        .map(target -> new ReceiverTarget(
+                                target.componentId(),
+                                outerMethodName,
+                                ObjectFlowEvidence.ACCESSOR_RETURN,
+                                ObjectFlowEvidence.ACCESSOR_RETURN.confidence(),
+                                target.expansionCapped()))
+                        .toList();
+            }
+            if (!COLLECTION_STATE_ACCESS_METHODS.contains(outerMethodName)) {
+                return List.of();
+            }
+        }
         String accessorName = targetInvocation.getExecutable().getSimpleName();
         if (GENERIC_JAVA_API_METHODS.contains(accessorName)) {
             return List.of();
         }
+        ObjectFlowEvidence fallbackEvidence = COLLECTION_STATE_ACCESS_METHODS.contains(outerMethodName)
+                ? ObjectFlowEvidence.ACCESSOR_STATE_OWNER
+                : ObjectFlowEvidence.ACCESSOR_NAME_FALLBACK;
         return projectTypes.stream()
                 .filter(type -> hasMethod(type, accessorName))
                 .findFirst()
-                .map(type -> targetFor(type.getQualifiedName(), outerMethodName, ObjectFlowEvidence.ACCESSOR_RETURN))
+                .map(type -> targetFor(type.getQualifiedName(), outerMethodName, fallbackEvidence))
                 .orElse(List.of());
     }
 
@@ -593,6 +619,7 @@ public class ObjectFlowIndexBuilder {
         private long collectionElementTargets;
         private long arrayElementTargets;
         private long accessorTargets;
+        private long accessorNameFallbackTargets;
         private long declaredTypeTargets;
         private long declaredInterfaceOnlyTargets;
         private long polymorphicTargets;
@@ -613,7 +640,8 @@ public class ObjectFlowIndexBuilder {
                     case LOCAL_ASSIGNMENT -> localAssignmentTargets++;
                     case COLLECTION_ELEMENT_ALLOCATION -> collectionElementTargets++;
                     case ARRAY_ELEMENT_ALLOCATION -> arrayElementTargets++;
-                    case ACCESSOR_RETURN -> accessorTargets++;
+                    case ACCESSOR_RETURN, ACCESSOR_STATE_OWNER -> accessorTargets++;
+                    case ACCESSOR_NAME_FALLBACK -> accessorNameFallbackTargets++;
                     case DECLARED_FIELD_TYPE, GENERIC_ELEMENT_TYPE -> declaredTypeTargets++;
                     case DECLARED_INTERFACE_ONLY -> declaredInterfaceOnlyTargets++;
                     case SMALL_POLYMORPHIC_EXPANSION -> polymorphicTargets++;
@@ -631,6 +659,7 @@ public class ObjectFlowIndexBuilder {
             span.setAttribute("collection-element-targets", collectionElementTargets);
             span.setAttribute("array-element-targets", arrayElementTargets);
             span.setAttribute("accessor-targets", accessorTargets);
+            span.setAttribute("accessor-name-fallback-targets", accessorNameFallbackTargets);
             span.setAttribute("declared-type-targets", declaredTypeTargets);
             span.setAttribute("declared-interface-only-targets", declaredInterfaceOnlyTargets);
             span.setAttribute("polymorphic-targets", polymorphicTargets);

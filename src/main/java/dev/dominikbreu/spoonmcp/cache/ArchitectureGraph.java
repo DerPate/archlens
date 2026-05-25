@@ -13,6 +13,7 @@ import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.DeploymentEntry;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
+import dev.dominikbreu.spoonmcp.model.ExternalSystem;
 import dev.dominikbreu.spoonmcp.model.FieldAccess;
 import dev.dominikbreu.spoonmcp.model.InterfaceEntry;
 import dev.dominikbreu.spoonmcp.model.RuntimeFlow;
@@ -75,6 +76,7 @@ public class ArchitectureGraph {
         sourceModel.interfaces.forEach(this::addInterface);
         sourceModel.containers.forEach(this::addContainer);
         sourceModel.deployments.forEach(this::addDeployment);
+        sourceModel.externalSystems.forEach(this::addExternalSystem);
         sourceModel.runtimeFlows.forEach(this::addRuntimeFlow);
 
         sourceModel.applications.forEach(app -> app.componentIds.forEach(
@@ -373,6 +375,10 @@ public class ArchitectureGraph {
         set(vertex, "entrypointType", entrypoint.type != null ? entrypoint.type.name() : null);
         set(vertex, "httpMethod", entrypoint.httpMethod);
         set(vertex, "path", entrypoint.path);
+        set(vertex, "channelName", entrypoint.channelName);
+        set(vertex, "broker", entrypoint.broker != null ? entrypoint.broker.name() : null);
+        set(vertex, "topic", entrypoint.topic);
+        set(vertex, "parameters", String.join(",", entrypoint.parameters));
         set(vertex, "protocol", protocolFor(entrypoint));
         set(vertex, "componentId", entrypoint.componentId);
         setSource(vertex, entrypoint.source);
@@ -387,6 +393,10 @@ public class ArchitectureGraph {
         set(vertex, "componentId", interfaceEntry.componentId);
         set(vertex, "module", interfaceEntry.module);
         set(vertex, "technology", interfaceEntry.technology);
+        set(vertex, "broker", interfaceEntry.broker != null ? interfaceEntry.broker.name() : null);
+        set(vertex, "topic", interfaceEntry.topic);
+        set(vertex, "externalServiceName", interfaceEntry.externalServiceName);
+        setSource(vertex, interfaceEntry.source);
     }
 
     private void addContainer(Container container) {
@@ -407,6 +417,14 @@ public class ArchitectureGraph {
         set(vertex, "dependsOn", String.join(",", deployment.dependsOn));
         set(vertex, "roles", String.join(",", deployment.roles));
         set(vertex, "hosts", String.join(",", deployment.hosts));
+    }
+
+    private void addExternalSystem(ExternalSystem externalSystem) {
+        Vertex vertex = addVertex(externalSystem.id, "ExternalSystem", externalSystem.name);
+        set(vertex, "kind", "externalSystem");
+        set(vertex, "type", externalSystem.kind);
+        set(vertex, "externalSystemKind", externalSystem.kind);
+        set(vertex, "technology", externalSystem.technology);
     }
 
     private void addRuntimeFlow(RuntimeFlow flow) {
@@ -454,8 +472,18 @@ public class ArchitectureGraph {
             if (callEdge.receiverEvidence != null) {
                 props.put("receiverEvidence", callEdge.receiverEvidence);
             }
+            if (callEdge.receiverLocalName != null) {
+                props.put("receiverLocalName", callEdge.receiverLocalName);
+            }
             props.put("receiverConfidence", callEdge.receiverConfidence);
+            props.put("ambiguous", callEdge.ambiguous);
             props.put("receiverExpansionCapped", callEdge.receiverExpansionCapped);
+            props.put("paramMapping", formatMapping(callEdge.paramMapping, "->"));
+            props.put("resolvedLiteralArgs", formatMapping(callEdge.resolvedLiteralArgs, "="));
+            props.put("syntheticParamMappings", String.join(",", callEdge.syntheticParamMappings));
+            props.put("assignedToVar", callEdge.assignedToVar);
+            props.put("returnsTracked", callEdge.returnsTracked);
+            props.put("killedTrackedNames", String.join(",", callEdge.killedTrackedNames));
             if (callEdge.source != null) {
                 props.put("sourceFile", Objects.toString(callEdge.source.file, ""));
                 props.put("sourceLine", callEdge.source.line);
@@ -482,6 +510,14 @@ public class ArchitectureGraph {
             set(sinkVertex, "method", sink.method);
             set(sinkVertex, "fieldName", sink.fieldName);
             set(sinkVertex, "fieldOwnerComponentId", sink.fieldOwnerComponentId);
+            set(sinkVertex, "channel", sink.channel);
+            set(sinkVertex, "broker", sink.broker != null ? sink.broker.name() : null);
+            set(sinkVertex, "topic", sink.topic);
+            set(sinkVertex, "topicPropertyKey", sink.topicPropertyKey);
+            set(sinkVertex, "payloadType", sink.payloadType);
+            set(sinkVertex, "entityType", sink.entityType);
+            set(sinkVertex, "repositoryOperation", sink.repositoryOperation);
+            set(sinkVertex, "linkEvidence", sink.linkEvidence);
             set(sinkVertex, "calleeQualifiedName", sink.calleeQualifiedName);
             setSource(sinkVertex, sink.source);
 
@@ -891,6 +927,15 @@ public class ArchitectureGraph {
         if (value != null && !Objects.toString(value).isBlank()) {
             edge.property(key, value);
         }
+    }
+
+    private String formatMapping(Map<String, String> mapping, String separator) {
+        if (mapping == null || mapping.isEmpty()) {
+            return "";
+        }
+        return mapping.entrySet().stream()
+                .map(entry -> entry.getKey() + separator + entry.getValue())
+                .collect(java.util.stream.Collectors.joining(","));
     }
 
     private void setSource(Vertex vertex, SourceInfo source) {

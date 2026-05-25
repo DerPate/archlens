@@ -63,6 +63,23 @@ class WorkflowTraversalPolicyTest {
     }
 
     @Test
+    void doesNotTraverseAmbiguousNameFallbackEdgesInline() {
+        CallEdge ambiguousEdge = new CallEdge();
+        ambiguousEdge.callKind = "direct";
+        ambiguousEdge.receiverEvidence = "accessor-name-fallback";
+        ambiguousEdge.receiverConfidence = 0.20;
+        ambiguousEdge.ambiguous = true;
+
+        CallEdge preciseEdge = new CallEdge();
+        preciseEdge.callKind = "direct";
+        preciseEdge.receiverEvidence = "declared-type";
+        preciseEdge.receiverConfidence = 0.90;
+
+        assertThat(policy.canTraverseInline(ambiguousEdge)).isFalse();
+        assertThat(policy.canTraverseInline(preciseEdge)).isTrue();
+    }
+
+    @Test
     void hidesUtilityAndRawMessagingInfrastructureButKeepsUnknownApplicationCodeVisible() {
         Component mapper = component(ComponentType.UTILITY);
         Component unknown = component(ComponentType.UNKNOWN);

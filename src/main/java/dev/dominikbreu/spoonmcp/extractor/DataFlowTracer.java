@@ -324,9 +324,24 @@ public class DataFlowTracer {
                     }
                 } else if (traversalPolicy.canTraverseInline(edge)) {
                     Map<String, String> nextMapping = new LinkedHashMap<>();
+                    boolean mapsAnyTrackedName = currentToOriginal.keySet().stream()
+                            .filter(name -> !"*".equals(name))
+                            .anyMatch(edge.paramMapping::containsKey);
                     for (Map.Entry<String, String> e : currentToOriginal.entrySet()) {
                         String currentName = e.getKey();
                         if (!"*".equals(currentName) && edge.killedTrackedNames.contains(currentName)) continue;
+                        if (!"*".equals(currentName)
+                                && mapsAnyTrackedName
+                                && !edge.paramMapping.containsKey(currentName)) {
+                            continue;
+                        }
+                        if (!"*".equals(currentName)
+                                && !edge.paramMapping.containsKey(currentName)
+                                && edge.paramMapping.isEmpty()
+                                && edge.receiverLocalName != null
+                                && !edge.receiverLocalName.equals(currentName)) {
+                            continue;
+                        }
                         String nextName = "*".equals(currentName)
                                 ? "*"
                                 : edge.paramMapping.getOrDefault(currentName, currentName);

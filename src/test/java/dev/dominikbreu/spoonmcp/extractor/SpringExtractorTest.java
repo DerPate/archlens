@@ -39,6 +39,10 @@ class SpringExtractorTest extends ExtractorTestBase {
         assertThat(model.entrypoints)
                 .anyMatch(e -> e.type == EntrypointType.REST_ENDPOINT
                         && "GET".equals(e.httpMethod)
+                        && "/api/orders".equals(e.path));
+        assertThat(model.entrypoints)
+                .anyMatch(e -> e.type == EntrypointType.REST_ENDPOINT
+                        && "GET".equals(e.httpMethod)
                         && "/api/orders/{id}".equals(e.path));
         assertThat(model.entrypoints)
                 .anyMatch(e -> e.type == EntrypointType.REST_ENDPOINT
@@ -48,6 +52,17 @@ class SpringExtractorTest extends ExtractorTestBase {
                 .anyMatch(e -> e.type == EntrypointType.REST_ENDPOINT
                         && "DELETE".equals(e.httpMethod)
                         && "/api/orders/{id}".equals(e.path));
+    }
+
+    @Test
+    void sameNameRestEntrypointsWithDifferentPathsHaveDistinctIds() {
+        assertThat(model.entrypoints)
+                .filteredOn(e -> e.type == EntrypointType.REST_ENDPOINT
+                        && "GET".equals(e.httpMethod)
+                        && e.componentId.endsWith(".OrderController")
+                        && ("get".equals(e.name)))
+                .extracting(e -> e.id)
+                .doesNotHaveDuplicates();
     }
 
     @Test
@@ -82,6 +97,11 @@ class SpringExtractorTest extends ExtractorTestBase {
                 .anyMatch(e -> e.type == EntrypointType.MESSAGING_CONSUMER
                         && "orders.created".equals(e.channelName)
                         && e.broker == MessagingBroker.KAFKA);
+        assertThat(model.interfaces)
+                .anyMatch(i -> "messaging_consumer".equals(i.type)
+                        && i.broker == MessagingBroker.KAFKA
+                        && "orders.created".equals(i.path)
+                        && "orders.created".equals(i.topic));
         assertThat(model.entrypoints)
                 .anyMatch(e -> e.type == EntrypointType.MESSAGING_CONSUMER
                         && "orders.queue".equals(e.channelName)
@@ -133,15 +153,18 @@ class SpringExtractorTest extends ExtractorTestBase {
         assertThat(model.interfaces)
                 .anyMatch(i -> "messaging_producer".equals(i.type)
                         && i.broker == MessagingBroker.KAFKA
-                        && "orders.created".equals(i.path));
+                        && "orders.created".equals(i.path)
+                        && "orders.created".equals(i.topic));
         assertThat(model.interfaces)
                 .anyMatch(i -> "messaging_producer".equals(i.type)
                         && i.broker == MessagingBroker.RABBITMQ
-                        && "orders.exchange".equals(i.path));
+                        && "orders.exchange".equals(i.path)
+                        && "orders.exchange".equals(i.topic));
         assertThat(model.interfaces)
                 .anyMatch(i -> "messaging_producer".equals(i.type)
                         && i.broker == MessagingBroker.JMS
-                        && "orders.jms".equals(i.path));
+                        && "orders.jms".equals(i.path)
+                        && "orders.jms".equals(i.topic));
     }
 
     @Test

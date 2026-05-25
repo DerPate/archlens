@@ -26,8 +26,15 @@ public class CallEdge {
     public SourceInfo source;
     /** Evidence kind used to resolve the invocation receiver, e.g. constructor-assignment. */
     public String receiverEvidence;
+    /**
+     * Simple local or parameter name at the root of the receiver expression when visible,
+     * e.g. {@code order} for {@code order.getId()}.
+     */
+    public String receiverLocalName;
     /** Confidence of receiver resolution, between 0 and 1. */
     public double receiverConfidence;
+    /** True when this edge is weak evidence and should not be used by default workflow traversal. */
+    public boolean ambiguous;
     /** True when polymorphic expansion was capped for this receiver. */
     public boolean receiverExpansionCapped;
     /**

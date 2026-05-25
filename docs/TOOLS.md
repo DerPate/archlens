@@ -454,6 +454,21 @@ invocation result (`order = service.lookup(id)`) before reaching a call site, th
 edge's `killedTrackedNames` lists that local. The tracer drops the original tracking
 at that edge so we no longer report sinks reached by the stale binding.
 
+**Receiver evidence and ambiguity:** call edges carry `receiverEvidence`,
+`receiverConfidence`, and, when visible, `receiverLocalName`. These fields describe how
+the extractor decided that a method call target belongs to a component. Direct business
+getter calls are still kept as real flow evidence: `dto.getId()` and
+`dto.getInvoiceNumber()` produce calls on the DTO receiver and retain the receiver local
+name (`dto`). What is deliberately not treated as strong evidence is an unresolved
+chained call such as `dto.getId().equals(...)` when the accessor return type cannot be
+resolved and the only project match comes from scanning for another component with a
+method named `getId`. Those edges are retained as possible evidence with
+`receiverEvidence=accessor-name-fallback`, `receiverConfidence=0.20`, and
+`ambiguous=true`, so graph clients can inspect them without default workflows following
+them. Accessor chains that represent collection-state ownership, such as
+`store().cache().put(...)`, are represented separately as
+`receiverEvidence=accessor-state-owner` with medium confidence.
+
 **Sink kinds:** `persistence`, `messaging`, `http-outbound`, `event-bus`, `store`,
 `file-outbound`, `object-storage`, `unknown`. Components carrying the stereotype
 `object-storage` or `file-outbound` are classified accordingly even when their
@@ -742,18 +757,22 @@ Useful graph properties include:
   repositories, outbound clients, and state handoffs are promoted. Self-only state
   access is treated as local implementation detail; cross-component `STATE_HANDOFF`
   evidence carries the workflow bridge signal.
-- Entrypoint nodes: `entrypointType`, `protocol`, `httpMethod`, `path`, `componentId`.
+- Entrypoint nodes: `entrypointType`, `protocol`, `httpMethod`, `path`,
+  `channelName`, `broker`, `topic`, `parameters`, and `componentId`.
 - Interface nodes: `interfaceType`, `path`, `module`, `technology`. Messaging interfaces
-  additionally expose `broker` (incl. `IN_MEMORY`) and `topic` on the underlying
-  JSON model; surface them via `find_nodes` filters.
+  additionally expose `broker` (incl. `IN_MEMORY`) and `topic`, so separate inbound
+  and outbound channels remain queryable even when no pipeline link connects them.
+- ExternalSystem nodes: `externalSystemKind`, `technology`.
 - DataFlowPath nodes (label `DataFlowPath`): `entrypointId`, `trackedParam`,
   `stepCount`, `sinkCount`.
 - DataFlowSink nodes (label `DataFlowSink`): `sinkKind` (`persistence`, `messaging`,
   `http-outbound`, `event-bus`, `store`, `file-outbound`, `object-storage`, `unknown`),
   `pathId`, `componentId`, `method` (callee method name for outbound sinks, e.g.
   `writeString`; call site method for non-outbound sinks), `fieldName`,
-  `fieldOwnerComponentId`, `calleeQualifiedName` (fully-qualified declaring type of the
-  outbound callee, e.g. `java.nio.file.Files`; absent for non-outbound kinds).
+  `fieldOwnerComponentId`, `channel`, `broker`, `topic`, `topicPropertyKey`,
+  `payloadType`, `entityType`, `repositoryOperation`, `linkEvidence`, and
+  `calleeQualifiedName` (fully-qualified declaring type of the outbound callee, e.g.
+  `java.nio.file.Files`; absent for non-outbound kinds).
 - PipelineChain nodes (label `PipelineChain`): one vertex per end-to-end pipeline
   produced by stitching typed workflow links forward across entrypoint
   boundaries. Properties: `segmentCount`, `rootEntrypointId`, `linkKinds`
@@ -775,8 +794,15 @@ Edge labels:
 - `DEPENDS_ON` — Component → Component (or Component → ExternalSystem)
 - `CALLS` — Component → Component method-call evidence from source invocations.
   Properties include `fromMethod`, `toMethod`, `callKind`, `receiverEvidence`,
-  `receiverConfidence`, and `receiverExpansionCapped`. Object-flow-derived receiver
-  evidence is source-based, not name-guessed.
+  `receiverLocalName`, `receiverConfidence`, `receiverExpansionCapped`,
+  `paramMapping`, `resolvedLiteralArgs`, `syntheticParamMappings`, `assignedToVar`,
+  `returnsTracked`, and `killedTrackedNames`.
+  Object-flow-derived receiver evidence is source-based where possible. The
+  medium-confidence `accessor-state-owner` evidence records collection-state
+  access such as `store().cache().put(...)`. The low-confidence
+  `accessor-name-fallback` evidence records unresolved accessor chains that only
+  matched by project method name; these edges carry `ambiguous=true`, are
+  queryable for review, and are not followed by default workflow traversal.
 - `WRITES_STATE` — Component → Component declaring the shared-state field
 - `READS_STATE` — Component → Component declaring the shared-state field
 - `STATE_HANDOFF` — writer Component → reader Component when a write and read touch

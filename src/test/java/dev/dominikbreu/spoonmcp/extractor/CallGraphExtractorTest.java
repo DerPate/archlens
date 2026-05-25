@@ -11,7 +11,9 @@ import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import spoon.Launcher;
 import spoon.reflect.CtModel;
+import spoon.support.compiler.VirtualFile;
 
 class CallGraphExtractorTest extends ExtractorTestBase {
 
@@ -351,6 +353,165 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                     assertThat(access.kind).isEqualTo(FieldAccess.Kind.READ);
                     assertThat(access.fieldOwnerComponentId).isEqualTo("comp:com.example.objectflow.StateStore");
                     assertThat(access.fieldName).isEqualTo("cache");
+                });
+    }
+
+    @Test
+    void accessorReturnChainDoesNotResolveJdkReturnTypeToProjectEqualsMethod() {
+        Launcher launcher = new Launcher();
+        launcher.getEnvironment().setNoClasspath(true);
+        launcher.getEnvironment().setComplianceLevel(21);
+        launcher.getEnvironment().setShouldCompile(false);
+        launcher.addInputResource(new VirtualFile(
+                """
+                package example;
+                import java.util.UUID;
+                class Resource {
+                    void handle(Dto dto) {
+                        dto.getId().equals(UUID.randomUUID());
+                        dto.getInvoiceNumber().equals("INV-1");
+                    }
+                }
+                class Dto {
+                    UUID getId() {
+                        return UUID.randomUUID();
+                    }
+                    String getInvoiceNumber() {
+                        return "INV-1";
+                    }
+                }
+                class Budget {
+                    String getId() {
+                        return "";
+                    }
+                    String getInvoiceNumber() {
+                        return "";
+                    }
+                    public boolean equals(Object other) {
+                        return false;
+                    }
+                }
+                """,
+                "AccessorReturnFixture.java"));
+        launcher.buildModel();
+
+        ArchitectureModel fixture = new ArchitectureModel("test");
+        fixture.components.add(component("example.Resource"));
+        fixture.components.add(component("example.Dto"));
+        fixture.components.add(component("example.Budget"));
+
+        new CallGraphExtractor(new dev.dominikbreu.spoonmcp.extractor.objectflow.ObjectFlowIndexBuilder()
+                        .build(launcher.getModel(), fixture))
+                .extract(launcher.getModel(), fixture);
+
+        assertThat(fixture.callEdges)
+                .noneMatch(edge -> edge.fromComponentId.equals("comp:example.Resource")
+                        && edge.toComponentId.equals("comp:example.Budget")
+                        && edge.toMethod.equals("equals"));
+        assertThat(fixture.callEdges)
+                .anySatisfy(edge -> {
+                    assertThat(edge.fromComponentId).isEqualTo("comp:example.Resource");
+                    assertThat(edge.toComponentId).isEqualTo("comp:example.Dto");
+                    assertThat(edge.toMethod).isEqualTo("getId");
+                    assertThat(edge.receiverLocalName).isEqualTo("dto");
+                })
+                .anySatisfy(edge -> {
+                    assertThat(edge.fromComponentId).isEqualTo("comp:example.Resource");
+                    assertThat(edge.toComponentId).isEqualTo("comp:example.Dto");
+                    assertThat(edge.toMethod).isEqualTo("getInvoiceNumber");
+                    assertThat(edge.receiverLocalName).isEqualTo("dto");
+                });
+    }
+
+    @Test
+    void unresolvedAccessorNameFallbackIsLowConfidenceAmbiguousEvidence() {
+        Launcher launcher = new Launcher();
+        launcher.getEnvironment().setNoClasspath(true);
+        launcher.getEnvironment().setComplianceLevel(21);
+        launcher.getEnvironment().setShouldCompile(false);
+        launcher.addInputResource(new VirtualFile(
+                """
+                package example;
+                import java.util.UUID;
+                class Resource {
+                    void handle(Dto dto) {
+                        dto.getId().equals(UUID.randomUUID());
+                    }
+                }
+                class Dto {
+                }
+                class Budget {
+                    String getId() {
+                        return "";
+                    }
+                    public boolean equals(Object other) {
+                        return false;
+                    }
+                }
+                """,
+                "UnresolvedAccessorFallbackFixture.java"));
+        launcher.buildModel();
+
+        ArchitectureModel fixture = new ArchitectureModel("test");
+        fixture.components.add(component("example.Resource"));
+        fixture.components.add(component("example.Dto"));
+        fixture.components.add(component("example.Budget"));
+
+        new CallGraphExtractor(new dev.dominikbreu.spoonmcp.extractor.objectflow.ObjectFlowIndexBuilder()
+                        .build(launcher.getModel(), fixture))
+                .extract(launcher.getModel(), fixture);
+
+        assertThat(fixture.callEdges)
+                .anySatisfy(edge -> {
+                    assertThat(edge.fromComponentId).isEqualTo("comp:example.Resource");
+                    assertThat(edge.toComponentId).isEqualTo("comp:example.Budget");
+                    assertThat(edge.toMethod).isEqualTo("equals");
+                    assertThat(edge.receiverEvidence).isEqualTo("accessor-name-fallback");
+                    assertThat(edge.receiverConfidence).isEqualTo(0.20);
+                    assertThat(edge.ambiguous).isTrue();
+                });
+    }
+
+    @Test
+    void recordsResolvedLiteralArgumentFromLocalConstant() {
+        Launcher launcher = new Launcher();
+        launcher.getEnvironment().setNoClasspath(true);
+        launcher.getEnvironment().setComplianceLevel(21);
+        launcher.getEnvironment().setShouldCompile(false);
+        launcher.addInputResource(new VirtualFile(
+                """
+                package example;
+                class Service {
+                    private final Producer producer = new Producer();
+                    void create(Order order) {
+                        String topic = "orders.created";
+                        producer.sendKafkaEvent(topic, order);
+                    }
+                }
+                class Producer {
+                    void sendKafkaEvent(String topic, Order payload) {
+                    }
+                }
+                class Order {
+                }
+                """,
+                "LocalLiteralTopicFixture.java"));
+        launcher.buildModel();
+
+        ArchitectureModel fixture = new ArchitectureModel("test");
+        fixture.components.add(component("example.Service"));
+        fixture.components.add(component("example.Producer"));
+
+        new CallGraphExtractor(new dev.dominikbreu.spoonmcp.extractor.objectflow.ObjectFlowIndexBuilder()
+                        .build(launcher.getModel(), fixture))
+                .extract(launcher.getModel(), fixture);
+
+        assertThat(fixture.callEdges)
+                .anySatisfy(edge -> {
+                    assertThat(edge.fromComponentId).isEqualTo("comp:example.Service");
+                    assertThat(edge.toComponentId).isEqualTo("comp:example.Producer");
+                    assertThat(edge.toMethod).isEqualTo("sendKafkaEvent");
+                    assertThat(edge.resolvedLiteralArgs).containsEntry("topic", "orders.created");
                 });
     }
 

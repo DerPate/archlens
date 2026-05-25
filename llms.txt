@@ -197,6 +197,11 @@ Prompts are workflow templates for clients and agents; they do not replace tools
   kinds in traversal order); each `HAS_SEGMENT` edge carries `segmentIndex` and,
   for non-root segments, `linkKind` + `incomingSinkId` + the channel/field
   property — giving graph-only clients parity with `render_pipeline`.
+- Property graph metadata should preserve extracted evidence, not just topology.
+  Messaging entrypoints expose `channelName` / `broker` / `topic`, messaging and
+  persistence sinks expose destination/entity/link evidence, external systems are
+  `ExternalSystem` nodes, and `CALLS` edges expose propagation/debug fields such as
+  `paramMapping`, `resolvedLiteralArgs`, `assignedToVar`, and `killedTrackedNames`.
 - Prefer `WORKFLOW_LINK` over reconstructing pipelines from raw `linkedPathIds`.
   `WORKFLOW_LINK` is the canonical query edge for messaging/event-bus/state-handoff
   continuation between `DataFlowPath` nodes.
@@ -208,8 +213,20 @@ Prompts are workflow templates for clients and agents; they do not replace tools
   counts first.
 - Plain Java object flow is source-derived through `ObjectFlowIndex`. Prefer call edges
   with `receiverEvidence` and `receiverConfidence` over guessing from class names.
+  `accessor-name-fallback` is intentionally low-confidence and carries
+  `ambiguous=true`; review it as possible evidence rather than default traversal truth.
   Polymorphic receiver expansion is capped at 25 implementation targets by default; if
   `receiverExpansionCapped=true`, report that the flow is conservative.
+- Receiver evidence is not a black/white getter skip rule. Keep direct business getter
+  calls such as `invoice.getId()` or `dto.getInvoiceNumber()` as normal calls on the
+  receiver and use `receiverLocalName` to keep data-flow tied to the actual variable.
+  Only unresolved chained receiver guesses, for example mapping `dto.getId().equals(...)`
+  to some unrelated project component solely because it also declares `getId`, should be
+  downgraded to `receiverEvidence=accessor-name-fallback`, `receiverConfidence=0.20`,
+  and `ambiguous=true`. Default workflow traversal must not follow ambiguous edges, but
+  graph/search tools should expose them for review. Collection-state chains such as
+  `store().cache().put(...)` use `accessor-state-owner` rather than the ambiguous
+  fallback.
 - Workflow root/link semantics live in `workflow/`, not in renderers. When pipeline,
   runtime flow, use-case, or architecture-view output looks wrong, inspect
   `WorkflowTraversalPolicy`, `WorkflowLinker`, and `WorkflowGraphBuilder` first.
