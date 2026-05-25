@@ -10,4 +10,10 @@ public record SourceMethod(
         boolean constructor,
         List<String> parameterNames,
         List<String> parameterTypes,
-        SourceLocation location) {}
+        SourceLocation location) {
+
+    public SourceMethod {
+        parameterNames = List.copyOf(parameterNames);
+        parameterTypes = List.copyOf(parameterTypes);
+    }
+}

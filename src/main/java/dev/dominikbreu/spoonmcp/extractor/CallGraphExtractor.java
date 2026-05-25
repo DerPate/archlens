@@ -23,6 +23,7 @@ import spoon.reflect.code.CtFieldAccess;
 import spoon.reflect.code.CtFieldRead;
 import spoon.reflect.code.CtFieldWrite;
 import spoon.reflect.code.CtInvocation;
+import spoon.reflect.code.CtLiteral;
 import spoon.reflect.code.CtLocalVariable;
 import spoon.reflect.code.CtReturn;
 import spoon.reflect.code.CtTypeAccess;
@@ -31,7 +32,6 @@ import spoon.reflect.code.CtVariableWrite;
 import spoon.reflect.declaration.CtField;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtParameter;
-import spoon.reflect.code.CtLiteral;
 import spoon.reflect.declaration.CtType;
 import spoon.reflect.reference.CtFieldReference;
 import spoon.reflect.reference.CtTypeReference;
@@ -114,8 +114,8 @@ public class CallGraphExtractor {
             "accumulateAndGet",
             "updateAndGet");
 
-    private static final Set<String> READ_METHODS = Set.of(
-            "get", "containsKey", "containsValue", "values", "keySet", "entrySet", "size", "isEmpty");
+    private static final Set<String> READ_METHODS =
+            Set.of("get", "containsKey", "containsValue", "values", "keySet", "entrySet", "size", "isEmpty");
 
     private final ObjectFlowIndex objectFlowIndex;
     private final SourceFactIndex sourceFacts;
@@ -450,7 +450,8 @@ public class CallGraphExtractor {
     private Map<String, Component> buildFieldMap(CtType<?> type, String ownId, ExtractionContext ctx) {
         Map<String, Component> map = new HashMap<>();
         if (sourceFacts != null) {
-            for (SourceInjectionPoint injection : sourceFacts.injectionPoints(SourceFactIndexBuilder.typeId(type.getQualifiedName()))) {
+            for (SourceInjectionPoint injection :
+                    sourceFacts.injectionPoints(SourceFactIndexBuilder.typeId(type.getQualifiedName()))) {
                 if (injection.fieldName() == null || injection.targetType() == null) continue;
                 Component target = resolveSourceFactType(injection.targetType(), ownId, ctx);
                 if (target != null && !target.id.equals(ownId)) {
@@ -461,7 +462,8 @@ public class CallGraphExtractor {
         for (CtField<?> field : type.getFields()) {
             if (field.getType() == null) continue;
             Component target = sourceFacts == null
-                    ? ctx.components.find(field.getType().getQualifiedName(), field.getType().getSimpleName())
+                    ? ctx.components.find(
+                            field.getType().getQualifiedName(), field.getType().getSimpleName())
                     : resolveSourceFactType(field.getType().getQualifiedName(), ownId, ctx);
             if (target != null && !target.id.equals(ownId)) {
                 map.put(field.getSimpleName(), target);
@@ -833,7 +835,8 @@ public class CallGraphExtractor {
                 if (decl != null && decl.getDefaultExpression() instanceof CtLiteral<?> lit) {
                     return lit.getValue() == null ? "" : lit.getValue().toString();
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
         if (arg instanceof CtVariableRead<?> read) {
             try {
@@ -841,7 +844,8 @@ public class CallGraphExtractor {
                         && local.getDefaultExpression() instanceof CtLiteral<?> lit) {
                     return lit.getValue() == null ? "" : lit.getValue().toString();
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
         return null;
     }

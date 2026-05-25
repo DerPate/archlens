@@ -237,7 +237,8 @@ class PipelineRendererIntegrationTest {
         model.dataFlowPaths.get(0).sinks.clear();
         model.dataFlowPaths.get(0).sinks.add(persistence);
 
-        PipelineGraphBuilder.Chain chain = new PipelineGraphBuilder().build(model, 8).getFirst();
+        PipelineGraphBuilder.Chain chain =
+                new PipelineGraphBuilder().build(model, 8).getFirst();
         String mermaid = new MermaidPipelineRenderer().render(chain, model);
 
         assertThat(mermaid).contains("com.example.Order");

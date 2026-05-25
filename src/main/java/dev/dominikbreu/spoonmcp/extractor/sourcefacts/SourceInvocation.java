@@ -11,4 +11,9 @@ public record SourceInvocation(
         String assignedTo,
         SourceEvidence evidence,
         FactConfidence confidence,
-        SourceLocation location) {}
+        SourceLocation location) {
+
+    public SourceInvocation {
+        argumentExpressions = List.copyOf(argumentExpressions);
+    }
+}

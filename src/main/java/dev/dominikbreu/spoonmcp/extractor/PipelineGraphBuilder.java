@@ -110,8 +110,16 @@ public class PipelineGraphBuilder {
             Span dfsSpan = t.spanBuilder("pipeline.dfs").startSpan();
             try (Scope scopeDfs = dfsSpan.makeCurrent()) {
                 for (DataFlowPath p : workflowGraph.rootPaths()) {
-                    extend(new ArrayList<>(), p, null, null, workflowGraph, chains, maxDepth,
-                            new LinkedHashSet<>(), new LinkedHashSet<>());
+                    extend(
+                            new ArrayList<>(),
+                            p,
+                            null,
+                            null,
+                            workflowGraph,
+                            chains,
+                            maxDepth,
+                            new LinkedHashSet<>(),
+                            new LinkedHashSet<>());
                 }
                 dfsSpan.setAttribute("raw-chains", (long) chains.size());
             } catch (RuntimeException e) {
@@ -241,7 +249,11 @@ public class PipelineGraphBuilder {
             emit(prefix, out);
             return;
         }
-        Segment seg = new Segment(current, incomingSink, incomingLink, workflowGraph.entrypointById().get(epId));
+        Segment seg = new Segment(
+                current,
+                incomingSink,
+                incomingLink,
+                workflowGraph.entrypointById().get(epId));
         List<Segment> nextPrefix = new ArrayList<>(prefix);
         nextPrefix.add(seg);
 
@@ -259,7 +271,16 @@ public class PipelineGraphBuilder {
             DataFlowPath next = workflowGraph.pathById().get(link.toPathId());
             if (next == null) continue;
             fannedOut = true;
-            extend(nextPrefix, next, incomingSink(current, link), link, workflowGraph, out, maxDepth, nextStack, nextEpStack);
+            extend(
+                    nextPrefix,
+                    next,
+                    incomingSink(current, link),
+                    link,
+                    workflowGraph,
+                    out,
+                    maxDepth,
+                    nextStack,
+                    nextEpStack);
         }
         if (!fannedOut) emit(nextPrefix, out);
     }
@@ -270,7 +291,8 @@ public class PipelineGraphBuilder {
             if (link.kind() == WorkflowLink.Kind.MESSAGING && sink.kind == DataFlowSink.Kind.MESSAGING) return sink;
             if (link.kind() == WorkflowLink.Kind.EVENT_BUS && sink.kind == DataFlowSink.Kind.EVENT_BUS) return sink;
             if (link.kind() == WorkflowLink.Kind.STATE_HANDOFF && sink.kind == DataFlowSink.Kind.STORE) return sink;
-            if (link.kind() == WorkflowLink.Kind.PERSISTENCE_HANDOFF && sink.kind == DataFlowSink.Kind.PERSISTENCE) return sink;
+            if (link.kind() == WorkflowLink.Kind.PERSISTENCE_HANDOFF && sink.kind == DataFlowSink.Kind.PERSISTENCE)
+                return sink;
         }
         return null;
     }
@@ -281,5 +303,4 @@ public class PipelineGraphBuilder {
         c.segments.addAll(segments);
         out.add(c);
     }
-
 }

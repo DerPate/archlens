@@ -6,8 +6,8 @@ import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Scope;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -24,8 +24,8 @@ import spoon.reflect.code.CtVariableRead;
 import spoon.reflect.declaration.CtAnnotation;
 import spoon.reflect.declaration.CtConstructor;
 import spoon.reflect.declaration.CtElement;
-import spoon.reflect.declaration.CtField;
 import spoon.reflect.declaration.CtExecutable;
+import spoon.reflect.declaration.CtField;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.declaration.CtType;
@@ -101,13 +101,16 @@ public class SourceFactIndexBuilder {
                 for (String supertype : supertypeClosure(type, spoonTypesByQualifiedName)) {
                     SourceType superFact = factsByQualifiedName.get(supertype);
                     if (superFact != null) {
-                        implementations.computeIfAbsent(superFact.qualifiedName(), ignored -> new ArrayList<>())
+                        implementations
+                                .computeIfAbsent(superFact.qualifiedName(), ignored -> new ArrayList<>())
                                 .add(concrete);
                     }
                 }
             }
             span.setAttribute("implementation-groups", (long) implementations.size());
-            span.setAttribute("implementation-links", implementations.values().stream().mapToLong(List::size).sum());
+            span.setAttribute(
+                    "implementation-links",
+                    implementations.values().stream().mapToLong(List::size).sum());
             return implementations;
         } finally {
             span.end();
@@ -161,7 +164,8 @@ public class SourceFactIndexBuilder {
                 annotations.addAll(annotations(typeId, type));
 
                 for (CtField<?> field : type.getFields()) {
-                    String fieldType = field.getType() == null ? null : field.getType().getQualifiedName();
+                    String fieldType =
+                            field.getType() == null ? null : field.getType().getQualifiedName();
                     String fieldId = fieldId(type.getQualifiedName(), field.getSimpleName());
                     fields.add(new SourceField(fieldId, typeId, field.getSimpleName(), fieldType, location(field)));
                     annotations.addAll(annotations(fieldId, field));
@@ -170,14 +174,20 @@ public class SourceFactIndexBuilder {
                 for (CtTypeMember member : type.getTypeMembers()) {
                     if (member instanceof CtConstructor<?> constructor) {
                         String signature = constructor.getSignature();
-                        methods.add(methodFact(type, "<init>", signature, true, constructor.getParameters(), constructor));
+                        methods.add(
+                                methodFact(type, "<init>", signature, true, constructor.getParameters(), constructor));
                         annotations.addAll(annotations(methodId(type.getQualifiedName(), signature), constructor));
                     }
                 }
 
                 for (CtMethod<?> method : type.getMethods()) {
                     methods.add(methodFact(
-                            type, method.getSimpleName(), method.getSignature(), false, method.getParameters(), method));
+                            type,
+                            method.getSimpleName(),
+                            method.getSignature(),
+                            false,
+                            method.getParameters(),
+                            method));
                     annotations.addAll(annotations(methodId(type.getQualifiedName(), method.getSignature()), method));
                 }
             }
@@ -196,7 +206,9 @@ public class SourceFactIndexBuilder {
         try (Scope scope = span.makeCurrent()) {
             Map<String, List<SourceAnnotation>> annotationsByOwner = new LinkedHashMap<>();
             for (SourceAnnotation annotation : annotations) {
-                annotationsByOwner.computeIfAbsent(annotation.ownerId(), ignored -> new ArrayList<>()).add(annotation);
+                annotationsByOwner
+                        .computeIfAbsent(annotation.ownerId(), ignored -> new ArrayList<>())
+                        .add(annotation);
             }
             for (CtType<?> type : ctModel.getAllTypes()) {
                 String typeId = typeId(type.getQualifiedName());
@@ -204,7 +216,8 @@ public class SourceFactIndexBuilder {
                     String fieldId = fieldId(type.getQualifiedName(), field.getSimpleName());
                     if (annotationsByOwner.getOrDefault(fieldId, List.of()).stream()
                             .anyMatch(this::isInjectionAnnotation)) {
-                        String fieldType = field.getType() == null ? null : field.getType().getQualifiedName();
+                        String fieldType =
+                                field.getType() == null ? null : field.getType().getQualifiedName();
                         injectionPoints.add(new SourceInjectionPoint(
                                 typeId,
                                 fieldType,
@@ -246,7 +259,8 @@ public class SourceFactIndexBuilder {
             CtParameter<?> parameter = parametersByName.get(parameterName);
             if (parameter == null) continue;
 
-            String targetType = parameter.getType() == null ? null : parameter.getType().getQualifiedName();
+            String targetType =
+                    parameter.getType() == null ? null : parameter.getType().getQualifiedName();
             injectionPoints.add(new SourceInjectionPoint(
                     typeId,
                     targetType,
@@ -319,7 +333,9 @@ public class SourceFactIndexBuilder {
                 methodId + "@invocation:" + index,
                 methodId,
                 expressionText(invocation.getTarget()),
-                invocation.getExecutable() == null ? null : invocation.getExecutable().getSimpleName(),
+                invocation.getExecutable() == null
+                        ? null
+                        : invocation.getExecutable().getSimpleName(),
                 invocation.getArguments().stream().map(this::expressionText).toList(),
                 assignedTo,
                 SourceEvidence.DIRECT_TYPE_REFERENCE,
@@ -331,8 +347,8 @@ public class SourceFactIndexBuilder {
         SourceEvidence evidence = assignment.getAssigned() instanceof CtFieldWrite<?>
                 ? SourceEvidence.FIELD_ASSIGNMENT
                 : assignment.getAssignment() instanceof CtConstructorCall<?>
-                ? SourceEvidence.CONSTRUCTOR_CALL
-                : SourceEvidence.LOCAL_ASSIGNMENT;
+                        ? SourceEvidence.CONSTRUCTOR_CALL
+                        : SourceEvidence.LOCAL_ASSIGNMENT;
         return new SourceAssignment(
                 methodId + "@assignment:" + index,
                 methodId,
@@ -388,7 +404,8 @@ public class SourceFactIndexBuilder {
             boolean constructor,
             List<CtParameter<?>> parameters,
             CtElement element) {
-        List<String> parameterNames = parameters.stream().map(CtParameter::getSimpleName).toList();
+        List<String> parameterNames =
+                parameters.stream().map(CtParameter::getSimpleName).toList();
         List<String> parameterTypes = parameters.stream()
                 .map(CtParameter::getType)
                 .map(type -> type == null ? null : type.getQualifiedName())
@@ -443,12 +460,16 @@ public class SourceFactIndexBuilder {
     }
 
     private String expressionType(CtExpression<?> expression) {
-        return expression == null || expression.getType() == null ? null : expression.getType().getQualifiedName();
+        return expression == null || expression.getType() == null
+                ? null
+                : expression.getType().getQualifiedName();
     }
 
     private String referencedField(CtExpression<?> expression) {
         if (expression instanceof CtFieldRead<?> fieldRead) {
-            return fieldRead.getVariable() == null ? null : fieldRead.getVariable().getSimpleName();
+            return fieldRead.getVariable() == null
+                    ? null
+                    : fieldRead.getVariable().getSimpleName();
         }
         return null;
     }
@@ -482,7 +503,9 @@ public class SourceFactIndexBuilder {
     private Map<String, String> annotationValues(CtAnnotation<?> annotation) {
         Map<String, String> values = new LinkedHashMap<>();
         for (Map.Entry<String, CtExpression> entry : annotation.getValues().entrySet()) {
-            values.put(entry.getKey(), entry.getValue() == null ? null : entry.getValue().toString());
+            values.put(
+                    entry.getKey(),
+                    entry.getValue() == null ? null : entry.getValue().toString());
         }
         return values;
     }
@@ -517,9 +540,12 @@ public class SourceFactIndexBuilder {
     }
 
     public static SourceLocation location(CtElement element) {
-        if (element == null || element.getPosition() == null || !element.getPosition().isValidPosition()) {
+        if (element == null
+                || element.getPosition() == null
+                || !element.getPosition().isValidPosition()) {
             return SourceLocation.unknown();
         }
-        return new SourceLocation(element.getPosition().getFile().getPath(), element.getPosition().getLine());
+        return new SourceLocation(
+                element.getPosition().getFile().getPath(), element.getPosition().getLine());
     }
 }

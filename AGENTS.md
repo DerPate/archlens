@@ -44,6 +44,8 @@ java -jar target/spoon-mcp-server.jar
 
 - Keep Java source compatible with Java 21.
 - Prefer entity/model changes that are covered by focused tests.
+- Do not skip Spotless or SpotBugs to make `verify` pass. Fix formatting with
+  `mvn spotless:apply` and address or explicitly justify SpotBugs findings.
 - Update `docs/TOOLS.md` when adding or changing MCP tools.
 - Update `docs/ARCHITECTURE.md` when changing major package responsibilities.
 - When adding new graph vertex/edge labels in `cache/ArchitectureGraph.java`, also:

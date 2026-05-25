@@ -3,12 +3,12 @@ package dev.dominikbreu.spoonmcp.extractor;
 import dev.dominikbreu.spoonmcp.build.BuildMetadataService;
 import dev.dominikbreu.spoonmcp.build.BuildModule;
 import dev.dominikbreu.spoonmcp.build.BuildProject;
-import dev.dominikbreu.spoonmcp.model.*;
-import dev.dominikbreu.spoonmcp.scanner.SpoonScanner;
 import dev.dominikbreu.spoonmcp.extractor.objectflow.ObjectFlowIndex;
 import dev.dominikbreu.spoonmcp.extractor.objectflow.ObjectFlowIndexBuilder;
 import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndex;
 import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndexBuilder;
+import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.scanner.SpoonScanner;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
@@ -99,9 +99,11 @@ public class ArchitectureExtractor {
                         ctModel = buildCtModel(work.module(), "pass2-enrichment");
                     }
                     extractDependencies(ctModel, model, work.module());
-                    SourceFactIndex sourceFacts =
-                            sourceFactIndexBuilder.build(ctModel, work.module().name(), work.module().sourceRoots().size());
-                    sourceFacts.typeCount();
+                    SourceFactIndex sourceFacts = sourceFactIndexBuilder.build(
+                            ctModel,
+                            work.module().name(),
+                            work.module().sourceRoots().size());
+                    pass2.setAttribute("sourceFactTypes." + work.module().name(), (long) sourceFacts.typeCount());
                     ObjectFlowIndex objectFlowIndex = new ObjectFlowIndexBuilder().build(ctModel, model, sourceFacts);
                     new CallGraphExtractor(objectFlowIndex, sourceFacts).extract(ctModel, model);
                     work.ctModel = null;
@@ -238,8 +240,7 @@ public class ArchitectureExtractor {
         // project root has WAR packaging — this mirrors the old Maven parent-pom handling.
         if (!modules.isEmpty()) {
             String sharedParent = modules.get(0).parentName();
-            if (sharedParent != null
-                    && modules.stream().allMatch(m -> sharedParent.equals(m.parentName()))) {
+            if (sharedParent != null && modules.stream().allMatch(m -> sharedParent.equals(m.parentName()))) {
                 String rootPackaging = detectMavenPackagingType(project.root().getAbsolutePath());
                 if ("war".equals(rootPackaging)) {
                     String parentId = "app:" + sharedParent;
@@ -290,7 +291,7 @@ public class ArchitectureExtractor {
             Collection<CtType<?>> types, ArchitectureModel model, String appId, BuildModule module, String tech) {
         switch (tech) {
             case "spring-boot", "spring" ->
-                    new SpringExtractor(new SpringConfigResolver().resolve(module.root())).extract(types, model, appId);
+                new SpringExtractor(new SpringConfigResolver().resolve(module.root())).extract(types, model, appId);
             case "javaee" -> javaEEExtractor.extract(types, model, appId);
             case "quarkus" -> quarkusExtractor.extract(types, model, appId);
             default -> genericJavaExtractor.extract(types, model, appId);
@@ -382,18 +383,21 @@ public class ArchitectureExtractor {
     private String detectTechnologyFromAnnotations(Collection<CtType<?>> types) {
         for (CtType<?> type : types) {
             for (var annotation : type.getAnnotations()) {
-                String technology = technologyFromAnnotationName(annotation.getAnnotationType().getQualifiedName());
+                String technology = technologyFromAnnotationName(
+                        annotation.getAnnotationType().getQualifiedName());
                 if (technology != null) return technology;
             }
             for (var method : type.getMethods()) {
                 for (var annotation : method.getAnnotations()) {
-                    String technology = technologyFromAnnotationName(annotation.getAnnotationType().getQualifiedName());
+                    String technology = technologyFromAnnotationName(
+                            annotation.getAnnotationType().getQualifiedName());
                     if (technology != null) return technology;
                 }
             }
             for (var field : type.getFields()) {
                 for (var annotation : field.getAnnotations()) {
-                    String technology = technologyFromAnnotationName(annotation.getAnnotationType().getQualifiedName());
+                    String technology = technologyFromAnnotationName(
+                            annotation.getAnnotationType().getQualifiedName());
                     if (technology != null) return technology;
                 }
             }

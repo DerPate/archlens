@@ -75,8 +75,8 @@ class QueryArchitectureGraphToolTest {
         path.id = "df:payment#payload";
         path.entrypointId = "entry:payment";
         path.trackedParam = "payload";
-        DataFlowSink sink = new DataFlowSink(
-                DataFlowSink.Kind.MESSAGING, "comp:PaymentService", "PaymentService", "send", null);
+        DataFlowSink sink =
+                new DataFlowSink(DataFlowSink.Kind.MESSAGING, "comp:PaymentService", "PaymentService", "send", null);
         sink.broker = MessagingBroker.KAFKA;
         sink.channel = "payments.created";
         sink.topic = "payments.created";

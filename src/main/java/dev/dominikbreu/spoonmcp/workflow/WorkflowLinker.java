@@ -85,7 +85,8 @@ public final class WorkflowLinker {
         if (sink.kind == DataFlowSink.Kind.MESSAGING) return WorkflowLink.Kind.MESSAGING;
         if (sink.kind == DataFlowSink.Kind.EVENT_BUS) return WorkflowLink.Kind.EVENT_BUS;
         if (sink.kind == DataFlowSink.Kind.STORE) return WorkflowLink.Kind.STATE_HANDOFF;
-        if (sink.kind == DataFlowSink.Kind.PERSISTENCE && sink.linkEvidence != null) return WorkflowLink.Kind.PERSISTENCE_HANDOFF;
+        if (sink.kind == DataFlowSink.Kind.PERSISTENCE && sink.linkEvidence != null)
+            return WorkflowLink.Kind.PERSISTENCE_HANDOFF;
         return null;
     }
 

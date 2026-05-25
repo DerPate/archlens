@@ -16,19 +16,17 @@ class PersistenceWorkflowLinkTest extends ExtractorTestBase {
         ArchitectureModel model = new ArchitectureExtractor().extract(List.of(projectPath("spring-pipeline-sample")));
 
         assertThat(model.dataFlowPaths)
-                .anySatisfy(path -> assertThat(path.sinks)
-                        .anySatisfy(sink -> {
-                            assertThat(sink.kind).isEqualTo(DataFlowSink.Kind.PERSISTENCE);
-                            assertThat(sink.repositoryOperation).isEqualTo("save");
-                            assertThat(sink.entityType).isEqualTo("com.example.pipeline.model.OrderEntity");
-                            assertThat(sink.linkedPathIds).isNotEmpty();
-                        }));
+                .anySatisfy(path -> assertThat(path.sinks).anySatisfy(sink -> {
+                    assertThat(sink.kind).isEqualTo(DataFlowSink.Kind.PERSISTENCE);
+                    assertThat(sink.repositoryOperation).isEqualTo("save");
+                    assertThat(sink.entityType).isEqualTo("com.example.pipeline.model.OrderEntity");
+                    assertThat(sink.linkedPathIds).isNotEmpty();
+                }));
 
-        assertThat(new WorkflowLinker().link(model))
-                .anySatisfy(link -> {
-                    assertThat(link.kind()).isEqualTo(WorkflowLink.Kind.PERSISTENCE_HANDOFF);
-                    assertThat(link.entityType()).isEqualTo("com.example.pipeline.model.OrderEntity");
-                    assertThat(link.evidence()).isEqualTo("repository-entity-match");
-                });
+        assertThat(new WorkflowLinker().link(model)).anySatisfy(link -> {
+            assertThat(link.kind()).isEqualTo(WorkflowLink.Kind.PERSISTENCE_HANDOFF);
+            assertThat(link.entityType()).isEqualTo("com.example.pipeline.model.OrderEntity");
+            assertThat(link.evidence()).isEqualTo("repository-entity-match");
+        });
     }
 }

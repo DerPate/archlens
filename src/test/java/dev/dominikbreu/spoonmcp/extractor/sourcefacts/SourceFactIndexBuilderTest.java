@@ -11,13 +11,7 @@ class SourceFactIndexBuilderTest extends ExtractorTestBase {
     void sourceFactTypesHaveStableIdsAndLocations() {
         SourceLocation location = new SourceLocation("Example.java", 7);
         SourceType type = new SourceType(
-                "type:com.example.Example",
-                "com.example.Example",
-                "Example",
-                "com.example",
-                false,
-                false,
-                location);
+                "type:com.example.Example", "com.example.Example", "Example", "com.example", false, false, location);
 
         assertThat(type.id()).isEqualTo("type:com.example.Example");
         assertThat(type.qualifiedName()).isEqualTo("com.example.Example");
@@ -83,7 +77,8 @@ class SourceFactIndexBuilderTest extends ExtractorTestBase {
 
     @Test
     void indexesImplementationsFromGenericObjectFlow() {
-        SourceFactIndex index = new SourceFactIndexBuilder().build(scan("generic-object-flow"), "generic-object-flow", 1);
+        SourceFactIndex index =
+                new SourceFactIndexBuilder().build(scan("generic-object-flow"), "generic-object-flow", 1);
 
         assertThat(index.implementations("com.example.objectflow.Player"))
                 .extracting(SourceType::qualifiedName)
@@ -95,7 +90,8 @@ class SourceFactIndexBuilderTest extends ExtractorTestBase {
 
     @Test
     void indexesInvocationsAssignmentsReturnsAndInjectionFacts() {
-        SourceFactIndex index = new SourceFactIndexBuilder().build(scan("generic-object-flow"), "generic-object-flow", 1);
+        SourceFactIndex index =
+                new SourceFactIndexBuilder().build(scan("generic-object-flow"), "generic-object-flow", 1);
         SourceType mainApp = index.type("com.example.objectflow.MainApp");
         SourceMethod run = index.methods(mainApp.id()).stream()
                 .filter(method -> method.name().equals("run"))
@@ -105,22 +101,20 @@ class SourceFactIndexBuilderTest extends ExtractorTestBase {
         assertThat(index.invocations(run.id()))
                 .extracting(SourceInvocation::executableName)
                 .contains("run", "printStats");
-        assertThat(index.assignments(run.id()))
-                .anySatisfy(assignment -> {
-                    assertThat(assignment.target()).contains("localGame");
-                    assertThat(assignment.evidence()).isIn(SourceEvidence.LOCAL_ASSIGNMENT, SourceEvidence.CONSTRUCTOR_CALL);
-                });
+        assertThat(index.assignments(run.id())).anySatisfy(assignment -> {
+            assertThat(assignment.target()).contains("localGame");
+            assertThat(assignment.evidence()).isIn(SourceEvidence.LOCAL_ASSIGNMENT, SourceEvidence.CONSTRUCTOR_CALL);
+        });
 
         SourceType provider = index.type("com.example.objectflow.StateStoreProvider");
         SourceMethod store = index.methods(provider.id()).stream()
                 .filter(method -> method.name().equals("store"))
                 .findFirst()
                 .orElseThrow();
-        assertThat(index.returns(store.id()))
-                .anySatisfy(ret -> {
-                    assertThat(ret.referencedField()).isEqualTo("store");
-                    assertThat(ret.evidence()).isEqualTo(SourceEvidence.METHOD_RETURNS_FIELD);
-                });
+        assertThat(index.returns(store.id())).anySatisfy(ret -> {
+            assertThat(ret.referencedField()).isEqualTo("store");
+            assertThat(ret.evidence()).isEqualTo(SourceEvidence.METHOD_RETURNS_FIELD);
+        });
     }
 
     @Test
@@ -128,13 +122,12 @@ class SourceFactIndexBuilderTest extends ExtractorTestBase {
         SourceFactIndex index = new SourceFactIndexBuilder().build(scan("quarkus-sample"), "quarkus-sample", 1);
         SourceType orderResource = index.type("com.example.api.OrderResource");
 
-        assertThat(index.injectionPoints(orderResource.id()))
-                .anySatisfy(injection -> {
-                    assertThat(injection.fieldName()).isEqualTo("orderService");
-                    assertThat(injection.targetType()).isEqualTo("com.example.service.OrderService");
-                    assertThat(injection.evidence()).isEqualTo(SourceEvidence.FIELD_INJECTION);
-                    assertThat(injection.confidence()).isEqualTo(FactConfidence.KNOWN);
-                });
+        assertThat(index.injectionPoints(orderResource.id())).anySatisfy(injection -> {
+            assertThat(injection.fieldName()).isEqualTo("orderService");
+            assertThat(injection.targetType()).isEqualTo("com.example.service.OrderService");
+            assertThat(injection.evidence()).isEqualTo(SourceEvidence.FIELD_INJECTION);
+            assertThat(injection.confidence()).isEqualTo(FactConfidence.KNOWN);
+        });
     }
 
     @Test
@@ -147,19 +140,17 @@ class SourceFactIndexBuilderTest extends ExtractorTestBase {
                 .findFirst()
                 .orElseThrow();
 
-        assertThat(index.injectionPoints(controller.id()))
-                .anySatisfy(injection -> {
-                    assertThat(injection.fieldName()).isEqualTo("accountService");
-                    assertThat(injection.parameterName()).isEqualTo("accountService");
-                    assertThat(injection.targetType()).isEqualTo("com.example.constructor.IAccountService");
-                    assertThat(injection.evidence()).isEqualTo(SourceEvidence.CONSTRUCTOR_INJECTION);
-                    assertThat(injection.confidence()).isEqualTo(FactConfidence.KNOWN);
-                });
-        assertThat(index.assignments(constructor.id()))
-                .anySatisfy(assignment -> {
-                    assertThat(assignment.target()).contains("accountService");
-                    assertThat(assignment.valueExpression()).isEqualTo("accountService");
-                    assertThat(assignment.evidence()).isEqualTo(SourceEvidence.FIELD_ASSIGNMENT);
-                });
+        assertThat(index.injectionPoints(controller.id())).anySatisfy(injection -> {
+            assertThat(injection.fieldName()).isEqualTo("accountService");
+            assertThat(injection.parameterName()).isEqualTo("accountService");
+            assertThat(injection.targetType()).isEqualTo("com.example.constructor.IAccountService");
+            assertThat(injection.evidence()).isEqualTo(SourceEvidence.CONSTRUCTOR_INJECTION);
+            assertThat(injection.confidence()).isEqualTo(FactConfidence.KNOWN);
+        });
+        assertThat(index.assignments(constructor.id())).anySatisfy(assignment -> {
+            assertThat(assignment.target()).contains("accountService");
+            assertThat(assignment.valueExpression()).isEqualTo("accountService");
+            assertThat(assignment.evidence()).isEqualTo(SourceEvidence.FIELD_ASSIGNMENT);
+        });
     }
 }

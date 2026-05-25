@@ -15,6 +15,25 @@
     </Match>
 
     <!--
+        MCP tool adapters are process-local services. Storing the shared ModelCache dependency
+        is constructor injection, not representation exposure to external callers.
+    -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+        <Class name="~dev\.dominikbreu\.spoonmcp\.mcp\.tools\..*Tool"/>
+    </Match>
+
+    <!--
+        WorkflowGraph deep-copies linksBySourcePathId into an unmodifiable map whose values
+        are copied lists. SpotBugs does not prove that through the stream collector.
+    -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP"/>
+        <Class name="dev.dominikbreu.spoonmcp.workflow.WorkflowGraph"/>
+        <Method name="linksBySourcePathId"/>
+    </Match>
+
+    <!--
         Public fields on model classes (Entrypoint, Component, FieldAccess, etc.) are written
         by extractors and read by Jackson for JSON serialisation. SpotBugs cannot track
         reflection-based reads, so it incorrectly flags them as unread.

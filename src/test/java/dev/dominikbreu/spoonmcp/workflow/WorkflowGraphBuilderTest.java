@@ -53,10 +53,7 @@ class WorkflowGraphBuilderTest {
         toData.linkedPathIds.add("df:data");
         scheduler.sinks.add(toData);
 
-        model.dataFlowPaths.addAll(List.of(
-                scheduler,
-                path("df:shutdown", "ep:shutdown"),
-                path("df:data", "ep:data")));
+        model.dataFlowPaths.addAll(List.of(scheduler, path("df:shutdown", "ep:shutdown"), path("df:data", "ep:data")));
 
         WorkflowGraph graph = new WorkflowGraphBuilder().build(model);
 

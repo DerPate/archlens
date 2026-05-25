@@ -25,18 +25,20 @@ class FindEntrypointsToolTest {
         model.components.add(ctrl);
 
         model.entrypoints.addAll(List.of(
-                restEp("ep:CustomerController#getAll:GET",   "getAll",         "GET",    "/customer"),
-                restEp("ep:CustomerController#get:GET",      "get",            "GET",    "/customer/{id}"),
-                restEp("ep:CustomerController#add:POST",     "add",            "POST",   "/customer"),
-                restEp("ep:CustomerController#update:PUT",   "update",         "PUT",    "/customer/{id}"),
-                restEp("ep:CustomerController#addAddr:POST", "addAddress",     "POST",   "/customer/{id}/address"),
-                restEp("ep:CustomerController#getAddr:GET",  "getAddress",     "GET",    "/customer/{id}/address/{aid}"),
-                restEp("ep:AccountController#getAll:GET",    "getAll",         "GET",    "/account"),
-                restEp("ep:AccountController#add:POST",      "add",            "POST",   "/account")
-        ));
+                restEp("ep:CustomerController#getAll:GET", "getAll", "GET", "/customer"),
+                restEp("ep:CustomerController#get:GET", "get", "GET", "/customer/{id}"),
+                restEp("ep:CustomerController#add:POST", "add", "POST", "/customer"),
+                restEp("ep:CustomerController#update:PUT", "update", "PUT", "/customer/{id}"),
+                restEp("ep:CustomerController#addAddr:POST", "addAddress", "POST", "/customer/{id}/address"),
+                restEp("ep:CustomerController#getAddr:GET", "getAddress", "GET", "/customer/{id}/address/{aid}"),
+                restEp("ep:AccountController#getAll:GET", "getAll", "GET", "/account"),
+                restEp("ep:AccountController#add:POST", "add", "POST", "/account")));
 
         ModelCache cache = new ModelCache(null) {
-            @Override public ArchitectureModel load() { return model; }
+            @Override
+            public ArchitectureModel load() {
+                return model;
+            }
         };
         tool = new FindEntrypointsTool(cache);
     }
@@ -118,24 +120,29 @@ class FindEntrypointsToolTest {
 
     @Test
     void discoveryMatch_barePathMatchesAllDescendants() {
-        assertThat(FindEntrypointsTool.pathPrefixMatchesForDiscovery("/customer/{id}", "/customer")).isTrue();
-        assertThat(FindEntrypointsTool.pathPrefixMatchesForDiscovery("/customer/{id}/address", "/customer")).isTrue();
-        assertThat(FindEntrypointsTool.pathPrefixMatchesForDiscovery("/customer", "/customer")).isTrue();
+        assertThat(FindEntrypointsTool.pathPrefixMatchesForDiscovery("/customer/{id}", "/customer"))
+                .isTrue();
+        assertThat(FindEntrypointsTool.pathPrefixMatchesForDiscovery("/customer/{id}/address", "/customer"))
+                .isTrue();
+        assertThat(FindEntrypointsTool.pathPrefixMatchesForDiscovery("/customer", "/customer"))
+                .isTrue();
     }
 
     @Test
     void discoveryMatch_parametrisedFilterMatchesSubPaths() {
         // Unlike pathPrefixMatches used in single-lookup, discovery allows {id} in filter
-        assertThat(FindEntrypointsTool.pathPrefixMatchesForDiscovery(
-                "/customer/{id}/address/{aid}", "/customer/{id}")).isTrue();
-        assertThat(FindEntrypointsTool.pathPrefixMatchesForDiscovery(
-                "/customer/{id}/address", "/customer/{id}")).isTrue();
+        assertThat(FindEntrypointsTool.pathPrefixMatchesForDiscovery("/customer/{id}/address/{aid}", "/customer/{id}"))
+                .isTrue();
+        assertThat(FindEntrypointsTool.pathPrefixMatchesForDiscovery("/customer/{id}/address", "/customer/{id}"))
+                .isTrue();
     }
 
     @Test
     void discoveryMatch_doesNotMatchSiblingPaths() {
-        assertThat(FindEntrypointsTool.pathPrefixMatchesForDiscovery("/account", "/customer")).isFalse();
-        assertThat(FindEntrypointsTool.pathPrefixMatchesForDiscovery("/customerContact", "/customer")).isFalse();
+        assertThat(FindEntrypointsTool.pathPrefixMatchesForDiscovery("/account", "/customer"))
+                .isFalse();
+        assertThat(FindEntrypointsTool.pathPrefixMatchesForDiscovery("/customerContact", "/customer"))
+                .isFalse();
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

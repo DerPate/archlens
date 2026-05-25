@@ -7,4 +7,9 @@ public record SourceAnnotation(
         String qualifiedName,
         Map<String, String> values,
         SourceEvidence evidence,
-        SourceLocation location) {}
+        SourceLocation location) {
+
+    public SourceAnnotation {
+        values = Map.copyOf(values);
+    }
+}

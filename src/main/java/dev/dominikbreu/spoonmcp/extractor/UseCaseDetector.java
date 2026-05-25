@@ -28,7 +28,6 @@ public class UseCaseDetector {
         this.traversalPolicy = traversalPolicy;
     }
 
-
     /**
      * Detects all use cases for the given model.
      *
@@ -72,16 +71,7 @@ public class UseCaseDetector {
 
         if (hasCallGraph) {
             collectCallChain(
-                    ep.componentId,
-                    ep.name,
-                    null,
-                    0,
-                    5,
-                    callAdj,
-                    compById,
-                    visitedKeys,
-                    visitedComps,
-                    uc.methodChain);
+                    ep.componentId, ep.name, null, 0, 5, callAdj, compById, visitedKeys, visitedComps, uc.methodChain);
         } else {
             collectDepChain(ep.componentId, 0, 5, depAdj, compById, visitedComps);
         }

@@ -54,7 +54,9 @@ public final class WorkflowGraphBuilder {
         Map<String, List<WorkflowLink>> linksBySource = new HashMap<>();
         Set<String> hasIncoming = new LinkedHashSet<>();
         for (WorkflowLink link : links) {
-            linksBySource.computeIfAbsent(link.fromPathId(), ignored -> new ArrayList<>()).add(link);
+            linksBySource
+                    .computeIfAbsent(link.fromPathId(), ignored -> new ArrayList<>())
+                    .add(link);
             hasIncoming.add(link.toPathId());
         }
 

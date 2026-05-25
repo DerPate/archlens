@@ -14,7 +14,8 @@ public final class OutboundSinkIndex {
     public static OutboundSinkIndex build(Collection<OutboundSinkSite> sites) {
         Map<String, List<OutboundSinkSite>> index = new HashMap<>();
         for (OutboundSinkSite site : sites) {
-            index.computeIfAbsent(key(site.componentId, site.method), k -> new ArrayList<>()).add(site);
+            index.computeIfAbsent(key(site.componentId, site.method), k -> new ArrayList<>())
+                    .add(site);
         }
         return new OutboundSinkIndex(index);
     }

@@ -31,28 +31,27 @@ public class TracingConfig {
                 return OpenTelemetry.noop();
             }
 
-            Resource resource = Resource.create(Attributes.of(
-                    AttributeKey.stringKey("service.name"), serviceName));
+            Resource resource = Resource.create(Attributes.of(AttributeKey.stringKey("service.name"), serviceName));
 
-            SdkTracerProvider tracerProvider = switch (mode) {
-                case "console" -> SdkTracerProvider.builder()
-                        .setResource(resource)
-                        .addSpanProcessor(SimpleSpanProcessor.create(new StdoutSpanExporter()))
-                        .build();
-                case "otlp" -> SdkTracerProvider.builder()
-                        .setResource(resource)
-                        .addSpanProcessor(BatchSpanProcessor.builder(
-                                OtlpGrpcSpanExporter.builder()
-                                        .setEndpoint(endpoint)
-                                        .build())
-                                .build())
-                        .build();
-                default -> throw new IllegalStateException("unreachable: mode=" + mode);
-            };
+            SdkTracerProvider tracerProvider =
+                    switch (mode) {
+                        case "console" ->
+                            SdkTracerProvider.builder()
+                                    .setResource(resource)
+                                    .addSpanProcessor(SimpleSpanProcessor.create(new StdoutSpanExporter()))
+                                    .build();
+                        case "otlp" ->
+                            SdkTracerProvider.builder()
+                                    .setResource(resource)
+                                    .addSpanProcessor(BatchSpanProcessor.builder(OtlpGrpcSpanExporter.builder()
+                                                    .setEndpoint(endpoint)
+                                                    .build())
+                                            .build())
+                                    .build();
+                        default -> throw new IllegalStateException("unreachable: mode=" + mode);
+                    };
 
-            return OpenTelemetrySdk.builder()
-                    .setTracerProvider(tracerProvider)
-                    .build();
+            return OpenTelemetrySdk.builder().setTracerProvider(tracerProvider).build();
         } catch (Exception e) {
             log.warn("Failed to configure tracing (mode={}) — using noop: {}", mode, e.getMessage());
             return OpenTelemetry.noop();

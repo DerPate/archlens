@@ -3,7 +3,6 @@ package dev.dominikbreu.spoonmcp.extractor;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
-import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
 import dev.dominikbreu.spoonmcp.model.MessagingBroker;
@@ -141,8 +140,8 @@ class SpringExtractorTest extends ExtractorTestBase {
     @Test
     void detectsRestTemplateAndWebClientOutboundInterfaces() {
         assertThat(model.interfaces)
-                .anyMatch(i -> "rest_client_operation".equals(i.type)
-                        && i.path.equals("https://billing.example.test/health"));
+                .anyMatch(i ->
+                        "rest_client_operation".equals(i.type) && i.path.equals("https://billing.example.test/health"));
         assertThat(model.interfaces)
                 .anyMatch(i -> "rest_client_operation".equals(i.type)
                         && i.path.equals("https://inventory.example.test/items"));

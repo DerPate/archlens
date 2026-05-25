@@ -51,13 +51,12 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         SourceFactIndex sourceFacts = new SourceFactIndexBuilder().build(ctModel, "quarkus-sample", 1);
         new CallGraphExtractor(ObjectFlowIndex.empty(), sourceFacts).extract(ctModel, sourceModel);
 
-        assertThat(sourceModel.callEdges)
-                .anySatisfy(edge -> {
-                    assertThat(edge.fromComponentId).isEqualTo("comp:com.example.api.OrderResource");
-                    assertThat(edge.fromMethod).isEqualTo("get");
-                    assertThat(edge.toComponentId).isEqualTo("comp:com.example.service.OrderService");
-                    assertThat(edge.toMethod).isEqualTo("find");
-                });
+        assertThat(sourceModel.callEdges).anySatisfy(edge -> {
+            assertThat(edge.fromComponentId).isEqualTo("comp:com.example.api.OrderResource");
+            assertThat(edge.fromMethod).isEqualTo("get");
+            assertThat(edge.toComponentId).isEqualTo("comp:com.example.service.OrderService");
+            assertThat(edge.toMethod).isEqualTo("find");
+        });
     }
 
     @Test
@@ -67,18 +66,16 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         sourceModel.components.add(component("com.example.constructor.AccountController"));
         sourceModel.components.add(component("com.example.constructor.AccountService"));
 
-        SourceFactIndex sourceFacts =
-                new SourceFactIndexBuilder().build(ctModel, "constructor-injection-sample", 1);
+        SourceFactIndex sourceFacts = new SourceFactIndexBuilder().build(ctModel, "constructor-injection-sample", 1);
         new CallGraphExtractor(ObjectFlowIndex.empty(), sourceFacts).extract(ctModel, sourceModel);
 
-        assertThat(sourceModel.callEdges)
-                .anySatisfy(edge -> {
-                    assertThat(edge.fromComponentId).isEqualTo("comp:com.example.constructor.AccountController");
-                    assertThat(edge.fromMethod).isEqualTo("get");
-                    assertThat(edge.toComponentId).isEqualTo("comp:com.example.constructor.AccountService");
-                    assertThat(edge.toMethod).isEqualTo("getById");
-                    assertThat(edge.receiverEvidence).isEqualTo("legacy-field-read");
-                });
+        assertThat(sourceModel.callEdges).anySatisfy(edge -> {
+            assertThat(edge.fromComponentId).isEqualTo("comp:com.example.constructor.AccountController");
+            assertThat(edge.fromMethod).isEqualTo("get");
+            assertThat(edge.toComponentId).isEqualTo("comp:com.example.constructor.AccountService");
+            assertThat(edge.toMethod).isEqualTo("getById");
+            assertThat(edge.receiverEvidence).isEqualTo("legacy-field-read");
+        });
     }
 
     @Test
@@ -299,33 +296,28 @@ class CallGraphExtractorTest extends ExtractorTestBase {
 
     @Test
     void genericObjectFlowExtractsPlainJavaReceiverCalls() {
-        ArchitectureModel generic = new ArchitectureExtractor()
-                .extract(List.of(projectPath("generic-object-flow")));
+        ArchitectureModel generic = new ArchitectureExtractor().extract(List.of(projectPath("generic-object-flow")));
 
-        assertThat(generic.callEdges)
-                .anySatisfy(edge -> {
-                    assertThat(edge.fromComponentId).isEqualTo("comp:com.example.objectflow.MainApp");
-                    assertThat(edge.fromMethod).isEqualTo("run");
-                    assertThat(edge.toComponentId).isEqualTo("comp:com.example.objectflow.GameService");
-                    assertThat(edge.toMethod).isEqualTo("run");
-                    assertThat(edge.receiverEvidence).isIn("constructor-assignment", "declared-field-type");
-                });
+        assertThat(generic.callEdges).anySatisfy(edge -> {
+            assertThat(edge.fromComponentId).isEqualTo("comp:com.example.objectflow.MainApp");
+            assertThat(edge.fromMethod).isEqualTo("run");
+            assertThat(edge.toComponentId).isEqualTo("comp:com.example.objectflow.GameService");
+            assertThat(edge.toMethod).isEqualTo("run");
+            assertThat(edge.receiverEvidence).isIn("constructor-assignment", "declared-field-type");
+        });
 
-        assertThat(generic.callEdges)
-                .anySatisfy(edge -> {
-                    assertThat(edge.fromComponentId).isEqualTo("comp:com.example.objectflow.GameService");
-                    assertThat(edge.fromMethod).isEqualTo("run");
-                    assertThat(edge.toComponentId).isIn(
-                            "comp:com.example.objectflow.RandomPlayer",
-                            "comp:com.example.objectflow.SimplePlayer");
-                    assertThat(edge.toMethod).isEqualTo("nextMove");
-                });
+        assertThat(generic.callEdges).anySatisfy(edge -> {
+            assertThat(edge.fromComponentId).isEqualTo("comp:com.example.objectflow.GameService");
+            assertThat(edge.fromMethod).isEqualTo("run");
+            assertThat(edge.toComponentId)
+                    .isIn("comp:com.example.objectflow.RandomPlayer", "comp:com.example.objectflow.SimplePlayer");
+            assertThat(edge.toMethod).isEqualTo("nextMove");
+        });
     }
 
     @Test
     void genericObjectFlowCapsTooBroadPolymorphicExpansion() {
-        ArchitectureModel generic = new ArchitectureExtractor()
-                .extract(List.of(projectPath("generic-object-flow")));
+        ArchitectureModel generic = new ArchitectureExtractor().extract(List.of(projectPath("generic-object-flow")));
 
         long expanded = generic.callEdges.stream()
                 .filter(edge -> edge.toComponentId != null && edge.toComponentId.contains("TooManyHandler"))
@@ -336,24 +328,21 @@ class CallGraphExtractorTest extends ExtractorTestBase {
 
     @Test
     void genericObjectFlowRecordsAccessorBasedStateReadsAndWrites() {
-        ArchitectureModel generic = new ArchitectureExtractor()
-                .extract(List.of(projectPath("generic-object-flow")));
+        ArchitectureModel generic = new ArchitectureExtractor().extract(List.of(projectPath("generic-object-flow")));
 
-        assertThat(generic.fieldAccesses)
-                .anySatisfy(access -> {
-                    assertThat(access.componentId).isEqualTo("comp:com.example.objectflow.StateWriter");
-                    assertThat(access.kind).isEqualTo(FieldAccess.Kind.WRITE);
-                    assertThat(access.fieldOwnerComponentId).isEqualTo("comp:com.example.objectflow.StateStore");
-                    assertThat(access.fieldName).isEqualTo("cache");
-                });
+        assertThat(generic.fieldAccesses).anySatisfy(access -> {
+            assertThat(access.componentId).isEqualTo("comp:com.example.objectflow.StateWriter");
+            assertThat(access.kind).isEqualTo(FieldAccess.Kind.WRITE);
+            assertThat(access.fieldOwnerComponentId).isEqualTo("comp:com.example.objectflow.StateStore");
+            assertThat(access.fieldName).isEqualTo("cache");
+        });
 
-        assertThat(generic.fieldAccesses)
-                .anySatisfy(access -> {
-                    assertThat(access.componentId).isEqualTo("comp:com.example.objectflow.StateReader");
-                    assertThat(access.kind).isEqualTo(FieldAccess.Kind.READ);
-                    assertThat(access.fieldOwnerComponentId).isEqualTo("comp:com.example.objectflow.StateStore");
-                    assertThat(access.fieldName).isEqualTo("cache");
-                });
+        assertThat(generic.fieldAccesses).anySatisfy(access -> {
+            assertThat(access.componentId).isEqualTo("comp:com.example.objectflow.StateReader");
+            assertThat(access.kind).isEqualTo(FieldAccess.Kind.READ);
+            assertThat(access.fieldOwnerComponentId).isEqualTo("comp:com.example.objectflow.StateStore");
+            assertThat(access.fieldName).isEqualTo("cache");
+        });
     }
 
     @Test
@@ -362,8 +351,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         launcher.getEnvironment().setNoClasspath(true);
         launcher.getEnvironment().setComplianceLevel(21);
         launcher.getEnvironment().setShouldCompile(false);
-        launcher.addInputResource(new VirtualFile(
-                """
+        launcher.addInputResource(new VirtualFile("""
                 package example;
                 import java.util.UUID;
                 class Resource {
@@ -391,8 +379,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                         return false;
                     }
                 }
-                """,
-                "AccessorReturnFixture.java"));
+                """, "AccessorReturnFixture.java"));
         launcher.buildModel();
 
         ArchitectureModel fixture = new ArchitectureModel("test");
@@ -429,8 +416,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         launcher.getEnvironment().setNoClasspath(true);
         launcher.getEnvironment().setComplianceLevel(21);
         launcher.getEnvironment().setShouldCompile(false);
-        launcher.addInputResource(new VirtualFile(
-                """
+        launcher.addInputResource(new VirtualFile("""
                 package example;
                 import java.util.UUID;
                 class Resource {
@@ -448,8 +434,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                         return false;
                     }
                 }
-                """,
-                "UnresolvedAccessorFallbackFixture.java"));
+                """, "UnresolvedAccessorFallbackFixture.java"));
         launcher.buildModel();
 
         ArchitectureModel fixture = new ArchitectureModel("test");
@@ -461,15 +446,14 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                         .build(launcher.getModel(), fixture))
                 .extract(launcher.getModel(), fixture);
 
-        assertThat(fixture.callEdges)
-                .anySatisfy(edge -> {
-                    assertThat(edge.fromComponentId).isEqualTo("comp:example.Resource");
-                    assertThat(edge.toComponentId).isEqualTo("comp:example.Budget");
-                    assertThat(edge.toMethod).isEqualTo("equals");
-                    assertThat(edge.receiverEvidence).isEqualTo("accessor-name-fallback");
-                    assertThat(edge.receiverConfidence).isEqualTo(0.20);
-                    assertThat(edge.ambiguous).isTrue();
-                });
+        assertThat(fixture.callEdges).anySatisfy(edge -> {
+            assertThat(edge.fromComponentId).isEqualTo("comp:example.Resource");
+            assertThat(edge.toComponentId).isEqualTo("comp:example.Budget");
+            assertThat(edge.toMethod).isEqualTo("equals");
+            assertThat(edge.receiverEvidence).isEqualTo("accessor-name-fallback");
+            assertThat(edge.receiverConfidence).isEqualTo(0.20);
+            assertThat(edge.ambiguous).isTrue();
+        });
     }
 
     @Test
@@ -478,8 +462,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         launcher.getEnvironment().setNoClasspath(true);
         launcher.getEnvironment().setComplianceLevel(21);
         launcher.getEnvironment().setShouldCompile(false);
-        launcher.addInputResource(new VirtualFile(
-                """
+        launcher.addInputResource(new VirtualFile("""
                 package example;
                 class Service {
                     private final Producer producer = new Producer();
@@ -494,8 +477,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                 }
                 class Order {
                 }
-                """,
-                "LocalLiteralTopicFixture.java"));
+                """, "LocalLiteralTopicFixture.java"));
         launcher.buildModel();
 
         ArchitectureModel fixture = new ArchitectureModel("test");
@@ -506,13 +488,12 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                         .build(launcher.getModel(), fixture))
                 .extract(launcher.getModel(), fixture);
 
-        assertThat(fixture.callEdges)
-                .anySatisfy(edge -> {
-                    assertThat(edge.fromComponentId).isEqualTo("comp:example.Service");
-                    assertThat(edge.toComponentId).isEqualTo("comp:example.Producer");
-                    assertThat(edge.toMethod).isEqualTo("sendKafkaEvent");
-                    assertThat(edge.resolvedLiteralArgs).containsEntry("topic", "orders.created");
-                });
+        assertThat(fixture.callEdges).anySatisfy(edge -> {
+            assertThat(edge.fromComponentId).isEqualTo("comp:example.Service");
+            assertThat(edge.toComponentId).isEqualTo("comp:example.Producer");
+            assertThat(edge.toMethod).isEqualTo("sendKafkaEvent");
+            assertThat(edge.resolvedLiteralArgs).containsEntry("topic", "orders.created");
+        });
     }
 
     private static Component component(String qualifiedName) {

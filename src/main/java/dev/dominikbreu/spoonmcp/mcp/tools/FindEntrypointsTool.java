@@ -36,16 +36,15 @@ public class FindEntrypointsTool {
             ArchitectureModel model = cache.load();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
 
-            String appId        = ToolArgs.getString(args, "appId");
-            String typeFilter   = ToolArgs.getString(args, "type");
+            String appId = ToolArgs.getString(args, "appId");
+            String typeFilter = ToolArgs.getString(args, "type");
             String methodFilter = ToolArgs.getString(args, "httpMethod");
-            String pathFilter   = ToolArgs.getString(args, "path");
+            String pathFilter = ToolArgs.getString(args, "path");
 
             List<Entrypoint> eps = model.entrypoints.stream()
                     .filter(ep -> appId == null || ep.componentId.contains(appId))
                     .filter(ep -> typeFilter == null || matchesType(ep.type, typeFilter))
-                    .filter(ep -> methodFilter == null
-                            || methodFilter.equalsIgnoreCase(ep.httpMethod))
+                    .filter(ep -> methodFilter == null || methodFilter.equalsIgnoreCase(ep.httpMethod))
                     .filter(ep -> pathFilter == null || pathPrefixMatchesForDiscovery(ep.path, pathFilter))
                     .collect(Collectors.toList());
 

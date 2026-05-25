@@ -133,41 +133,36 @@ Add false positives to `dependency-check-suppressions.xml`.
 
 Generated files such as `target/`, `.spoon-mcp-cache/`, and `dependency-reduced-pom.xml` are intentionally ignored.
 
-## Local Releases
+## Releases
 
-The Maven release plugin is configured for local Git releases by default. It tags the current repository, does not push to a remote, and runs `clean package jreleaser:full-release` during `release:perform`. JReleaser therefore always executes inside the release checkout where the version is already resolved to the release tag — not the post-release SNAPSHOT.
+Releases are tag-shaped from `main`. The version in `pom.xml` is the release version and must match the tag name exactly.
 
 **All working-tree changes must be committed before running the release.**
 
-Actual release (requires a GitHub token with repository release permissions):
+Release:
 
 ```sh
-JRELEASER_GITHUB_TOKEN=<token> mvn release:prepare release:perform
-git push origin main --tags
+git switch main
+git pull --ff-only
+mvn versions:set -DnewVersion=1.2.0 -DgenerateBackupPoms=false
+mvn clean verify
+git add pom.xml
+git commit -m "chore: release 1.2.0"
+git tag spoon-mcp-server-1.2.0
+JRELEASER_GITHUB_TOKEN=<token> mvn jreleaser:full-release
+git push origin main spoon-mcp-server-1.2.0
 ```
 
-Dry run — tests the full pipeline locally without publishing or pushing anything:
+This repository intentionally does not include GitHub Actions release automation. Keep the release tag and `pom.xml` version aligned manually.
+
+Local dry run without publishing:
 
 ```sh
-JRELEASER_GITHUB_TOKEN=dummy mvn release:prepare release:perform \
-  -Darguments="-DskipTests -Drelease.perform=true -Djreleaser.dry.run=true"
+mvn clean verify
+JRELEASER_GITHUB_TOKEN=dummy mvn -Djreleaser.dry.run=true jreleaser:full-release
 ```
 
-After the dry run, remove the local commits and tag that `release:prepare` created:
-
-```sh
-git reset --hard HEAD~2
-git tag -d $(git describe --tags --abbrev=0)
-```
-
-Non-mutating check of just the preparation phase:
-
-```sh
-mvn release:prepare -DdryRun=true
-mvn release:clean
-```
-
-JReleaser is configured for GitHub releases under `DerPate/spoon-mcp-server`. It uses the shaded server jar as the runnable distribution artifact, attaches source and Javadoc jars as release files, and appends generated release notes to `CHANGELOG.md`.
+JReleaser is configured for GitHub releases under `DerPate/spoon-mcp-server`. It uses the existing `spoon-mcp-server-{{projectVersion}}` tag, publishes the shaded server jar as the runnable distribution artifact, attaches source and Javadoc jars as release files, and appends generated release notes to `CHANGELOG.md`.
 
 ## Publishing Notes
 
