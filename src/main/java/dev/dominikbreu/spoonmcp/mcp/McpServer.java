@@ -341,9 +341,9 @@ public class McpServer {
 
         specs.add(toolSpec(
                 "export_likec4_model",
-                "Export a projection of the indexed architecture graph as LikeC4-style model text. Useful for loading into LikeC4 tooling or providing structured LLM context.",
+                "Export the indexed architecture graph as LikeC4-style model text. Supports workspace (default) or component views for loading into LikeC4 tooling or providing structured LLM context.",
                 schema().opt("app", "string", "Application name or id")
-                        .opt("view", "string", "View kind: component")
+                        .opt("view", "string", "View kind: workspace or component (default workspace)")
                         .opt("maxNodes", "integer", "Maximum component nodes to include (default 18)"),
                 exportLikeC4ModelTool::call));
 
