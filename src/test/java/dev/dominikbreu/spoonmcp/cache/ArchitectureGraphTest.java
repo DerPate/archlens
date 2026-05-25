@@ -12,7 +12,10 @@ import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
+import dev.dominikbreu.spoonmcp.model.ExternalSystem;
 import dev.dominikbreu.spoonmcp.model.FieldAccess;
+import dev.dominikbreu.spoonmcp.model.InterfaceEntry;
+import dev.dominikbreu.spoonmcp.model.MessagingBroker;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
 import java.util.List;
 import java.util.Map;
@@ -360,6 +363,198 @@ class ArchitectureGraphTest {
                         && "internal".equals(e.properties().get("viaChannel")));
     }
 
+    @Test
+    void exposesUnlinkedMessagingSinkChannelMetadataOnGraphNode() {
+        ArchitectureModel model = new ArchitectureModel("test");
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:create";
+        ep.name = "create";
+        ep.type = EntrypointType.REST_ENDPOINT;
+        ep.componentId = "comp:OrderController";
+        model.entrypoints.add(ep);
+
+        DataFlowPath path = new DataFlowPath();
+        path.id = "df:ep:create#order";
+        path.entrypointId = "ep:create";
+        path.trackedParam = "order";
+        DataFlowSink sink = new DataFlowSink(
+                DataFlowSink.Kind.MESSAGING, "comp:KafkaProducer", "KafkaProducer", "send", null);
+        sink.channel = "orders.created";
+        sink.topic = "orders.created";
+        sink.topicPropertyKey = "topics.orders.created";
+        sink.broker = MessagingBroker.KAFKA;
+        sink.payloadType = "com.example.Order";
+        sink.linkEvidence = "spring-kafka-template-send";
+        path.sinks.add(sink);
+        model.dataFlowPaths.add(path);
+
+        ArchitectureGraph graph = new ArchitectureGraph();
+        graph.rebuild(model);
+
+        List<ArchitectureGraph.GraphNode> sinks =
+                graph.findNodes("DataFlowSink", null, Map.of("sinkKind", "messaging"), 10);
+
+        assertThat(sinks).hasSize(1);
+        assertThat(sinks.getFirst().properties())
+                .containsEntry("channel", "orders.created")
+                .containsEntry("topic", "orders.created")
+                .containsEntry("topicPropertyKey", "topics.orders.created")
+                .containsEntry("broker", "KAFKA")
+                .containsEntry("payloadType", "com.example.Order")
+                .containsEntry("linkEvidence", "spring-kafka-template-send");
+    }
+
+    @Test
+    void exposesMessagingInterfaceBrokerAndTopicOnGraphNode() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        InterfaceEntry entry = new InterfaceEntry();
+        entry.id = "iface:producer";
+        entry.name = "orders.created";
+        entry.type = "messaging_producer";
+        entry.path = "orders.created";
+        entry.componentId = "comp:OrderService";
+        entry.module = "app:test";
+        entry.technology = "spring";
+        entry.broker = MessagingBroker.KAFKA;
+        entry.topic = "orders.created";
+        model.interfaces.add(entry);
+
+        ArchitectureGraph graph = new ArchitectureGraph();
+        graph.rebuild(model);
+
+        List<ArchitectureGraph.GraphNode> nodes =
+                graph.findNodes("Interface", null, Map.of("interfaceType", "messaging_producer"), 10);
+
+        assertThat(nodes).hasSize(1);
+        assertThat(nodes.getFirst().properties())
+                .containsEntry("broker", "KAFKA")
+                .containsEntry("topic", "orders.created");
+    }
+
+    @Test
+    void projectsExternalSystemsSoDependenciesToThemAreQueryable() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        Component service = new Component();
+        service.id = "comp:OrderService";
+        service.name = "OrderService";
+        service.type = ComponentType.SERVICE;
+        service.module = "app:test";
+        model.components.add(service);
+
+        ExternalSystem kafka = new ExternalSystem();
+        kafka.id = "ext:messaging:kafka";
+        kafka.name = "Kafka";
+        kafka.kind = "MESSAGE_BROKER";
+        kafka.technology = "kafka";
+        model.externalSystems.add(kafka);
+
+        Dependency dependency = new Dependency();
+        dependency.fromId = "comp:OrderService";
+        dependency.toId = "ext:messaging:kafka";
+        dependency.kind = "messaging";
+        dependency.derivedFrom = "messaging-interface";
+        dependency.confidence = 0.9;
+        model.dependencies.add(dependency);
+
+        ArchitectureGraph graph = new ArchitectureGraph();
+        graph.rebuild(model);
+
+        assertThat(graph.findNodes("ExternalSystem", null, Map.of("technology", "kafka"), 10))
+                .anySatisfy(node -> assertThat(node.properties())
+                        .containsEntry("kind", "externalSystem")
+                        .containsEntry("externalSystemKind", "MESSAGE_BROKER")
+                        .containsEntry("technology", "kafka"));
+        assertThat(graph.findEdges("DEPENDS_ON", Map.of("kind", "messaging"), 10))
+                .anySatisfy(edge -> {
+                    assertThat(edge.fromId()).isEqualTo("comp:OrderService");
+                    assertThat(edge.toId()).isEqualTo("ext:messaging:kafka");
+                });
+    }
+
+    @Test
+    void exposesMessagingEntrypointMetadataOnGraphNode() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:consumer";
+        ep.name = "consume";
+        ep.type = EntrypointType.MESSAGING_CONSUMER;
+        ep.channelName = "orders";
+        ep.broker = MessagingBroker.KAFKA;
+        ep.topic = "orders";
+        ep.componentId = "comp:Consumer";
+        ep.parameters.add("payload");
+        ep.parameters.add("key");
+        model.entrypoints.add(ep);
+
+        ArchitectureGraph graph = new ArchitectureGraph();
+        graph.rebuild(model);
+
+        assertThat(graph.findNodes("Entrypoint", null, Map.of("entrypointType", "MESSAGING_CONSUMER"), 10))
+                .anySatisfy(node -> assertThat(node.properties())
+                        .containsEntry("channelName", "orders")
+                        .containsEntry("broker", "KAFKA")
+                        .containsEntry("topic", "orders")
+                        .containsEntry("parameters", "payload,key"));
+    }
+
+    @Test
+    void exposesPersistenceSinkMetadataOnGraphNode() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        DataFlowPath path = new DataFlowPath();
+        path.id = "df:ep:create#order";
+        path.entrypointId = "ep:create";
+        path.trackedParam = "order";
+        DataFlowSink sink = new DataFlowSink(
+                DataFlowSink.Kind.PERSISTENCE, "comp:OrderRepository", "OrderRepository", "save", null);
+        sink.entityType = "com.example.Order";
+        sink.repositoryOperation = "save";
+        sink.linkEvidence = "repository-call";
+        path.sinks.add(sink);
+        model.dataFlowPaths.add(path);
+
+        ArchitectureGraph graph = new ArchitectureGraph();
+        graph.rebuild(model);
+
+        assertThat(graph.findNodes("DataFlowSink", null, Map.of("sinkKind", "persistence"), 10))
+                .anySatisfy(node -> assertThat(node.properties())
+                        .containsEntry("entityType", "com.example.Order")
+                        .containsEntry("repositoryOperation", "save")
+                        .containsEntry("linkEvidence", "repository-call"));
+    }
+
+    @Test
+    void exposesCallEdgePropagationMetadata() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(component("comp:Controller", "Controller", ComponentType.REST_RESOURCE));
+        model.components.add(component("comp:Service", "Service", ComponentType.SERVICE));
+        CallEdge edge = new CallEdge();
+        edge.fromComponentId = "comp:Controller";
+        edge.fromMethod = "create";
+        edge.toComponentId = "comp:Service";
+        edge.toMethod = "create";
+        edge.callKind = "direct";
+        edge.paramMapping.put("request", "dto");
+        edge.resolvedLiteralArgs.put("topic", "orders");
+        edge.syntheticParamMappings.add("dto");
+        edge.assignedToVar = "saved";
+        edge.returnsTracked = true;
+        edge.killedTrackedNames.add("request");
+        model.callEdges.add(edge);
+
+        ArchitectureGraph graph = new ArchitectureGraph();
+        graph.rebuild(model);
+
+        assertThat(graph.findEdges("CALLS", Map.of("fromMethod", "create"), 10))
+                .anySatisfy(call -> assertThat(call.properties())
+                        .containsEntry("paramMapping", "request->dto")
+                        .containsEntry("resolvedLiteralArgs", "topic=orders")
+                        .containsEntry("syntheticParamMappings", "dto")
+                        .containsEntry("assignedToVar", "saved")
+                        .containsEntry("returnsTracked", true)
+                        .containsEntry("killedTrackedNames", "request"));
+    }
+
     private ArchitectureModel model() {
         ArchitectureModel model = new ArchitectureModel("test");
 
@@ -550,5 +745,13 @@ class ArchitectureGraphTest {
         e.type = type;
         e.componentId = "comp:" + e.name;
         return e;
+    }
+
+    private Component component(String id, String name, ComponentType type) {
+        Component component = new Component();
+        component.id = id;
+        component.name = name;
+        component.type = type;
+        return component;
     }
 }

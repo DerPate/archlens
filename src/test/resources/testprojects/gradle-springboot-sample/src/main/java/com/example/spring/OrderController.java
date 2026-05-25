@@ -21,6 +21,11 @@ public class OrderController {
         return service.get(id);
     }
 
+    @GetMapping
+    public String get() {
+        return service.get("all");
+    }
+
     @PostMapping
     public String create(String body) {
         return service.create(body);

@@ -125,7 +125,8 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
                 .anySatisfy(target -> {
                     assertThat(target.componentId()).isEqualTo("comp:com.example.objectflow.StateStore");
                     assertThat(target.methodName()).isEqualTo("put");
-                    assertThat(target.evidence()).isEqualTo(ObjectFlowEvidence.ACCESSOR_RETURN);
+                    assertThat(target.evidence()).isEqualTo(ObjectFlowEvidence.ACCESSOR_STATE_OWNER);
+                    assertThat(target.confidence()).isEqualTo(0.60);
                 });
     }
 

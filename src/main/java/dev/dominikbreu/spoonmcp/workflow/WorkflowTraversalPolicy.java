@@ -44,7 +44,7 @@ public final class WorkflowTraversalPolicy {
 
     /** Returns true when a call can be traversed as an in-process continuation. */
     public boolean canTraverseInline(CallEdge edge) {
-        return edge != null && !isAsyncBoundary(edge) && !edge.receiverExpansionCapped;
+        return edge != null && !isAsyncBoundary(edge) && !edge.receiverExpansionCapped && !edge.ambiguous;
     }
 
     /** Returns true when a component should appear in human-facing workflow diagrams. */

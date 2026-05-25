@@ -165,7 +165,7 @@ public class SpringExtractor {
             if (mapping != null && component.type != ComponentType.HTTP_CLIENT) {
                 String fullPath = combinePaths(contextPath, combinePaths(classBase, mapping.path()));
                 Entrypoint ep = new Entrypoint();
-                ep.id = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + ":" + mapping.method();
+                ep.id = restEndpointId(type, method, mapping, fullPath);
                 ep.type = EntrypointType.REST_ENDPOINT;
                 ep.name = method.getSimpleName();
                 ep.httpMethod = mapping.method();
@@ -198,6 +198,11 @@ public class SpringExtractor {
             extractFeignInterfaces(type, component, model);
         }
         extractOutboundCallSites(type, component, model);
+    }
+
+    private String restEndpointId(CtType<?> type, CtMethod<?> method, Mapping mapping, String fullPath) {
+        return "ep:" + type.getQualifiedName() + "#" + method.getSimpleName()
+                + ":" + mapping.method() + ":" + fullPath;
     }
 
     private void addSimpleEntrypoint(
@@ -247,7 +252,10 @@ public class SpringExtractor {
     private void addMessagingInterface(
             CtElement element, Component component, String type, String channel, MessagingBroker broker, ArchitectureModel model) {
         InterfaceEntry entry = addInterface(element, component, type, channel, channel, model);
-        if (entry != null) entry.broker = broker;
+        if (entry != null) {
+            entry.broker = broker;
+            entry.topic = channel;
+        }
     }
 
     private String firstNonEmptyAttribute(CtElement element, Set<String> annotation, String first, String second) {
@@ -507,7 +515,10 @@ public class SpringExtractor {
     private void addProducerInterface(
             CtElement element, Component component, MessagingBroker broker, String destination, ArchitectureModel model) {
         InterfaceEntry entry = addInterface(element, component, "messaging_producer", destination, destination, model);
-        if (entry != null) entry.broker = broker;
+        if (entry != null) {
+            entry.broker = broker;
+            entry.topic = destination;
+        }
     }
 
     private boolean looksLikeUrl(String value) {

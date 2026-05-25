@@ -599,7 +599,9 @@ public class CallGraphExtractor {
         edge.callKind = callKind;
         edge.source = buildSource(inv);
         edge.receiverEvidence = receiverEvidence;
+        edge.receiverLocalName = resolveReceiverLocalName(inv);
         edge.receiverConfidence = receiverConfidence;
+        edge.ambiguous = "accessor-name-fallback".equals(receiverEvidence);
         edge.receiverExpansionCapped = receiverExpansionCapped;
         buildParamMapping(inv, edge);
         edge.assignedToVar = resolveAssignedToVar(inv);
@@ -607,6 +609,23 @@ public class CallGraphExtractor {
         if (killedSnapshot != null) edge.killedTrackedNames.addAll(killedSnapshot);
         model.callEdges.add(edge);
         emitCallerSideFieldReadIfGetter(inv, fromComp, fromMethod, toComp, model, ctx);
+    }
+
+    private String resolveReceiverLocalName(CtInvocation<?> inv) {
+        return receiverLocalName(inv.getTarget());
+    }
+
+    private String receiverLocalName(CtExpression<?> expression) {
+        if (expression instanceof CtVariableRead<?> read && read.getVariable() != null) {
+            return read.getVariable().getSimpleName();
+        }
+        if (expression instanceof CtFieldRead<?> read && read.getVariable() != null) {
+            return read.getVariable().getSimpleName();
+        }
+        if (expression instanceof CtInvocation<?> invocation) {
+            return receiverLocalName(invocation.getTarget());
+        }
+        return null;
     }
 
     private String resolveAssignedToVar(CtInvocation<?> inv) {
@@ -785,6 +804,10 @@ public class CallGraphExtractor {
             CtExpression<?> arg = args.get(i);
             if (arg instanceof CtVariableRead<?> direct) {
                 edge.paramMapping.put(direct.getVariable().getSimpleName(), calleeParam);
+                String literal = resolveArgToLiteral(arg);
+                if (literal != null) {
+                    edge.resolvedLiteralArgs.put(calleeParam, literal);
+                }
                 continue;
             }
             String literal = resolveArgToLiteral(arg);
@@ -808,6 +831,14 @@ public class CallGraphExtractor {
             try {
                 CtField<?> decl = ref.getDeclaration();
                 if (decl != null && decl.getDefaultExpression() instanceof CtLiteral<?> lit) {
+                    return lit.getValue() == null ? "" : lit.getValue().toString();
+                }
+            } catch (Exception ignored) {}
+        }
+        if (arg instanceof CtVariableRead<?> read) {
+            try {
+                if (read.getVariable().getDeclaration() instanceof CtLocalVariable<?> local
+                        && local.getDefaultExpression() instanceof CtLiteral<?> lit) {
                     return lit.getValue() == null ? "" : lit.getValue().toString();
                 }
             } catch (Exception ignored) {}
