@@ -4,7 +4,7 @@
 
     <groupId>dev.dominikbreu.spoonmcp</groupId>
     <artifactId>spoon-mcp-server</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
     <packaging>jar</packaging>
 
     <licenses>
@@ -32,7 +32,6 @@
         <otel.version>1.40.0</otel.version>
         <tinkerpop.version>3.8.1</tinkerpop.version>
         <jreleaser.version>1.23.0</jreleaser.version>
-        <jreleaser.dry.run>false</jreleaser.dry.run>
     </properties>
 
     <dependencies>
@@ -218,50 +217,6 @@
                 <artifactId>maven-dependency-plugin</artifactId>
                 <version>3.8.1</version>
             </plugin>
-            <!--
-                During release:perform the checkout is cloned from file:// (localCheckout),
-                so its origin remote is a local path. JReleaser requires a resolvable GitHub
-                remote to initialise. This antrun execution rewrites origin to the real GitHub
-                URL, but ONLY when -Drelease.perform=true is passed — which the release plugin
-                does via <arguments> below. Normal builds are never affected.
-            -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-antrun-plugin</artifactId>
-                <version>3.1.0</version>
-                <executions>
-                    <execution>
-                        <id>set-github-remote</id>
-                        <phase>package</phase>
-                        <goals><goal>run</goal></goals>
-                        <configuration>
-                            <target if="release.perform">
-                                <exec executable="git" failonerror="true">
-                                    <arg value="remote" />
-                                    <arg value="set-url" />
-                                    <arg value="origin" />
-                                    <arg value="https://github.com/DerPate/spoon-mcp-server.git" />
-                                </exec>
-                            </target>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-release-plugin</artifactId>
-                <version>3.1.1</version>
-                <configuration>
-                    <tagNameFormat>@{project.artifactId}-@{project.version}</tagNameFormat>
-                    <autoVersionSubmodules>true</autoVersionSubmodules>
-                    <localCheckout>true</localCheckout>
-                    <pushChanges>false</pushChanges>
-                    <preparationGoals>clean verify</preparationGoals>
-                    <goals>clean package jreleaser:full-release</goals>
-                    <arguments>-DskipTests=false -Drelease.perform=true</arguments>
-                    <scmCommentPrefix>[maven-release-plugin] </scmCommentPrefix>
-                </configuration>
-            </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>versions-maven-plugin</artifactId>
@@ -331,7 +286,6 @@
                 <inherited>false</inherited>
                 <configuration>
                     <configFile>jreleaser.yml</configFile>
-                    <dryrun>${jreleaser.dry.run}</dryrun>
                 </configuration>
             </plugin>
         </plugins>
