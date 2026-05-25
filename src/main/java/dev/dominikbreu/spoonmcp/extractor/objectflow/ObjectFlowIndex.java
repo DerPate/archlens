@@ -24,8 +24,7 @@ public class ObjectFlowIndex {
     private final Set<String> diagnostics = new LinkedHashSet<>();
 
     public ObjectFlowIndex(
-            Map<String, TypeFact> typesByQualifiedName,
-            Map<String, List<TypeFact>> implementationsByQualifiedName) {
+            Map<String, TypeFact> typesByQualifiedName, Map<String, List<TypeFact>> implementationsByQualifiedName) {
         this(typesByQualifiedName, implementationsByQualifiedName, Map.of());
     }
 
@@ -67,11 +66,7 @@ public class ObjectFlowIndex {
             return targets.stream()
                     .limit(DEFAULT_POLYMORPHIC_TARGET_CAP)
                     .map(target -> new ReceiverTarget(
-                            target.componentId(),
-                            target.methodName(),
-                            target.evidence(),
-                            target.confidence(),
-                            true))
+                            target.componentId(), target.methodName(), target.evidence(), target.confidence(), true))
                     .toList();
         }
         if (!targets.isEmpty()) {
@@ -83,11 +78,7 @@ public class ObjectFlowIndex {
                     ? ObjectFlowEvidence.DECLARED_INTERFACE_ONLY
                     : ObjectFlowEvidence.DECLARED_FIELD_TYPE;
             return List.of(new ReceiverTarget(
-                    declaredTypeFact.componentId(),
-                    methodName,
-                    evidence,
-                    evidence.confidence(),
-                    false));
+                    declaredTypeFact.componentId(), methodName, evidence, evidence.confidence(), false));
         }
 
         return List.of();

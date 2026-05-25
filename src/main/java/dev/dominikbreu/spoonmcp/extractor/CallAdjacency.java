@@ -14,7 +14,8 @@ public final class CallAdjacency {
     public static CallAdjacency build(Collection<CallEdge> edges) {
         Map<String, List<CallEdge>> index = new HashMap<>();
         for (CallEdge edge : edges) {
-            index.computeIfAbsent(key(edge.fromComponentId, edge.fromMethod), k -> new ArrayList<>()).add(edge);
+            index.computeIfAbsent(key(edge.fromComponentId, edge.fromMethod), k -> new ArrayList<>())
+                    .add(edge);
         }
         return new CallAdjacency(index);
     }

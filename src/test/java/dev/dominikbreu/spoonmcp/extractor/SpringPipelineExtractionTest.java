@@ -37,12 +37,11 @@ class SpringPipelineExtractionTest extends ExtractorTestBase {
         ArchitectureModel model = new ArchitectureExtractor().extract(List.of(projectPath("spring-pipeline-sample")));
 
         assertThat(model.dataFlowPaths)
-                .anySatisfy(path -> assertThat(path.sinks)
-                        .anySatisfy(sink -> {
-                            assertThat(sink.kind).isEqualTo(DataFlowSink.Kind.MESSAGING);
-                            assertThat(sink.topic).isEqualTo("orders.created");
-                            assertThat(sink.linkedPathIds).isNotEmpty();
-                        }));
+                .anySatisfy(path -> assertThat(path.sinks).anySatisfy(sink -> {
+                    assertThat(sink.kind).isEqualTo(DataFlowSink.Kind.MESSAGING);
+                    assertThat(sink.topic).isEqualTo("orders.created");
+                    assertThat(sink.linkedPathIds).isNotEmpty();
+                }));
     }
 
     @Test
@@ -62,11 +61,10 @@ class SpringPipelineExtractionTest extends ExtractorTestBase {
     void listenerEntrypointsUseResolvedTopicNames() {
         ArchitectureModel model = new ArchitectureExtractor().extract(List.of(projectPath("spring-pipeline-sample")));
 
-        assertThat(model.entrypoints)
-                .anySatisfy(entrypoint -> {
-                    assertThat(entrypoint.name).isEqualTo("onCreated");
-                    assertThat(entrypoint.channelName).isEqualTo("orders.created");
-                    assertThat(entrypoint.broker).isEqualTo(MessagingBroker.KAFKA);
-                });
+        assertThat(model.entrypoints).anySatisfy(entrypoint -> {
+            assertThat(entrypoint.name).isEqualTo("onCreated");
+            assertThat(entrypoint.channelName).isEqualTo("orders.created");
+            assertThat(entrypoint.broker).isEqualTo(MessagingBroker.KAFKA);
+        });
     }
 }

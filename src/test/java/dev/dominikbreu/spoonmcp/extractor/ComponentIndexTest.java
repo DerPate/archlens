@@ -1,6 +1,7 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
 import static org.assertj.core.api.Assertions.assertThat;
+
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import java.util.List;

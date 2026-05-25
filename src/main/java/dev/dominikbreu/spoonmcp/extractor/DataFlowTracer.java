@@ -129,10 +129,7 @@ public class DataFlowTracer {
      * record the reader path id on the sink. Lets agents stitch consumer → cache → producer
      * pipelines that span entrypoints.
      */
-    private void linkStoreSinksToFieldReaders(
-            List<DataFlowPath> paths,
-            ArchitectureModel model,
-            ModelIndex index) {
+    private void linkStoreSinksToFieldReaders(List<DataFlowPath> paths, ArchitectureModel model, ModelIndex index) {
         // Build entrypointId → set of (fieldOwnerComponentId, fieldName) pairs read transitively.
         Map<String, Set<String>> readsByEntrypoint = new HashMap<>();
         for (Entrypoint ep : model.entrypoints) {
@@ -193,7 +190,9 @@ public class DataFlowTracer {
             if (ep.type != EntrypointType.MESSAGING_CONSUMER && ep.type != EntrypointType.JMS_CONSUMER) continue;
             String key = destinationKey(ep.broker, ep.channelName);
             if (key == null) continue;
-            consumerPathsByDestination.computeIfAbsent(key, ignored -> new ArrayList<>()).add(path.id);
+            consumerPathsByDestination
+                    .computeIfAbsent(key, ignored -> new ArrayList<>())
+                    .add(path.id);
         }
 
         for (DataFlowPath path : paths) {
@@ -266,7 +265,8 @@ public class DataFlowTracer {
 
             for (OutboundSinkSite site : index.outboundSinks.sites(compId, method)) {
                 String topic = site.topic != null ? resolvedCallerArgs.getOrDefault(site.topic, site.topic) : null;
-                String channel = site.channel != null ? resolvedCallerArgs.getOrDefault(site.channel, site.channel) : null;
+                String channel =
+                        site.channel != null ? resolvedCallerArgs.getOrDefault(site.channel, site.channel) : null;
                 for (String origName : currentToOriginal.values()) {
                     DataFlowSink sink =
                             new DataFlowSink(site.kind, site.componentId, compName, site.calleeMethod, site.source);
@@ -288,8 +288,10 @@ public class DataFlowTracer {
                     if (isEntrypointBody
                             || matchesTracked(currentName, fw.sourceVarName)
                             || matchesTracked(currentName, fw.sourceFieldName)) {
-                        pathsByOriginal.get(e.getValue())
-                                .sinks.add(new DataFlowSink(
+                        pathsByOriginal
+                                .get(e.getValue())
+                                .sinks
+                                .add(new DataFlowSink(
                                         DataFlowSink.Kind.STORE,
                                         fw.fieldOwnerComponentId,
                                         compName,
@@ -451,7 +453,9 @@ public class DataFlowTracer {
                 if (sink.kind != DataFlowSink.Kind.PERSISTENCE) continue;
                 if (!isReadOperation(sink.repositoryOperation)) continue;
                 if (sink.entityType == null) continue;
-                readPathsByEntity.computeIfAbsent(sink.entityType, ignored -> new ArrayList<>()).add(path.id);
+                readPathsByEntity
+                        .computeIfAbsent(sink.entityType, ignored -> new ArrayList<>())
+                        .add(path.id);
             }
         }
         for (DataFlowPath path : paths) {
@@ -495,6 +499,9 @@ public class DataFlowTracer {
 
     private boolean isReadOperation(String method) {
         if (method == null) return false;
-        return method.startsWith("find") || method.startsWith("get") || method.startsWith("read") || method.startsWith("exists");
+        return method.startsWith("find")
+                || method.startsWith("get")
+                || method.startsWith("read")
+                || method.startsWith("exists");
     }
 }

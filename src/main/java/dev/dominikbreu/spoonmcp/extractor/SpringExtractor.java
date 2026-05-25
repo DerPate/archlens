@@ -29,15 +29,13 @@ public class SpringExtractor {
     private static final Set<String> SPRING_BOOT_APP =
             Set.of("org.springframework.boot.autoconfigure.SpringBootApplication");
     private static final Set<String> REST_CONTROLLERS = Set.of(
-            "org.springframework.web.bind.annotation.RestController",
-            "org.springframework.stereotype.Controller");
+            "org.springframework.web.bind.annotation.RestController", "org.springframework.stereotype.Controller");
     private static final Set<String> SERVICE = Set.of("org.springframework.stereotype.Service");
     private static final Set<String> REPOSITORY = Set.of("org.springframework.stereotype.Repository");
     private static final Set<String> COMPONENT = Set.of("org.springframework.stereotype.Component");
     private static final Set<String> CONFIGURATION = Set.of("org.springframework.context.annotation.Configuration");
     private static final Set<String> ENTITY = Set.of("javax.persistence.Entity", "jakarta.persistence.Entity");
-    private static final Set<String> REQUEST_MAPPING =
-            Set.of("org.springframework.web.bind.annotation.RequestMapping");
+    private static final Set<String> REQUEST_MAPPING = Set.of("org.springframework.web.bind.annotation.RequestMapping");
     private static final Set<String> GET_MAPPING = Set.of("org.springframework.web.bind.annotation.GetMapping");
     private static final Set<String> POST_MAPPING = Set.of("org.springframework.web.bind.annotation.PostMapping");
     private static final Set<String> PUT_MAPPING = Set.of("org.springframework.web.bind.annotation.PutMapping");
@@ -46,14 +44,15 @@ public class SpringExtractor {
     private static final Set<String> SCHEDULED = Set.of("org.springframework.scheduling.annotation.Scheduled");
     private static final Set<String> KAFKA_LISTENER = Set.of("org.springframework.kafka.annotation.KafkaListener");
     private static final Set<String> KAFKA_HANDLER = Set.of("org.springframework.kafka.annotation.KafkaHandler");
-    private static final Set<String> RABBIT_LISTENER = Set.of("org.springframework.amqp.rabbit.annotation.RabbitListener");
+    private static final Set<String> RABBIT_LISTENER =
+            Set.of("org.springframework.amqp.rabbit.annotation.RabbitListener");
     private static final Set<String> JMS_LISTENER = Set.of("org.springframework.jms.annotation.JmsListener");
     private static final Set<String> FEIGN_CLIENT = Set.of("org.springframework.cloud.openfeign.FeignClient");
 
     private final SpringConfigResolver.Config config;
 
     public SpringExtractor() {
-        this(new SpringConfigResolver().resolve(new java.io.File("/nonexistent")));
+        this(new SpringConfigResolver().emptyConfig());
     }
 
     public SpringExtractor(SpringConfigResolver.Config config) {
@@ -148,11 +147,13 @@ public class SpringExtractor {
 
     private boolean hasListenerMethod(CtType<?> type) {
         // Class-level @KafkaListener (multi-method listener with @KafkaHandler on methods)
-        if (hasAnnotation(type, KAFKA_LISTENER) || hasAnnotation(type, RABBIT_LISTENER) || hasAnnotation(type, JMS_LISTENER)) {
+        if (hasAnnotation(type, KAFKA_LISTENER)
+                || hasAnnotation(type, RABBIT_LISTENER)
+                || hasAnnotation(type, JMS_LISTENER)) {
             return true;
         }
-        return type.getMethods().stream().anyMatch(method ->
-                hasAnnotation(method, KAFKA_LISTENER)
+        return type.getMethods().stream()
+                .anyMatch(method -> hasAnnotation(method, KAFKA_LISTENER)
                         || hasAnnotation(method, RABBIT_LISTENER)
                         || hasAnnotation(method, JMS_LISTENER));
     }
@@ -178,18 +179,46 @@ public class SpringExtractor {
             if (hasAnnotation(method, SCHEDULED)) {
                 addSimpleEntrypoint(method, type, component, EntrypointType.SCHEDULER, "scheduled", model);
             }
-            addListenerEntrypoint(method, type, component, KAFKA_LISTENER, EntrypointType.MESSAGING_CONSUMER,
-                    MessagingBroker.KAFKA, firstNonEmptyAttribute(method, KAFKA_LISTENER, "topics", "topicPattern"), model);
+            addListenerEntrypoint(
+                    method,
+                    type,
+                    component,
+                    KAFKA_LISTENER,
+                    EntrypointType.MESSAGING_CONSUMER,
+                    MessagingBroker.KAFKA,
+                    firstNonEmptyAttribute(method, KAFKA_LISTENER, "topics", "topicPattern"),
+                    model);
             // Class-level @KafkaListener with @KafkaHandler on individual methods
             if (hasAnnotation(type, KAFKA_LISTENER) && hasAnnotation(method, KAFKA_HANDLER)) {
                 String topics = firstNonEmptyAttribute(type, KAFKA_LISTENER, "topics", "topicPattern");
-                addListenerEntrypoint(method, type, component, KAFKA_HANDLER,
-                        EntrypointType.MESSAGING_CONSUMER, MessagingBroker.KAFKA, topics, model);
+                addListenerEntrypoint(
+                        method,
+                        type,
+                        component,
+                        KAFKA_HANDLER,
+                        EntrypointType.MESSAGING_CONSUMER,
+                        MessagingBroker.KAFKA,
+                        topics,
+                        model);
             }
-            addListenerEntrypoint(method, type, component, RABBIT_LISTENER, EntrypointType.MESSAGING_CONSUMER,
-                    MessagingBroker.RABBITMQ, firstNonEmptyAttribute(method, RABBIT_LISTENER, "queues", "bindings"), model);
-            addListenerEntrypoint(method, type, component, JMS_LISTENER, EntrypointType.JMS_CONSUMER,
-                    MessagingBroker.JMS, annotationAttribute(method, JMS_LISTENER, "destination"), model);
+            addListenerEntrypoint(
+                    method,
+                    type,
+                    component,
+                    RABBIT_LISTENER,
+                    EntrypointType.MESSAGING_CONSUMER,
+                    MessagingBroker.RABBITMQ,
+                    firstNonEmptyAttribute(method, RABBIT_LISTENER, "queues", "bindings"),
+                    model);
+            addListenerEntrypoint(
+                    method,
+                    type,
+                    component,
+                    JMS_LISTENER,
+                    EntrypointType.JMS_CONSUMER,
+                    MessagingBroker.JMS,
+                    annotationAttribute(method, JMS_LISTENER, "destination"),
+                    model);
             if (isMainMethod(method) || isRunnerMethod(method, type)) {
                 addSimpleEntrypoint(method, type, component, EntrypointType.MAIN_METHOD, "startup", model);
             }
@@ -201,8 +230,7 @@ public class SpringExtractor {
     }
 
     private String restEndpointId(CtType<?> type, CtMethod<?> method, Mapping mapping, String fullPath) {
-        return "ep:" + type.getQualifiedName() + "#" + method.getSimpleName()
-                + ":" + mapping.method() + ":" + fullPath;
+        return "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + ":" + mapping.method() + ":" + fullPath;
     }
 
     private void addSimpleEntrypoint(
@@ -235,7 +263,8 @@ public class SpringExtractor {
         if (!hasAnnotation(method, annotation)) return;
         String resolved = config.resolve(channel);
         if (resolved == null || resolved.isBlank()) resolved = "(unresolved)";
-        String id = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + ":spring-listener:" + broker + ":" + resolved;
+        String id = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + ":spring-listener:" + broker + ":"
+                + resolved;
         if (model.entrypoints.stream().anyMatch(e -> e.id.equals(id))) return;
         Entrypoint ep = new Entrypoint();
         ep.id = id;
@@ -246,11 +275,22 @@ public class SpringExtractor {
         ep.componentId = component.id;
         ep.source = new SourceInfo(getFile(method), getLine(method), "annotation", 1.0);
         model.entrypoints.add(ep);
-        addMessagingInterface(method, component, entrypointType == EntrypointType.JMS_CONSUMER ? "jms_consumer" : "messaging_consumer", resolved, broker, model);
+        addMessagingInterface(
+                method,
+                component,
+                entrypointType == EntrypointType.JMS_CONSUMER ? "jms_consumer" : "messaging_consumer",
+                resolved,
+                broker,
+                model);
     }
 
     private void addMessagingInterface(
-            CtElement element, Component component, String type, String channel, MessagingBroker broker, ArchitectureModel model) {
+            CtElement element,
+            Component component,
+            String type,
+            String channel,
+            MessagingBroker broker,
+            ArchitectureModel model) {
         InterfaceEntry entry = addInterface(element, component, type, channel, channel, model);
         if (entry != null) {
             entry.broker = broker;
@@ -335,7 +375,8 @@ public class SpringExtractor {
     protected boolean hasAnnotation(CtElement element, Set<String> names) {
         Set<String> simpleNames = simpleNames(names);
         return element.getAnnotations().stream()
-                .anyMatch(annotation -> names.contains(annotation.getAnnotationType().getQualifiedName())
+                .anyMatch(annotation -> names.contains(
+                                annotation.getAnnotationType().getQualifiedName())
                         || simpleNames.contains(annotation.getAnnotationType().getSimpleName()));
     }
 
@@ -373,7 +414,8 @@ public class SpringExtractor {
                     Object raw = lit.getValue();
                     return raw == null ? "" : raw.toString();
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
         return value.toString().replace("\"", "");
     }
@@ -435,52 +477,70 @@ public class SpringExtractor {
         for (CtMethod<?> method : type.getMethods()) {
             Mapping mapping = mapping(method);
             if (mapping == null) continue;
-            addInterface(method, component, "rest_client_operation", mapping.method() + " " + mapping.path(), mapping.path(), model);
+            addInterface(
+                    method,
+                    component,
+                    "rest_client_operation",
+                    mapping.method() + " " + mapping.path(),
+                    mapping.path(),
+                    model);
         }
     }
 
     private void extractOutboundCallSites(CtType<?> type, Component component, ArchitectureModel model) {
-        type.getElements(element -> element instanceof CtInvocation<?>)
-                .forEach(element -> {
-                    CtInvocation<?> invocation = (CtInvocation<?>) element;
-                    addKafkaOutboundSinkSite(invocation, component, model);
-                    String executable = invocation.getExecutable() == null ? "" : invocation.getExecutable().getSimpleName();
-                    List<String> args = invocation.getArguments().stream()
-                            .map(arg -> config.resolve(stripQuotes(arg.toString())))
-                            .toList();
-                    if (args.isEmpty()) return;
-                    if (Set.of("getForObject", "postForObject", "exchange", "uri").contains(executable)
-                            && looksLikeUrl(args.getFirst())) {
-                        addInterface(invocation, component, "rest_client_operation", executable + " " + args.getFirst(), args.getFirst(), model);
-                    }
-                    if ("send".equals(executable)) {
-                        addProducerInterface(invocation, component, MessagingBroker.KAFKA, args.getFirst(), model);
-                    }
-                    if ("convertAndSend".equals(executable)) {
-                        MessagingBroker broker = args.getFirst().contains("jms") ? MessagingBroker.JMS : MessagingBroker.RABBITMQ;
-                        addProducerInterface(invocation, component, broker, args.getFirst(), model);
-                    }
-                });
+        type.getElements(element -> element instanceof CtInvocation<?>).forEach(element -> {
+            CtInvocation<?> invocation = (CtInvocation<?>) element;
+            addKafkaOutboundSinkSite(invocation, component, model);
+            String executable = invocation.getExecutable() == null
+                    ? ""
+                    : invocation.getExecutable().getSimpleName();
+            List<String> args = invocation.getArguments().stream()
+                    .map(arg -> config.resolve(stripQuotes(arg.toString())))
+                    .toList();
+            if (args.isEmpty()) return;
+            if (Set.of("getForObject", "postForObject", "exchange", "uri").contains(executable)
+                    && looksLikeUrl(args.getFirst())) {
+                addInterface(
+                        invocation,
+                        component,
+                        "rest_client_operation",
+                        executable + " " + args.getFirst(),
+                        args.getFirst(),
+                        model);
+            }
+            if ("send".equals(executable)) {
+                addProducerInterface(invocation, component, MessagingBroker.KAFKA, args.getFirst(), model);
+            }
+            if ("convertAndSend".equals(executable)) {
+                MessagingBroker broker =
+                        args.getFirst().contains("jms") ? MessagingBroker.JMS : MessagingBroker.RABBITMQ;
+                addProducerInterface(invocation, component, broker, args.getFirst(), model);
+            }
+        });
     }
 
     private void addKafkaOutboundSinkSite(CtInvocation<?> invocation, Component component, ArchitectureModel model) {
         if (invocation.getArguments().isEmpty()) return;
-        String executable = invocation.getExecutable() == null ? "" : invocation.getExecutable().getSimpleName();
+        String executable = invocation.getExecutable() == null
+                ? ""
+                : invocation.getExecutable().getSimpleName();
         if (!"send".equals(executable)) return;
         String declaringType = invocation.getExecutable().getDeclaringType() == null
                 ? ""
                 : invocation.getExecutable().getDeclaringType().getQualifiedName();
-        String targetType = invocation.getTarget() == null || invocation.getTarget().getType() == null
-                ? ""
-                : invocation.getTarget().getType().getQualifiedName();
+        String targetType =
+                invocation.getTarget() == null || invocation.getTarget().getType() == null
+                        ? ""
+                        : invocation.getTarget().getType().getQualifiedName();
         if (!declaringType.contains("KafkaTemplate") && !targetType.contains("KafkaTemplate")) return;
 
-        SpringConfigResolver.ResolvedValue topic = config.resolveWithKey(stripQuotes(invocation.getArguments().get(0).toString()));
+        SpringConfigResolver.ResolvedValue topic = config.resolveWithKey(
+                stripQuotes(invocation.getArguments().get(0).toString()));
         CtMethod<?> enclosingMethod = invocation.getParent(CtMethod.class);
         if (enclosingMethod == null) return;
         OutboundSinkSite site = new OutboundSinkSite();
-        site.id = "outbound:" + component.id + "#" + enclosingMethod.getSimpleName()
-                + ":spring-kafka:" + model.outboundSinkSites.size();
+        site.id = "outbound:" + component.id + "#" + enclosingMethod.getSimpleName() + ":spring-kafka:"
+                + model.outboundSinkSites.size();
         site.kind = DataFlowSink.Kind.MESSAGING;
         site.componentId = component.id;
         site.method = enclosingMethod.getSimpleName();
@@ -508,12 +568,17 @@ public class SpringExtractor {
 
     private String payloadType(CtInvocation<?> invocation) {
         if (invocation.getArguments().size() < 2) return null;
-        spoon.reflect.reference.CtTypeReference<?> type = invocation.getArguments().get(1).getType();
+        spoon.reflect.reference.CtTypeReference<?> type =
+                invocation.getArguments().get(1).getType();
         return type == null ? null : type.getQualifiedName();
     }
 
     private void addProducerInterface(
-            CtElement element, Component component, MessagingBroker broker, String destination, ArchitectureModel model) {
+            CtElement element,
+            Component component,
+            MessagingBroker broker,
+            String destination,
+            ArchitectureModel model) {
         InterfaceEntry entry = addInterface(element, component, "messaging_producer", destination, destination, model);
         if (entry != null) {
             entry.broker = broker;

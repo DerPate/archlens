@@ -378,8 +378,8 @@ class ArchitectureGraphTest {
         path.id = "df:ep:create#order";
         path.entrypointId = "ep:create";
         path.trackedParam = "order";
-        DataFlowSink sink = new DataFlowSink(
-                DataFlowSink.Kind.MESSAGING, "comp:KafkaProducer", "KafkaProducer", "send", null);
+        DataFlowSink sink =
+                new DataFlowSink(DataFlowSink.Kind.MESSAGING, "comp:KafkaProducer", "KafkaProducer", "send", null);
         sink.channel = "orders.created";
         sink.topic = "orders.created";
         sink.topicPropertyKey = "topics.orders.created";
@@ -721,8 +721,7 @@ class ArchitectureGraphTest {
         path.entrypointId = "ep:upload";
         path.trackedParam = "file";
 
-        DataFlowSink sink = new DataFlowSink(
-                DataFlowSink.Kind.FILE_OUTBOUND, null, null, "write", null);
+        DataFlowSink sink = new DataFlowSink(DataFlowSink.Kind.FILE_OUTBOUND, null, null, "write", null);
         sink.calleeQualifiedName = "java.nio.file.Files";
         path.sinks.add(sink);
         model.dataFlowPaths.add(path);

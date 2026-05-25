@@ -24,8 +24,8 @@ import spoon.reflect.code.CtExpression;
 import spoon.reflect.code.CtInvocation;
 import spoon.reflect.code.CtNewArray;
 import spoon.reflect.code.CtVariableRead;
-import spoon.reflect.declaration.CtField;
 import spoon.reflect.declaration.CtExecutable;
+import spoon.reflect.declaration.CtField;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtType;
 import spoon.reflect.declaration.CtVariable;
@@ -214,7 +214,11 @@ public class ObjectFlowIndexBuilder {
                     }
                 }
             }
-            span.setAttribute("concrete-types", types.values().stream().filter(t -> !t.abstractOrInterface()).count());
+            span.setAttribute(
+                    "concrete-types",
+                    types.values().stream()
+                            .filter(t -> !t.abstractOrInterface())
+                            .count());
             span.setAttribute("supertype-edges", supertypeEdges);
             span.setAttribute("implementation-groups", (long) implementations.size());
             span.setAttribute("implementation-links", implementationLinks);
@@ -239,7 +243,8 @@ public class ObjectFlowIndexBuilder {
             Map<CtInvocation<?>, List<ReceiverTarget>> targets = new IdentityHashMap<>();
             ReceiverResolutionStats stats = new ReceiverResolutionStats();
             List<CtInvocation<?>> invocations = ctModel.getElements(new TypeFilter<>(CtInvocation.class));
-            span.setAttribute("executable-bodies", (long) ctModel.getElements(new TypeFilter<>(CtExecutable.class)).size());
+            span.setAttribute("executable-bodies", (long)
+                    ctModel.getElements(new TypeFilter<>(CtExecutable.class)).size());
             span.setAttribute("invocations", (long) invocations.size());
             for (CtInvocation<?> invocation : invocations) {
                 ReceiverResolution resolved = resolveInvocation(invocation, projectTypes, typeIndex);
@@ -278,7 +283,8 @@ public class ObjectFlowIndexBuilder {
         }
 
         if (target instanceof CtInvocation<?> targetInvocation) {
-            List<ReceiverTarget> accessorTargets = resolveAccessorTarget(targetInvocation, projectTypes, methodName, typeIndex);
+            List<ReceiverTarget> accessorTargets =
+                    resolveAccessorTarget(targetInvocation, projectTypes, methodName, typeIndex);
             if (!accessorTargets.isEmpty()) {
                 return ReceiverResolution.of(accessorTargets, ReceiverResolutionPath.ACCESSOR);
             }
@@ -310,7 +316,8 @@ public class ObjectFlowIndexBuilder {
                 && variableRead.getVariable() != null
                 && variableRead.getVariable().getType() != null) {
             return ReceiverResolution.of(
-                    typeIndex.expandDeclaredType(elementOrDeclaredType(variableRead.getVariable().getType()), methodName),
+                    typeIndex.expandDeclaredType(
+                            elementOrDeclaredType(variableRead.getVariable().getType()), methodName),
                     ReceiverResolutionPath.DECLARED_VARIABLE);
         }
         return ReceiverResolution.unresolved();
@@ -371,24 +378,79 @@ public class ObjectFlowIndexBuilder {
     // name — producing spurious accessor fallback edges (Lombok-blindness false positives).
     private static final Set<String> GENERIC_JAVA_API_METHODS = Set.of(
             // java.util.Optional
-            "get", "orElse", "orElseGet", "orElseThrow", "isPresent", "isEmpty",
+            "get",
+            "orElse",
+            "orElseGet",
+            "orElseThrow",
+            "isPresent",
+            "isEmpty",
             // java.util.stream.Stream / Collectors
-            "stream", "findFirst", "findAny", "filter", "map", "flatMap",
-            "collect", "toList", "count", "sorted", "distinct", "limit", "skip",
-            "anyMatch", "allMatch", "noneMatch", "min", "max", "reduce", "forEach",
+            "stream",
+            "findFirst",
+            "findAny",
+            "filter",
+            "map",
+            "flatMap",
+            "collect",
+            "toList",
+            "count",
+            "sorted",
+            "distinct",
+            "limit",
+            "skip",
+            "anyMatch",
+            "allMatch",
+            "noneMatch",
+            "min",
+            "max",
+            "reduce",
+            "forEach",
             // java.util.Collection / List / Iterator
-            "size", "iterator", "listIterator", "first", "last", "peek", "poll",
+            "size",
+            "iterator",
+            "listIterator",
+            "first",
+            "last",
+            "peek",
+            "poll",
             // java.util.Map
-            "values", "keySet", "entrySet");
+            "values",
+            "keySet",
+            "entrySet");
 
     private static final Set<String> COLLECTION_STATE_ACCESS_METHODS = Set.of(
-            "put", "putAll", "putIfAbsent", "compute", "computeIfAbsent", "computeIfPresent",
-            "merge", "remove", "replace", "clear", "add", "addAll", "offer", "poll",
-            "get", "containsKey", "containsValue", "values", "keySet", "entrySet", "size",
-            "isEmpty", "contains", "iterator", "stream", "forEach");
+            "put",
+            "putAll",
+            "putIfAbsent",
+            "compute",
+            "computeIfAbsent",
+            "computeIfPresent",
+            "merge",
+            "remove",
+            "replace",
+            "clear",
+            "add",
+            "addAll",
+            "offer",
+            "poll",
+            "get",
+            "containsKey",
+            "containsValue",
+            "values",
+            "keySet",
+            "entrySet",
+            "size",
+            "isEmpty",
+            "contains",
+            "iterator",
+            "stream",
+            "forEach");
 
     private static List<ReceiverTarget> resolveAccessorTarget(
-            CtInvocation<?> targetInvocation, List<CtType<?>> projectTypes, String outerMethodName, ObjectFlowIndex typeIndex) {
+            CtInvocation<?> targetInvocation,
+            List<CtType<?>> projectTypes,
+            String outerMethodName,
+            ObjectFlowIndex typeIndex) {
         if (targetInvocation.getType() != null) {
             List<ReceiverTarget> declaredTargets =
                     typeIndex.expandDeclaredType(elementOrDeclaredType(targetInvocation.getType()), outerMethodName);
@@ -466,12 +528,7 @@ public class ObjectFlowIndexBuilder {
         if (qualifiedName == null || qualifiedName.isBlank()) {
             return List.of();
         }
-        return List.of(new ReceiverTarget(
-                "comp:" + qualifiedName,
-                methodName,
-                evidence,
-                evidence.confidence(),
-                false));
+        return List.of(new ReceiverTarget("comp:" + qualifiedName, methodName, evidence, evidence.confidence(), false));
     }
 
     private static String variableName(CtExpression<?> expression) {
@@ -521,9 +578,7 @@ public class ObjectFlowIndexBuilder {
         }
     }
 
-    private static List<String> supertypeClosure(
-            CtType<?> type,
-            Map<String, CtType<?>> projectTypeByQualifiedName) {
+    private static List<String> supertypeClosure(CtType<?> type, Map<String, CtType<?>> projectTypeByQualifiedName) {
         Set<String> closure = new LinkedHashSet<>();
         Set<String> visited = new LinkedHashSet<>();
         collectSupertype(type.getSuperclass(), type.getQualifiedName(), projectTypeByQualifiedName, closure, visited);
@@ -555,11 +610,7 @@ public class ObjectFlowIndexBuilder {
             return;
         }
         collectSupertype(
-                declaration.getSuperclass(),
-                concreteQualifiedName,
-                projectTypeByQualifiedName,
-                closure,
-                visited);
+                declaration.getSuperclass(), concreteQualifiedName, projectTypeByQualifiedName, closure, visited);
         for (CtTypeReference<?> superInterface : sortedTypeReferences(declaration.getSuperInterfaces())) {
             collectSupertype(superInterface, concreteQualifiedName, projectTypeByQualifiedName, closure, visited);
         }
@@ -567,7 +618,8 @@ public class ObjectFlowIndexBuilder {
 
     private static List<CtTypeReference<?>> sortedTypeReferences(Set<CtTypeReference<?>> typeReferences) {
         return typeReferences.stream()
-                .sorted(Comparator.comparing(CtTypeReference::getQualifiedName, Comparator.nullsLast(String::compareTo)))
+                .sorted(Comparator.comparing(
+                        CtTypeReference::getQualifiedName, Comparator.nullsLast(String::compareTo)))
                 .toList();
     }
 
@@ -631,7 +683,8 @@ public class ObjectFlowIndexBuilder {
             }
             resolvedInvocations++;
             receiverTargets += resolved.targets().size();
-            if (resolved.path() == ReceiverResolutionPath.FIELD || resolved.path() == ReceiverResolutionPath.ARRAY_FIELD) {
+            if (resolved.path() == ReceiverResolutionPath.FIELD
+                    || resolved.path() == ReceiverResolutionPath.ARRAY_FIELD) {
                 fieldTargets += resolved.targets().size();
             }
             for (ReceiverTarget target : resolved.targets()) {

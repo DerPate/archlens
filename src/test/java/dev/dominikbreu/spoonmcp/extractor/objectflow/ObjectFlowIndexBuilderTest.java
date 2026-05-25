@@ -57,7 +57,8 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
             SdkTracerProvider provider = SdkTracerProvider.builder()
                     .addSpanProcessor(SimpleSpanProcessor.create(new StdoutSpanExporter()))
                     .build();
-            GlobalOpenTelemetry.set(OpenTelemetrySdk.builder().setTracerProvider(provider).build());
+            GlobalOpenTelemetry.set(
+                    OpenTelemetrySdk.builder().setTracerProvider(provider).build());
 
             new ObjectFlowIndexBuilder().build(ctModel, architecture);
 
@@ -87,25 +88,23 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
     void resolvesFieldReceiverToAllocatedComponent() {
         List<ReceiverTarget> targets = index.resolveReceiver(invocation("fieldGame.run"));
 
-        assertThat(targets)
-                .anySatisfy(target -> {
-                    assertThat(target.componentId()).isEqualTo("comp:com.example.objectflow.GameService");
-                    assertThat(target.methodName()).isEqualTo("run");
-                    assertThat(target.evidence()).isEqualTo(ObjectFlowEvidence.CONSTRUCTOR_ASSIGNMENT);
-                    assertThat(target.confidence()).isEqualTo(0.90);
-                });
+        assertThat(targets).anySatisfy(target -> {
+            assertThat(target.componentId()).isEqualTo("comp:com.example.objectflow.GameService");
+            assertThat(target.methodName()).isEqualTo("run");
+            assertThat(target.evidence()).isEqualTo(ObjectFlowEvidence.CONSTRUCTOR_ASSIGNMENT);
+            assertThat(target.confidence()).isEqualTo(0.90);
+        });
     }
 
     @Test
     void resolvesLocalReceiverToAllocatedComponent() {
         List<ReceiverTarget> targets = index.resolveReceiver(invocation("localGame.printStats"));
 
-        assertThat(targets)
-                .anySatisfy(target -> {
-                    assertThat(target.componentId()).isEqualTo("comp:com.example.objectflow.GameService");
-                    assertThat(target.methodName()).isEqualTo("printStats");
-                    assertThat(target.evidence()).isEqualTo(ObjectFlowEvidence.LOCAL_ASSIGNMENT);
-                });
+        assertThat(targets).anySatisfy(target -> {
+            assertThat(target.componentId()).isEqualTo("comp:com.example.objectflow.GameService");
+            assertThat(target.methodName()).isEqualTo("printStats");
+            assertThat(target.evidence()).isEqualTo(ObjectFlowEvidence.LOCAL_ASSIGNMENT);
+        });
     }
 
     @Test
@@ -121,13 +120,12 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
     void resolvesAccessorChainToStateStoreMapAccess() {
         List<ReceiverTarget> targets = index.resolveReceiver(invocation("provider.store().cache().put"));
 
-        assertThat(targets)
-                .anySatisfy(target -> {
-                    assertThat(target.componentId()).isEqualTo("comp:com.example.objectflow.StateStore");
-                    assertThat(target.methodName()).isEqualTo("put");
-                    assertThat(target.evidence()).isEqualTo(ObjectFlowEvidence.ACCESSOR_STATE_OWNER);
-                    assertThat(target.confidence()).isEqualTo(0.60);
-                });
+        assertThat(targets).anySatisfy(target -> {
+            assertThat(target.componentId()).isEqualTo("comp:com.example.objectflow.StateStore");
+            assertThat(target.methodName()).isEqualTo("put");
+            assertThat(target.evidence()).isEqualTo(ObjectFlowEvidence.ACCESSOR_STATE_OWNER);
+            assertThat(target.confidence()).isEqualTo(0.60);
+        });
     }
 
     @Test
@@ -152,8 +150,7 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
         ArchitectureModel architecture = new ArchitectureModel("test");
         architecture.components.add(component("com.example.constructor.AccountController"));
         architecture.components.add(component("com.example.constructor.AccountService"));
-        SourceFactIndex facts = new SourceFactIndexBuilder()
-                .build(constructorModel, "constructor-injection-sample", 1);
+        SourceFactIndex facts = new SourceFactIndexBuilder().build(constructorModel, "constructor-injection-sample", 1);
 
         ObjectFlowIndex factBacked = new ObjectFlowIndexBuilder().build(constructorModel, architecture, facts);
 
@@ -164,8 +161,7 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
 
     @Test
     void capsPolymorphicExpansionAtTwentyFiveTargets() {
-        List<ReceiverTarget> targets =
-                index.expandDeclaredType("com.example.objectflow.TooManyHandler", "handle");
+        List<ReceiverTarget> targets = index.expandDeclaredType("com.example.objectflow.TooManyHandler", "handle");
 
         assertThat(targets)
                 .hasSize(ObjectFlowIndex.DEFAULT_POLYMORPHIC_TARGET_CAP)
@@ -174,8 +170,7 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
                 .anySatisfy(diagnostic -> assertThat(diagnostic)
                         .contains(
                                 "TooManyHandler",
-                                "polymorphic expansion capped at "
-                                        + ObjectFlowIndex.DEFAULT_POLYMORPHIC_TARGET_CAP));
+                                "polymorphic expansion capped at " + ObjectFlowIndex.DEFAULT_POLYMORPHIC_TARGET_CAP));
     }
 
     @Test
@@ -184,15 +179,13 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
         launcher.getEnvironment().setNoClasspath(true);
         launcher.getEnvironment().setComplianceLevel(21);
         launcher.getEnvironment().setShouldCompile(false);
-        launcher.addInputResource(new VirtualFile(
-                """
+        launcher.addInputResource(new VirtualFile("""
                 package example;
                 interface Root {}
                 interface Middle extends Root {}
                 abstract class Base implements Middle {}
                 class Concrete extends Base {}
-                """,
-                "ClosureFixture.java"));
+                """, "ClosureFixture.java"));
         launcher.buildModel();
 
         ArchitectureModel architecture = new ArchitectureModel("test");
@@ -221,20 +214,18 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
     void returnsDeclaredInterfaceOnlyEvidenceForKnownInterfaceWithoutImplementations() {
         ObjectFlowIndex.TypeFact interfaceType =
                 new ObjectFlowIndex.TypeFact("example.Interface", "comp:example.Interface", true);
-        ObjectFlowIndex emptyImplementationIndex = new ObjectFlowIndex(
-                Map.of(interfaceType.qualifiedName(), interfaceType),
-                Map.of());
+        ObjectFlowIndex emptyImplementationIndex =
+                new ObjectFlowIndex(Map.of(interfaceType.qualifiedName(), interfaceType), Map.of());
 
-        List<ReceiverTarget> targets = emptyImplementationIndex.expandDeclaredType(interfaceType.qualifiedName(), "run");
+        List<ReceiverTarget> targets =
+                emptyImplementationIndex.expandDeclaredType(interfaceType.qualifiedName(), "run");
 
-        assertThat(targets)
-                .singleElement()
-                .satisfies(target -> {
-                    assertThat(target.componentId()).isEqualTo(interfaceType.componentId());
-                    assertThat(target.methodName()).isEqualTo("run");
-                    assertThat(target.evidence()).isEqualTo(ObjectFlowEvidence.DECLARED_INTERFACE_ONLY);
-                    assertThat(target.confidence()).isEqualTo(ObjectFlowEvidence.DECLARED_INTERFACE_ONLY.confidence());
-                });
+        assertThat(targets).singleElement().satisfies(target -> {
+            assertThat(target.componentId()).isEqualTo(interfaceType.componentId());
+            assertThat(target.methodName()).isEqualTo("run");
+            assertThat(target.evidence()).isEqualTo(ObjectFlowEvidence.DECLARED_INTERFACE_ONLY);
+            assertThat(target.confidence()).isEqualTo(ObjectFlowEvidence.DECLARED_INTERFACE_ONLY.confidence());
+        });
     }
 
     @Test
@@ -243,16 +234,14 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
         launcher.getEnvironment().setNoClasspath(true);
         launcher.getEnvironment().setComplianceLevel(21);
         launcher.getEnvironment().setShouldCompile(false);
-        launcher.addInputResource(new VirtualFile(
-                """
+        launcher.addInputResource(new VirtualFile("""
                 package example;
                 class UsesMissingReceiver {
                     void test() {
                         missingReceiver.run();
                     }
                 }
-                """,
-                "UsesMissingReceiver.java"));
+                """, "UsesMissingReceiver.java"));
         launcher.buildModel();
 
         ArchitectureModel architecture = new ArchitectureModel("test");
@@ -266,8 +255,7 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
     void includesDeclaredConcreteTypeWhenImplementationsExist() {
         ObjectFlowIndex.TypeFact baseType =
                 new ObjectFlowIndex.TypeFact("example.ConcreteBase", "comp:example.ConcreteBase", false);
-        ObjectFlowIndex.TypeFact childType =
-                new ObjectFlowIndex.TypeFact("example.Child", "comp:example.Child", false);
+        ObjectFlowIndex.TypeFact childType = new ObjectFlowIndex.TypeFact("example.Child", "comp:example.Child", false);
         ObjectFlowIndex concreteBaseIndex = new ObjectFlowIndex(
                 Map.of(baseType.qualifiedName(), baseType, childType.qualifiedName(), childType),
                 Map.of(baseType.qualifiedName(), List.of(childType)));
@@ -281,7 +269,8 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
                             assertThat(target.componentId()).isEqualTo(baseType.componentId());
                             assertThat(target.methodName()).isEqualTo("run");
                             assertThat(target.evidence()).isEqualTo(ObjectFlowEvidence.DECLARED_FIELD_TYPE);
-                            assertThat(target.confidence()).isEqualTo(ObjectFlowEvidence.DECLARED_FIELD_TYPE.confidence());
+                            assertThat(target.confidence())
+                                    .isEqualTo(ObjectFlowEvidence.DECLARED_FIELD_TYPE.confidence());
                             assertThat(target.expansionCapped()).isFalse();
                         },
                         target -> {
@@ -297,9 +286,7 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
 
         assertThat(targets)
                 .extracting(ReceiverTarget::componentId)
-                .contains(
-                        "comp:com.example.objectflow.RandomPlayer",
-                        "comp:com.example.objectflow.SimplePlayer");
+                .contains("comp:com.example.objectflow.RandomPlayer", "comp:com.example.objectflow.SimplePlayer");
         assertThat(targets)
                 .allSatisfy(target ->
                         assertThat(target.evidence()).isEqualTo(ObjectFlowEvidence.COLLECTION_ELEMENT_ALLOCATION));
@@ -309,14 +296,10 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
     void doesNotDuplicatePolymorphicCapDiagnostics() {
         String declaredType = "example.ManyHandlers";
         List<ObjectFlowIndex.TypeFact> implementations = IntStream.range(0, 26)
-                .mapToObj(index -> new ObjectFlowIndex.TypeFact(
-                        "example.Handler" + index,
-                        "comp:example.Handler" + index,
-                        false))
+                .mapToObj(index ->
+                        new ObjectFlowIndex.TypeFact("example.Handler" + index, "comp:example.Handler" + index, false))
                 .toList();
-        ObjectFlowIndex manyImplementationIndex = new ObjectFlowIndex(
-                Map.of(),
-                Map.of(declaredType, implementations));
+        ObjectFlowIndex manyImplementationIndex = new ObjectFlowIndex(Map.of(), Map.of(declaredType, implementations));
 
         manyImplementationIndex.expandDeclaredType(declaredType, "handle");
         manyImplementationIndex.expandDeclaredType(declaredType, "handle");
@@ -338,8 +321,7 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
         launcher.getEnvironment().setNoClasspath(true);
         launcher.getEnvironment().setComplianceLevel(21);
         launcher.getEnvironment().setShouldCompile(false);
-        launcher.addInputResource(new VirtualFile(
-                """
+        launcher.addInputResource(new VirtualFile("""
                 package example;
                 class Caller {
                     void test(java.util.Optional<Worker> opt) {
@@ -348,8 +330,7 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
                 }
                 class Worker { void doWork() {} }
                 class Other { void get() {} }
-                """,
-                "GenericApiFixture.java"));
+                """, "GenericApiFixture.java"));
         launcher.buildModel();
 
         ArchitectureModel architecture = new ArchitectureModel("test");
@@ -359,8 +340,7 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
 
         ObjectFlowIndex idx = new ObjectFlowIndexBuilder().build(launcher.getModel(), architecture);
 
-        CtInvocation<?> doWorkCall = launcher.getModel()
-                .getElements(new TypeFilter<>(CtInvocation.class)).stream()
+        CtInvocation<?> doWorkCall = launcher.getModel().getElements(new TypeFilter<>(CtInvocation.class)).stream()
                 .filter(inv -> "doWork".equals(inv.getExecutable().getSimpleName()))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("no doWork invocation found"));

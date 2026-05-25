@@ -22,8 +22,7 @@ final class ObjectFlowMethodAnalyzer {
             return List.of();
         }
         for (CtVariable<?> variable : executable.getElements(new TypeFilter<>(CtVariable.class))) {
-            if (!(variable instanceof CtLocalVariable<?> local)
-                    || !variableName.equals(local.getSimpleName())) {
+            if (!(variable instanceof CtLocalVariable<?> local) || !variableName.equals(local.getSimpleName())) {
                 continue;
             }
             // Case 1: Direct constructor call → LOCAL_ASSIGNMENT
@@ -53,8 +52,7 @@ final class ObjectFlowMethodAnalyzer {
         return List.of();
     }
 
-    private static List<ReceiverTarget> collectionElementTargets(
-            List<CtExpression<?>> arguments, String methodName) {
+    private static List<ReceiverTarget> collectionElementTargets(List<CtExpression<?>> arguments, String methodName) {
         List<ReceiverTarget> targets = new ArrayList<>();
         for (CtExpression<?> arg : arguments) {
             String type = allocatedType(arg);
@@ -77,7 +75,6 @@ final class ObjectFlowMethodAnalyzer {
         if (qualifiedName == null || qualifiedName.isBlank()) {
             return List.of();
         }
-        return List.of(new ReceiverTarget(
-                "comp:" + qualifiedName, methodName, evidence, evidence.confidence(), false));
+        return List.of(new ReceiverTarget("comp:" + qualifiedName, methodName, evidence, evidence.confidence(), false));
     }
 }

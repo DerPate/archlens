@@ -30,7 +30,8 @@ class SourceFactTracingTest extends ExtractorTestBase {
             SdkTracerProvider provider = SdkTracerProvider.builder()
                     .addSpanProcessor(SimpleSpanProcessor.create(new StdoutSpanExporter()))
                     .build();
-            GlobalOpenTelemetry.set(OpenTelemetrySdk.builder().setTracerProvider(provider).build());
+            GlobalOpenTelemetry.set(
+                    OpenTelemetrySdk.builder().setTracerProvider(provider).build());
 
             new SourceFactIndexBuilder().build(scan("quarkus-sample"), "quarkus-sample", 1);
 

@@ -47,7 +47,8 @@ class ModelCacheGraphBackendTest {
         assertThat(reloaded.graph().findNodes("Component", "SecondService", Map.of(), 10))
                 .extracting(ArchitectureGraph.GraphNode::id)
                 .containsExactly("comp:SecondService");
-        assertThat(reloaded.graph().findNodes("Component", "FirstService", Map.of(), 10)).isEmpty();
+        assertThat(reloaded.graph().findNodes("Component", "FirstService", Map.of(), 10))
+                .isEmpty();
     }
 
     @Test
@@ -58,7 +59,8 @@ class ModelCacheGraphBackendTest {
         cache.clearActive();
 
         assertThat(cache.load()).isNull();
-        assertThat(new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON).load()).isNull();
+        assertThat(new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON).load())
+                .isNull();
         assertThat(Files.walk(tempDir.resolve("workspaces"))
                         .filter(path -> path.getFileName().toString().equals("architecture-model.json")))
                 .hasSize(1);

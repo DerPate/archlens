@@ -32,6 +32,10 @@ public class SpringConfigResolver {
         return new Config(values);
     }
 
+    public Config emptyConfig() {
+        return new Config(Map.of());
+    }
+
     public record ResolvedValue(String value, String propertyKey, boolean wasResolved) {}
 
     public static final class Config {

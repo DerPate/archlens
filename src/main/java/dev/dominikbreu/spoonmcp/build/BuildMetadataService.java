@@ -9,9 +9,7 @@ public class BuildMetadataService {
 
     public BuildMetadataService() {
         this(List.of(
-                new GradleBuildProjectDetector(),
-                new MavenBuildProjectDetector(),
-                new UnknownBuildProjectDetector()));
+                new GradleBuildProjectDetector(), new MavenBuildProjectDetector(), new UnknownBuildProjectDetector()));
     }
 
     public BuildMetadataService(List<BuildProjectDetector> detectors) {

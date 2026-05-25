@@ -1,20 +1,18 @@
 package dev.dominikbreu.spoonmcp.tracing;
 
-import io.opentelemetry.api.common.AttributeKey;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class StdoutSpanExporterTest {
 
@@ -31,10 +29,7 @@ class StdoutSpanExporterTest {
         SdkTracerProvider provider = SdkTracerProvider.builder()
                 .addSpanProcessor(SimpleSpanProcessor.create(new StdoutSpanExporter()))
                 .build();
-        tracer = OpenTelemetrySdk.builder()
-                .setTracerProvider(provider)
-                .build()
-                .getTracer("test");
+        tracer = OpenTelemetrySdk.builder().setTracerProvider(provider).build().getTracer("test");
     }
 
     @AfterEach

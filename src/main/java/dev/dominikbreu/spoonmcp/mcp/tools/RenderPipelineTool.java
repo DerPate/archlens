@@ -2,9 +2,9 @@ package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder;
-import dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Chain;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Segment;
+import dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
@@ -193,7 +193,10 @@ public class RenderPipelineTool {
                 if (sink.kind == DataFlowSink.Kind.MESSAGING || sink.kind == DataFlowSink.Kind.EVENT_BUS) {
                     messagingSinks++;
                     String destination = sink.topic != null ? sink.topic : sink.channel;
-                    if (destination == null || destination.isBlank() || destination.contains("${") || "(unresolved)".equals(destination)) {
+                    if (destination == null
+                            || destination.isBlank()
+                            || destination.contains("${")
+                            || "(unresolved)".equals(destination)) {
                         unresolvedMessaging++;
                     }
                 }
@@ -225,6 +228,9 @@ public class RenderPipelineTool {
 
     private boolean isReadOperation(String method) {
         if (method == null) return false;
-        return method.startsWith("find") || method.startsWith("get") || method.startsWith("read") || method.startsWith("exists");
+        return method.startsWith("find")
+                || method.startsWith("get")
+                || method.startsWith("read")
+                || method.startsWith("exists");
     }
 }

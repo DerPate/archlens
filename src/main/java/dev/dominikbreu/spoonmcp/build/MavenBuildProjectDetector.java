@@ -12,6 +12,7 @@ import java.util.Set;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
+import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 
 public class MavenBuildProjectDetector implements BuildProjectDetector {
 
@@ -79,10 +80,9 @@ public class MavenBuildProjectDetector implements BuildProjectDetector {
     private Optional<Model> readModel(File root) {
         File pom = new File(root, "pom.xml");
         if (!pom.isFile()) return Optional.empty();
-        try (InputStreamReader reader =
-                new InputStreamReader(new FileInputStream(pom), StandardCharsets.UTF_8)) {
+        try (InputStreamReader reader = new InputStreamReader(new FileInputStream(pom), StandardCharsets.UTF_8)) {
             return Optional.of(new MavenXpp3Reader().read(reader));
-        } catch (Exception ignored) {
+        } catch (java.io.IOException | XmlPullParserException ignored) {
             return Optional.empty();
         }
     }

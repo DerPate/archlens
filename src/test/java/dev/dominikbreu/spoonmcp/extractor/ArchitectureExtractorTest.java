@@ -61,8 +61,8 @@ class ArchitectureExtractorTest extends ExtractorTestBase {
                         && "spring-boot".equals(app.technology)
                         && "boot-jar".equals(app.packagingType));
         assertThat(model.components)
-                .anyMatch(component -> "OrderController".equals(component.name)
-                        && "spring".equals(component.technology));
+                .anyMatch(
+                        component -> "OrderController".equals(component.name) && "spring".equals(component.technology));
         assertThat(model.entrypoints)
                 .anyMatch(entrypoint -> entrypoint.type == EntrypointType.REST_ENDPOINT
                         && "GET".equals(entrypoint.httpMethod)
@@ -71,7 +71,8 @@ class ArchitectureExtractorTest extends ExtractorTestBase {
 
     @Test
     void extractsGradleMultiModuleSpringProject() {
-        ArchitectureModel model = new ArchitectureExtractor().extract(List.of(projectPath("gradle-multimodule-springboot-sample")));
+        ArchitectureModel model =
+                new ArchitectureExtractor().extract(List.of(projectPath("gradle-multimodule-springboot-sample")));
 
         assertThat(model.applications).extracting(app -> app.name).contains("api", "service");
         assertThat(model.components).anyMatch(component -> "MultiController".equals(component.name));
@@ -83,11 +84,9 @@ class ArchitectureExtractorTest extends ExtractorTestBase {
         ArchitectureModel model = new ArchitectureExtractor().extract(List.of(projectPath("gradle-springboot-sample")));
 
         assertThat(model.dependencies)
-                .anyMatch(d -> d.fromId.contains("OrderController")
-                        && d.toId.contains("OrderService"));
+                .anyMatch(d -> d.fromId.contains("OrderController") && d.toId.contains("OrderService"));
         assertThat(model.dependencies)
-                .anyMatch(d -> d.fromId.contains("OrderService")
-                        && d.toId.contains("OrderRepository"));
+                .anyMatch(d -> d.fromId.contains("OrderService") && d.toId.contains("OrderRepository"));
         assertThat(model.runtimeFlows)
                 .anyMatch(flow -> flow.entrypointId.contains("OrderController#get")
                         && flow.steps.stream().anyMatch(step -> "OrderService".equals(step.componentName))

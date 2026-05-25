@@ -3,9 +3,9 @@ package dev.dominikbreu.spoonmcp.extractor;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.MessagingBroker;
 import java.util.List;
 import java.util.Map;
-import dev.dominikbreu.spoonmcp.model.MessagingBroker;
 import org.junit.jupiter.api.Test;
 
 class DataFlowTracerTest {
@@ -119,21 +119,13 @@ class DataFlowTracerTest {
                 "checkOverlapAndSave",
                 Map.of("personAbsenceClientModel", "personAbsenceClientModel"));
 
-        CallEdge trackedAccessor = callEdge(
-                "comp:AbsenceService",
-                "checkOverlapAndSave",
-                "comp:PersonAbsence",
-                "getToDate",
-                Map.of());
+        CallEdge trackedAccessor =
+                callEdge("comp:AbsenceService", "checkOverlapAndSave", "comp:PersonAbsence", "getToDate", Map.of());
         trackedAccessor.receiverLocalName = "personAbsenceClientModel";
         model.callEdges.add(trackedAccessor);
 
-        CallEdge loopEntityAccessor = callEdge(
-                "comp:AbsenceService",
-                "checkOverlapAndSave",
-                "comp:PersonAbsence",
-                "getFromDate",
-                Map.of());
+        CallEdge loopEntityAccessor =
+                callEdge("comp:AbsenceService", "checkOverlapAndSave", "comp:PersonAbsence", "getFromDate", Map.of());
         loopEntityAccessor.receiverLocalName = "pa";
         model.callEdges.add(loopEntityAccessor);
 
@@ -144,7 +136,8 @@ class DataFlowTracerTest {
                 "comp:AbsenceRepository",
                 "save",
                 Map.of("personAbsenceClientModel", "entity"));
-        addCallEdge(model, "comp:PersonAbsence", "getFromDate", "comp:AbsenceRepository", "delete", Map.of("pa", "entity"));
+        addCallEdge(
+                model, "comp:PersonAbsence", "getFromDate", "comp:AbsenceRepository", "delete", Map.of("pa", "entity"));
 
         List<DataFlowPath> paths = tracer.trace(model);
 
@@ -914,13 +907,10 @@ class DataFlowTracerTest {
                 .flatMap(p -> p.sinks.stream())
                 .filter(s -> s.kind == DataFlowSink.Kind.STORE && "stateMap".equals(s.fieldName))
                 .toList();
-        assertThat(storeSinks)
-                .as("consumer must produce a stateMap STORE sink")
-                .isNotEmpty();
-        storeSinks.forEach(storeSink ->
-                assertThat(storeSink.linkedPathIds)
-                        .as("STORE sink must not link to scheduler that only reaches 'stateMap' via messaging boundary")
-                        .noneMatch(id -> id.contains("ep:scheduler")));
+        assertThat(storeSinks).as("consumer must produce a stateMap STORE sink").isNotEmpty();
+        storeSinks.forEach(storeSink -> assertThat(storeSink.linkedPathIds)
+                .as("STORE sink must not link to scheduler that only reaches 'stateMap' via messaging boundary")
+                .noneMatch(id -> id.contains("ep:scheduler")));
     }
 
     @Test
@@ -1092,11 +1082,7 @@ class DataFlowTracerTest {
     }
 
     private static CallEdge callEdge(
-            String fromComp,
-            String fromMethod,
-            String toComp,
-            String toMethod,
-            Map<String, String> paramMapping) {
+            String fromComp, String fromMethod, String toComp, String toMethod, Map<String, String> paramMapping) {
         CallEdge e = new CallEdge();
         e.id = "call:" + fromComp + "#" + fromMethod + "->" + toComp + "#" + toMethod;
         e.fromComponentId = fromComp;

@@ -22,7 +22,8 @@ class IndexWorkspaceToolTest {
 
         IndexWorkspaceTool tool = new IndexWorkspaceTool(new FailingExtractor(), cache);
 
-        String result = tool.execute(Map.of("paths", List.of(tempDir.resolve("next").toString())));
+        String result =
+                tool.execute(Map.of("paths", List.of(tempDir.resolve("next").toString())));
 
         assertThat(result).contains("Error indexing workspace: boom");
         assertThat(cache.load()).isNull();

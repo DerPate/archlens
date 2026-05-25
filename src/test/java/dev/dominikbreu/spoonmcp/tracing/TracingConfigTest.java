@@ -1,15 +1,14 @@
 package dev.dominikbreu.spoonmcp.tracing;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Test;
-
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 class TracingConfigTest {
 

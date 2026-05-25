@@ -1,11 +1,10 @@
 package dev.dominikbreu.spoonmcp.tracing;
 
+import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import io.opentelemetry.sdk.trace.data.StatusData;
-import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
-
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
@@ -30,8 +29,7 @@ public class StdoutSpanExporter implements SpanExporter {
     }
 
     static String format(SpanData span) {
-        long durationMs = TimeUnit.NANOSECONDS.toMillis(
-                span.getEndEpochNanos() - span.getStartEpochNanos());
+        long durationMs = TimeUnit.NANOSECONDS.toMillis(span.getEndEpochNanos() - span.getStartEpochNanos());
 
         boolean isRoot = !span.getParentSpanContext().isValid();
 
@@ -42,8 +40,9 @@ public class StdoutSpanExporter implements SpanExporter {
             sb.append("  traceId=").append(span.getTraceId());
         }
 
-        span.getAttributes().forEach((key, value) ->
-                sb.append("  ").append(key.getKey()).append("=").append(value));
+        span.getAttributes()
+                .forEach((key, value) ->
+                        sb.append("  ").append(key.getKey()).append("=").append(value));
 
         StatusData status = span.getStatus();
         if (status.getStatusCode() == StatusCode.ERROR) {

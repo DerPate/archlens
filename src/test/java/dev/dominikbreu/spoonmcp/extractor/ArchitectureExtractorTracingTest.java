@@ -30,7 +30,8 @@ class ArchitectureExtractorTracingTest extends ExtractorTestBase {
             SdkTracerProvider provider = SdkTracerProvider.builder()
                     .addSpanProcessor(SimpleSpanProcessor.create(new StdoutSpanExporter()))
                     .build();
-            GlobalOpenTelemetry.set(OpenTelemetrySdk.builder().setTracerProvider(provider).build());
+            GlobalOpenTelemetry.set(
+                    OpenTelemetrySdk.builder().setTracerProvider(provider).build());
 
             new ArchitectureExtractor().extract(List.of(projectPath("plain-java-sample")));
 

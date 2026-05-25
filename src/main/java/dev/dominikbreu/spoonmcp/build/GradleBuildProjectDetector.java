@@ -22,7 +22,8 @@ public class GradleBuildProjectDetector implements BuildProjectDetector {
         boolean kotlin = new File(root, "settings.gradle.kts").isFile() || new File(root, "build.gradle.kts").isFile();
         if (!groovy && !kotlin) return Optional.empty();
 
-        BuildSystem system = groovy && kotlin ? BuildSystem.MIXED : kotlin ? BuildSystem.GRADLE_KOTLIN : BuildSystem.GRADLE_GROOVY;
+        BuildSystem system =
+                groovy && kotlin ? BuildSystem.MIXED : kotlin ? BuildSystem.GRADLE_KOTLIN : BuildSystem.GRADLE_GROOVY;
         List<String> includes = readIncludes(root);
         List<BuildModule> modules = new ArrayList<>();
         if (includes.isEmpty()) {

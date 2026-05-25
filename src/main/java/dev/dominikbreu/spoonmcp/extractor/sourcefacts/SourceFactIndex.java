@@ -121,7 +121,8 @@ public final class SourceFactIndex {
     private static <T> Map<String, List<T>> groupBy(List<T> values, Function<T, String> keyFn) {
         Map<String, List<T>> grouped = new LinkedHashMap<>();
         for (T value : values) {
-            grouped.computeIfAbsent(keyFn.apply(value), ignored -> new ArrayList<>()).add(value);
+            grouped.computeIfAbsent(keyFn.apply(value), ignored -> new ArrayList<>())
+                    .add(value);
         }
         return copyMap(grouped);
     }

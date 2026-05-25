@@ -189,8 +189,10 @@ class RuntimeFlowInferrerTest {
     void extractMethodFromRef_parsesUppercaseMethod() {
         assertThat(RuntimeFlowInferrer.extractMethodFromRef("GET /account")).isEqualTo("GET");
         assertThat(RuntimeFlowInferrer.extractMethodFromRef("POST /account")).isEqualTo("POST");
-        assertThat(RuntimeFlowInferrer.extractMethodFromRef("DELETE /account/{id}")).isEqualTo("DELETE");
-        assertThat(RuntimeFlowInferrer.extractMethodFromRef("PATCH /customer/{id}/address/{aid}")).isEqualTo("PATCH");
+        assertThat(RuntimeFlowInferrer.extractMethodFromRef("DELETE /account/{id}"))
+                .isEqualTo("DELETE");
+        assertThat(RuntimeFlowInferrer.extractMethodFromRef("PATCH /customer/{id}/address/{aid}"))
+                .isEqualTo("PATCH");
     }
 
     @Test
@@ -209,7 +211,8 @@ class RuntimeFlowInferrerTest {
     @Test
     void extractPathFromRef_stripsMethodPrefix() {
         assertThat(RuntimeFlowInferrer.extractPathFromRef("GET /account")).isEqualTo("/account");
-        assertThat(RuntimeFlowInferrer.extractPathFromRef("POST /customer/{id}")).isEqualTo("/customer/{id}");
+        assertThat(RuntimeFlowInferrer.extractPathFromRef("POST /customer/{id}"))
+                .isEqualTo("/customer/{id}");
     }
 
     @Test
@@ -226,11 +229,11 @@ class RuntimeFlowInferrerTest {
         Component ctrl = comp("AccountController", ComponentType.REST_RESOURCE);
         m.components.add(ctrl);
         Entrypoint post = ep("ep:AccountController#add:POST", "add", ctrl.id, "POST", "/account");
-        Entrypoint get  = ep("ep:AccountController#getAll:GET", "getAll", ctrl.id, "GET", "/account");
+        Entrypoint get = ep("ep:AccountController#getAll:GET", "getAll", ctrl.id, "GET", "/account");
         m.entrypoints.add(post); // POST registered first
         m.entrypoints.add(get);
 
-        assertThat(inferrer.findEntrypoint("GET /account",  m).id).isEqualTo("ep:AccountController#getAll:GET");
+        assertThat(inferrer.findEntrypoint("GET /account", m).id).isEqualTo("ep:AccountController#getAll:GET");
         assertThat(inferrer.findEntrypoint("POST /account", m).id).isEqualTo("ep:AccountController#add:POST");
     }
 
@@ -241,7 +244,7 @@ class RuntimeFlowInferrerTest {
         Component ctrl = comp("AccountController", ComponentType.REST_RESOURCE);
         m.components.add(ctrl);
         Entrypoint post = ep("ep:AccountController#add:POST", "add", ctrl.id, "POST", "/account");
-        Entrypoint get  = ep("ep:AccountController#getAll:GET", "getAll", ctrl.id, "GET", "/account");
+        Entrypoint get = ep("ep:AccountController#getAll:GET", "getAll", ctrl.id, "GET", "/account");
         m.entrypoints.add(post);
         m.entrypoints.add(get);
 
@@ -298,8 +301,10 @@ class RuntimeFlowInferrerTest {
     void doesNotMatchSubPathWhenRefIsParameterized() {
         // /absence/{id} must NOT match /absence/{id}/cancel — ref already contains a
         // path variable so only an exact match is valid.
-        assertThat(RuntimeFlowInferrer.pathPrefixMatches("/absence/{id}/cancel", "/absence/{id}")).isFalse();
-        assertThat(RuntimeFlowInferrer.pathPrefixMatches("/absence/{id}", "/absence/{id}")).isTrue();
+        assertThat(RuntimeFlowInferrer.pathPrefixMatches("/absence/{id}/cancel", "/absence/{id}"))
+                .isFalse();
+        assertThat(RuntimeFlowInferrer.pathPrefixMatches("/absence/{id}", "/absence/{id}"))
+                .isTrue();
     }
 
     @Test
@@ -309,12 +314,13 @@ class RuntimeFlowInferrerTest {
         // the latter starts with the former.  Multiple {id} segments must all be
         // considered "specific" and trigger exact-only matching.
         assertThat(RuntimeFlowInferrer.pathPrefixMatches(
-                "/customer/{customerId}/address/{addressId}/update",
-                "/customer/{customerId}/address/{addressId}")).isFalse();
+                        "/customer/{customerId}/address/{addressId}/update",
+                        "/customer/{customerId}/address/{addressId}"))
+                .isFalse();
         // …and the exact path must still match itself.
         assertThat(RuntimeFlowInferrer.pathPrefixMatches(
-                "/customer/{customerId}/address/{addressId}",
-                "/customer/{customerId}/address/{addressId}")).isTrue();
+                        "/customer/{customerId}/address/{addressId}", "/customer/{customerId}/address/{addressId}"))
+                .isTrue();
     }
 
     @Test
@@ -478,16 +484,14 @@ class RuntimeFlowInferrerTest {
 
         RuntimeFlow flow = inferrer.infer("ep:Game#run", 10, model);
 
-        assertThat(flow.edges)
-                .anySatisfy(e -> {
-                    assertThat(e.fromId).isEqualTo(random.id);
-                    assertThat(e.toId).isEqualTo(strategy.id);
-                });
-        assertThat(flow.edges)
-                .anySatisfy(e -> {
-                    assertThat(e.fromId).isEqualTo(simple.id);
-                    assertThat(e.toId).isEqualTo(strategy.id);
-                });
+        assertThat(flow.edges).anySatisfy(e -> {
+            assertThat(e.fromId).isEqualTo(random.id);
+            assertThat(e.toId).isEqualTo(strategy.id);
+        });
+        assertThat(flow.edges).anySatisfy(e -> {
+            assertThat(e.fromId).isEqualTo(simple.id);
+            assertThat(e.toId).isEqualTo(strategy.id);
+        });
     }
 
     // ── model builders ────────────────────────────────────────────────────────

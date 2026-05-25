@@ -204,7 +204,9 @@ class PipelineGraphBuilderTest {
         List<Chain> chains = builder.build(m, 10);
 
         // The only valid chain is (S → A), not (S → A → A)
-        assertThat(chains).as("STORE loop via same entrypoint produces exactly one chain").hasSize(1);
+        assertThat(chains)
+                .as("STORE loop via same entrypoint produces exactly one chain")
+                .hasSize(1);
         assertThat(chains.get(0).segments)
                 .as("chain must be (S, A) — entrypoint-level cycle stops at the second A")
                 .hasSize(2);
@@ -237,9 +239,8 @@ class PipelineGraphBuilderTest {
         schedulerPath.sinks.add(toConsumer);
 
         // Lifecycle path — entrypointId absent from model.entrypoints
-        DataFlowPath observerPath = path(
-                "df:ep:com.example.Svc#onShutdown:observer#*",
-                "ep:com.example.Svc#onShutdown:observer");
+        DataFlowPath observerPath =
+                path("df:ep:com.example.Svc#onShutdown:observer#*", "ep:com.example.Svc#onShutdown:observer");
 
         DataFlowPath consumerPath = path("df:consumer", "ep:consumer");
 
@@ -247,7 +248,9 @@ class PipelineGraphBuilderTest {
 
         List<Chain> chains = builder.build(m, 10);
 
-        assertThat(chains).as("lifecycle path excluded even without registered entrypoint").hasSize(1);
+        assertThat(chains)
+                .as("lifecycle path excluded even without registered entrypoint")
+                .hasSize(1);
         assertThat(chains.get(0).segments.get(1).path.id)
                 .as("only the consumer chain survives")
                 .isEqualTo("df:consumer");

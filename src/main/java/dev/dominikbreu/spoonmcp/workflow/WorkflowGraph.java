@@ -14,6 +14,15 @@ public record WorkflowGraph(
         Map<String, Entrypoint> entrypointById,
         Map<String, List<WorkflowLink>> linksBySourcePathId) {
 
+    public WorkflowGraph {
+        rootPaths = List.copyOf(rootPaths);
+        pathById = Map.copyOf(pathById);
+        entrypointById = Map.copyOf(entrypointById);
+        linksBySourcePathId = linksBySourcePathId.entrySet().stream()
+                .collect(java.util.stream.Collectors.toUnmodifiableMap(
+                        Map.Entry::getKey, entry -> List.copyOf(entry.getValue())));
+    }
+
     public List<WorkflowLink> linksFrom(String pathId) {
         return linksBySourcePathId.getOrDefault(pathId, List.of());
     }
