@@ -1023,6 +1023,64 @@ class DataFlowTracerTest {
                 .anySatisfy(sink -> assertThat(sink.linkedPathIds).contains(consumePath.id));
     }
 
+    // ── #16: scheduler → Emitter → downstream consumer ────────────────────────────
+
+    @Test
+    void schedulerEmitterSinkLinksToDownstreamConsumerWhenBrokerIsNullVsUnknown() {
+        // Reproducer for #16: outbound site recorded with broker=null (Emitter-field path),
+        // consumer entrypoint recorded with broker=UNKNOWN (QuarkusExtractor).
+        // destinationKey treats both as "UNKNOWN" so the keys must match.
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("MyScheduler", ComponentType.SCHEDULER));
+        model.components.add(comp("RuleEngine", ComponentType.MESSAGE_DRIVEN_BEAN));
+
+        Entrypoint schedulerEp = new Entrypoint();
+        schedulerEp.id = "ep:tick";
+        schedulerEp.name = "tick";
+        schedulerEp.type = EntrypointType.SCHEDULER;
+        schedulerEp.componentId = "comp:MyScheduler";
+        model.entrypoints.add(schedulerEp);
+
+        Entrypoint consumerEp = new Entrypoint();
+        consumerEp.id = "ep:evaluate";
+        consumerEp.name = "evaluate";
+        consumerEp.type = EntrypointType.MESSAGING_CONSUMER;
+        consumerEp.componentId = "comp:RuleEngine";
+        consumerEp.channelName = "processed-events";
+        consumerEp.broker = MessagingBroker.UNKNOWN; // set by QuarkusExtractor for @Incoming
+        consumerEp.parameters.add("event");
+        model.entrypoints.add(consumerEp);
+
+        // Emitter-field site: broker stays null (extractOutboundSinkSites doesn't set it)
+        OutboundSinkSite site = new OutboundSinkSite();
+        site.id = "outbound:tick:0";
+        site.kind = DataFlowSink.Kind.MESSAGING;
+        site.componentId = "comp:MyScheduler";
+        site.method = "tick";
+        site.channel = "processed-events";
+        site.broker = null; // null, not UNKNOWN — this is the mismatch under test
+        model.outboundSinkSites.add(site);
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        DataFlowPath schedulerPath = paths.stream()
+                .filter(p -> p.entrypointId.equals("ep:tick"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("scheduler path not found"));
+        DataFlowPath consumerPath = paths.stream()
+                .filter(p -> p.entrypointId.equals("ep:evaluate"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("consumer path not found"));
+
+        assertThat(schedulerPath.sinks)
+                .as("MESSAGING sink with null broker must link to consumer with UNKNOWN broker on same channel")
+                .anySatisfy(s -> {
+                    assertThat(s.kind).isEqualTo(DataFlowSink.Kind.MESSAGING);
+                    assertThat(s.channel).isEqualTo("processed-events");
+                    assertThat(s.linkedPathIds).contains(consumerPath.id);
+                });
+    }
+
     // ── #15 regression guards ──────────────────────────────────────────────────────
 
     @Test
