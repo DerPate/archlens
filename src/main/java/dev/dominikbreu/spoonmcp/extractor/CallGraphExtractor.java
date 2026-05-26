@@ -287,18 +287,21 @@ public class CallGraphExtractor {
             if (!sharedStateFields.contains(fieldName)) continue;
             String invName = inv.getExecutable().getSimpleName();
             if (WRITE_METHODS.contains(invName)) {
-                String srcVar = inv.getArguments().stream()
-                        .filter(a -> a instanceof CtVariableRead<?>)
-                        .map(a -> ((CtVariableRead<?>) a).getVariable().getSimpleName())
-                        .findFirst()
-                        .orElse(null);
-                String srcField = inv.getArguments().stream()
-                        .filter(a -> a instanceof CtFieldRead<?>)
-                        .map(a -> ((CtFieldRead<?>) a).getVariable().getSimpleName())
-                        .findFirst()
-                        .orElse(null);
+                // Use the last variable/field-read argument as the stored-value source.
+                // For put(key, value), set(index, value), etc. the stored value is always
+                // the last argument; findFirst() was incorrectly returning the key argument.
+                String srcVar = lastVarReadName(inv.getArguments());
+                String srcField = lastFieldReadName(inv.getArguments());
+                String keyVar = firstVarReadName(inv.getArguments());
                 model.fieldAccesses.add(buildAccess(
-                        FieldAccess.Kind.WRITE, fromComp, methodName, fieldName, srcVar, srcField, inv.getPosition()));
+                        FieldAccess.Kind.WRITE,
+                        fromComp,
+                        methodName,
+                        fieldName,
+                        srcVar,
+                        srcField,
+                        keyVar,
+                        inv.getPosition()));
             } else {
                 model.fieldAccesses.add(buildAccess(
                         FieldAccess.Kind.READ, fromComp, methodName, fieldName, null, null, inv.getPosition()));
@@ -323,6 +326,18 @@ public class CallGraphExtractor {
             String sourceVar,
             String sourceField,
             spoon.reflect.cu.SourcePosition pos) {
+        return buildAccess(kind, owner, method, fieldName, sourceVar, sourceField, null, pos);
+    }
+
+    private FieldAccess buildAccess(
+            FieldAccess.Kind kind,
+            Component owner,
+            String method,
+            String fieldName,
+            String sourceVar,
+            String sourceField,
+            String keyVar,
+            spoon.reflect.cu.SourcePosition pos) {
         FieldAccess fa = new FieldAccess();
         fa.kind = kind;
         fa.componentId = owner.id;
@@ -331,12 +346,39 @@ public class CallGraphExtractor {
         fa.method = method;
         fa.sourceVarName = sourceVar;
         fa.sourceFieldName = sourceField;
+        fa.keyVarName = keyVar;
         fa.id = "field:" + owner.id + "#" + method + "@" + fieldName + ":"
                 + kind.name().toLowerCase();
         String file = (pos != null && pos.isValidPosition()) ? pos.getFile().getAbsolutePath() : "unknown";
         int line = (pos != null && pos.isValidPosition()) ? pos.getLine() : 0;
         fa.source = new SourceInfo(file, line, "field-access", 0.9);
         return fa;
+    }
+
+    private static String firstVarReadName(List<spoon.reflect.code.CtExpression<?>> args) {
+        // Returns the key variable name for keyed-write methods (put, set, merge, …).
+        // Only meaningful when there are at least 2 arguments; single-argument writes
+        // (add, offer, push, …) have no separate key position.
+        if (args.size() < 2) return null;
+        CtExpression<?> first = args.get(0);
+        return first instanceof CtVariableRead<?> vr ? vr.getVariable().getSimpleName() : null;
+    }
+
+    private static String lastVarReadName(List<spoon.reflect.code.CtExpression<?>> args) {
+        if (args.isEmpty()) return null;
+        // Only inspect the last argument (value position for put/set/add etc.).
+        // Falling back to earlier arguments would confuse the key with the value
+        // for calls like put(key, someInvocation()).
+        CtExpression<?> last = args.get(args.size() - 1);
+        return last instanceof CtVariableRead<?> vr ? vr.getVariable().getSimpleName() : null;
+    }
+
+    private static String lastFieldReadName(List<spoon.reflect.code.CtExpression<?>> args) {
+        if (args.isEmpty()) return null;
+        CtExpression<?> last = args.get(args.size() - 1);
+        return last instanceof spoon.reflect.code.CtFieldRead<?> fr
+                ? fr.getVariable().getSimpleName()
+                : null;
     }
 
     private void extractAccessorChainFieldAccesses(
@@ -444,6 +486,7 @@ public class CallGraphExtractor {
             edge.callKind = "intra";
             edge.source = buildSource(inv);
             model.callEdges.add(edge);
+            buildParamMapping(inv, edge);
         }
     }
 
