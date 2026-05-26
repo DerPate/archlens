@@ -34,6 +34,12 @@ public class FieldAccess {
     public String sourceVarName;
     /** For writes: name of the source field whose value is stored, when RHS is another field read on the same bean. May be null. */
     public String sourceFieldName;
+    /**
+     * For keyed-write methods (put, putIfAbsent, set, merge, …): name of the local variable
+     * or parameter used as the map/collection key (first argument). Null for single-argument
+     * writes (add, offer, push, …) where there is no separate key position.
+     */
+    public String keyVarName;
     /** Source location of the access. */
     public SourceInfo source;
 

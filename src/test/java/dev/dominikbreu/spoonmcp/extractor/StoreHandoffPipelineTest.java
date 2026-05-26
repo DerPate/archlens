@@ -114,4 +114,55 @@ class StoreHandoffPipelineTest extends ExtractorTestBase {
                 .as("RuleEngineA and RuleEngineB must appear as MESSAGING_CONSUMER entrypoints")
                 .anyMatch(e -> e.type == EntrypointType.MESSAGING_CONSUMER && e.componentId.contains("RuleEngine"));
     }
+
+    // ── Issue #15 Case 1: STORE sink when tracked param is the store KEY ─────────
+
+    @Test
+    void deviceRegistryConsumerWritesRegistryFieldWithKeyParam() {
+        assertThat(model.fieldAccesses)
+                .as("DeviceRegistryConsumer#registerDevice must record a WRITE of 'registry' " + "with keyVarName='id'")
+                .anyMatch(fa -> fa.kind == FieldAccess.Kind.WRITE
+                        && fa.componentId.contains("DeviceRegistryConsumer")
+                        && "registry".equals(fa.fieldName)
+                        && "id".equals(fa.keyVarName));
+    }
+
+    @Test
+    void deviceRegistryConsumerOnDeviceHasStoreSinkForRegistry() {
+        assertThat(model.dataFlowPaths)
+                .as("onDevice entrypoint must have a STORE sink for 'registry' even though "
+                        + "the tracked param 'device' is the store key, not the value (issue #15 Case 1)")
+                .anySatisfy(p -> {
+                    assertThat(p.entrypointId).contains("onDevice");
+                    assertThat(p.sinks).anySatisfy(s -> {
+                        assertThat(s.kind).isEqualTo(DataFlowSink.Kind.STORE);
+                        assertThat(s.fieldName).isEqualTo("registry");
+                    });
+                });
+    }
+
+    // ── Issue #15 Case 2: STORE sink when put() value is a method invocation ─────────
+
+    @Test
+    void deviceStateIngestorWritesDeviceStoreField() {
+        assertThat(model.fieldAccesses)
+                .as("DeviceStateIngestor#processAndStore must record a WRITE of 'deviceStore'")
+                .anyMatch(fa -> fa.kind == FieldAccess.Kind.WRITE
+                        && fa.componentId.contains("DeviceStateIngestor")
+                        && "deviceStore".equals(fa.fieldName));
+    }
+
+    @Test
+    void deviceStateIngestorOnEventHasStoreSinkForDeviceStore() {
+        assertThat(model.dataFlowPaths)
+                .as("onEvent entrypoint must have a STORE sink for 'deviceStore' even though "
+                        + "the put() value is a method invocation (issue #15)")
+                .anySatisfy(p -> {
+                    assertThat(p.entrypointId).contains("onEvent");
+                    assertThat(p.sinks).anySatisfy(s -> {
+                        assertThat(s.kind).isEqualTo(DataFlowSink.Kind.STORE);
+                        assertThat(s.fieldName).isEqualTo("deviceStore");
+                    });
+                });
+    }
 }

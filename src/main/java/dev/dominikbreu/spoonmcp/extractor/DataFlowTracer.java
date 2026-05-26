@@ -285,9 +285,16 @@ public class DataFlowTracer {
                 for (Map.Entry<String, String> e : currentToOriginal.entrySet()) {
                     String currentName = e.getKey();
                     boolean isEntrypointBody = depth == 0 && !"*".equals(currentName);
-                    if (isEntrypointBody
-                            || matchesTracked(currentName, fw.sourceVarName)
-                            || matchesTracked(currentName, fw.sourceFieldName)) {
+                    boolean sourceMatches = matchesTracked(currentName, fw.sourceVarName)
+                            || matchesTracked(currentName, fw.sourceFieldName)
+                            || matchesTracked(currentName, fw.keyVarName);
+                    // When the value argument was a method invocation (or other non-trivial
+                    // expression) the extractor cannot resolve a source variable name, leaving
+                    // both fields null.  The DFS reaching this method already proves the tracked
+                    // param flows through it (assign-forward), so emit the STORE sink.
+                    boolean valueSourceUnresolvable =
+                            !"*".equals(currentName) && fw.sourceVarName == null && fw.sourceFieldName == null;
+                    if (isEntrypointBody || sourceMatches || valueSourceUnresolvable) {
                         pathsByOriginal
                                 .get(e.getValue())
                                 .sinks
