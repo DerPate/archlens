@@ -1023,6 +1023,442 @@ class DataFlowTracerTest {
                 .anySatisfy(sink -> assertThat(sink.linkedPathIds).contains(consumePath.id));
     }
 
+    // ── #16: scheduler → Emitter → downstream consumer ────────────────────────────
+
+    @Test
+    void schedulerEmitterSinkLinksToDownstreamConsumerWhenBrokerIsNullVsUnknown() {
+        // Reproducer for #16: outbound site recorded with broker=null (Emitter-field path),
+        // consumer entrypoint recorded with broker=UNKNOWN (QuarkusExtractor).
+        // destinationKey treats both as "UNKNOWN" so the keys must match.
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("MyScheduler", ComponentType.SCHEDULER));
+        model.components.add(comp("RuleEngine", ComponentType.MESSAGE_DRIVEN_BEAN));
+
+        Entrypoint schedulerEp = new Entrypoint();
+        schedulerEp.id = "ep:tick";
+        schedulerEp.name = "tick";
+        schedulerEp.type = EntrypointType.SCHEDULER;
+        schedulerEp.componentId = "comp:MyScheduler";
+        model.entrypoints.add(schedulerEp);
+
+        Entrypoint consumerEp = new Entrypoint();
+        consumerEp.id = "ep:evaluate";
+        consumerEp.name = "evaluate";
+        consumerEp.type = EntrypointType.MESSAGING_CONSUMER;
+        consumerEp.componentId = "comp:RuleEngine";
+        consumerEp.channelName = "processed-events";
+        consumerEp.broker = MessagingBroker.UNKNOWN; // set by QuarkusExtractor for @Incoming
+        consumerEp.parameters.add("event");
+        model.entrypoints.add(consumerEp);
+
+        // Emitter-field site: broker stays null (extractOutboundSinkSites doesn't set it)
+        OutboundSinkSite site = new OutboundSinkSite();
+        site.id = "outbound:tick:0";
+        site.kind = DataFlowSink.Kind.MESSAGING;
+        site.componentId = "comp:MyScheduler";
+        site.method = "tick";
+        site.channel = "processed-events";
+        site.broker = null; // null, not UNKNOWN — this is the mismatch under test
+        model.outboundSinkSites.add(site);
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        DataFlowPath schedulerPath = paths.stream()
+                .filter(p -> p.entrypointId.equals("ep:tick"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("scheduler path not found"));
+        DataFlowPath consumerPath = paths.stream()
+                .filter(p -> p.entrypointId.equals("ep:evaluate"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("consumer path not found"));
+
+        assertThat(schedulerPath.sinks)
+                .as("MESSAGING sink with null broker must link to consumer with UNKNOWN broker on same channel")
+                .anySatisfy(s -> {
+                    assertThat(s.kind).isEqualTo(DataFlowSink.Kind.MESSAGING);
+                    assertThat(s.channel).isEqualTo("processed-events");
+                    assertThat(s.linkedPathIds).contains(consumerPath.id);
+                });
+    }
+
+    // ── #15 regression guards ──────────────────────────────────────────────────────
+
+    @Test
+    void storeSinkNotEmittedForWildcardTrackedWhenSourceIsNull() {
+        // Guard: a scheduler ("*" wildcard tracking) must NOT get a spurious STORE sink
+        // just because a reachable method has a field write with null source info.
+        // The valueSourceUnresolvable branch is explicitly gated on !"*".
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("MyScheduler", ComponentType.SCHEDULER));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:run";
+        ep.name = "run";
+        ep.type = EntrypointType.SCHEDULER;
+        ep.componentId = "comp:MyScheduler";
+        // no parameters → tracked as "*"
+        model.entrypoints.add(ep);
+
+        FieldAccess fw = new FieldAccess();
+        fw.kind = FieldAccess.Kind.WRITE;
+        fw.componentId = "comp:MyScheduler";
+        fw.fieldOwnerComponentId = "comp:MyScheduler";
+        fw.method = "run";
+        fw.fieldName = "cache";
+        fw.sourceVarName = null;
+        fw.sourceFieldName = null;
+        fw.id = "field:comp:MyScheduler#run@cache:write";
+        model.fieldAccesses.add(fw);
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        // Scheduler paths with no sinks are omitted; if one appears it must not have a STORE sink
+        paths.stream()
+                .filter(p -> p.entrypointId.equals("ep:run"))
+                .forEach(p -> assertThat(p.sinks)
+                        .as("wildcard-tracked scheduler must not emit STORE sinks from null-source writes")
+                        .noneMatch(s -> s.kind == DataFlowSink.Kind.STORE));
+    }
+
+    @Test
+    void storeSinkNotEmittedWhenSourceVarPresentButDoesNotMatchTracked() {
+        // Guard: when sourceVarName IS resolved (e.g. "unrelatedVar") but does not match the
+        // tracked param ("data"), we must NOT fall through to the valueSourceUnresolvable path
+        // and must NOT emit a false-positive STORE sink.
+        // This covers store.put(key, resolvedVar) at depth>0 where resolvedVar≠tracked.
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("ProcessorService", ComponentType.SERVICE));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:handle";
+        ep.name = "handle";
+        ep.type = EntrypointType.MESSAGING_CONSUMER;
+        ep.componentId = "comp:ProcessorService";
+        ep.parameters.add("payload");
+        model.entrypoints.add(ep);
+
+        CallEdge intraEdge = new CallEdge();
+        intraEdge.id = "call:comp:ProcessorService#handle->comp:ProcessorService#persist";
+        intraEdge.fromComponentId = "comp:ProcessorService";
+        intraEdge.fromMethod = "handle";
+        intraEdge.toComponentId = "comp:ProcessorService";
+        intraEdge.toMethod = "persist";
+        intraEdge.callKind = "intra";
+        intraEdge.paramMapping.put("payload", "data");
+        model.callEdges.add(intraEdge);
+
+        // persist does store.put(key, resolvedVar) where resolvedVar is unrelated to "data".
+        // sourceVarName is non-null → valueSourceUnresolvable stays false → no STORE.
+        FieldAccess fw = new FieldAccess();
+        fw.kind = FieldAccess.Kind.WRITE;
+        fw.componentId = "comp:ProcessorService";
+        fw.fieldOwnerComponentId = "comp:ProcessorService";
+        fw.method = "persist";
+        fw.fieldName = "auditStore";
+        fw.sourceVarName = "unrelatedVar";
+        fw.sourceFieldName = null;
+        fw.id = "field:comp:ProcessorService#persist@auditStore:write";
+        model.fieldAccesses.add(fw);
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        paths.stream()
+                .filter(p -> p.entrypointId.equals("ep:handle"))
+                .forEach(p -> assertThat(p.sinks)
+                        .as("STORE sink must not be emitted when sourceVarName is present "
+                                + "but does not match the tracked param")
+                        .noneMatch(s -> s.kind == DataFlowSink.Kind.STORE && "auditStore".equals(s.fieldName)));
+    }
+
+    @Test
+    void trackedParamUsedAsStoreKeyAtDepthZeroStillEmitsStoreSink() {
+        // Behavioural pin for Case 1 (tracked=key, depth=0):
+        // When the tracked param is used as the KEY in store.put(key, varValue) directly
+        // in the entrypoint body (depth=0), isEntrypointBody fires and STORE is emitted.
+        // This is by design — at depth=0 we accept the imprecision because any write in
+        // the entrypoint body is architecturally significant.
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("DeviceSvc", ComponentType.SERVICE));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:consume";
+        ep.name = "consume";
+        ep.type = EntrypointType.MESSAGING_CONSUMER;
+        ep.componentId = "comp:DeviceSvc";
+        ep.parameters.add("device");
+        model.entrypoints.add(ep);
+
+        // store.put(device, computedValue) at depth=0: sourceVarName="computedValue" ≠ "device"
+        // but isEntrypointBody=true → STORE must still be emitted.
+        FieldAccess fw = new FieldAccess();
+        fw.kind = FieldAccess.Kind.WRITE;
+        fw.componentId = "comp:DeviceSvc";
+        fw.fieldOwnerComponentId = "comp:DeviceSvc";
+        fw.method = "consume";
+        fw.fieldName = "deviceCache";
+        fw.sourceVarName = "computedValue";
+        fw.id = "field:comp:DeviceSvc#consume@deviceCache:write";
+        model.fieldAccesses.add(fw);
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        assertThat(paths).anySatisfy(p -> {
+            assertThat(p.entrypointId).isEqualTo("ep:consume");
+            assertThat(p.sinks).anySatisfy(s -> {
+                assertThat(s.kind).isEqualTo(DataFlowSink.Kind.STORE);
+                assertThat(s.fieldName).isEqualTo("deviceCache");
+            });
+        });
+    }
+
+    @Test
+    void trackedParamUsedAsStoreKeyAtDepthGreaterZeroEmitsStoreSink() {
+        // Fix for Case 1 (tracked=key, depth>0):
+        // When the tracked param is the KEY of store.put(key, computedValue) inside a helper,
+        // a STORE sink must be emitted so that a parameter-less scheduler iterating
+        // store.keySet() can be stitched into the pipeline.
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("DeviceSvc", ComponentType.SERVICE));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:consume";
+        ep.name = "consume";
+        ep.type = EntrypointType.MESSAGING_CONSUMER;
+        ep.componentId = "comp:DeviceSvc";
+        ep.parameters.add("device");
+        model.entrypoints.add(ep);
+
+        CallEdge intra = new CallEdge();
+        intra.id = "call:comp:DeviceSvc#consume->comp:DeviceSvc#persist";
+        intra.fromComponentId = "comp:DeviceSvc";
+        intra.fromMethod = "consume";
+        intra.toComponentId = "comp:DeviceSvc";
+        intra.toMethod = "persist";
+        intra.callKind = "intra";
+        intra.paramMapping.put("device", "id");
+        model.callEdges.add(intra);
+
+        // persist does store.put(id, computedValue): keyVarName="id" matches tracked "id".
+        FieldAccess fw = new FieldAccess();
+        fw.kind = FieldAccess.Kind.WRITE;
+        fw.componentId = "comp:DeviceSvc";
+        fw.fieldOwnerComponentId = "comp:DeviceSvc";
+        fw.method = "persist";
+        fw.fieldName = "deviceCache";
+        fw.sourceVarName = "computedValue";
+        fw.keyVarName = "id";
+        fw.id = "field:comp:DeviceSvc#persist@deviceCache:write";
+        model.fieldAccesses.add(fw);
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        assertThat(paths).anySatisfy(p -> {
+            assertThat(p.entrypointId).isEqualTo("ep:consume");
+            assertThat(p.trackedParam).isEqualTo("device");
+            assertThat(p.sinks).anySatisfy(s -> {
+                assertThat(s.kind).isEqualTo(DataFlowSink.Kind.STORE);
+                assertThat(s.fieldName).isEqualTo("deviceCache");
+            });
+        });
+    }
+
+    // ── #14 Gap 1: STORE sink when write is in an intra-component helper ─────────
+
+    @Test
+    void consumerWritingToFieldViaPrivateHelperEmitsStoreSink() {
+        // Regression for GitHub #14 Gap 1:
+        // consumer.ingest(payload) → intra-component → helper.storeSnapshot(data)
+        // where helper does: snapshots.put(key, data)  [sourceVarName="data"]
+        // paramMapping = {"payload": "data"} means "data" in the helper maps to the tracked "payload".
+        // Without intra-paramMapping the tracked name stays "payload" and never matches "data".
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("SnapshotIngestor", ComponentType.SERVICE));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:ingest";
+        ep.name = "ingest";
+        ep.type = EntrypointType.MESSAGING_CONSUMER;
+        ep.componentId = "comp:SnapshotIngestor";
+        ep.parameters.add("payload");
+        model.entrypoints.add(ep);
+
+        // Intra-component call: ingest(payload) → storeSnapshot(data)
+        CallEdge intraEdge = new CallEdge();
+        intraEdge.id = "call:comp:SnapshotIngestor#ingest->comp:SnapshotIngestor#storeSnapshot";
+        intraEdge.fromComponentId = "comp:SnapshotIngestor";
+        intraEdge.fromMethod = "ingest";
+        intraEdge.toComponentId = "comp:SnapshotIngestor";
+        intraEdge.toMethod = "storeSnapshot";
+        intraEdge.callKind = "intra";
+        intraEdge.paramMapping.put("payload", "data");
+        model.callEdges.add(intraEdge);
+
+        // Field write inside the helper: snapshots.put(key, data) → sourceVarName="data"
+        FieldAccess fw = new FieldAccess();
+        fw.kind = FieldAccess.Kind.WRITE;
+        fw.componentId = "comp:SnapshotIngestor";
+        fw.fieldOwnerComponentId = "comp:SnapshotIngestor";
+        fw.method = "storeSnapshot";
+        fw.fieldName = "snapshots";
+        fw.sourceVarName = "data";
+        fw.id = "field:comp:SnapshotIngestor#storeSnapshot@snapshots:write";
+        model.fieldAccesses.add(fw);
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        assertThat(paths).anySatisfy(p -> {
+            assertThat(p.entrypointId).isEqualTo("ep:ingest");
+            assertThat(p.trackedParam).isEqualTo("payload");
+            assertThat(p.sinks).anySatisfy(s -> {
+                assertThat(s.kind).isEqualTo(DataFlowSink.Kind.STORE);
+                assertThat(s.fieldName).isEqualTo("snapshots");
+                assertThat(s.fieldOwnerComponentId).isEqualTo("comp:SnapshotIngestor");
+            });
+        });
+    }
+
+    // ── #15: STORE sink when put() value is a method invocation ──────────────────
+
+    @Test
+    void storeSinkEmittedWhenPutValueIsMethodInvocationInHelper() {
+        // Regression for GitHub #15:
+        // consumer.onEvent(payload) → processAndStore(key, data) [paramMapping payload→data]
+        // inside helper: store.put(key, localCache.get(key))
+        // The value argument is a CtInvocation, so the extractor cannot resolve a source variable.
+        // Both sourceVarName and sourceFieldName are null.
+        // The DFS reaching processAndStore proves payload flows through it, so the STORE sink
+        // must be emitted via the assign-forward rule (valueSourceUnresolvable).
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("DeviceStateIngestor", ComponentType.SERVICE));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:onEvent";
+        ep.name = "onEvent";
+        ep.type = EntrypointType.MESSAGING_CONSUMER;
+        ep.componentId = "comp:DeviceStateIngestor";
+        ep.parameters.add("payload");
+        model.entrypoints.add(ep);
+
+        CallEdge intraEdge = new CallEdge();
+        intraEdge.id = "call:comp:DeviceStateIngestor#onEvent->comp:DeviceStateIngestor#processAndStore";
+        intraEdge.fromComponentId = "comp:DeviceStateIngestor";
+        intraEdge.fromMethod = "onEvent";
+        intraEdge.toComponentId = "comp:DeviceStateIngestor";
+        intraEdge.toMethod = "processAndStore";
+        intraEdge.callKind = "intra";
+        intraEdge.paramMapping.put("payload", "data");
+        model.callEdges.add(intraEdge);
+
+        // Field write inside helper: store.put(key, localCache.get(key))
+        // Value is CtInvocation → extractor sets sourceVarName=null, sourceFieldName=null
+        FieldAccess fw = new FieldAccess();
+        fw.kind = FieldAccess.Kind.WRITE;
+        fw.componentId = "comp:DeviceStateIngestor";
+        fw.fieldOwnerComponentId = "comp:DeviceStateIngestor";
+        fw.method = "processAndStore";
+        fw.fieldName = "deviceStore";
+        fw.sourceVarName = null;
+        fw.sourceFieldName = null;
+        fw.id = "field:comp:DeviceStateIngestor#processAndStore@deviceStore:write";
+        model.fieldAccesses.add(fw);
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        assertThat(paths).anySatisfy(p -> {
+            assertThat(p.entrypointId).isEqualTo("ep:onEvent");
+            assertThat(p.trackedParam).isEqualTo("payload");
+            assertThat(p.sinks).anySatisfy(s -> {
+                assertThat(s.kind).isEqualTo(DataFlowSink.Kind.STORE);
+                assertThat(s.fieldName).isEqualTo("deviceStore");
+                assertThat(s.fieldOwnerComponentId).isEqualTo("comp:DeviceStateIngestor");
+            });
+        });
+    }
+
+    @Test
+    void storeSinkViaHelperLinksToSchedulerReadingViaGetter() {
+        // Full regression test for GitHub #14 (Gap 1 + Gap 2):
+        // consumer.ingest(payload) → helper.storeSnapshot(data) → writes "snapshots" on SnapshotIngestor
+        // scheduler.publishAll reads "snapshots" via cross-component getter (FieldAccess with
+        //   componentId=SnapshotPublisher, fieldOwnerComponentId=SnapshotIngestor, method=publishAll)
+        // Expected: consumer STORE sink carries scheduler path id in linkedPathIds.
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("SnapshotIngestor", ComponentType.SERVICE));
+        model.components.add(comp("SnapshotPublisher", ComponentType.SCHEDULER));
+        model.components.add(comp("MqttClient", ComponentType.HTTP_CLIENT));
+        model.components.get(2).stereotypes = List.of("messaging");
+
+        Entrypoint consumer = new Entrypoint();
+        consumer.id = "ep:ingest";
+        consumer.name = "ingest";
+        consumer.type = EntrypointType.MESSAGING_CONSUMER;
+        consumer.componentId = "comp:SnapshotIngestor";
+        consumer.parameters.add("payload");
+        model.entrypoints.add(consumer);
+
+        Entrypoint scheduler = new Entrypoint();
+        scheduler.id = "ep:publishAll";
+        scheduler.name = "publishAll";
+        scheduler.type = EntrypointType.SCHEDULER;
+        scheduler.componentId = "comp:SnapshotPublisher";
+        model.entrypoints.add(scheduler);
+
+        // Intra-component call with paramMapping
+        CallEdge intraEdge = new CallEdge();
+        intraEdge.id = "call:comp:SnapshotIngestor#ingest->comp:SnapshotIngestor#storeSnapshot";
+        intraEdge.fromComponentId = "comp:SnapshotIngestor";
+        intraEdge.fromMethod = "ingest";
+        intraEdge.toComponentId = "comp:SnapshotIngestor";
+        intraEdge.toMethod = "storeSnapshot";
+        intraEdge.callKind = "intra";
+        intraEdge.paramMapping.put("payload", "data");
+        model.callEdges.add(intraEdge);
+
+        // Write in the helper
+        FieldAccess fw = new FieldAccess();
+        fw.kind = FieldAccess.Kind.WRITE;
+        fw.componentId = "comp:SnapshotIngestor";
+        fw.fieldOwnerComponentId = "comp:SnapshotIngestor";
+        fw.method = "storeSnapshot";
+        fw.fieldName = "snapshots";
+        fw.sourceVarName = "data";
+        fw.id = "field:comp:SnapshotIngestor#storeSnapshot@snapshots:write";
+        model.fieldAccesses.add(fw);
+
+        // Cross-component field read: SnapshotPublisher#publishAll reads SnapshotIngestor.snapshots
+        // (emitted by emitCallerSideFieldReadIfGetter when the scheduler calls ingestor.getSnapshots())
+        FieldAccess fr = new FieldAccess();
+        fr.kind = FieldAccess.Kind.READ;
+        fr.componentId = "comp:SnapshotPublisher";
+        fr.fieldOwnerComponentId = "comp:SnapshotIngestor";
+        fr.method = "publishAll";
+        fr.fieldName = "snapshots";
+        fr.id = "field:comp:SnapshotPublisher#publishAll@comp:SnapshotIngestor#getSnapshots:snapshots:read:xcomp";
+        model.fieldAccesses.add(fr);
+
+        addCallEdgeWithKind(
+                model, "comp:SnapshotPublisher", "publishAll", "comp:MqttClient", "send", Map.of(), "messaging");
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        DataFlowPath consumerPath = paths.stream()
+                .filter(p -> p.entrypointId.equals("ep:ingest"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("consumer path not found"));
+        DataFlowPath schedulerPath = paths.stream()
+                .filter(p -> p.entrypointId.equals("ep:publishAll"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("scheduler path not found"));
+
+        DataFlowSink storeSink = consumerPath.sinks.stream()
+                .filter(s -> s.kind == DataFlowSink.Kind.STORE && "snapshots".equals(s.fieldName))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("STORE sink on consumer path not found"));
+        assertThat(storeSink.linkedPathIds)
+                .as("consumer STORE sink must link to scheduler path reading the same field")
+                .contains(schedulerPath.id);
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────────
 
     private static ArchitectureModel buildModel() {

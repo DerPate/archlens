@@ -180,6 +180,10 @@ public class DataFlowTracer {
      */
     private void linkMessagingSinksToChannelConsumers(List<DataFlowPath> paths, ArchitectureModel model) {
         Map<String, List<String>> consumerPathsByDestination = new HashMap<>();
+        // Broker-agnostic index: channel name → paths. Used as a fallback when the sink's
+        // broker is null (Emitter-field sites where the broker cannot be determined at
+        // extraction time, e.g. SmallRye in-memory channels via @Channel-injected Emitter).
+        Map<String, List<String>> consumerPathsByChannel = new HashMap<>();
         Map<String, Entrypoint> entrypointById = new HashMap<>();
         for (Entrypoint ep : model.entrypoints) {
             entrypointById.put(ep.id, ep);
@@ -193,14 +197,27 @@ public class DataFlowTracer {
             consumerPathsByDestination
                     .computeIfAbsent(key, ignored -> new ArrayList<>())
                     .add(path.id);
+            if (ep.channelName != null && !ep.channelName.isBlank()) {
+                consumerPathsByChannel
+                        .computeIfAbsent(ep.channelName.trim(), ignored -> new ArrayList<>())
+                        .add(path.id);
+            }
         }
 
         for (DataFlowPath path : paths) {
             for (DataFlowSink sink : path.sinks) {
                 if (sink.kind != DataFlowSink.Kind.MESSAGING && sink.kind != DataFlowSink.Kind.EVENT_BUS) continue;
-                String key = destinationKey(sink.broker, firstNonBlank(sink.topic, sink.channel));
+                String dest = firstNonBlank(sink.topic, sink.channel);
+                String key = destinationKey(sink.broker, dest);
                 if (key == null) continue;
-                for (String targetPathId : consumerPathsByDestination.getOrDefault(key, List.of())) {
+                // Exact broker:channel match first; fall back to channel-only when the sink's
+                // broker is unresolved (null) — covers Emitter-field sites whose broker cannot
+                // be determined statically (e.g. SmallRye IN_MEMORY vs null mismatch).
+                List<String> candidates = consumerPathsByDestination.getOrDefault(key, List.of());
+                if (candidates.isEmpty() && sink.broker == null && dest != null) {
+                    candidates = consumerPathsByChannel.getOrDefault(dest.trim(), List.of());
+                }
+                for (String targetPathId : candidates) {
                     if (!targetPathId.equals(path.id) && !sink.linkedPathIds.contains(targetPathId)) {
                         sink.linkedPathIds.add(targetPathId);
                     }
@@ -285,9 +302,16 @@ public class DataFlowTracer {
                 for (Map.Entry<String, String> e : currentToOriginal.entrySet()) {
                     String currentName = e.getKey();
                     boolean isEntrypointBody = depth == 0 && !"*".equals(currentName);
-                    if (isEntrypointBody
-                            || matchesTracked(currentName, fw.sourceVarName)
-                            || matchesTracked(currentName, fw.sourceFieldName)) {
+                    boolean sourceMatches = matchesTracked(currentName, fw.sourceVarName)
+                            || matchesTracked(currentName, fw.sourceFieldName)
+                            || matchesTracked(currentName, fw.keyVarName);
+                    // When the value argument was a method invocation (or other non-trivial
+                    // expression) the extractor cannot resolve a source variable name, leaving
+                    // both fields null.  The DFS reaching this method already proves the tracked
+                    // param flows through it (assign-forward), so emit the STORE sink.
+                    boolean valueSourceUnresolvable =
+                            !"*".equals(currentName) && fw.sourceVarName == null && fw.sourceFieldName == null;
+                    if (isEntrypointBody || sourceMatches || valueSourceUnresolvable) {
                         pathsByOriginal
                                 .get(e.getValue())
                                 .sinks
