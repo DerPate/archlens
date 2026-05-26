@@ -115,6 +115,30 @@ class StoreHandoffPipelineTest extends ExtractorTestBase {
                 .anyMatch(e -> e.type == EntrypointType.MESSAGING_CONSUMER && e.componentId.contains("RuleEngine"));
     }
 
+    @Test
+    void publisherMessagingSinksAreLinkedToRuleEngineConsumerPaths() {
+        // Issue #16: the scheduler → Emitter.send() → downstream consumer leg must be stitched.
+        // The publishAll MESSAGING sinks must carry linkedPathIds pointing to the RuleEngine paths.
+        List<DataFlowPath> ruleEnginePaths = model.dataFlowPaths.stream()
+                .filter(p -> p.entrypointId.contains("evaluate"))
+                .toList();
+        assertThat(ruleEnginePaths)
+                .as("RuleEngineA and RuleEngineB must each have a data-flow path")
+                .hasSizeGreaterThanOrEqualTo(2);
+
+        List<String> ruleEnginePathIds = ruleEnginePaths.stream().map(p -> p.id).toList();
+
+        assertThat(model.dataFlowPaths)
+                .as("publishAll MESSAGING sinks must link to RuleEngine consumer paths (issue #16)")
+                .anySatisfy(p -> {
+                    assertThat(p.entrypointId).contains("publishAll");
+                    assertThat(p.sinks).anySatisfy(s -> {
+                        assertThat(s.kind).isEqualTo(DataFlowSink.Kind.MESSAGING);
+                        assertThat(s.linkedPathIds).containsAnyElementsOf(ruleEnginePathIds);
+                    });
+                });
+    }
+
     // ── Issue #15 Case 1: STORE sink when tracked param is the store KEY ─────────
 
     @Test
