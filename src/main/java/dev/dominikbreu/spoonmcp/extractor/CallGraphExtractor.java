@@ -287,16 +287,11 @@ public class CallGraphExtractor {
             if (!sharedStateFields.contains(fieldName)) continue;
             String invName = inv.getExecutable().getSimpleName();
             if (WRITE_METHODS.contains(invName)) {
-                String srcVar = inv.getArguments().stream()
-                        .filter(a -> a instanceof CtVariableRead<?>)
-                        .map(a -> ((CtVariableRead<?>) a).getVariable().getSimpleName())
-                        .findFirst()
-                        .orElse(null);
-                String srcField = inv.getArguments().stream()
-                        .filter(a -> a instanceof CtFieldRead<?>)
-                        .map(a -> ((CtFieldRead<?>) a).getVariable().getSimpleName())
-                        .findFirst()
-                        .orElse(null);
+                // Use the last variable/field-read argument as the stored-value source.
+                // For put(key, value), set(index, value), etc. the stored value is always
+                // the last argument; findFirst() was incorrectly returning the key argument.
+                String srcVar = lastVarReadName(inv.getArguments());
+                String srcField = lastFieldReadName(inv.getArguments());
                 model.fieldAccesses.add(buildAccess(
                         FieldAccess.Kind.WRITE, fromComp, methodName, fieldName, srcVar, srcField, inv.getPosition()));
             } else {
@@ -337,6 +332,22 @@ public class CallGraphExtractor {
         int line = (pos != null && pos.isValidPosition()) ? pos.getLine() : 0;
         fa.source = new SourceInfo(file, line, "field-access", 0.9);
         return fa;
+    }
+
+    private static String lastVarReadName(List<spoon.reflect.code.CtExpression<?>> args) {
+        for (int i = args.size() - 1; i >= 0; i--) {
+            if (args.get(i) instanceof CtVariableRead<?> vr)
+                return vr.getVariable().getSimpleName();
+        }
+        return null;
+    }
+
+    private static String lastFieldReadName(List<spoon.reflect.code.CtExpression<?>> args) {
+        for (int i = args.size() - 1; i >= 0; i--) {
+            if (args.get(i) instanceof spoon.reflect.code.CtFieldRead<?> fr)
+                return fr.getVariable().getSimpleName();
+        }
+        return null;
     }
 
     private void extractAccessorChainFieldAccesses(
@@ -444,6 +455,7 @@ public class CallGraphExtractor {
             edge.callKind = "intra";
             edge.source = buildSource(inv);
             model.callEdges.add(edge);
+            buildParamMapping(inv, edge);
         }
     }
 

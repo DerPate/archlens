@@ -1023,6 +1023,145 @@ class DataFlowTracerTest {
                 .anySatisfy(sink -> assertThat(sink.linkedPathIds).contains(consumePath.id));
     }
 
+    // ── #14 Gap 1: STORE sink when write is in an intra-component helper ─────────
+
+    @Test
+    void consumerWritingToFieldViaPrivateHelperEmitsStoreSink() {
+        // Regression for GitHub #14 Gap 1:
+        // consumer.ingest(payload) → intra-component → helper.storeSnapshot(data)
+        // where helper does: snapshots.put(key, data)  [sourceVarName="data"]
+        // paramMapping = {"payload": "data"} means "data" in the helper maps to the tracked "payload".
+        // Without intra-paramMapping the tracked name stays "payload" and never matches "data".
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("SnapshotIngestor", ComponentType.SERVICE));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = "ep:ingest";
+        ep.name = "ingest";
+        ep.type = EntrypointType.MESSAGING_CONSUMER;
+        ep.componentId = "comp:SnapshotIngestor";
+        ep.parameters.add("payload");
+        model.entrypoints.add(ep);
+
+        // Intra-component call: ingest(payload) → storeSnapshot(data)
+        CallEdge intraEdge = new CallEdge();
+        intraEdge.id = "call:comp:SnapshotIngestor#ingest->comp:SnapshotIngestor#storeSnapshot";
+        intraEdge.fromComponentId = "comp:SnapshotIngestor";
+        intraEdge.fromMethod = "ingest";
+        intraEdge.toComponentId = "comp:SnapshotIngestor";
+        intraEdge.toMethod = "storeSnapshot";
+        intraEdge.callKind = "intra";
+        intraEdge.paramMapping.put("payload", "data");
+        model.callEdges.add(intraEdge);
+
+        // Field write inside the helper: snapshots.put(key, data) → sourceVarName="data"
+        FieldAccess fw = new FieldAccess();
+        fw.kind = FieldAccess.Kind.WRITE;
+        fw.componentId = "comp:SnapshotIngestor";
+        fw.fieldOwnerComponentId = "comp:SnapshotIngestor";
+        fw.method = "storeSnapshot";
+        fw.fieldName = "snapshots";
+        fw.sourceVarName = "data";
+        fw.id = "field:comp:SnapshotIngestor#storeSnapshot@snapshots:write";
+        model.fieldAccesses.add(fw);
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        assertThat(paths).anySatisfy(p -> {
+            assertThat(p.entrypointId).isEqualTo("ep:ingest");
+            assertThat(p.trackedParam).isEqualTo("payload");
+            assertThat(p.sinks).anySatisfy(s -> {
+                assertThat(s.kind).isEqualTo(DataFlowSink.Kind.STORE);
+                assertThat(s.fieldName).isEqualTo("snapshots");
+                assertThat(s.fieldOwnerComponentId).isEqualTo("comp:SnapshotIngestor");
+            });
+        });
+    }
+
+    @Test
+    void storeSinkViaHelperLinksToSchedulerReadingViaGetter() {
+        // Full regression test for GitHub #14 (Gap 1 + Gap 2):
+        // consumer.ingest(payload) → helper.storeSnapshot(data) → writes "snapshots" on SnapshotIngestor
+        // scheduler.publishAll reads "snapshots" via cross-component getter (FieldAccess with
+        //   componentId=SnapshotPublisher, fieldOwnerComponentId=SnapshotIngestor, method=publishAll)
+        // Expected: consumer STORE sink carries scheduler path id in linkedPathIds.
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("SnapshotIngestor", ComponentType.SERVICE));
+        model.components.add(comp("SnapshotPublisher", ComponentType.SCHEDULER));
+        model.components.add(comp("MqttClient", ComponentType.HTTP_CLIENT));
+        model.components.get(2).stereotypes = List.of("messaging");
+
+        Entrypoint consumer = new Entrypoint();
+        consumer.id = "ep:ingest";
+        consumer.name = "ingest";
+        consumer.type = EntrypointType.MESSAGING_CONSUMER;
+        consumer.componentId = "comp:SnapshotIngestor";
+        consumer.parameters.add("payload");
+        model.entrypoints.add(consumer);
+
+        Entrypoint scheduler = new Entrypoint();
+        scheduler.id = "ep:publishAll";
+        scheduler.name = "publishAll";
+        scheduler.type = EntrypointType.SCHEDULER;
+        scheduler.componentId = "comp:SnapshotPublisher";
+        model.entrypoints.add(scheduler);
+
+        // Intra-component call with paramMapping
+        CallEdge intraEdge = new CallEdge();
+        intraEdge.id = "call:comp:SnapshotIngestor#ingest->comp:SnapshotIngestor#storeSnapshot";
+        intraEdge.fromComponentId = "comp:SnapshotIngestor";
+        intraEdge.fromMethod = "ingest";
+        intraEdge.toComponentId = "comp:SnapshotIngestor";
+        intraEdge.toMethod = "storeSnapshot";
+        intraEdge.callKind = "intra";
+        intraEdge.paramMapping.put("payload", "data");
+        model.callEdges.add(intraEdge);
+
+        // Write in the helper
+        FieldAccess fw = new FieldAccess();
+        fw.kind = FieldAccess.Kind.WRITE;
+        fw.componentId = "comp:SnapshotIngestor";
+        fw.fieldOwnerComponentId = "comp:SnapshotIngestor";
+        fw.method = "storeSnapshot";
+        fw.fieldName = "snapshots";
+        fw.sourceVarName = "data";
+        fw.id = "field:comp:SnapshotIngestor#storeSnapshot@snapshots:write";
+        model.fieldAccesses.add(fw);
+
+        // Cross-component field read: SnapshotPublisher#publishAll reads SnapshotIngestor.snapshots
+        // (emitted by emitCallerSideFieldReadIfGetter when the scheduler calls ingestor.getSnapshots())
+        FieldAccess fr = new FieldAccess();
+        fr.kind = FieldAccess.Kind.READ;
+        fr.componentId = "comp:SnapshotPublisher";
+        fr.fieldOwnerComponentId = "comp:SnapshotIngestor";
+        fr.method = "publishAll";
+        fr.fieldName = "snapshots";
+        fr.id = "field:comp:SnapshotPublisher#publishAll@comp:SnapshotIngestor#getSnapshots:snapshots:read:xcomp";
+        model.fieldAccesses.add(fr);
+
+        addCallEdgeWithKind(
+                model, "comp:SnapshotPublisher", "publishAll", "comp:MqttClient", "send", Map.of(), "messaging");
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        DataFlowPath consumerPath = paths.stream()
+                .filter(p -> p.entrypointId.equals("ep:ingest"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("consumer path not found"));
+        DataFlowPath schedulerPath = paths.stream()
+                .filter(p -> p.entrypointId.equals("ep:publishAll"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("scheduler path not found"));
+
+        DataFlowSink storeSink = consumerPath.sinks.stream()
+                .filter(s -> s.kind == DataFlowSink.Kind.STORE && "snapshots".equals(s.fieldName))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("STORE sink on consumer path not found"));
+        assertThat(storeSink.linkedPathIds)
+                .as("consumer STORE sink must link to scheduler path reading the same field")
+                .contains(schedulerPath.id);
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────────
 
     private static ArchitectureModel buildModel() {
