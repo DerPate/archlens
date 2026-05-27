@@ -966,6 +966,14 @@ loaded into LikeC4 tooling or used as LLM context.
 
 Arguments:
 
-- `app` string, optional. Application name or id.
-- `view` string, optional. View kind. Currently `component`.
-- `maxNodes` integer, optional. Maximum selected component nodes. Default `18`.
+- `app` string, optional. Application name or id. For `view=workspace`, scopes the
+  exported workspace when graph ownership evidence can associate nodes with that app.
+- `view` string, optional. View kind. Default `workspace`.
+  - `workspace` exports a starter LikeC4 workspace with base elements, relationships,
+    and `context`, `container`, and `component` views.
+  - `component` exports the focused component projection.
+- `maxNodes` integer, optional. Maximum detailed component view nodes. Default `18`.
+
+Stable LikeC4 identifiers are derived from architecture graph ids. Display names are
+labels only and should not be treated as stable references. Export warnings are emitted
+as LikeC4 comments in the generated text.
