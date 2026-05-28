@@ -79,8 +79,7 @@ public class DetectUseCasesTool {
         return useCases.stream()
                 .filter(uc -> {
                     Entrypoint ep = model.entrypoints.stream()
-                            .filter(e -> uc.entrypointId != null
-                                    && uc.entrypointId.serialize().equals(e.id))
+                            .filter(e -> uc.entrypointId != null && uc.entrypointId.equals(e.id))
                             .findFirst()
                             .orElse(null);
                     if (ep == null) return false;
