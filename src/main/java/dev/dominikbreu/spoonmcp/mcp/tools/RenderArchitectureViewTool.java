@@ -31,7 +31,12 @@ public final class RenderArchitectureViewTool {
             }
             int maxNodes = ToolArgs.getInt(args, "maxNodes", 18);
             AppEntry app = resolveApp(model, ToolArgs.getString(args, "app", ""));
-            String scopeId = app != null ? app.id : "";
+            String scopeId;
+            if (app != null) {
+                scopeId = app.id;
+            } else {
+                scopeId = "";
+            }
             String title = (app != null ? app.name : model.workspacePath) + " - Component View";
             return renderer.render(projector.projectComponentView(graph, scopeId, title, maxNodes));
         } catch (Exception e) {

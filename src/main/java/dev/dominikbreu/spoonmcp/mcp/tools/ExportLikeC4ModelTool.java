@@ -36,7 +36,12 @@ public final class ExportLikeC4ModelTool {
             if (!"component".equalsIgnoreCase(view)) {
                 return "Supported views are workspace and component. Received: " + view;
             }
-            String scopeId = app != null ? app.id : "";
+            String scopeId;
+            if (app != null) {
+                scopeId = app.id;
+            } else {
+                scopeId = "";
+            }
             String title = (app != null ? app.name : model.workspacePath) + " - Component View";
             return renderer.render(projector.projectComponentView(graph, scopeId, title, maxNodes));
         } catch (Exception e) {

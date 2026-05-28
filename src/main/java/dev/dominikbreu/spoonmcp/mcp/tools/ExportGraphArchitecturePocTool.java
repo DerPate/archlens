@@ -303,9 +303,17 @@ public class ExportGraphArchitecturePocTool {
 
     private int booleanRank(Object value) {
         if (value instanceof Boolean bool) {
-            return bool ? 1 : 0;
+            if (bool) {
+                return 1;
+            } else {
+                return 0;
+            }
         }
-        return Boolean.parseBoolean(Objects.toString(value, "false")) ? 1 : 0;
+        if (Boolean.parseBoolean(Objects.toString(value, "false"))) {
+            return 1;
+        } else {
+            return 0;
+        }
     }
 
     private double numericDouble(Object value) {

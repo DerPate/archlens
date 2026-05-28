@@ -472,9 +472,12 @@ public class ObjectFlowIndexBuilder {
         if (GENERIC_JAVA_API_METHODS.contains(accessorName)) {
             return List.of();
         }
-        ObjectFlowEvidence fallbackEvidence = COLLECTION_STATE_ACCESS_METHODS.contains(outerMethodName)
-                ? ObjectFlowEvidence.ACCESSOR_STATE_OWNER
-                : ObjectFlowEvidence.ACCESSOR_NAME_FALLBACK;
+        ObjectFlowEvidence fallbackEvidence;
+        if (COLLECTION_STATE_ACCESS_METHODS.contains(outerMethodName)) {
+            fallbackEvidence = ObjectFlowEvidence.ACCESSOR_STATE_OWNER;
+        } else {
+            fallbackEvidence = ObjectFlowEvidence.ACCESSOR_NAME_FALLBACK;
+        }
         return projectTypes.stream()
                 .filter(type -> hasMethod(type, accessorName))
                 .findFirst()
@@ -536,7 +539,11 @@ public class ObjectFlowIndexBuilder {
             return variableRead.getVariable().getSimpleName();
         }
         CtVariable<?> variable = variable(expression);
-        return variable != null ? variable.getSimpleName() : null;
+        if (variable != null) {
+            return variable.getSimpleName();
+        } else {
+            return null;
+        }
     }
 
     private static CtVariable<?> variable(CtExpression<?> expression) {

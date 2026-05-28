@@ -27,7 +27,7 @@ public class TracingConfig {
         String mode = System.getProperty("spoon.traces", "none");
         String endpoint = System.getProperty("spoon.otlp.endpoint", "http://localhost:4317");
         try {
-            if (!mode.equals("console") && !mode.equals("otlp")) {
+            if (!"console".equals(mode) && !"otlp".equals(mode)) {
                 return OpenTelemetry.noop();
             }
 

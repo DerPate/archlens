@@ -416,7 +416,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         assertThat(fixture.callEdges)
                 .noneMatch(edge -> edge.fromComponentId.equals(ComponentId.of("example.Resource"))
                         && edge.toComponentId.equals(ComponentId.of("example.Budget"))
-                        && edge.toMethod.equals("equals"));
+                        && "equals".equals(edge.toMethod));
         assertThat(fixture.callEdges)
                 .anySatisfy(edge -> {
                     assertThat(edge.fromComponentId).isEqualTo(ComponentId.of("example.Resource"));

@@ -265,7 +265,11 @@ class RenderPipelineToolTest {
     private String resolvedRootId(Chain c) {
         Entrypoint ep = c.segments.get(0).entrypoint;
         EntrypointId eid = c.segments.get(0).path.entrypointId;
-        return ep != null ? ep.id.serialize() : (eid != null ? eid.serialize() : null);
+        if (ep != null) {
+            return ep.id.serialize();
+        } else {
+            return (eid != null ? eid.serialize() : null);
+        }
     }
 
     /**

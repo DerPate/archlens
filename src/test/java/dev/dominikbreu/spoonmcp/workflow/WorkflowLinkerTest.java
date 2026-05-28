@@ -60,7 +60,7 @@ class WorkflowLinkerTest {
 
         List<WorkflowLink> links = new WorkflowLinker().link(model);
 
-        assertThat(links).noneMatch(link -> link.toPathId().equals("df:shutdown#cache"));
+        assertThat(links).noneMatch(link -> "df:shutdown#cache".equals(link.toPathId()));
     }
 
     @Test

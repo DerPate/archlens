@@ -53,7 +53,12 @@ public class ExternalSystemInferrer {
 
         for (InterfaceEntry iface : model.interfaces) {
             if (!isMessagingInterface(iface.type)) continue;
-            MessagingBroker broker = iface.broker != null ? iface.broker : MessagingBroker.UNKNOWN;
+            MessagingBroker broker;
+            if (iface.broker != null) {
+                broker = iface.broker;
+            } else {
+                broker = MessagingBroker.UNKNOWN;
+            }
             if (broker == MessagingBroker.IN_MEMORY) continue;
             ExternalSystem system = systemForBroker(systemsById, broker);
             addDependency(model, existingDeps, iface.componentId.serialize(), system.id, "messaging");
@@ -61,7 +66,12 @@ public class ExternalSystemInferrer {
 
         for (Entrypoint ep : model.entrypoints) {
             if (ep.type != EntrypointType.MESSAGING_CONSUMER && ep.type != EntrypointType.MESSAGING_PRODUCER) continue;
-            MessagingBroker broker = ep.broker != null ? ep.broker : MessagingBroker.UNKNOWN;
+            MessagingBroker broker;
+            if (ep.broker != null) {
+                broker = ep.broker;
+            } else {
+                broker = MessagingBroker.UNKNOWN;
+            }
             if (broker == MessagingBroker.IN_MEMORY) continue;
             ExternalSystem system = systemForBroker(systemsById, broker);
             addDependency(model, existingDeps, ep.componentId.serialize(), system.id, "messaging");

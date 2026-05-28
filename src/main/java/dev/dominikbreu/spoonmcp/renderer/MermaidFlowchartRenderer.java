@@ -22,7 +22,12 @@ public class MermaidFlowchartRenderer {
      * @return Mermaid flowchart text
      */
     public String render(ArchitectureModel model, String appIdFilter, String level) {
-        String lvl = level != null ? level.toLowerCase() : "component";
+        String lvl;
+        if (level != null) {
+            lvl = level.toLowerCase();
+        } else {
+            lvl = "component";
+        }
 
         List<AppEntry> apps = model.applications.stream()
                 .filter(a -> appIdFilter == null || a.id.contains(appIdFilter) || a.name.contains(appIdFilter))
@@ -69,8 +74,18 @@ public class MermaidFlowchartRenderer {
                         .append(")\"]\n");
 
                 for (AppEntry child : children) {
-                    String shape = "technical_library".equals(child.role) ? "([" : "[";
-                    String closeShape = "technical_library".equals(child.role) ? "])" : "]";
+                    String shape;
+                    if ("technical_library".equals(child.role)) {
+                        shape = "([";
+                    } else {
+                        shape = "[";
+                    }
+                    String closeShape;
+                    if ("technical_library".equals(child.role)) {
+                        closeShape = "])";
+                    } else {
+                        closeShape = "]";
+                    }
                     String label = child.name + "\\n" + child.role;
                     sb.append("        ")
                             .append(nid(child.id))
@@ -284,7 +299,11 @@ public class MermaidFlowchartRenderer {
     }
 
     private String nullToEmpty(String s) {
-        return (s == null || s.isBlank()) ? "uses" : s;
+        if (s == null || s.isBlank()) {
+            return "uses";
+        } else {
+            return s;
+        }
     }
 
     // ── component level: subgraph per container, box per component ───────────

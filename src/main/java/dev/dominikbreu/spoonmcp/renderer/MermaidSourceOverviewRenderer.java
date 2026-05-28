@@ -26,7 +26,12 @@ public class MermaidSourceOverviewRenderer {
      * @return Mermaid flowchart text
      */
     public String render(ArchitectureModel model, int maxComponentsPerPackage) {
-        int maxPerPackage = maxComponentsPerPackage <= 0 ? 25 : maxComponentsPerPackage;
+        int maxPerPackage;
+        if (maxComponentsPerPackage <= 0) {
+            maxPerPackage = 25;
+        } else {
+            maxPerPackage = maxComponentsPerPackage;
+        }
         Map<String, List<Component>> byPackage = model.components.stream()
                 .collect(Collectors.groupingBy(this::packageName, LinkedHashMap::new, Collectors.toList()));
 
@@ -92,6 +97,10 @@ public class MermaidSourceOverviewRenderer {
     }
 
     private String escape(String input) {
-        return input == null ? "" : input.replace("\"", "'");
+        if (input == null) {
+            return "";
+        } else {
+            return input.replace("\"", "'");
+        }
     }
 }

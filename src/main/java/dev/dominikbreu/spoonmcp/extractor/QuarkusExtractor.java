@@ -489,7 +489,7 @@ public class QuarkusExtractor {
     private void emitGrpcEntrypoints(CtType<?> type, Component component, ArchitectureModel model) {
         for (CtMethod<?> method : type.getMethods()) {
             if (!method.getModifiers().contains(spoon.reflect.declaration.ModifierKind.PUBLIC)) continue;
-            if (method.getSimpleName().equals("bindService")) continue;
+            if ("bindService".equals(method.getSimpleName())) continue;
             dev.dominikbreu.spoonmcp.model.ids.EntrypointId epId = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
                     dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
                     method.getSimpleName(),
@@ -545,7 +545,11 @@ public class QuarkusExtractor {
                 if (val == null) return "";
                 if (val instanceof CtLiteral<?> lit) {
                     Object v = lit.getValue();
-                    return v != null ? v.toString() : "";
+                    if (v != null) {
+                        return v.toString();
+                    } else {
+                        return "";
+                    }
                 }
                 String str = val.toString();
                 if (str.startsWith("\"") && str.endsWith("\"")) {
@@ -576,11 +580,19 @@ public class QuarkusExtractor {
 
     private String getFile(CtElement el) {
         var pos = el.getPosition();
-        return pos.isValidPosition() ? pos.getFile().getAbsolutePath() : "unknown";
+        if (pos.isValidPosition()) {
+            return pos.getFile().getAbsolutePath();
+        } else {
+            return "unknown";
+        }
     }
 
     private int getLine(CtElement el) {
         var pos = el.getPosition();
-        return pos.isValidPosition() ? pos.getLine() : 0;
+        if (pos.isValidPosition()) {
+            return pos.getLine();
+        } else {
+            return 0;
+        }
     }
 }

@@ -27,7 +27,7 @@ class ArchitectureExtractorTest extends ExtractorTestBase {
         assertThat(model.entrypoints)
                 .anyMatch(e -> e.id.serialize().contains("OrderEventConsumer#onOrderCreated:observer"));
         assertThat(model.dependencies)
-                .anyMatch(d -> d.kind.equals("cdi-event")
+                .anyMatch(d -> "cdi-event".equals(d.kind)
                         && d.fromId.serialize().contains("OrderEventProducer")
                         && d.toId.serialize().contains("OrderEventConsumer"));
     }
@@ -47,10 +47,10 @@ class ArchitectureExtractorTest extends ExtractorTestBase {
     void extractsPlainJavaComponentsAndFieldDependencies() {
         ArchitectureModel model = new ArchitectureExtractor().extract(List.of(projectPath("plain-java-sample")));
 
-        assertThat(model.components).anyMatch(c -> c.name.equals("PlainServer") && c.technology.equals("java"));
-        assertThat(model.components).anyMatch(c -> c.name.equals("PlainTool") && c.technology.equals("java"));
+        assertThat(model.components).anyMatch(c -> "PlainServer".equals(c.name) && "java".equals(c.technology));
+        assertThat(model.components).anyMatch(c -> "PlainTool".equals(c.name) && "java".equals(c.technology));
         assertThat(model.dependencies)
-                .anyMatch(d -> d.kind.equals("field-reference")
+                .anyMatch(d -> "field-reference".equals(d.kind)
                         && d.fromId.serialize().contains("PlainServer")
                         && d.toId.serialize().contains("PlainTool"));
     }

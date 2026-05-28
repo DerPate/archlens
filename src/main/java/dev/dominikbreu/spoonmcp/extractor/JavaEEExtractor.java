@@ -119,8 +119,7 @@ public class JavaEEExtractor {
             }
 
             // MDB onMessage is always an entrypoint
-            if (component.type == ComponentType.MESSAGE_DRIVEN_BEAN
-                    && method.getSimpleName().equals("onMessage")) {
+            if (component.type == ComponentType.MESSAGE_DRIVEN_BEAN && "onMessage".equals(method.getSimpleName())) {
                 Entrypoint ep = new Entrypoint();
                 ep.id = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
                         dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()), "onMessage", "");
@@ -184,7 +183,11 @@ public class JavaEEExtractor {
                 if (val == null) return "";
                 if (val instanceof CtLiteral<?> lit) {
                     Object v = lit.getValue();
-                    return v != null ? v.toString() : "";
+                    if (v != null) {
+                        return v.toString();
+                    } else {
+                        return "";
+                    }
                 }
                 String str = val.toString();
                 if (str.startsWith("\"") && str.endsWith("\"")) {
@@ -215,11 +218,19 @@ public class JavaEEExtractor {
 
     private String getFile(CtElement el) {
         var pos = el.getPosition();
-        return pos.isValidPosition() ? pos.getFile().getAbsolutePath() : "unknown";
+        if (pos.isValidPosition()) {
+            return pos.getFile().getAbsolutePath();
+        } else {
+            return "unknown";
+        }
     }
 
     private int getLine(CtElement el) {
         var pos = el.getPosition();
-        return pos.isValidPosition() ? pos.getLine() : 0;
+        if (pos.isValidPosition()) {
+            return pos.getLine();
+        } else {
+            return 0;
+        }
     }
 }

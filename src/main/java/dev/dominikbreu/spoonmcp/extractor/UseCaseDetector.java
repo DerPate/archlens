@@ -101,14 +101,29 @@ public class UseCaseDetector {
         if (visible) {
             visitedComps.add(compId);
         }
-        String fromName = fromComp != null ? fromComp.name : compId.serialize();
-        String currentVisibleSource = visible ? fromName : visibleSourceName;
+        String fromName;
+        if (fromComp != null) {
+            fromName = fromComp.name;
+        } else {
+            fromName = compId.serialize();
+        }
+        String currentVisibleSource;
+        if (visible) {
+            currentVisibleSource = fromName;
+        } else {
+            currentVisibleSource = visibleSourceName;
+        }
 
         for (CallEdge edge : adj.getOrDefault(key, List.of())) {
             if (!traversalPolicy.canTraverseInline(edge)) continue;
             Component toComp = compById.get(edge.toComponentId);
             boolean targetVisible = traversalPolicy.isHumanVisible(toComp);
-            String toName = toComp != null ? toComp.name : edge.toComponentId.serialize();
+            String toName;
+            if (toComp != null) {
+                toName = toComp.name;
+            } else {
+                toName = edge.toComponentId.serialize();
+            }
             if (targetVisible && currentVisibleSource != null) {
                 chain.add(currentVisibleSource + "." + edge.fromMethod + " → " + toName + "." + edge.toMethod);
             }
@@ -155,7 +170,12 @@ public class UseCaseDetector {
     public String deriveName(Entrypoint ep) {
         return switch (ep.type) {
             case REST_ENDPOINT -> {
-                String method = ep.httpMethod != null ? ep.httpMethod + " " : "";
+                String method;
+                if (ep.httpMethod != null) {
+                    method = ep.httpMethod + " ";
+                } else {
+                    method = "";
+                }
                 yield method + camelToTitle(ep.name);
             }
             case MESSAGING_CONSUMER -> "Process " + camelToTitle(ep.channelName != null ? ep.channelName : ep.name);
@@ -168,7 +188,12 @@ public class UseCaseDetector {
     }
 
     private String camelToTitle(String s) {
-        if (s == null || s.isEmpty()) return s != null ? s : "";
+        if (s == null || s.isEmpty())
+            if (s != null) {
+                return s;
+            } else {
+                return "";
+            }
         String spaced = s.replaceAll("[-_]", " ").replaceAll("([a-z])([A-Z])", "$1 $2");
         String[] words = spaced.split("\\s+");
         StringBuilder sb = new StringBuilder();

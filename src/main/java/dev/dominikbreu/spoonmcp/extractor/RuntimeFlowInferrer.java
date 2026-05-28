@@ -44,9 +44,11 @@ public class RuntimeFlowInferrer {
         Entrypoint ep = findEntrypoint(entrypointRef, model);
         if (ep == null) return null;
 
-        return model.callEdges.isEmpty()
-                ? inferFromDependencies(ep, maxDepth, index)
-                : inferFromCallGraph(ep, maxDepth, index);
+        if (model.callEdges.isEmpty()) {
+            return inferFromDependencies(ep, maxDepth, index);
+        } else {
+            return inferFromCallGraph(ep, maxDepth, index);
+        }
     }
 
     // ── call-graph DFS ────────────────────────────────────────────────────────
@@ -111,8 +113,13 @@ public class RuntimeFlowInferrer {
         String key = compId.serialize() + "#" + method;
         if (visitedKeys.contains(key) || depth > maxDepth) return;
         visitedKeys.add(key);
+        ComponentId nextFromCompId;
 
-        ComponentId nextFromCompId = visible ? compId : fromCompId;
+        if (visible) {
+            nextFromCompId = compId;
+        } else {
+            nextFromCompId = fromCompId;
+        }
         for (CallEdge edge : index.callAdj.edges(compId, method)) {
             if (!traversalPolicy.canTraverseInline(edge)) continue;
             dfsCallGraph(
@@ -190,7 +197,11 @@ public class RuntimeFlowInferrer {
         if (ep.channelName != null) return ep.channelName;
         if (ep.httpMethod != null && ep.path != null) return ep.httpMethod + " " + ep.path;
         if (ep.path != null) return ep.path;
-        return ep.type != null ? ep.type.name().toLowerCase() : "trigger";
+        if (ep.type != null) {
+            return ep.type.name().toLowerCase();
+        } else {
+            return "trigger";
+        }
     }
 
     private static final List<String> HTTP_METHODS =
@@ -215,7 +226,11 @@ public class RuntimeFlowInferrer {
      */
     public static String extractPathFromRef(String ref) {
         String method = extractMethodFromRef(ref);
-        return method != null ? ref.substring(method.length() + 1) : ref;
+        if (method != null) {
+            return ref.substring(method.length() + 1);
+        } else {
+            return ref;
+        }
     }
 
     public static boolean pathPrefixMatches(String epPath, String ref) {

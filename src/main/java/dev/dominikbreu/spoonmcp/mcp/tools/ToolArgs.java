@@ -10,12 +10,20 @@ final class ToolArgs {
     static String getString(Map<String, Object> args, String key) {
         if (args == null) return null;
         Object v = args.get(key);
-        return v == null ? null : v.toString();
+        if (v == null) {
+            return null;
+        } else {
+            return v.toString();
+        }
     }
 
     static String getString(Map<String, Object> args, String key, String def) {
         String v = getString(args, key);
-        return v != null ? v : def;
+        if (v != null) {
+            return v;
+        } else {
+            return def;
+        }
     }
 
     static int getInt(Map<String, Object> args, String key, int def) {
@@ -50,6 +58,10 @@ final class ToolArgs {
     static Map<String, Object> getMap(Map<String, Object> args, String key) {
         if (args == null) return null;
         Object v = args.get(key);
-        return v instanceof Map<?, ?> ? (Map<String, Object>) v : null;
+        if (v instanceof Map<?, ?>) {
+            return (Map<String, Object>) v;
+        } else {
+            return null;
+        }
     }
 }

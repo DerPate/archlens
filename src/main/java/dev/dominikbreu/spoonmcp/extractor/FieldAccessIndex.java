@@ -18,7 +18,12 @@ public final class FieldAccessIndex {
         Map<MethodRef, List<FieldAccess>> reads = new HashMap<>();
         Map<MethodRef, List<FieldAccess>> writes = new HashMap<>();
         for (FieldAccess access : accesses) {
-            Map<MethodRef, List<FieldAccess>> target = access.kind == FieldAccess.Kind.READ ? reads : writes;
+            Map<MethodRef, List<FieldAccess>> target;
+            if (access.kind == FieldAccess.Kind.READ) {
+                target = reads;
+            } else {
+                target = writes;
+            }
             target.computeIfAbsent(new MethodRef(access.componentId, access.method), k -> new ArrayList<>())
                     .add(access);
         }

@@ -24,7 +24,12 @@ public class SpringConfigResolver {
             File file = new File(resources, name);
             if (!file.isFile()) continue;
             try {
-                Map<String, String> parsed = name.endsWith(".properties") ? readProperties(file) : readYaml(file);
+                Map<String, String> parsed;
+                if (name.endsWith(".properties")) {
+                    parsed = readProperties(file);
+                } else {
+                    parsed = readYaml(file);
+                }
                 values.putAll(parsed);
             } catch (IOException ignored) {
             }
@@ -105,7 +110,12 @@ public class SpringConfigResolver {
     @SuppressWarnings("unchecked")
     private void flatten(String prefix, Map<String, Object> in, Map<String, String> out) {
         for (Map.Entry<String, Object> entry : in.entrySet()) {
-            String key = prefix.isEmpty() ? entry.getKey() : prefix + "." + entry.getKey();
+            String key;
+            if (prefix.isEmpty()) {
+                key = entry.getKey();
+            } else {
+                key = prefix + "." + entry.getKey();
+            }
             Object value = entry.getValue();
             if (value instanceof Map<?, ?> nested) {
                 flatten(key, (Map<String, Object>) nested, out);

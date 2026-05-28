@@ -74,9 +74,12 @@ public class ObjectFlowIndex {
         }
 
         if (declaredTypeFact != null) {
-            ObjectFlowEvidence evidence = declaredTypeFact.abstractOrInterface()
-                    ? ObjectFlowEvidence.DECLARED_INTERFACE_ONLY
-                    : ObjectFlowEvidence.DECLARED_FIELD_TYPE;
+            ObjectFlowEvidence evidence;
+            if (declaredTypeFact.abstractOrInterface()) {
+                evidence = ObjectFlowEvidence.DECLARED_INTERFACE_ONLY;
+            } else {
+                evidence = ObjectFlowEvidence.DECLARED_FIELD_TYPE;
+            }
             return List.of(new ReceiverTarget(
                     declaredTypeFact.componentId(), methodName, evidence, evidence.confidence(), false));
         }

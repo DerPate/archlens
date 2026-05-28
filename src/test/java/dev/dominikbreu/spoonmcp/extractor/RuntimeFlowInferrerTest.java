@@ -95,9 +95,9 @@ class RuntimeFlowInferrerTest {
         ArchitectureModel model = modelWithUtility();
         RuntimeFlow flow = inferrer.infer(model.entrypoints.get(0).id.serialize(), 5, model);
 
-        assertThat(flow.steps).noneMatch(s -> s.componentName.equals("Mapper"));
-        assertThat(flow.steps).anyMatch(s -> s.componentName.equals("Resource"));
-        assertThat(flow.steps).anyMatch(s -> s.componentName.equals("Service"));
+        assertThat(flow.steps).noneMatch(s -> "Mapper".equals(s.componentName));
+        assertThat(flow.steps).anyMatch(s -> "Resource".equals(s.componentName));
+        assertThat(flow.steps).anyMatch(s -> "Service".equals(s.componentName));
     }
 
     @Test
@@ -168,9 +168,9 @@ class RuntimeFlowInferrerTest {
 
         RuntimeFlow flow = inferrer.infer(ep.id.serialize(), 5, m);
 
-        assertThat(flow.steps).noneMatch(s -> s.componentName.equals("VertxMqttClient"));
-        assertThat(flow.steps).anyMatch(s -> s.componentName.equals("MQTTConsumer"));
-        assertThat(flow.steps).anyMatch(s -> s.componentName.equals("OrderService"));
+        assertThat(flow.steps).noneMatch(s -> "VertxMqttClient".equals(s.componentName));
+        assertThat(flow.steps).anyMatch(s -> "MQTTConsumer".equals(s.componentName));
+        assertThat(flow.steps).anyMatch(s -> "OrderService".equals(s.componentName));
     }
 
     @Test

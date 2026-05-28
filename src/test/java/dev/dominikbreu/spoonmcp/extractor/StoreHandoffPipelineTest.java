@@ -43,7 +43,7 @@ class StoreHandoffPipelineTest extends ExtractorTestBase {
                 .as("SnapshotIngestor#storeSnapshot writes 'snapshots' field")
                 .anyMatch(fa -> fa.kind == FieldAccess.Kind.WRITE
                         && fa.componentId.qualifiedName().contains("SnapshotIngestor")
-                        && fa.method.equals("storeSnapshot")
+                        && "storeSnapshot".equals(fa.method)
                         && "snapshots".equals(fa.fieldBinding.fieldName()));
     }
 

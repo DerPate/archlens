@@ -74,7 +74,12 @@ public class MermaidPipelineRenderer {
                             .append(boundaryId)
                             .append("\n");
                 }
-                String consumeLabel = ep != null && ep.name != null ? ep.name : "";
+                String consumeLabel;
+                if (ep != null && ep.name != null) {
+                    consumeLabel = ep.name;
+                } else {
+                    consumeLabel = "";
+                }
                 String firstStepNode = "S" + segIdx + "_0";
                 edges.append("    ")
                         .append(boundaryId)
@@ -87,14 +92,18 @@ public class MermaidPipelineRenderer {
 
             // Entrypoint header step (segment header) — represents the entrypoint method itself.
             String headerNodeId = "S" + segIdx + "_0";
-            String headerComponentName =
-                    ep != null && ep.componentId != null && compById.get(ep.componentId.serialize()) != null
-                            ? compById.get(ep.componentId.serialize()).name
-                            : (seg.path.steps.isEmpty() ? "?" : seg.path.steps.get(0).componentName);
-            ComponentType headerType =
-                    ep != null && ep.componentId != null && compById.get(ep.componentId.serialize()) != null
-                            ? compById.get(ep.componentId.serialize()).type
-                            : null;
+            String headerComponentName;
+            if (ep != null && ep.componentId != null && compById.get(ep.componentId.serialize()) != null) {
+                headerComponentName = compById.get(ep.componentId.serialize()).name;
+            } else {
+                headerComponentName = (seg.path.steps.isEmpty() ? "?" : seg.path.steps.get(0).componentName);
+            }
+            ComponentType headerType;
+            if (ep != null && ep.componentId != null && compById.get(ep.componentId.serialize()) != null) {
+                headerType = compById.get(ep.componentId.serialize()).type;
+            } else {
+                headerType = null;
+            }
             String headerLabel = headerComponentName + (ep != null && ep.name != null ? "." + ep.name : "");
             sb.append("    ")
                     .append(headerNodeId)
@@ -105,9 +114,12 @@ public class MermaidPipelineRenderer {
             for (int i = 1; i < seg.path.steps.size(); i++) {
                 DataFlowStep step = seg.path.steps.get(i);
                 String nodeId = "S" + segIdx + "_" + i;
-                ComponentType type = step.componentId != null && compById.containsKey(step.componentId.serialize())
-                        ? compById.get(step.componentId.serialize()).type
-                        : null;
+                ComponentType type;
+                if (step.componentId != null && compById.containsKey(step.componentId.serialize())) {
+                    type = compById.get(step.componentId.serialize()).type;
+                } else {
+                    type = null;
+                }
                 String label = step.componentName + "." + step.method;
                 sb.append("    ").append(nodeId).append(nodeShape(label, type)).append("\n");
                 edges.append("    ")
@@ -147,7 +159,6 @@ public class MermaidPipelineRenderer {
                         .append(termId)
                         .append("\n");
             }
-
             // Determine which sink (if any) links to the next segment.
             DataFlowSink linkOut =
                     (segIdx + 1 < chain.segments.size()) ? chain.segments.get(segIdx + 1).incomingSink : null;
@@ -192,19 +203,33 @@ public class MermaidPipelineRenderer {
 
     private String boundaryLabel(DataFlowSink sink, Map<String, Component> compById) {
         if (sink.kind == DataFlowSink.Kind.STORE) {
-            String owner =
-                    sink.fieldOwnerComponentId != null && compById.get(sink.fieldOwnerComponentId.serialize()) != null
-                            ? compById.get(sink.fieldOwnerComponentId.serialize()).name
-                            : (sink.componentName != null ? sink.componentName : "?");
+            String owner;
+            if (sink.fieldOwnerComponentId != null && compById.get(sink.fieldOwnerComponentId.serialize()) != null) {
+                owner = compById.get(sink.fieldOwnerComponentId.serialize()).name;
+            } else {
+                owner = (sink.componentName != null ? sink.componentName : "?");
+            }
             return owner + "." + (sink.fieldName != null ? sink.fieldName : "?");
         }
         if (sink.kind == DataFlowSink.Kind.MESSAGING || sink.kind == DataFlowSink.Kind.EVENT_BUS) {
-            return sink.channel != null ? sink.channel : "channel";
+            if (sink.channel != null) {
+                return sink.channel;
+            } else {
+                return "channel";
+            }
         }
         if (sink.kind == DataFlowSink.Kind.PERSISTENCE) {
-            return sink.entityType != null ? sink.entityType : (sink.componentName != null ? sink.componentName : "?");
+            if (sink.entityType != null) {
+                return sink.entityType;
+            } else {
+                return (sink.componentName != null ? sink.componentName : "?");
+            }
         }
-        return sink.componentName != null ? sink.componentName : sink.kind.value();
+        if (sink.componentName != null) {
+            return sink.componentName;
+        } else {
+            return sink.kind.value();
+        }
     }
 
     private String boundaryClass(DataFlowSink.Kind kind) {

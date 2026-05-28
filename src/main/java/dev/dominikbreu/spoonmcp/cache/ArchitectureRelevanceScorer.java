@@ -95,7 +95,11 @@ final class ArchitectureRelevanceScorer {
         score += metrics.crossStateWriteCount();
         score += metrics.stateHandoffInCount() * 3;
         score += metrics.stateHandoffOutCount() * 3;
-        return businessRelevant ? score : Math.min(score, 2);
+        if (businessRelevant) {
+            return score;
+        } else {
+            return Math.min(score, 2);
+        }
     }
 
     private static boolean businessRelevant(Component component, int noiseScore) {
@@ -145,7 +149,11 @@ final class ArchitectureRelevanceScorer {
 
     private static String packageName(String qualifiedName) {
         int index = qualifiedName.lastIndexOf('.');
-        return index > 0 ? qualifiedName.substring(0, index) : "";
+        if (index > 0) {
+            return qualifiedName.substring(0, index);
+        } else {
+            return "";
+        }
     }
 
     record Metrics(

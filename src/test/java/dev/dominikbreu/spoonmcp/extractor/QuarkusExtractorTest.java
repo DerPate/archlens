@@ -171,13 +171,13 @@ class QuarkusExtractorTest extends ExtractorTestBase {
 
     @Test
     void restEndpointsAreAlsoStoredAsInterfaces() {
-        assertThat(model.interfaces).anyMatch(i -> i.type.equals("rest_endpoint") && i.path.equals("/orders/{id}"));
+        assertThat(model.interfaces).anyMatch(i -> "rest_endpoint".equals(i.type) && "/orders/{id}".equals(i.path));
     }
 
     @Test
     void restClientOperationsAreStoredAsInterfaces() {
         assertThat(model.interfaces)
-                .anyMatch(i -> i.type.equals("rest_client_operation") && i.path.equals("/billing/{orderId}"));
+                .anyMatch(i -> "rest_client_operation".equals(i.type) && "/billing/{orderId}".equals(i.path));
     }
 
     // ── messaging detection ─────────────────────────────────────────────────

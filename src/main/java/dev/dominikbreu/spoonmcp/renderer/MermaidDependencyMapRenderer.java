@@ -110,37 +110,67 @@ public class MermaidDependencyMapRenderer {
     private String groupName(Component component, String rootPackage) {
         String qualifiedName = component.qualifiedName;
         if (qualifiedName == null || qualifiedName.isBlank()) {
-            return component.module != null && !component.module.isBlank() ? component.module : "(default)";
+            if (component.module != null && !component.module.isBlank()) {
+                return component.module;
+            } else {
+                return "(default)";
+            }
         }
 
         int lastDot = qualifiedName.lastIndexOf('.');
-        String packageName = lastDot > 0 ? qualifiedName.substring(0, lastDot) : "";
+        String packageName;
+        if (lastDot > 0) {
+            packageName = qualifiedName.substring(0, lastDot);
+        } else {
+            packageName = "";
+        }
 
         // Component is IN the root package itself — use the leaf segment of the package
         if (rootPackage.isEmpty() || packageName.equals(rootPackage)) {
             int dot = packageName.lastIndexOf('.');
-            return dot >= 0 ? packageName.substring(dot + 1) : (packageName.isEmpty() ? "(default)" : packageName);
+            if (dot >= 0) {
+                return packageName.substring(dot + 1);
+            } else {
+                return (packageName.isEmpty() ? "(default)" : packageName);
+            }
+        }
+        String afterRoot;
+
+        if (packageName.startsWith(rootPackage + ".")) {
+            afterRoot = packageName.substring(rootPackage.length() + 1);
+        } else {
+            afterRoot = packageName;
         }
 
-        String afterRoot = packageName.startsWith(rootPackage + ".")
-                ? packageName.substring(rootPackage.length() + 1)
-                : packageName;
-
         int dot = afterRoot.indexOf('.');
-        String first = dot < 0 ? afterRoot : afterRoot.substring(0, dot);
+        String first;
+        if (dot < 0) {
+            first = afterRoot;
+        } else {
+            first = afterRoot.substring(0, dot);
+        }
 
         // Collapse known two-segment groups (e.g. mcp.tools)
         if (dot >= 0) {
             int dot2 = afterRoot.indexOf('.', dot + 1);
-            String second = dot2 < 0 ? afterRoot.substring(dot + 1) : afterRoot.substring(dot + 1, dot2);
+            String second;
+            if (dot2 < 0) {
+                second = afterRoot.substring(dot + 1);
+            } else {
+                second = afterRoot.substring(dot + 1, dot2);
+            }
             String twoSeg = first + "." + second;
             if (isKnownGroup(twoSeg)) return twoSeg;
         }
-        return first.isEmpty() ? "(default)" : first;
+        if (first.isEmpty()) {
+            return "(default)";
+        } else {
+            return first;
+        }
     }
 
     private boolean isKnownGroup(String seg) {
-        return seg.equals("mcp.tools");
+        return "mcp.tools".equals(seg);
     }
 
     private String commonPackagePrefix(List<Component> components) {
@@ -183,11 +213,19 @@ public class MermaidDependencyMapRenderer {
     }
 
     private String escape(String input) {
-        return input == null ? "" : input.replace("\"", "'");
+        if (input == null) {
+            return "";
+        } else {
+            return input.replace("\"", "'");
+        }
     }
 
     private String nullToUnknown(String input) {
-        return input == null || input.isBlank() ? "unknown" : input;
+        if (input == null || input.isBlank()) {
+            return "unknown";
+        } else {
+            return input;
+        }
     }
 
     private record EdgeKey(String from, String to) {}
