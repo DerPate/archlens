@@ -233,6 +233,13 @@
                             <mutators>
                                 <mutator>SafeButNotConsensual</mutator>
                             </mutators>
+                            <excludedMutators>
+                                <!-- Converts ternaries to if-else; has a bug where a comment between
+                                     a declaration and its ternary assignment causes it to hoist a
+                                     bare declaration without removing the original, producing a
+                                     duplicate local variable that fails compilation. -->
+                                <excludedMutator>AvoidInlineConditionals</excludedMutator>
+                            </excludedMutators>
                         </cleanthat>
                         <palantirJavaFormat>
                             <version>2.90.0</version>
