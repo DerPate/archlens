@@ -158,9 +158,9 @@ class ArchitectureViewProjectorTest {
 
     private static Dependency dependency(ComponentId fromId, ComponentId toId, String kind) {
         Dependency d = new Dependency();
-        d.id = "dep:" + fromId.serialize() + "->" + toId.serialize();
         d.fromId = fromId;
         d.toId = toId;
+        d.id = Dependency.idFor(fromId, toId);
         d.kind = kind;
         d.confidence = 0.9;
         return d;

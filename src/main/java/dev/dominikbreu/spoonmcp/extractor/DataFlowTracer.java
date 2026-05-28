@@ -99,7 +99,7 @@ public class DataFlowTracer {
                     currentToOriginal.put(tracked, tracked);
                 }
 
-                Set<String> onCurrentPath = new HashSet<>();
+                Set<dev.dominikbreu.spoonmcp.model.ids.MethodRef> onCurrentPath = new HashSet<>();
                 dfs(ep.componentId, ep.name, currentToOriginal, pathsByOriginal, 0, index, onCurrentPath, Map.of());
 
                 for (DataFlowPath path : pathsByOriginal.values()) {
@@ -131,16 +131,16 @@ public class DataFlowTracer {
      */
     private void linkStoreSinksToFieldReaders(List<DataFlowPath> paths, ArchitectureModel model, ModelIndex index) {
         // Build entrypointId → set of (fieldOwnerComponentId, fieldName) pairs read transitively.
-        Map<String, Set<dev.dominikbreu.spoonmcp.model.ids.FieldRef>> readsByEntrypoint = new HashMap<>();
+        Map<dev.dominikbreu.spoonmcp.model.ids.EntrypointId, Set<dev.dominikbreu.spoonmcp.model.ids.FieldRef>>
+                readsByEntrypoint = new HashMap<>();
         for (Entrypoint ep : model.entrypoints) {
-            readsByEntrypoint.put(ep.id.serialize(), collectReachableReadFieldKeys(ep, index));
+            readsByEntrypoint.put(ep.id, collectReachableReadFieldKeys(ep, index));
         }
 
         // Index reader paths by FieldRef → pathIds.
         Map<dev.dominikbreu.spoonmcp.model.ids.FieldRef, List<String>> readerPathsByKey = new HashMap<>();
         for (DataFlowPath p : paths) {
-            String epIdStr = p.entrypointId != null ? p.entrypointId.serialize() : null;
-            Set<dev.dominikbreu.spoonmcp.model.ids.FieldRef> keys = readsByEntrypoint.get(epIdStr);
+            Set<dev.dominikbreu.spoonmcp.model.ids.FieldRef> keys = readsByEntrypoint.get(p.entrypointId);
             if (keys == null) continue;
             for (dev.dominikbreu.spoonmcp.model.ids.FieldRef key : keys) {
                 readerPathsByKey.computeIfAbsent(key, k -> new ArrayList<>()).add(p.id);
@@ -269,10 +269,11 @@ public class DataFlowTracer {
             Map<String, DataFlowPath> pathsByOriginal,
             int depth,
             ModelIndex index,
-            Set<String> onCurrentPath,
+            Set<dev.dominikbreu.spoonmcp.model.ids.MethodRef> onCurrentPath,
             Map<String, String> resolvedCallerArgs) {
 
-        String nodeKey = compId.serialize() + "#" + method;
+        dev.dominikbreu.spoonmcp.model.ids.MethodRef nodeKey =
+                new dev.dominikbreu.spoonmcp.model.ids.MethodRef(compId, method);
         if (onCurrentPath.contains(nodeKey) || depth > MAX_DEPTH) return;
         onCurrentPath.add(nodeKey);
 

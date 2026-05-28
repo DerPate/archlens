@@ -21,4 +21,12 @@ public class Dependency {
 
     /** Creates an empty dependency for JSON deserialization. */
     public Dependency() {}
+
+    public static String idFor(ComponentId from, ComponentId to) {
+        return "dep:" + from.serialize() + "->" + to.serialize();
+    }
+
+    public static String idFor(ComponentId from, ComponentId to, String qualifier) {
+        return "dep:" + from.serialize() + "->" + to.serialize() + ":" + qualifier;
+    }
 }

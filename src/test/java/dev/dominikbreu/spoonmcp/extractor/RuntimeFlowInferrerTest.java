@@ -132,9 +132,9 @@ class RuntimeFlowInferrerTest {
         Component consumer = comp("Consumer", ComponentType.CDI_EVENT_CONSUMER);
         m.components.addAll(List.of(producer, consumer));
         Dependency d = new Dependency();
-        d.id = "dep:prod->cons";
         d.fromId = producer.id;
         d.toId = consumer.id;
+        d.id = Dependency.idFor(d.fromId, d.toId);
         d.kind = "cdi-event";
         d.confidence = 0.8;
         m.dependencies.add(d);
@@ -533,9 +533,9 @@ class RuntimeFlowInferrerTest {
 
     private static Dependency dep(ComponentId from, ComponentId to) {
         Dependency d = new Dependency();
-        d.id = "dep:" + from.serialize() + "->" + to.serialize();
         d.fromId = from;
         d.toId = to;
+        d.id = Dependency.idFor(from, to);
         d.kind = "injection";
         d.derivedFrom = "annotation";
         d.confidence = 0.95;

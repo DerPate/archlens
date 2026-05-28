@@ -150,9 +150,9 @@ class DependencyCondenserTest {
 
     private static Dependency dep(String from, String to) {
         Dependency d = new Dependency();
-        d.id = "dep:" + from + "->" + to;
         d.fromId = ComponentId.of(from);
         d.toId = ComponentId.of(to);
+        d.id = Dependency.idFor(d.fromId, d.toId);
         d.kind = "injection";
         d.derivedFrom = "annotation";
         d.confidence = 0.95;

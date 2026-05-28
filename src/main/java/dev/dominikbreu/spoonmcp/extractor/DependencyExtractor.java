@@ -74,7 +74,7 @@ public class DependencyExtractor {
             String kind,
             String derived,
             double conf) {
-        String id = "dep:" + from.serialize() + "->" + to.serialize();
+        String id = Dependency.idFor(from, to);
         for (Dependency d : model.dependencies) {
             if (d.id.equals(id)) return;
         }
