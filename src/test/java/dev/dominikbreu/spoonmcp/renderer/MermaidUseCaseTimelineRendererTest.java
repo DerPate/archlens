@@ -3,6 +3,8 @@ package dev.dominikbreu.spoonmcp.renderer;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -108,10 +110,10 @@ class MermaidUseCaseTimelineRendererTest {
     private RuntimeFlow flow(String entrypointId, int steps) {
         RuntimeFlow f = new RuntimeFlow();
         f.id = "flow:" + entrypointId;
-        f.entrypointId = entrypointId;
+        f.entrypointId = EntrypointId.deserialize(entrypointId);
         for (int i = 0; i < steps; i++) {
             RuntimeFlowStep s = new RuntimeFlowStep();
-            s.componentId = "comp:Comp" + i;
+            s.componentId = ComponentId.of("comp:Comp" + i);
             s.componentName = "Comp" + i;
             s.componentType = "SERVICE";
             s.via = "method" + i;
@@ -122,11 +124,11 @@ class MermaidUseCaseTimelineRendererTest {
 
     private Entrypoint ep(String id, String httpMethod, String path, String channelName, String componentId) {
         Entrypoint ep = new Entrypoint();
-        ep.id = id;
+        ep.id = EntrypointId.deserialize(id);
         ep.httpMethod = httpMethod;
         ep.path = path;
         ep.channelName = channelName;
-        ep.componentId = componentId;
+        ep.componentId = ComponentId.of(componentId);
         return ep;
     }
 }

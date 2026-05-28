@@ -57,7 +57,7 @@ public class RenderCallFlowTool {
         Entrypoint ep = inferrer.findEntrypoint(ref, model);
         if (ep == null) return null;
         return model.runtimeFlows.stream()
-                .filter(f -> f.entrypointId.equals(ep.id))
+                .filter(f -> f.entrypointId != null && f.entrypointId.equals(ep.id))
                 .filter(f -> maxDepth >= Math.max(0, f.steps.size() - 1))
                 .findFirst()
                 .orElse(null);

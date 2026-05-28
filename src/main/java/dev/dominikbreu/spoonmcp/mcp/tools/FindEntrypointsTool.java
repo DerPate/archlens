@@ -42,7 +42,8 @@ public class FindEntrypointsTool {
             String pathFilter = ToolArgs.getString(args, "path");
 
             List<Entrypoint> eps = model.entrypoints.stream()
-                    .filter(ep -> appId == null || ep.componentId.contains(appId))
+                    .filter(ep ->
+                            appId == null || ep.componentId.qualifiedName().contains(appId))
                     .filter(ep -> typeFilter == null || matchesType(ep.type, typeFilter))
                     .filter(ep -> methodFilter == null || methodFilter.equalsIgnoreCase(ep.httpMethod))
                     .filter(ep -> pathFilter == null || pathPrefixMatchesForDiscovery(ep.path, pathFilter))

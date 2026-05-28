@@ -1,5 +1,6 @@
 package dev.dominikbreu.spoonmcp.model;
 
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,7 +14,7 @@ public class DataFlowPath {
     /** Stable identifier: {@code df:<entrypointId>#<trackedParam>}. */
     public String id;
     /** Entrypoint from which this path originates. */
-    public String entrypointId;
+    public EntrypointId entrypointId;
     /** Name of the entrypoint method parameter being tracked. */
     public String trackedParam;
     /** Ordered hops through which the value passes. */

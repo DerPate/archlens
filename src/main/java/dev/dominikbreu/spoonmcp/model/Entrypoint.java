@@ -1,5 +1,7 @@
 package dev.dominikbreu.spoonmcp.model;
 
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -8,7 +10,7 @@ import java.util.List;
  */
 public class Entrypoint {
     /** Stable entrypoint identifier. */
-    public String id;
+    public EntrypointId id;
     /** Entrypoint family. */
     public EntrypointType type;
     /** Human-readable entrypoint name. */
@@ -24,7 +26,7 @@ public class Entrypoint {
     /** Resolved broker-side destination (Kafka topic, AMQP address, RabbitMQ queue) for messaging entrypoints. */
     public String topic;
     /** Component that owns the entrypoint. */
-    public String componentId;
+    public ComponentId componentId;
     /** Source file and evidence metadata for this entrypoint. */
     public SourceInfo source;
     /** Parameter names of the entrypoint method, in declaration order. */

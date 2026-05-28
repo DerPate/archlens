@@ -9,6 +9,8 @@ import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.DataFlowStep;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -148,7 +150,7 @@ class PipelineGraphBuilderTest {
 
     private Entrypoint ep(String id, EntrypointType type) {
         Entrypoint e = new Entrypoint();
-        e.id = id;
+        e.id = EntrypointId.deserialize(id);
         e.name = id;
         e.type = type;
         return e;
@@ -157,8 +159,8 @@ class PipelineGraphBuilderTest {
     private DataFlowPath path(String id, String entrypointId) {
         DataFlowPath p = new DataFlowPath();
         p.id = id;
-        p.entrypointId = entrypointId;
-        p.steps.add(new DataFlowStep(0, "comp:x", "X", "m", "x"));
+        p.entrypointId = EntrypointId.deserialize(entrypointId);
+        p.steps.add(new DataFlowStep(0, ComponentId.of("comp:x"), "X", "m", "x"));
         return p;
     }
 
@@ -179,14 +181,15 @@ class PipelineGraphBuilderTest {
     void build_truncatesChainsWhereSameEntrypointRepeatsViaStoreSink() {
         ArchitectureModel m = new ArchitectureModel("test");
 
-        m.entrypoints.add(ep("ep:S", EntrypointType.SCHEDULER));
+        // Use MESSAGING_CONSUMER for pS to avoid the SCHEDULER→CONSUMER background-data-feed filter
+        m.entrypoints.add(ep("ep:S", EntrypointType.MESSAGING_CONSUMER));
         m.entrypoints.add(ep("ep:A", EntrypointType.MESSAGING_CONSUMER));
 
         // Two paths from ep:A, different tracked params
         DataFlowPath pA1 = path("df:A#star", "ep:A");
         DataFlowPath pA2 = path("df:A#field", "ep:A");
 
-        // Scheduler path → stateCache → pA1
+        // pS → stateCache → pA1
         DataFlowPath pS = path("df:S", "ep:S");
         DataFlowSink storeSinkS = new DataFlowSink();
         storeSinkS.kind = DataFlowSink.Kind.STORE;
@@ -261,19 +264,19 @@ class PipelineGraphBuilderTest {
         ArchitectureModel m = new ArchitectureModel("test");
 
         Entrypoint schedulerEp = new Entrypoint();
-        schedulerEp.id = "ep:scheduler";
+        schedulerEp.id = EntrypointId.deserialize("ep:scheduler");
         schedulerEp.name = "run";
         schedulerEp.type = EntrypointType.SCHEDULER;
         m.entrypoints.add(schedulerEp);
 
         Entrypoint observerEp = new Entrypoint();
-        observerEp.id = "ep:shutdown-observer";
+        observerEp.id = EntrypointId.deserialize("ep:shutdown-observer");
         observerEp.name = "onShutdown";
         observerEp.type = EntrypointType.CDI_EVENT_OBSERVER;
         m.entrypoints.add(observerEp);
 
         Entrypoint dataObserverEp = new Entrypoint();
-        dataObserverEp.id = "ep:data-observer";
+        dataObserverEp.id = EntrypointId.deserialize("ep:data-observer");
         dataObserverEp.name = "onOrderCreated";
         dataObserverEp.type = EntrypointType.CDI_EVENT_OBSERVER;
         m.entrypoints.add(dataObserverEp);
@@ -281,8 +284,8 @@ class PipelineGraphBuilderTest {
         // Scheduler path links to both the shutdown observer and the data observer
         DataFlowPath schedulerPath = new DataFlowPath();
         schedulerPath.id = "df:scheduler";
-        schedulerPath.entrypointId = "ep:scheduler";
-        schedulerPath.steps.add(new DataFlowStep(0, "comp:x", "X", "run", "*"));
+        schedulerPath.entrypointId = EntrypointId.deserialize("ep:scheduler");
+        schedulerPath.steps.add(new DataFlowStep(0, ComponentId.of("comp:x"), "X", "run", "*"));
 
         DataFlowSink sinkToShutdown = new DataFlowSink();
         sinkToShutdown.kind = DataFlowSink.Kind.STORE;
@@ -299,14 +302,14 @@ class PipelineGraphBuilderTest {
 
         DataFlowPath shutdownPath = new DataFlowPath();
         shutdownPath.id = "df:shutdown-observer";
-        shutdownPath.entrypointId = "ep:shutdown-observer";
-        shutdownPath.steps.add(new DataFlowStep(0, "comp:x", "X", "onShutdown", "*"));
+        shutdownPath.entrypointId = EntrypointId.deserialize("ep:shutdown-observer");
+        shutdownPath.steps.add(new DataFlowStep(0, ComponentId.of("comp:x"), "X", "onShutdown", "*"));
         m.dataFlowPaths.add(shutdownPath);
 
         DataFlowPath dataObserverPath = new DataFlowPath();
         dataObserverPath.id = "df:data-observer";
-        dataObserverPath.entrypointId = "ep:data-observer";
-        dataObserverPath.steps.add(new DataFlowStep(0, "comp:x", "X", "onOrderCreated", "*"));
+        dataObserverPath.entrypointId = EntrypointId.deserialize("ep:data-observer");
+        dataObserverPath.steps.add(new DataFlowStep(0, ComponentId.of("comp:x"), "X", "onOrderCreated", "*"));
         m.dataFlowPaths.add(dataObserverPath);
 
         List<Chain> chains = builder.build(m, 10);
@@ -316,6 +319,6 @@ class PipelineGraphBuilderTest {
                 .hasSize(1);
         assertThat(chains.get(0).segments.get(1).entrypoint.id)
                 .as("surviving chain's segment-1 is the data observer, not the shutdown observer")
-                .isEqualTo("ep:data-observer");
+                .isEqualTo(dataObserverEp.id);
     }
 }

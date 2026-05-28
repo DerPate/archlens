@@ -6,6 +6,7 @@ import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -26,9 +27,15 @@ class DependencyCondenserTest {
 
         List<Dependency> result = condenser.condense(deps, comps);
 
-        assertThat(result).anyMatch(d -> d.fromId.equals("A") && d.toId.equals("C"));
-        assertThat(result).noneMatch(d -> d.fromId.equals("A") && d.toId.equals("B"));
-        assertThat(result).noneMatch(d -> d.fromId.equals("B") && d.toId.equals("C"));
+        assertThat(result)
+                .anyMatch(d ->
+                        d.fromId.serialize().equals("A") && d.toId.serialize().equals("C"));
+        assertThat(result)
+                .noneMatch(d ->
+                        d.fromId.serialize().equals("A") && d.toId.serialize().equals("B"));
+        assertThat(result)
+                .noneMatch(d ->
+                        d.fromId.serialize().equals("B") && d.toId.serialize().equals("C"));
     }
 
     /**
@@ -46,9 +53,12 @@ class DependencyCondenserTest {
 
         List<Dependency> result = condenser.condense(deps, comps);
 
-        assertThat(result).anyMatch(d -> d.fromId.equals("Controller") && d.toId.equals("Service"));
-        assertThat(result).noneMatch(d -> "Mapper".equals(d.fromId) || "Mapper".equals(d.toId));
-        assertThat(result).noneMatch(d -> "Validator".equals(d.fromId) || "Validator".equals(d.toId));
+        assertThat(result)
+                .anyMatch(d -> d.fromId.serialize().equals("Controller")
+                        && d.toId.serialize().equals("Service"));
+        assertThat(result).noneMatch(d -> "Mapper".equals(d.fromId.serialize()) || "Mapper".equals(d.toId.serialize()));
+        assertThat(result)
+                .noneMatch(d -> "Validator".equals(d.fromId.serialize()) || "Validator".equals(d.toId.serialize()));
     }
 
     /**
@@ -62,7 +72,9 @@ class DependencyCondenserTest {
 
         List<Dependency> result = condenser.condense(deps, comps);
 
-        assertThat(result).anyMatch(d -> d.fromId.equals("Service") && d.toId.equals("Repository"));
+        assertThat(result)
+                .anyMatch(d -> d.fromId.serialize().equals("Service")
+                        && d.toId.serialize().equals("Repository"));
     }
 
     /**
@@ -79,8 +91,12 @@ class DependencyCondenserTest {
         List<Dependency> result = condenser.condense(deps, comps);
 
         assertThat(result).hasSize(2);
-        assertThat(result).anyMatch(d -> d.fromId.equals("A") && d.toId.equals("B"));
-        assertThat(result).anyMatch(d -> d.fromId.equals("B") && d.toId.equals("C"));
+        assertThat(result)
+                .anyMatch(d ->
+                        d.fromId.serialize().equals("A") && d.toId.serialize().equals("B"));
+        assertThat(result)
+                .anyMatch(d ->
+                        d.fromId.serialize().equals("B") && d.toId.serialize().equals("C"));
     }
 
     /**
@@ -111,16 +127,20 @@ class DependencyCondenserTest {
 
         List<Dependency> result = condenser.condense(deps, comps);
 
-        assertThat(result).anyMatch(d -> d.fromId.equals("A") && d.toId.equals("B"));
-        assertThat(result).anyMatch(d -> d.fromId.equals("A") && d.toId.equals("C"));
-        assertThat(result).noneMatch(d -> "M".equals(d.fromId) || "M".equals(d.toId));
+        assertThat(result)
+                .anyMatch(d ->
+                        d.fromId.serialize().equals("A") && d.toId.serialize().equals("B"));
+        assertThat(result)
+                .anyMatch(d ->
+                        d.fromId.serialize().equals("A") && d.toId.serialize().equals("C"));
+        assertThat(result).noneMatch(d -> "M".equals(d.fromId.serialize()) || "M".equals(d.toId.serialize()));
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private static Component comp(String id, ComponentType type) {
         Component c = new Component();
-        c.id = id;
+        c.id = ComponentId.of(id);
         c.name = id;
         c.type = type;
         c.technology = "test";
@@ -131,8 +151,8 @@ class DependencyCondenserTest {
     private static Dependency dep(String from, String to) {
         Dependency d = new Dependency();
         d.id = "dep:" + from + "->" + to;
-        d.fromId = from;
-        d.toId = to;
+        d.fromId = ComponentId.of(from);
+        d.toId = ComponentId.of(to);
         d.kind = "injection";
         d.derivedFrom = "annotation";
         d.confidence = 0.95;

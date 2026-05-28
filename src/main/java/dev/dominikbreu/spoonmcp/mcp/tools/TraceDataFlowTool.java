@@ -51,7 +51,9 @@ public class TraceDataFlowTool {
 
             if (epFilter != null) {
                 paths = paths.stream()
-                        .filter(p -> p.entrypointId.equals(epFilter) || p.entrypointId.contains(epFilter))
+                        .filter(p -> p.entrypointId != null
+                                && (p.entrypointId.serialize().equals(epFilter)
+                                        || p.entrypointId.serialize().contains(epFilter)))
                         .collect(Collectors.toList());
             }
             if (nameFilter != null) {
@@ -61,7 +63,7 @@ public class TraceDataFlowTool {
                 paths = paths.stream()
                         .filter(p -> {
                             Entrypoint ep = model.entrypoints.stream()
-                                    .filter(e -> e.id.equals(p.entrypointId))
+                                    .filter(e -> p.entrypointId != null && p.entrypointId.equals(e.id))
                                     .findFirst()
                                     .orElse(null);
                             if (ep == null) return false;
@@ -97,13 +99,13 @@ public class TraceDataFlowTool {
 
         for (DataFlowPath path : paths) {
             Entrypoint ep = model.entrypoints.stream()
-                    .filter(e -> e.id.equals(path.entrypointId))
+                    .filter(e -> path.entrypointId != null && path.entrypointId.equals(e.id))
                     .findFirst()
                     .orElse(null);
 
             String epLabel = ep != null
                     ? (ep.httpMethod != null ? ep.httpMethod + " " : "") + (ep.path != null ? ep.path : ep.name)
-                    : path.entrypointId;
+                    : (path.entrypointId != null ? path.entrypointId.serialize() : "");
 
             sb.append("## ")
                     .append(epLabel)

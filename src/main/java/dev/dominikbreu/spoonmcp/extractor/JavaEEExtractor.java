@@ -36,7 +36,7 @@ public class JavaEEExtractor {
      * @param appId owning application identifier
      */
     public void extract(Collection<CtType<?>> types, ArchitectureModel model, String appId) {
-        Set<String> existingIds = new HashSet<>();
+        Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> existingIds = new HashSet<>();
         for (Component c : model.components) existingIds.add(c.id);
 
         for (CtType<?> type : types) {
@@ -83,7 +83,7 @@ public class JavaEEExtractor {
         if (compType == null) return null;
 
         Component c = new Component();
-        c.id = "comp:" + type.getQualifiedName();
+        c.id = dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName());
         c.type = compType;
         c.name = type.getSimpleName();
         c.qualifiedName = type.getQualifiedName();
@@ -103,7 +103,10 @@ public class JavaEEExtractor {
                 String methodPath = getAnnotationStringValue(method, JAX_RS_PATH);
                 String fullPath = combinePaths(classBasePath, methodPath);
                 Entrypoint ep = new Entrypoint();
-                ep.id = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName();
+                ep.id = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
+                        dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
+                        method.getSimpleName(),
+                        "");
                 ep.type = EntrypointType.REST_ENDPOINT;
                 ep.name = method.getSimpleName();
                 ep.httpMethod = httpMethod;
@@ -119,7 +122,8 @@ public class JavaEEExtractor {
             if (component.type == ComponentType.MESSAGE_DRIVEN_BEAN
                     && method.getSimpleName().equals("onMessage")) {
                 Entrypoint ep = new Entrypoint();
-                ep.id = "ep:" + type.getQualifiedName() + "#onMessage";
+                ep.id = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
+                        dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()), "onMessage", "");
                 ep.type = EntrypointType.JMS_CONSUMER;
                 ep.name = "onMessage";
                 ep.componentId = component.id;
@@ -131,7 +135,7 @@ public class JavaEEExtractor {
 
     private void addInterface(
             CtElement element, Component component, String type, String name, String path, ArchitectureModel model) {
-        String id = "iface:" + component.id.substring("comp:".length()) + ":" + type + ":" + name;
+        String id = "iface:" + component.id.qualifiedName() + ":" + type + ":" + name;
         if (model.interfaces.stream().anyMatch(i -> i.id.equals(id))) return;
         InterfaceEntry entry = new InterfaceEntry();
         entry.id = id;

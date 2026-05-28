@@ -57,7 +57,8 @@ public class EventBusExtractor {
      * @param appId owning application identifier
      */
     public void extract(Collection<CtType<?>> types, ArchitectureModel model, String appId) {
-        Set<String> existingIds = model.components.stream().map(c -> c.id).collect(Collectors.toSet());
+        Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> existingIds =
+                model.components.stream().map(c -> c.id).collect(Collectors.toSet());
 
         for (CtType<?> type : types) {
             detectProducer(type, model, appId, existingIds);
@@ -76,7 +77,10 @@ public class EventBusExtractor {
      * entrypoint's parameters list so the data-flow tracer can follow it.
      */
     private void detectVertxEventBusConsumer(
-            CtType<?> type, ArchitectureModel model, String appId, Set<String> existingIds) {
+            CtType<?> type,
+            ArchitectureModel model,
+            String appId,
+            Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> existingIds) {
         for (CtMethod<?> method : type.getMethods()) {
             for (CtInvocation<?> inv : method.getElements(new TypeFilter<>(CtInvocation.class))) {
                 if (!"consumer".equals(inv.getExecutable().getSimpleName())) continue;
@@ -94,7 +98,8 @@ public class EventBusExtractor {
                         ? "message"
                         : lambda.getParameters().get(0).getSimpleName();
 
-                String compId = "comp:" + type.getQualifiedName();
+                dev.dominikbreu.spoonmcp.model.ids.ComponentId compId =
+                        dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName());
                 Component comp = findOrCreateComponent(
                         compId,
                         type,
@@ -104,8 +109,12 @@ public class EventBusExtractor {
                         model,
                         existingIds);
 
-                String epId = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + ":eventbus:" + address;
-                if (model.entrypoints.stream().anyMatch(e -> e.id.equals(epId))) continue;
+                dev.dominikbreu.spoonmcp.model.ids.EntrypointId epId =
+                        new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
+                                dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
+                                method.getSimpleName(),
+                                "eventbus:" + address);
+                if (model.entrypoints.stream().anyMatch(e -> epId.equals(e.id))) continue;
 
                 Entrypoint ep = new Entrypoint();
                 ep.id = epId;
@@ -163,8 +172,8 @@ public class EventBusExtractor {
                     if (existingDepIds.add(depId)) {
                         Dependency dep = new Dependency();
                         dep.id = depId;
-                        dep.fromId = producerId;
-                        dep.toId = consumerId;
+                        dep.fromId = dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(producerId);
+                        dep.toId = dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(consumerId);
                         dep.kind = "cdi-event";
                         dep.derivedFrom = "event-type-match:" + eventType;
                         dep.confidence = 0.8;
@@ -177,7 +186,11 @@ public class EventBusExtractor {
 
     // ── producer detection ────────────────────────────────────────────────────
 
-    private void detectProducer(CtType<?> type, ArchitectureModel model, String appId, Set<String> existingIds) {
+    private void detectProducer(
+            CtType<?> type,
+            ArchitectureModel model,
+            String appId,
+            Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> existingIds) {
         List<String> firedEventTypes = new ArrayList<>();
 
         for (CtField<?> field : type.getFields()) {
@@ -195,36 +208,45 @@ public class EventBusExtractor {
 
         if (firedEventTypes.isEmpty()) return;
 
-        String compId = "comp:" + type.getQualifiedName();
+        dev.dominikbreu.spoonmcp.model.ids.ComponentId compId =
+                dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName());
         Component comp = findOrCreateComponent(
                 compId, type, appId, ComponentType.CDI_EVENT_PRODUCER, "cdi-event-producer", model, existingIds);
 
         for (String eventType : firedEventTypes) {
             producersByEventType
                     .computeIfAbsent(eventType, k -> new ArrayList<>())
-                    .add(comp.id);
+                    .add(comp.id.serialize());
         }
     }
 
     // ── consumer detection ────────────────────────────────────────────────────
 
-    private void detectConsumer(CtType<?> type, ArchitectureModel model, String appId, Set<String> existingIds) {
+    private void detectConsumer(
+            CtType<?> type,
+            ArchitectureModel model,
+            String appId,
+            Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> existingIds) {
         for (CtMethod<?> method : type.getMethods()) {
             String eventType = detectObservesParameter(method);
             if (eventType == null) eventType = detectConsumeEventAnnotation(method);
             if (eventType == null) continue;
 
-            String compId = "comp:" + type.getQualifiedName();
+            dev.dominikbreu.spoonmcp.model.ids.ComponentId compId =
+                    dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName());
             Component comp = findOrCreateComponent(
                     compId, type, appId, ComponentType.CDI_EVENT_CONSUMER, "cdi-event-consumer", model, existingIds);
 
             consumersByEventType
                     .computeIfAbsent(eventType, k -> new ArrayList<>())
-                    .add(comp.id);
+                    .add(comp.id.serialize());
 
             // Create entrypoint for the observer method
-            String epId = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + ":observer";
-            if (model.entrypoints.stream().noneMatch(e -> e.id.equals(epId))) {
+            dev.dominikbreu.spoonmcp.model.ids.EntrypointId epId = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
+                    dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
+                    method.getSimpleName(),
+                    "observer");
+            if (model.entrypoints.stream().noneMatch(e -> epId.equals(e.id))) {
                 Entrypoint ep = new Entrypoint();
                 ep.id = epId;
                 ep.type = EntrypointType.CDI_EVENT_OBSERVER;
@@ -279,13 +301,13 @@ public class EventBusExtractor {
      * If the component already exists with a different type, adds the stereotype without changing the type.
      */
     private Component findOrCreateComponent(
-            String compId,
+            dev.dominikbreu.spoonmcp.model.ids.ComponentId compId,
             CtType<?> type,
             String appId,
             ComponentType newType,
             String stereotype,
             ArchitectureModel model,
-            Set<String> existingIds) {
+            Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> existingIds) {
         Optional<Component> existing =
                 model.components.stream().filter(c -> c.id.equals(compId)).findFirst();
 

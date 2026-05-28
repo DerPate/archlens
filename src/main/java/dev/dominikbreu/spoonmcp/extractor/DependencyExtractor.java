@@ -38,17 +38,20 @@ public class DependencyExtractor {
      * @param model architecture model to update
      */
     public void extract(CtModel ctModel, ArchitectureModel model) {
-        Map<String, dev.dominikbreu.spoonmcp.model.Component> componentsById = new HashMap<>();
+        Map<dev.dominikbreu.spoonmcp.model.ids.ComponentId, dev.dominikbreu.spoonmcp.model.Component> componentsById =
+                new HashMap<>();
         for (var c : model.components) componentsById.put(c.id, c);
 
         for (CtType<?> type : ctModel.getAllTypes()) {
-            String fromId = "comp:" + type.getQualifiedName();
+            dev.dominikbreu.spoonmcp.model.ids.ComponentId fromId =
+                    dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName());
             if (!componentsById.containsKey(fromId)) continue;
 
             for (CtField<?> field : type.getFields()) {
                 boolean isInjected = hasAnn(field, INJECT_ANNOTATIONS) || hasAnn(field, PERSISTENCE_CONTEXT);
                 String targetQN = field.getType().getQualifiedName();
-                String toId = "comp:" + targetQN;
+                dev.dominikbreu.spoonmcp.model.ids.ComponentId toId =
+                        dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(targetQN);
                 if (componentsById.containsKey(toId) && !fromId.equals(toId)) {
                     double confidence =
                             evidenceScorer.score(componentsById.get(fromId), componentsById.get(toId), isInjected);
@@ -64,8 +67,14 @@ public class DependencyExtractor {
         dedup(model);
     }
 
-    private void addDep(ArchitectureModel model, String from, String to, String kind, String derived, double conf) {
-        String id = "dep:" + from + "->" + to;
+    private void addDep(
+            ArchitectureModel model,
+            dev.dominikbreu.spoonmcp.model.ids.ComponentId from,
+            dev.dominikbreu.spoonmcp.model.ids.ComponentId to,
+            String kind,
+            String derived,
+            double conf) {
+        String id = "dep:" + from.serialize() + "->" + to.serialize();
         for (Dependency d : model.dependencies) {
             if (d.id.equals(id)) return;
         }

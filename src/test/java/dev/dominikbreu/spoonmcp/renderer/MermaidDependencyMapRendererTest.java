@@ -6,6 +6,7 @@ import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Dependency;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -54,7 +55,7 @@ class MermaidDependencyMapRendererTest {
 
     private Component component(String id, String name, String qualifiedName) {
         Component component = new Component();
-        component.id = id;
+        component.id = ComponentId.of(id);
         component.name = name;
         component.qualifiedName = qualifiedName;
         component.type = ComponentType.SERVICE;
@@ -62,9 +63,9 @@ class MermaidDependencyMapRendererTest {
         return component;
     }
 
-    private Dependency dependency(String from, String to, String kind) {
+    private Dependency dependency(ComponentId from, ComponentId to, String kind) {
         Dependency dependency = new Dependency();
-        dependency.id = "dep:" + from + "->" + to;
+        dependency.id = "dep:" + from.serialize() + "->" + to.serialize();
         dependency.fromId = from;
         dependency.toId = to;
         dependency.kind = kind;

@@ -1,6 +1,7 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import dev.dominikbreu.spoonmcp.workflow.WorkflowTraversalPolicy;
 import java.util.*;
 
@@ -52,11 +53,11 @@ public class RuntimeFlowInferrer {
 
     private RuntimeFlow inferFromCallGraph(Entrypoint ep, int maxDepth, ModelIndex index) {
         RuntimeFlow flow = new RuntimeFlow();
-        flow.id = "flow:" + ep.id;
+        flow.id = "flow:" + ep.id.serialize();
         flow.entrypointId = ep.id;
 
         Set<String> visitedKeys = new LinkedHashSet<>();
-        Set<String> visitedComps = new LinkedHashSet<>();
+        Set<ComponentId> visitedComps = new LinkedHashSet<>();
         Set<String> visitedEdges = new LinkedHashSet<>();
 
         dfsCallGraph(
@@ -76,15 +77,15 @@ public class RuntimeFlowInferrer {
     }
 
     private void dfsCallGraph(
-            String compId,
+            ComponentId compId,
             String method,
             String via,
-            String fromCompId,
+            ComponentId fromCompId,
             int depth,
             int maxDepth,
             ModelIndex index,
             Set<String> visitedKeys,
-            Set<String> visitedComps,
+            Set<ComponentId> visitedComps,
             Set<String> visitedEdges,
             RuntimeFlow flow) {
         Component comp = index.components.get(compId);
@@ -101,18 +102,18 @@ public class RuntimeFlowInferrer {
         // callers (e.g. RandomPlayer and SimplePlayer both calling Strategy) must each
         // produce their own edge even if the target's subtree is only traversed once.
         if (fromCompId != null && visible) {
-            String edgeKey = fromCompId + "->" + compId + "|" + via;
+            String edgeKey = fromCompId.serialize() + "->" + compId.serialize() + "|" + via;
             if (visitedEdges.add(edgeKey)) {
                 flow.edges.add(new RuntimeFlow.FlowEdge(fromCompId, compId, via));
             }
         }
 
-        String key = compId + "#" + method;
+        String key = compId.serialize() + "#" + method;
         if (visitedKeys.contains(key) || depth > maxDepth) return;
         visitedKeys.add(key);
 
-        String nextFromCompId = visible ? compId : fromCompId;
-        for (CallEdge edge : index.callAdj.edgesByKey(key)) {
+        ComponentId nextFromCompId = visible ? compId : fromCompId;
+        for (CallEdge edge : index.callAdj.edges(compId, method)) {
             if (!traversalPolicy.canTraverseInline(edge)) continue;
             dfsCallGraph(
                     edge.toComponentId,
@@ -133,47 +134,51 @@ public class RuntimeFlowInferrer {
 
     private RuntimeFlow inferFromDependencies(Entrypoint ep, int maxDepth, ModelIndex index) {
         RuntimeFlow flow = new RuntimeFlow();
-        flow.id = "flow:" + ep.id;
+        flow.id = "flow:" + ep.id.serialize();
         flow.entrypointId = ep.id;
 
         Set<String> visited = new LinkedHashSet<>();
-        Deque<String[]> queue = new ArrayDeque<>(); // [compId, fromCompId]
+        Deque<String[]> queue = new ArrayDeque<>(); // [compId serialized, fromCompId serialized]
         Map<String, Integer> depths = new HashMap<>();
         Map<String, String> viaForNode = new HashMap<>();
 
-        queue.add(new String[] {ep.componentId, null});
-        depths.put(ep.componentId, 0);
-        viaForNode.put(ep.componentId, entrypointVia(ep));
+        String epCompId = ep.componentId.serialize();
+        queue.add(new String[] {epCompId, null});
+        depths.put(epCompId, 0);
+        viaForNode.put(epCompId, entrypointVia(ep));
 
         while (!queue.isEmpty()) {
             String[] entry = queue.poll();
-            String compId = entry[0];
-            String fromCompId = entry[1];
+            String compIdStr = entry[0];
+            String fromCompIdStr = entry[1];
 
-            if (visited.contains(compId)) continue;
+            if (visited.contains(compIdStr)) continue;
 
-            int depth = depths.getOrDefault(compId, 0);
+            int depth = depths.getOrDefault(compIdStr, 0);
             if (depth > maxDepth) continue;
 
-            visited.add(compId);
+            visited.add(compIdStr);
 
-            Component comp = index.components.get(compId);
+            Component comp = index.components.get(ComponentId.of(compIdStr));
 
             boolean visible = traversalPolicy.isHumanVisible(comp);
             if (visible) {
-                String via = viaForNode.getOrDefault(compId, "call");
-                flow.steps.add(new RuntimeFlowStep(flow.steps.size(), compId, comp.name, comp.type.name(), via));
-                if (fromCompId != null) {
-                    flow.edges.add(new RuntimeFlow.FlowEdge(fromCompId, compId, via));
+                String via = viaForNode.getOrDefault(compIdStr, "call");
+                flow.steps.add(new RuntimeFlowStep(
+                        flow.steps.size(), ComponentId.of(compIdStr), comp.name, comp.type.name(), via));
+                if (fromCompIdStr != null) {
+                    flow.edges.add(
+                            new RuntimeFlow.FlowEdge(ComponentId.of(fromCompIdStr), ComponentId.of(compIdStr), via));
                 }
             }
 
-            for (Map.Entry<String, String> next : index.depAdj.targets(compId).entrySet()) {
-                String nextId = next.getKey();
+            for (Map.Entry<ComponentId, String> next :
+                    index.depAdj.targets(ComponentId.of(compIdStr)).entrySet()) {
+                String nextId = next.getKey().serialize();
                 if (!visited.contains(nextId)) {
                     depths.put(nextId, depth + 1);
                     viaForNode.put(nextId, next.getValue());
-                    queue.add(new String[] {nextId, visible ? compId : fromCompId});
+                    queue.add(new String[] {nextId, visible ? compIdStr : fromCompIdStr});
                 }
             }
         }
@@ -239,7 +244,10 @@ public class RuntimeFlowInferrer {
         Entrypoint prefixCandidate = null;
         for (Entrypoint ep : model.entrypoints) {
             // Non-path exact matches (id / name) apply only when no HTTP method is specified.
-            if (method == null && (ep.id.equals(ref) || ep.name.equals(ref) || ep.id.contains(ref))) {
+            if (method == null
+                    && (ep.id.serialize().equals(ref)
+                            || ep.name.equals(ref)
+                            || ep.id.serialize().contains(ref))) {
                 return ep;
             }
             // When an HTTP method is present, skip endpoints with a different method.

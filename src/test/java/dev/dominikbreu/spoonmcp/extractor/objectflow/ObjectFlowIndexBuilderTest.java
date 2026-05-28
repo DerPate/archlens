@@ -9,6 +9,7 @@ import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndex;
 import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndexBuilder;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import dev.dominikbreu.spoonmcp.tracing.StdoutSpanExporter;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
@@ -141,7 +142,7 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
                 .contains("comp:com.example.objectflow.StateStore");
         assertThat(factBacked.expandDeclaredType("com.example.objectflow.Player", "nextMove"))
                 .extracting(ReceiverTarget::componentId)
-                .contains("comp:com.example.objectflow.RandomPlayer", "comp:com.example.objectflow.SimplePlayer");
+                .contains("com.example.objectflow.RandomPlayer", "com.example.objectflow.SimplePlayer");
     }
 
     @Test
@@ -352,7 +353,7 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
 
     private static Component component(String qualifiedName) {
         Component component = new Component();
-        component.id = "comp:" + qualifiedName;
+        component.id = ComponentId.of("comp:" + qualifiedName);
         component.name = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1);
         component.qualifiedName = qualifiedName;
         return component;

@@ -10,6 +10,9 @@ import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.FieldAccess;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.FieldBinding;
+import dev.dominikbreu.spoonmcp.model.ids.FieldRef;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -129,9 +132,9 @@ class ArchitectureViewProjectorTest {
         model.fieldAccesses.add(fieldAccess(FieldAccess.Kind.READ, scheduler.id, "run", stateStore.id, "pendingItems"));
 
         // give TimestampFormatter high fan-in (many DEPENDS_ON to it) so it looks important by degree
-        for (String id : List.of(kafka.id, scheduler.id, publisher.id, repo.id)) {
+        for (ComponentId id : List.of(kafka.id, scheduler.id, publisher.id, repo.id)) {
             dev.dominikbreu.spoonmcp.model.Dependency dep = new dev.dominikbreu.spoonmcp.model.Dependency();
-            dep.id = "dep:" + id + "-formatter";
+            dep.id = "dep:" + id.serialize() + "-formatter";
             dep.fromId = id;
             dep.toId = formatter.id;
             dep.kind = "injection";
@@ -146,16 +149,16 @@ class ArchitectureViewProjectorTest {
 
     private static Component component(String name, ComponentType type) {
         Component c = new Component();
-        c.id = "comp:" + name;
+        c.id = ComponentId.of("comp:" + name);
         c.name = name;
         c.qualifiedName = "com.example." + name;
         c.type = type;
         return c;
     }
 
-    private static Dependency dependency(String fromId, String toId, String kind) {
+    private static Dependency dependency(ComponentId fromId, ComponentId toId, String kind) {
         Dependency d = new Dependency();
-        d.id = "dep:" + fromId + "->" + toId;
+        d.id = "dep:" + fromId.serialize() + "->" + toId.serialize();
         d.fromId = fromId;
         d.toId = toId;
         d.kind = kind;
@@ -164,14 +167,17 @@ class ArchitectureViewProjectorTest {
     }
 
     private static FieldAccess fieldAccess(
-            FieldAccess.Kind kind, String componentId, String method, String ownerComponentId, String fieldName) {
+            FieldAccess.Kind kind,
+            ComponentId componentId,
+            String method,
+            ComponentId ownerComponentId,
+            String fieldName) {
         FieldAccess fa = new FieldAccess();
         fa.kind = kind;
         fa.componentId = componentId;
         fa.method = method;
-        fa.fieldOwnerComponentId = ownerComponentId;
-        fa.fieldName = fieldName;
-        fa.id = "field:" + componentId + "#" + method + "@" + fieldName + ":"
+        fa.fieldBinding = new FieldBinding.CrossComponent(new FieldRef(ownerComponentId, fieldName));
+        fa.id = "field:" + componentId.serialize() + "#" + method + "@" + fieldName + ":"
                 + kind.name().toLowerCase();
         return fa;
     }

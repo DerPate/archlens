@@ -1,5 +1,7 @@
 package dev.dominikbreu.spoonmcp.model;
 
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,13 +14,13 @@ public class UseCase {
     /** Human-readable name, either auto-derived or supplied via naming config. */
     public String name;
     /** Originating entrypoint identifier. */
-    public String entrypointId;
+    public EntrypointId entrypointId;
     /** Entrypoint trigger type. */
     public EntrypointType type;
     /** Channel name (messaging) or HTTP path (REST), or null when not applicable. */
     public String channelOrPath;
     /** Ordered component IDs visited during this use case's call chain. */
-    public List<String> componentIds = new ArrayList<>();
+    public List<ComponentId> componentIds = new ArrayList<>();
     /**
      * Human-readable call chain steps, each formatted as
      * {@code ComponentA.methodX → ComponentB.methodY}.

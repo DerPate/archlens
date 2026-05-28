@@ -9,6 +9,8 @@ import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
 import dev.dominikbreu.spoonmcp.model.InterfaceEntry;
 import dev.dominikbreu.spoonmcp.model.MessagingBroker;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import org.junit.jupiter.api.Test;
 
 class ExternalSystemInferrerTest {
@@ -27,8 +29,8 @@ class ExternalSystemInferrerTest {
                 .extracting(s -> s.id, s -> s.kind, s -> s.name)
                 .containsExactly(tuple("ext:rest:billing", "REST_API", "billing"));
         assertThat(model.dependencies)
-                .anyMatch(d -> "comp:billingClient".equals(d.fromId)
-                        && "ext:rest:billing".equals(d.toId)
+                .anyMatch(d -> "comp:billingClient".equals(d.fromId.serialize())
+                        && "ext:rest:billing".equals(d.toId.serialize())
                         && "rest-client".equals(d.kind));
     }
 
@@ -47,9 +49,11 @@ class ExternalSystemInferrerTest {
                 .extracting(s -> s.id)
                 .containsExactlyInAnyOrder("ext:messaging:kafka", "ext:messaging:mqtt");
         assertThat(model.dependencies)
-                .anyMatch(d -> "comp:KafkaService".equals(d.fromId) && "ext:messaging:kafka".equals(d.toId));
+                .anyMatch(d -> "comp:KafkaService".equals(d.fromId.serialize())
+                        && "ext:messaging:kafka".equals(d.toId.serialize()));
         assertThat(model.dependencies)
-                .anyMatch(d -> "comp:MqttService".equals(d.fromId) && "ext:messaging:mqtt".equals(d.toId));
+                .anyMatch(d -> "comp:MqttService".equals(d.fromId.serialize())
+                        && "ext:messaging:mqtt".equals(d.toId.serialize()));
     }
 
     @Test
@@ -58,9 +62,9 @@ class ExternalSystemInferrerTest {
         addComponent(model, "comp:OrderService", ComponentType.SERVICE);
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:OrderService:msg";
+        ep.id = EntrypointId.deserialize("ep:OrderService:msg");
         ep.type = EntrypointType.MESSAGING_PRODUCER;
-        ep.componentId = "comp:OrderService";
+        ep.componentId = ComponentId.of("comp:OrderService");
         ep.channelName = "orders-out";
         ep.broker = MessagingBroker.KAFKA;
         model.entrypoints.add(ep);
@@ -69,7 +73,8 @@ class ExternalSystemInferrerTest {
 
         assertThat(model.externalSystems).extracting(s -> s.id).contains("ext:messaging:kafka");
         assertThat(model.dependencies)
-                .anyMatch(d -> "comp:OrderService".equals(d.fromId) && "ext:messaging:kafka".equals(d.toId));
+                .anyMatch(d -> "comp:OrderService".equals(d.fromId.serialize())
+                        && "ext:messaging:kafka".equals(d.toId.serialize()));
     }
 
     @Test
@@ -82,7 +87,8 @@ class ExternalSystemInferrerTest {
 
         assertThat(model.externalSystems).extracting(s -> s.id).contains("ext:messaging:mqtt");
         assertThat(model.dependencies)
-                .anyMatch(d -> "comp:MqttSvc".equals(d.fromId) && "ext:messaging:mqtt".equals(d.toId));
+                .anyMatch(d ->
+                        "comp:MqttSvc".equals(d.fromId.serialize()) && "ext:messaging:mqtt".equals(d.toId.serialize()));
     }
 
     @Test
@@ -106,7 +112,8 @@ class ExternalSystemInferrerTest {
         inferrer.infer(model);
 
         long edges = model.dependencies.stream()
-                .filter(d -> "comp:Svc".equals(d.fromId) && "ext:messaging:kafka".equals(d.toId))
+                .filter(d ->
+                        "comp:Svc".equals(d.fromId.serialize()) && "ext:messaging:kafka".equals(d.toId.serialize()))
                 .count();
         assertThat(edges).isEqualTo(1);
     }
@@ -129,7 +136,7 @@ class ExternalSystemInferrerTest {
 
     private void addComponent(ArchitectureModel model, String id, ComponentType type) {
         Component c = new Component();
-        c.id = id;
+        c.id = ComponentId.of(id);
         c.type = type;
         c.name = id.substring(id.lastIndexOf(':') + 1);
         c.module = "app:test";
@@ -141,7 +148,7 @@ class ExternalSystemInferrerTest {
         i.id = "iface:" + componentId + ":rest_client:" + (serviceName == null ? "anon" : serviceName);
         i.type = "rest_client";
         i.name = serviceName == null ? "anon" : serviceName;
-        i.componentId = componentId;
+        i.componentId = ComponentId.of(componentId);
         i.module = "app:test";
         i.externalServiceName = serviceName;
         model.interfaces.add(i);
@@ -154,7 +161,7 @@ class ExternalSystemInferrerTest {
         i.type = type;
         i.name = channel;
         i.path = channel;
-        i.componentId = componentId;
+        i.componentId = ComponentId.of(componentId);
         i.module = "app:test";
         i.broker = broker;
         model.interfaces.add(i);

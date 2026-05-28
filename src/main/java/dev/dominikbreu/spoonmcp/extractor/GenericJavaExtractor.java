@@ -32,7 +32,7 @@ public class GenericJavaExtractor {
      * @param appId owning application identifier
      */
     public void extract(Collection<CtType<?>> types, ArchitectureModel model, String appId) {
-        Set<String> existingIds = new HashSet<>();
+        Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> existingIds = new HashSet<>();
         for (Component component : model.components) {
             existingIds.add(component.id);
         }
@@ -57,7 +57,8 @@ public class GenericJavaExtractor {
         for (CtMethod<?> method : type.getMethods()) {
             if (isMainMethod(method)) {
                 Entrypoint ep = new Entrypoint();
-                ep.id = "ep:" + type.getQualifiedName() + "#main";
+                ep.id = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
+                        dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()), "main", "");
                 ep.type = EntrypointType.MAIN_METHOD;
                 ep.name = "main";
                 ep.componentId = component.id;
@@ -87,7 +88,7 @@ public class GenericJavaExtractor {
 
     private Component toComponent(CtType<?> type, String appId) {
         Component component = new Component();
-        component.id = "comp:" + type.getQualifiedName();
+        component.id = dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName());
         component.type = classify(type);
         component.name = type.getSimpleName();
         component.qualifiedName = type.getQualifiedName();

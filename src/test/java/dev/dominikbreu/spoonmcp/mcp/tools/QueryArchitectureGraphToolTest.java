@@ -9,6 +9,8 @@ import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.MessagingBroker;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.nio.file.Path;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -45,13 +47,13 @@ class QueryArchitectureGraphToolTest {
         ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.GRAPH);
         ArchitectureModel model = model();
         Component repository = new Component();
-        repository.id = "comp:PaymentRepository";
+        repository.id = ComponentId.of("comp:PaymentRepository");
         repository.name = "PaymentRepository";
         repository.type = ComponentType.REPOSITORY;
         model.components.add(repository);
         dev.dominikbreu.spoonmcp.model.Dependency dependency = new dev.dominikbreu.spoonmcp.model.Dependency();
-        dependency.fromId = "comp:PaymentService";
-        dependency.toId = "comp:PaymentRepository";
+        dependency.fromId = ComponentId.of("comp:PaymentService");
+        dependency.toId = ComponentId.of("comp:PaymentRepository");
         dependency.kind = "injection";
         dependency.confidence = 0.85;
         model.dependencies.add(dependency);
@@ -73,10 +75,10 @@ class QueryArchitectureGraphToolTest {
         ArchitectureModel model = model();
         DataFlowPath path = new DataFlowPath();
         path.id = "df:payment#payload";
-        path.entrypointId = "entry:payment";
+        path.entrypointId = EntrypointId.deserialize("entry:payment");
         path.trackedParam = "payload";
-        DataFlowSink sink =
-                new DataFlowSink(DataFlowSink.Kind.MESSAGING, "comp:PaymentService", "PaymentService", "send", null);
+        DataFlowSink sink = new DataFlowSink(
+                DataFlowSink.Kind.MESSAGING, ComponentId.of("comp:PaymentService"), "PaymentService", "send", null);
         sink.broker = MessagingBroker.KAFKA;
         sink.channel = "payments.created";
         sink.topic = "payments.created";
@@ -103,7 +105,7 @@ class QueryArchitectureGraphToolTest {
     private ArchitectureModel model() {
         ArchitectureModel model = new ArchitectureModel("test");
         Component component = new Component();
-        component.id = "comp:PaymentService";
+        component.id = ComponentId.of("comp:PaymentService");
         component.name = "PaymentService";
         component.qualifiedName = "com.example.PaymentService";
         component.type = ComponentType.SERVICE;

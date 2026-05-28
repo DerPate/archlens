@@ -2,6 +2,7 @@ package dev.dominikbreu.spoonmcp.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -11,7 +12,7 @@ class DataFlowSinkJsonTest {
     void roundTripsPipelineMetadata() throws Exception {
         DataFlowSink sink = new DataFlowSink();
         sink.kind = DataFlowSink.Kind.MESSAGING;
-        sink.componentId = "comp:Publisher";
+        sink.componentId = ComponentId.of("comp:Publisher");
         sink.componentName = "Publisher";
         sink.method = "publish";
         sink.channel = "orders.created";

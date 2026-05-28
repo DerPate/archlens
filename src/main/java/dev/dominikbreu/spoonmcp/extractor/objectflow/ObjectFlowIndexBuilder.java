@@ -108,8 +108,8 @@ public class ObjectFlowIndexBuilder {
                 if (abstractOrInterface) {
                     abstractOrInterfaceCount++;
                 }
-                ObjectFlowIndex.TypeFact typeFact =
-                        new ObjectFlowIndex.TypeFact(sourceType.qualifiedName(), component.id, abstractOrInterface);
+                ObjectFlowIndex.TypeFact typeFact = new ObjectFlowIndex.TypeFact(
+                        sourceType.qualifiedName(), component.id.serialize(), abstractOrInterface);
                 types.put(typeFact.qualifiedName(), typeFact);
             }
             span.setAttribute("project-types", projectTypes);
@@ -137,8 +137,8 @@ public class ObjectFlowIndexBuilder {
                 if (abstractOrInterface) {
                     abstractOrInterfaceCount++;
                 }
-                ObjectFlowIndex.TypeFact typeFact =
-                        new ObjectFlowIndex.TypeFact(type.getQualifiedName(), component.id, abstractOrInterface);
+                ObjectFlowIndex.TypeFact typeFact = new ObjectFlowIndex.TypeFact(
+                        type.getQualifiedName(), component.id.serialize(), abstractOrInterface);
                 types.put(typeFact.qualifiedName(), typeFact);
             }
             span.setAttribute("project-types", (long) projectTypes.size());

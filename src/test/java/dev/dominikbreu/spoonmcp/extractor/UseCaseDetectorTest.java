@@ -3,6 +3,8 @@ package dev.dominikbreu.spoonmcp.extractor;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -79,21 +81,25 @@ class UseCaseDetectorTest {
         List<UseCase> useCases = detector.detect(model, UseCaseNamingConfig.empty());
 
         UseCase getOrder = useCases.stream()
-                .filter(u -> u.entrypointId.equals("ep:getOrder"))
+                .filter(u -> u.entrypointId.equals(EntrypointId.deserialize("ep:getOrder")))
                 .findFirst()
                 .orElseThrow();
 
-        assertThat(getOrder.componentIds).contains("comp:OrderResource", "comp:OrderService", "comp:OrderRepository");
+        assertThat(getOrder.componentIds)
+                .contains(
+                        ComponentId.of("comp:OrderResource"),
+                        ComponentId.of("comp:OrderService"),
+                        ComponentId.of("comp:OrderRepository"));
     }
 
     @Test
     void detectUsesConfiguredNameWhenPresent() {
         ArchitectureModel model = buildSimpleModel();
         UseCaseNamingConfig config = new UseCaseNamingConfig();
-        config.names.put("ep:getOrder", "Retrieve Order Details");
+        config.names.put(model.entrypoints.get(0).id.serialize(), "Retrieve Order Details");
         List<UseCase> useCases = detector.detect(model, config);
         UseCase uc = useCases.stream()
-                .filter(u -> u.entrypointId.equals("ep:getOrder"))
+                .filter(u -> u.entrypointId.equals(EntrypointId.deserialize("ep:getOrder")))
                 .findFirst()
                 .orElseThrow();
         assertThat(uc.name).isEqualTo("Retrieve Order Details");
@@ -104,7 +110,7 @@ class UseCaseDetectorTest {
         ArchitectureModel model = buildSimpleModel();
         List<UseCase> useCases = detector.detect(model, UseCaseNamingConfig.empty());
         UseCase uc = useCases.stream()
-                .filter(u -> u.entrypointId.equals("ep:getOrder"))
+                .filter(u -> u.entrypointId.equals(EntrypointId.deserialize("ep:getOrder")))
                 .findFirst()
                 .orElseThrow();
         assertThat(uc.name).isEqualTo("GET Get Order");
@@ -120,7 +126,7 @@ class UseCaseDetectorTest {
 
         List<UseCase> useCases = detector.detect(model, UseCaseNamingConfig.empty());
         UseCase uc = useCases.stream()
-                .filter(u -> u.entrypointId.equals("ep:getOrder"))
+                .filter(u -> u.entrypointId.equals(EntrypointId.deserialize("ep:getOrder")))
                 .findFirst()
                 .orElseThrow();
 
@@ -150,7 +156,7 @@ class UseCaseDetectorTest {
         model.components.add(handler);
 
         Entrypoint shutdown = new Entrypoint();
-        shutdown.id = "ep:shutdown";
+        shutdown.id = EntrypointId.deserialize("ep:shutdown");
         shutdown.name = "onShutdown";
         shutdown.type = EntrypointType.CDI_EVENT_OBSERVER;
         shutdown.componentId = handler.id;
@@ -169,7 +175,7 @@ class UseCaseDetectorTest {
         model.components.addAll(List.of(producer, consumer));
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:Producer#send";
+        ep.id = EntrypointId.deserialize("ep:Producer#send");
         ep.name = "send";
         ep.type = EntrypointType.SCHEDULER;
         ep.componentId = producer.id;
@@ -200,7 +206,7 @@ class UseCaseDetectorTest {
         model.components.addAll(List.of(resource, mapper, service));
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:Resource#get";
+        ep.id = EntrypointId.deserialize("ep:Resource#get");
         ep.name = "get";
         ep.type = EntrypointType.REST_ENDPOINT;
         ep.componentId = resource.id;
@@ -232,10 +238,10 @@ class UseCaseDetectorTest {
 
     private static Entrypoint ep(String name, EntrypointType type) {
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:" + name;
+        ep.id = EntrypointId.deserialize("ep:" + name);
         ep.name = name;
         ep.type = type;
-        ep.componentId = "comp:SomeComponent";
+        ep.componentId = ComponentId.of("comp:SomeComponent");
         return ep;
     }
 
@@ -248,19 +254,19 @@ class UseCaseDetectorTest {
         model.components.addAll(List.of(resource, service, repository));
 
         Entrypoint ep1 = new Entrypoint();
-        ep1.id = "ep:getOrder";
+        ep1.id = EntrypointId.deserialize("ep:getOrder");
         ep1.name = "getOrder";
         ep1.type = EntrypointType.REST_ENDPOINT;
         ep1.httpMethod = "GET";
-        ep1.componentId = "comp:OrderResource";
+        ep1.componentId = ComponentId.of("comp:OrderResource");
         model.entrypoints.add(ep1);
 
         Entrypoint ep2 = new Entrypoint();
-        ep2.id = "ep:createOrder";
+        ep2.id = EntrypointId.deserialize("ep:createOrder");
         ep2.name = "createOrder";
         ep2.type = EntrypointType.REST_ENDPOINT;
         ep2.httpMethod = "POST";
-        ep2.componentId = "comp:OrderResource";
+        ep2.componentId = ComponentId.of("comp:OrderResource");
         model.entrypoints.add(ep2);
 
         model.dependencies.add(dep("comp:OrderResource", "comp:OrderService", "injection"));
@@ -271,7 +277,7 @@ class UseCaseDetectorTest {
 
     private static Component comp(String name, ComponentType type) {
         Component c = new Component();
-        c.id = "comp:" + name;
+        c.id = ComponentId.of("comp:" + name);
         c.name = name;
         c.type = type;
         return c;
@@ -279,8 +285,8 @@ class UseCaseDetectorTest {
 
     private static Dependency dep(String from, String to, String kind) {
         Dependency d = new Dependency();
-        d.fromId = from;
-        d.toId = to;
+        d.fromId = ComponentId.of(from);
+        d.toId = ComponentId.of(to);
         d.kind = kind;
         return d;
     }
@@ -289,9 +295,9 @@ class UseCaseDetectorTest {
             ArchitectureModel model, String fromComp, String fromMethod, String toComp, String toMethod) {
         CallEdge e = new CallEdge();
         e.id = "call:" + fromComp + "#" + fromMethod + "->" + toComp + "#" + toMethod;
-        e.fromComponentId = fromComp;
+        e.fromComponentId = ComponentId.of(fromComp);
         e.fromMethod = fromMethod;
-        e.toComponentId = toComp;
+        e.toComponentId = ComponentId.of(toComp);
         e.toMethod = toMethod;
         e.callKind = "direct";
         model.callEdges.add(e);

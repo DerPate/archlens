@@ -18,6 +18,15 @@ public final class WorkflowTraversalPolicy {
 
     private static final Set<ComponentType> HIDDEN_TYPES = Set.of(ComponentType.UTILITY);
 
+    private static final Set<EntrypointType> PRIMARY_CONSUMER_TYPES = Set.of(
+            EntrypointType.MESSAGING_CONSUMER,
+            EntrypointType.REST_ENDPOINT,
+            EntrypointType.JMS_CONSUMER,
+            EntrypointType.EVENT_BUS_CONSUMER,
+            EntrypointType.WEBSOCKET_ENDPOINT,
+            EntrypointType.SSE_ENDPOINT,
+            EntrypointType.GRPC_METHOD);
+
     /** Returns true when an entrypoint should be considered a workflow root or segment. */
     public boolean isWorkflowRoot(Entrypoint entrypoint) {
         return entrypoint != null && !isLifecycleEntrypoint(entrypoint);
@@ -45,6 +54,18 @@ public final class WorkflowTraversalPolicy {
     /** Returns true when a call can be traversed as an in-process continuation. */
     public boolean canTraverseInline(CallEdge edge) {
         return edge != null && !isAsyncBoundary(edge) && !edge.receiverExpansionCapped && !edge.ambiguous;
+    }
+
+    /**
+     * Returns true when the link from {@code from} to {@code to} via STATE_HANDOFF represents a
+     * background data-feed rather than a pipeline trigger — i.e., a scheduler pre-loading reference
+     * data into a store that a primary consumer happens to read. Such links must not disqualify the
+     * consumer from being a pipeline root.
+     */
+    public boolean isBackgroundDataFeedLink(Entrypoint from, Entrypoint to, WorkflowLink.Kind kind) {
+        if (from == null || to == null || kind != WorkflowLink.Kind.STATE_HANDOFF) return false;
+        if (from.type != EntrypointType.SCHEDULER) return false;
+        return to.type != null && PRIMARY_CONSUMER_TYPES.contains(to.type);
     }
 
     /** Returns true when a component should appear in human-facing workflow diagrams. */

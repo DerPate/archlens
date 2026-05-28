@@ -1,5 +1,7 @@
 package dev.dominikbreu.spoonmcp.model;
 
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+
 /**
  * Exposed or consumed interface represented independently from implementation components.
  */
@@ -13,7 +15,7 @@ public class InterfaceEntry {
     /** Interface path, destination, channel, or endpoint address when known. */
     public String path;
     /** Component that owns or consumes the interface. */
-    public String componentId;
+    public ComponentId componentId;
     /** Owning module or application identifier. */
     public String module;
     /** Technology or framework used by the interface. */

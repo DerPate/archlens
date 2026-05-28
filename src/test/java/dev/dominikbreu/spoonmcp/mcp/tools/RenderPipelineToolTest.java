@@ -14,6 +14,8 @@ import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.DataFlowStep;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -40,7 +42,7 @@ class RenderPipelineToolTest {
         List<Chain> candidates = List.of(chain("ep:A"), chain("ep:A"), chain("ep:A"), chain("ep:A"), chain("ep:A"));
         List<Chain> result = tool.selectDiverse(candidates, 3);
         assertThat(result).hasSize(1);
-        assertThat(result).allMatch(c -> rootId(c).equals("ep:A"));
+        assertThat(result).allMatch(c -> rootId(c).equals(EntrypointId.deserialize("ep:A")));
     }
 
     @Test
@@ -54,9 +56,13 @@ class RenderPipelineToolTest {
         List<Chain> result = tool.selectDiverse(candidates, 3);
 
         assertThat(result).hasSize(2);
-        assertThat(result.stream().filter(c -> rootId(c).equals("ep:A")).count())
+        assertThat(result.stream()
+                        .filter(c -> rootId(c).equals(EntrypointId.deserialize("ep:A")))
+                        .count())
                 .isEqualTo(1);
-        assertThat(result.stream().filter(c -> rootId(c).equals("ep:B")).count())
+        assertThat(result.stream()
+                        .filter(c -> rootId(c).equals(EntrypointId.deserialize("ep:B")))
+                        .count())
                 .isEqualTo(1);
     }
 
@@ -73,7 +79,7 @@ class RenderPipelineToolTest {
         List<Chain> candidates = List.of(chain("ep:A"), chain("ep:B"), chain("ep:A"));
         List<Chain> result = tool.selectDiverse(candidates, 1);
         assertThat(result).hasSize(1);
-        assertThat(rootId(result.get(0))).isEqualTo("ep:A");
+        assertThat(rootId(result.get(0))).isEqualTo(EntrypointId.deserialize("ep:A"));
     }
 
     @Test
@@ -85,9 +91,9 @@ class RenderPipelineToolTest {
         List<Chain> result = tool.selectDiverse(List.of(a, b, a2), 3);
 
         assertThat(result).hasSize(2); // 1 per distinct root
-        assertThat(result.stream().anyMatch(c -> "ep:A".equals(resolvedRootId(c))))
+        assertThat(result.stream().anyMatch(c -> "A#".equals(resolvedRootId(c))))
                 .isTrue();
-        assertThat(result.stream().anyMatch(c -> "ep:B".equals(resolvedRootId(c))))
+        assertThat(result.stream().anyMatch(c -> "B#".equals(resolvedRootId(c))))
                 .isTrue();
     }
 
@@ -115,17 +121,21 @@ class RenderPipelineToolTest {
         List<Chain> result = tool.selectDiverse(List.of(a1, a2, b1, b2), 10);
 
         assertThat(result).hasSize(2);
-        assertThat(result.stream().filter(c -> rootId(c).equals("ep:A")).count())
+        assertThat(result.stream()
+                        .filter(c -> rootId(c).equals(EntrypointId.deserialize("ep:A")))
+                        .count())
                 .isEqualTo(1);
-        assertThat(result.stream().filter(c -> rootId(c).equals("ep:B")).count())
+        assertThat(result.stream()
+                        .filter(c -> rootId(c).equals(EntrypointId.deserialize("ep:B")))
+                        .count())
                 .isEqualTo(1);
         // ep:A longest is a2 (3 segments), ep:B longest is b2 (4 segments)
         long aSegments = result.stream()
-                .filter(c -> rootId(c).equals("ep:A"))
+                .filter(c -> rootId(c).equals(EntrypointId.deserialize("ep:A")))
                 .mapToLong(c -> c.segments.size())
                 .sum();
         long bSegments = result.stream()
-                .filter(c -> rootId(c).equals("ep:B"))
+                .filter(c -> rootId(c).equals(EntrypointId.deserialize("ep:B")))
                 .mapToLong(c -> c.segments.size())
                 .sum();
         assertThat(aSegments).isEqualTo(3);
@@ -144,8 +154,8 @@ class RenderPipelineToolTest {
         List<Chain> result = tool.selectDiverse(candidates, 2);
 
         assertThat(result).hasSize(2);
-        assertThat(rootId(result.get(0))).isEqualTo("ep:A");
-        assertThat(rootId(result.get(1))).isEqualTo("ep:B");
+        assertThat(rootId(result.get(0))).isEqualTo(EntrypointId.deserialize("ep:A"));
+        assertThat(rootId(result.get(1))).isEqualTo(EntrypointId.deserialize("ep:B"));
     }
 
     @Test
@@ -158,8 +168,8 @@ class RenderPipelineToolTest {
 
         String out = t.execute(Map.of("maxChains", 10));
 
-        assertThat(out).doesNotContain("ep:shutdown");
-        assertThat(out).contains("ep:ingest");
+        assertThat(out).doesNotContain("shutdown#");
+        assertThat(out).contains("ingest#");
     }
 
     @Test
@@ -172,8 +182,8 @@ class RenderPipelineToolTest {
 
         String out = t.execute(Map.of("maxChains", 10, "includeLifecycle", true));
 
-        assertThat(out).contains("ep:shutdown");
-        assertThat(out).contains("ep:ingest");
+        assertThat(out).contains("shutdown#");
+        assertThat(out).contains("ingest#");
     }
 
     @Test
@@ -184,7 +194,7 @@ class RenderPipelineToolTest {
                 ArchitectureModel model = new ArchitectureModel("diagnostic");
                 DataFlowPath path = new DataFlowPath();
                 path.id = "df:publish";
-                path.entrypointId = "ep:publish";
+                path.entrypointId = EntrypointId.deserialize("ep:publish");
                 DataFlowSink sink = new DataFlowSink();
                 sink.kind = DataFlowSink.Kind.MESSAGING;
                 sink.topic = "${topics.missing}";
@@ -211,11 +221,11 @@ class RenderPipelineToolTest {
     private Chain chain(String rootEpId) {
         DataFlowPath root = new DataFlowPath();
         root.id = "df:" + rootEpId + ":" + System.nanoTime();
-        root.entrypointId = rootEpId;
+        root.entrypointId = EntrypointId.deserialize(rootEpId);
 
         DataFlowPath downstream = new DataFlowPath();
         downstream.id = "df:downstream:" + System.nanoTime();
-        downstream.entrypointId = "ep:downstream";
+        downstream.entrypointId = EntrypointId.deserialize("ep:downstream");
 
         DataFlowSink link = new DataFlowSink();
         link.kind = DataFlowSink.Kind.MESSAGING;
@@ -226,7 +236,7 @@ class RenderPipelineToolTest {
         return c;
     }
 
-    private String rootId(Chain c) {
+    private EntrypointId rootId(Chain c) {
         return c.segments.get(0).path.entrypointId;
     }
 
@@ -238,13 +248,13 @@ class RenderPipelineToolTest {
 
         DataFlowPath downstream = new DataFlowPath();
         downstream.id = "df:downstream:" + System.nanoTime();
-        downstream.entrypointId = "ep:downstream";
+        downstream.entrypointId = EntrypointId.deserialize("ep:downstream");
 
         DataFlowSink link = new DataFlowSink();
         link.kind = DataFlowSink.Kind.MESSAGING;
 
         Entrypoint ep = new Entrypoint();
-        ep.id = epId;
+        ep.id = EntrypointId.deserialize(epId);
 
         Chain c = new Chain();
         c.segments.add(new Segment(root, null, ep));
@@ -254,7 +264,8 @@ class RenderPipelineToolTest {
 
     private String resolvedRootId(Chain c) {
         Entrypoint ep = c.segments.get(0).entrypoint;
-        return ep != null ? ep.id : c.segments.get(0).path.entrypointId;
+        EntrypointId eid = c.segments.get(0).path.entrypointId;
+        return ep != null ? ep.id.serialize() : (eid != null ? eid.serialize() : null);
     }
 
     /**
@@ -265,12 +276,12 @@ class RenderPipelineToolTest {
         Chain c = new Chain();
         DataFlowPath root = new DataFlowPath();
         root.id = "df:" + rootEpId + ":root:" + System.nanoTime();
-        root.entrypointId = rootEpId;
+        root.entrypointId = EntrypointId.deserialize(rootEpId);
         c.segments.add(new Segment(root, null, null));
         for (int i = 1; i < totalSegments; i++) {
             DataFlowPath p = new DataFlowPath();
             p.id = "df:" + rootEpId + ":seg" + i + ":" + System.nanoTime();
-            p.entrypointId = "ep:downstream" + i;
+            p.entrypointId = EntrypointId.deserialize("ep:downstream" + i);
             DataFlowSink link = new DataFlowSink();
             link.kind = DataFlowSink.Kind.MESSAGING;
             c.segments.add(new Segment(p, link, null));
@@ -297,41 +308,41 @@ class RenderPipelineToolTest {
         ArchitectureModel m = new ArchitectureModel("test");
 
         Component src1 = new Component();
-        src1.id = "comp:src1";
+        src1.id = ComponentId.of("comp:src1");
         src1.name = "Src1";
         src1.type = ComponentType.MESSAGE_DRIVEN_BEAN;
         Component src2 = new Component();
-        src2.id = "comp:src2";
+        src2.id = ComponentId.of("comp:src2");
         src2.name = "Src2";
         src2.type = ComponentType.MESSAGE_DRIVEN_BEAN;
         Component downstream = new Component();
-        downstream.id = "comp:ds";
+        downstream.id = ComponentId.of("comp:ds");
         downstream.name = "Downstream";
         downstream.type = ComponentType.SERVICE;
         m.components.addAll(List.of(src1, src2, downstream));
 
         Entrypoint ep1 = new Entrypoint();
-        ep1.id = rootEpId1;
+        ep1.id = EntrypointId.deserialize(rootEpId1);
         ep1.name = "method1";
         ep1.type = rootType1;
-        ep1.componentId = "comp:src1";
+        ep1.componentId = ComponentId.of("comp:src1");
         Entrypoint ep2 = new Entrypoint();
-        ep2.id = rootEpId2;
+        ep2.id = EntrypointId.deserialize(rootEpId2);
         ep2.name = "method2";
         ep2.type = rootType2;
-        ep2.componentId = "comp:src2";
+        ep2.componentId = ComponentId.of("comp:src2");
         Entrypoint epDs = new Entrypoint();
-        epDs.id = "ep:ds";
+        epDs.id = EntrypointId.deserialize("ep:ds");
         epDs.name = "handle";
         epDs.type = EntrypointType.MESSAGING_CONSUMER;
-        epDs.componentId = "comp:ds";
+        epDs.componentId = ComponentId.of("comp:ds");
         m.entrypoints.addAll(List.of(ep1, ep2, epDs));
 
         // chain 1: root1 → MESSAGING → downstream
         DataFlowPath p1 = new DataFlowPath();
         p1.id = "df:root1";
-        p1.entrypointId = rootEpId1;
-        p1.steps.add(new DataFlowStep(0, "comp:src1", "Src1", "method1", "x"));
+        p1.entrypointId = EntrypointId.deserialize(rootEpId1);
+        p1.steps.add(new DataFlowStep(0, ComponentId.of("comp:src1"), "Src1", "method1", "x"));
         DataFlowSink s1 = new DataFlowSink();
         s1.kind = DataFlowSink.Kind.MESSAGING;
         s1.channel = "ch1";
@@ -341,8 +352,8 @@ class RenderPipelineToolTest {
         // chain 2: root2 → MESSAGING → downstream
         DataFlowPath p2 = new DataFlowPath();
         p2.id = "df:root2";
-        p2.entrypointId = rootEpId2;
-        p2.steps.add(new DataFlowStep(0, "comp:src2", "Src2", "method2", "x"));
+        p2.entrypointId = EntrypointId.deserialize(rootEpId2);
+        p2.steps.add(new DataFlowStep(0, ComponentId.of("comp:src2"), "Src2", "method2", "x"));
         DataFlowSink s2 = new DataFlowSink();
         s2.kind = DataFlowSink.Kind.MESSAGING;
         s2.channel = "ch2";
@@ -352,18 +363,18 @@ class RenderPipelineToolTest {
         // shared downstream paths (terminal)
         DataFlowPath ds1 = new DataFlowPath();
         ds1.id = "df:ds1";
-        ds1.entrypointId = "ep:ds";
-        ds1.steps.add(new DataFlowStep(0, "comp:ds", "Downstream", "handle", "x"));
+        ds1.entrypointId = EntrypointId.deserialize("ep:ds");
+        ds1.steps.add(new DataFlowStep(0, ComponentId.of("comp:ds"), "Downstream", "handle", "x"));
         DataFlowPath ds2 = new DataFlowPath();
         ds2.id = "df:ds2";
-        ds2.entrypointId = "ep:ds";
-        ds2.steps.add(new DataFlowStep(0, "comp:ds", "Downstream", "handle", "x"));
+        ds2.entrypointId = EntrypointId.deserialize("ep:ds");
+        ds2.steps.add(new DataFlowStep(0, ComponentId.of("comp:ds"), "Downstream", "handle", "x"));
 
         m.dataFlowPaths.addAll(List.of(p1, p2, ds1, ds2));
         // callEdges must be non-empty for the guard in execute()
         dev.dominikbreu.spoonmcp.model.CallEdge edge = new dev.dominikbreu.spoonmcp.model.CallEdge();
-        edge.fromComponentId = "comp:src1";
-        edge.toComponentId = "comp:ds";
+        edge.fromComponentId = ComponentId.of("comp:src1");
+        edge.toComponentId = ComponentId.of("comp:ds");
         edge.fromMethod = "method1";
         edge.toMethod = "handle";
         m.callEdges.add(edge);

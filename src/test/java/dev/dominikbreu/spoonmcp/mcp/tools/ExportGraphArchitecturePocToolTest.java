@@ -10,6 +10,8 @@ import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.FieldAccess;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.FieldBinding;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -60,12 +62,12 @@ class ExportGraphArchitecturePocToolTest {
         AppEntry app = new AppEntry();
         app.id = "app:orders";
         app.name = "orders";
-        app.componentIds.add("comp:OrderService");
-        app.componentIds.add("comp:OrderRepository");
+        app.componentIds.add(ComponentId.of("comp:OrderService"));
+        app.componentIds.add(ComponentId.of("comp:OrderRepository"));
         model.applications.add(app);
 
         Component service = new Component();
-        service.id = "comp:OrderService";
+        service.id = ComponentId.of("comp:OrderService");
         service.name = "OrderService";
         service.qualifiedName = "com.example.orders.OrderService";
         service.type = ComponentType.SERVICE;
@@ -74,7 +76,7 @@ class ExportGraphArchitecturePocToolTest {
         model.components.add(service);
 
         Component repository = new Component();
-        repository.id = "comp:OrderRepository";
+        repository.id = ComponentId.of("comp:OrderRepository");
         repository.name = "OrderRepository";
         repository.qualifiedName = "com.example.shared.OrderRepository";
         repository.type = ComponentType.REPOSITORY;
@@ -83,8 +85,8 @@ class ExportGraphArchitecturePocToolTest {
 
         Dependency dependency = new Dependency();
         dependency.id = "dep:service-repository";
-        dependency.fromId = "comp:OrderService";
-        dependency.toId = "comp:OrderRepository";
+        dependency.fromId = ComponentId.of("comp:OrderService");
+        dependency.toId = ComponentId.of("comp:OrderRepository");
         dependency.kind = "field-reference";
         dependency.derivedFrom = "field";
         dependency.confidence = 0.85;
@@ -95,7 +97,7 @@ class ExportGraphArchitecturePocToolTest {
 
     private void addNoisyInternalGraphComponent(ArchitectureModel model) {
         Component graph = new Component();
-        graph.id = "comp:ArchitectureGraph";
+        graph.id = ComponentId.of("comp:ArchitectureGraph");
         graph.name = "ArchitectureGraph";
         graph.qualifiedName = "com.example.internal.ArchitectureGraph";
         graph.type = ComponentType.UNKNOWN;
@@ -106,10 +108,9 @@ class ExportGraphArchitecturePocToolTest {
             FieldAccess read = new FieldAccess();
             read.id = "field:comp:ArchitectureGraph#method" + i + "@verticesById:read";
             read.kind = FieldAccess.Kind.READ;
-            read.componentId = "comp:ArchitectureGraph";
+            read.componentId = ComponentId.of("comp:ArchitectureGraph");
             read.method = "method" + i;
-            read.fieldOwnerComponentId = "comp:ArchitectureGraph";
-            read.fieldName = "verticesById";
+            read.fieldBinding = new FieldBinding.Own("verticesById");
             model.fieldAccesses.add(read);
         }
     }

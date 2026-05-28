@@ -25,7 +25,7 @@ class EventBusExtractorTest extends ExtractorTestBase {
         assertThat(model.entrypoints)
                 .as("VertxBusConsumer.register must emit an EVENT_BUS_CONSUMER entrypoint")
                 .anyMatch(e -> e.type == EntrypointType.EVENT_BUS_CONSUMER
-                        && e.componentId.contains("VertxBusConsumer")
+                        && e.componentId.qualifiedName().contains("VertxBusConsumer")
                         && "order.events".equals(e.channelName));
     }
 
@@ -34,8 +34,8 @@ class EventBusExtractorTest extends ExtractorTestBase {
         // The extractor copies the lambda's first parameter name into parameters so
         // the data-flow tracer can follow the message variable downstream.
         assertThat(model.entrypoints)
-                .filteredOn(
-                        e -> e.type == EntrypointType.EVENT_BUS_CONSUMER && e.componentId.contains("VertxBusConsumer"))
+                .filteredOn(e -> e.type == EntrypointType.EVENT_BUS_CONSUMER
+                        && e.componentId.qualifiedName().contains("VertxBusConsumer"))
                 .first()
                 .satisfies(e -> assertThat(e.parameters).containsExactly("message"));
     }
@@ -45,7 +45,7 @@ class EventBusExtractorTest extends ExtractorTestBase {
         assertThat(model.entrypoints)
                 .as("VertxBusHandlerConsumer.register must emit an EVENT_BUS_CONSUMER via handler() chain")
                 .anyMatch(e -> e.type == EntrypointType.EVENT_BUS_CONSUMER
-                        && e.componentId.contains("VertxBusHandlerConsumer")
+                        && e.componentId.qualifiedName().contains("VertxBusHandlerConsumer")
                         && "item.events".equals(e.channelName));
     }
 }

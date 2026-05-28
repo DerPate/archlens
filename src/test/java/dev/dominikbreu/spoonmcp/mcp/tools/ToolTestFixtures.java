@@ -6,6 +6,9 @@ import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.FieldAccess;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.FieldBinding;
+import dev.dominikbreu.spoonmcp.model.ids.FieldRef;
 import java.nio.file.Files;
 import java.util.List;
 
@@ -48,7 +51,7 @@ class ToolTestFixtures {
 
     private static Component component(String name, ComponentType type) {
         Component c = new Component();
-        c.id = "comp:" + name;
+        c.id = ComponentId.of("comp:" + name);
         c.name = name;
         c.qualifiedName = "com.example." + name;
         c.type = type;
@@ -56,14 +59,17 @@ class ToolTestFixtures {
     }
 
     private static FieldAccess fieldAccess(
-            FieldAccess.Kind kind, String componentId, String method, String ownerComponentId, String fieldName) {
+            FieldAccess.Kind kind,
+            ComponentId componentId,
+            String method,
+            ComponentId ownerComponentId,
+            String fieldName) {
         FieldAccess fa = new FieldAccess();
         fa.kind = kind;
         fa.componentId = componentId;
         fa.method = method;
-        fa.fieldOwnerComponentId = ownerComponentId;
-        fa.fieldName = fieldName;
-        fa.id = "field:" + componentId + "#" + method + "@" + fieldName + ":"
+        fa.fieldBinding = new FieldBinding.CrossComponent(new FieldRef(ownerComponentId, fieldName));
+        fa.id = "field:" + componentId.serialize() + "#" + method + "@" + fieldName + ":"
                 + kind.name().toLowerCase();
         return fa;
     }

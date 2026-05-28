@@ -15,7 +15,8 @@ class ArchitectureExtractorTest extends ExtractorTestBase {
 
         assertThat(model.runtimeFlows).isNotEmpty();
         assertThat(model.runtimeFlows)
-                .anyMatch(f -> f.entrypointId.contains("OrderResource#get")
+                .anyMatch(f -> f.entrypointId != null
+                        && f.entrypointId.serialize().contains("OrderResource#get")
                         && f.steps.stream().anyMatch(s -> "OrderService".equals(s.componentName)));
     }
 
@@ -23,11 +24,12 @@ class ArchitectureExtractorTest extends ExtractorTestBase {
     void wiresEventBusExtractorIntoMainPipeline() {
         ArchitectureModel model = new ArchitectureExtractor().extract(List.of(projectPath("eventbus-sample")));
 
-        assertThat(model.entrypoints).anyMatch(e -> e.id.contains("OrderEventConsumer#onOrderCreated:observer"));
+        assertThat(model.entrypoints)
+                .anyMatch(e -> e.id.serialize().contains("OrderEventConsumer#onOrderCreated:observer"));
         assertThat(model.dependencies)
                 .anyMatch(d -> d.kind.equals("cdi-event")
-                        && d.fromId.contains("OrderEventProducer")
-                        && d.toId.contains("OrderEventConsumer"));
+                        && d.fromId.serialize().contains("OrderEventProducer")
+                        && d.toId.serialize().contains("OrderEventConsumer"));
     }
 
     @Test
@@ -37,7 +39,8 @@ class ArchitectureExtractorTest extends ExtractorTestBase {
         assertThat(model.entrypoints)
                 .anyMatch(e -> e.type == EntrypointType.EVENT_BUS_CONSUMER
                         && "order.events".equals(e.channelName)
-                        && e.componentId.contains("VertxBusConsumer"));
+                        && e.componentId != null
+                        && e.componentId.qualifiedName().contains("VertxBusConsumer"));
     }
 
     @Test
@@ -48,8 +51,8 @@ class ArchitectureExtractorTest extends ExtractorTestBase {
         assertThat(model.components).anyMatch(c -> c.name.equals("PlainTool") && c.technology.equals("java"));
         assertThat(model.dependencies)
                 .anyMatch(d -> d.kind.equals("field-reference")
-                        && d.fromId.contains("PlainServer")
-                        && d.toId.contains("PlainTool"));
+                        && d.fromId.serialize().contains("PlainServer")
+                        && d.toId.serialize().contains("PlainTool"));
     }
 
     @Test
@@ -84,11 +87,14 @@ class ArchitectureExtractorTest extends ExtractorTestBase {
         ArchitectureModel model = new ArchitectureExtractor().extract(List.of(projectPath("gradle-springboot-sample")));
 
         assertThat(model.dependencies)
-                .anyMatch(d -> d.fromId.contains("OrderController") && d.toId.contains("OrderService"));
+                .anyMatch(d -> d.fromId.serialize().contains("OrderController")
+                        && d.toId.serialize().contains("OrderService"));
         assertThat(model.dependencies)
-                .anyMatch(d -> d.fromId.contains("OrderService") && d.toId.contains("OrderRepository"));
+                .anyMatch(d -> d.fromId.serialize().contains("OrderService")
+                        && d.toId.serialize().contains("OrderRepository"));
         assertThat(model.runtimeFlows)
-                .anyMatch(flow -> flow.entrypointId.contains("OrderController#get")
+                .anyMatch(flow -> flow.entrypointId != null
+                        && flow.entrypointId.serialize().contains("OrderController#get")
                         && flow.steps.stream().anyMatch(step -> "OrderService".equals(step.componentName))
                         && flow.steps.stream().anyMatch(step -> "OrderRepository".equals(step.componentName)));
     }

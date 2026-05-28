@@ -1,5 +1,7 @@
 package dev.dominikbreu.spoonmcp.model;
 
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+
 /**
  * Single component visit in an inferred runtime flow.
  */
@@ -7,7 +9,7 @@ public class RuntimeFlowStep {
     /** Zero-based or one-based display order assigned by the flow inferrer. */
     public int order;
     /** Component identifier visited at this step. */
-    public String componentId;
+    public ComponentId componentId;
     /** Component display name. */
     public String componentName;
     /** Component type name. */
@@ -27,7 +29,7 @@ public class RuntimeFlowStep {
      * @param componentType component type name
      * @param via transition evidence
      */
-    public RuntimeFlowStep(int order, String componentId, String componentName, String componentType, String via) {
+    public RuntimeFlowStep(int order, ComponentId componentId, String componentName, String componentType, String via) {
         this.order = order;
         this.componentId = componentId;
         this.componentName = componentName;

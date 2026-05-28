@@ -1,5 +1,6 @@
 package dev.dominikbreu.spoonmcp.model;
 
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -13,11 +14,11 @@ public class CallEdge {
     /** Stable edge identifier: {@code call:fromCompId#fromMethod->toCompId#toMethod}. */
     public String id;
     /** Calling component identifier. */
-    public String fromComponentId;
+    public ComponentId fromComponentId;
     /** Simple name of the method that contains the call site. */
     public String fromMethod;
     /** Called component identifier. */
-    public String toComponentId;
+    public ComponentId toComponentId;
     /** Simple name of the method being invoked. */
     public String toMethod;
     /** Call kind: {@code direct}, {@code event-bus}, or {@code messaging}. */

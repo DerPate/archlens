@@ -78,7 +78,7 @@ public class ExplainArchitectureTool {
                         if (ep.httpMethod != null)
                             sb.append(ep.httpMethod).append(" ").append(ep.path);
                         else sb.append(ep.name);
-                        sb.append(" (").append(ep.id).append(")\n");
+                        sb.append(" (").append(ep.id.serialize()).append(")\n");
                     }
                 }
 
@@ -98,8 +98,10 @@ public class ExplainArchitectureTool {
             // Dependencies summary
             List<Dependency> deps = model.dependencies.stream()
                     .filter(d -> {
-                        boolean fromVisible = apps.stream().anyMatch(a -> a.componentIds.contains(d.fromId));
-                        boolean toVisible = apps.stream().anyMatch(a -> a.componentIds.contains(d.toId));
+                        boolean fromVisible = apps.stream()
+                                .anyMatch(a -> a.componentIds.stream().anyMatch(id -> id.equals(d.fromId)));
+                        boolean toVisible = apps.stream()
+                                .anyMatch(a -> a.componentIds.stream().anyMatch(id -> id.equals(d.toId)));
                         return fromVisible && toVisible;
                     })
                     .collect(Collectors.toList());
@@ -107,8 +109,8 @@ public class ExplainArchitectureTool {
             if (!deps.isEmpty()) {
                 sb.append("## Dependencies (").append(deps.size()).append(")\n\n");
                 for (Dependency dep : deps) {
-                    String fromName = componentName(dep.fromId, model);
-                    String toName = componentName(dep.toId, model);
+                    String fromName = componentName(dep.fromId.serialize(), model);
+                    String toName = componentName(dep.toId.serialize(), model);
                     sb.append("- ")
                             .append(fromName)
                             .append(" → ")
@@ -139,7 +141,7 @@ public class ExplainArchitectureTool {
 
     private String componentName(String id, ArchitectureModel model) {
         return model.components.stream()
-                .filter(c -> c.id.equals(id))
+                .filter(c -> c.id.serialize().equals(id))
                 .findFirst()
                 .map(c -> c.name)
                 .orElse(id);

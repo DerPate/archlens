@@ -1,5 +1,7 @@
 package dev.dominikbreu.spoonmcp.model;
 
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+
 /**
  * Invocation site against outbound infrastructure whose callee is not a project component
  * (e.g. {@code java.nio.file.Files}, AWS S3 SDK, Azure Blob SDK, SmallRye Reactive Messaging
@@ -15,7 +17,7 @@ public class OutboundSinkSite {
      * {@link DataFlowSink.Kind#MESSAGING}, or {@link DataFlowSink.Kind#EVENT_BUS}. */
     public DataFlowSink.Kind kind;
     /** Component containing the call site. */
-    public String componentId;
+    public ComponentId componentId;
     /** Method containing the call site. */
     public String method;
     /** Qualified name of the callee's declaring type. */

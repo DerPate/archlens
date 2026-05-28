@@ -1,5 +1,7 @@
 package dev.dominikbreu.spoonmcp.model;
 
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+
 /**
  * One hop in a data-flow path: a component method through which a tracked value passes.
  */
@@ -7,7 +9,7 @@ public class DataFlowStep {
     /** Zero-based position in the flow. */
     public int index;
     /** Component identifier. */
-    public String componentId;
+    public ComponentId componentId;
     /** Component display name. */
     public String componentName;
     /** Method name at this hop. */
@@ -27,7 +29,7 @@ public class DataFlowStep {
      * @param method        method name at this hop
      * @param localName     name of the local variable holding the tracked value
      */
-    public DataFlowStep(int index, String componentId, String componentName, String method, String localName) {
+    public DataFlowStep(int index, ComponentId componentId, String componentName, String method, String localName) {
         this.index = index;
         this.componentId = componentId;
         this.componentName = componentName;

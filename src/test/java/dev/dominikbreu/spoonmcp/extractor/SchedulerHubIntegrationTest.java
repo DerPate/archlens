@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.FieldBinding;
 import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -36,7 +38,7 @@ class SchedulerHubIntegrationTest extends ExtractorTestBase {
 
     @Test
     void recordDispatcherLandsInSchedulingContainer() {
-        String dispatcherId = model.components.stream()
+        ComponentId dispatcherId = model.components.stream()
                 .filter(c -> c.name.equals(DISPATCHER))
                 .map(c -> c.id)
                 .findFirst()
@@ -130,14 +132,14 @@ class SchedulerHubIntegrationTest extends ExtractorTestBase {
     void dispatcherHasAtLeastOneDataFlowPath() {
         assertThat(model.dataFlowPaths)
                 .as("at least one DataFlowPath rooted at a RecordDispatcher entrypoint")
-                .anyMatch(p -> p.entrypointId.contains(DISPATCHER));
+                .anyMatch(p -> p.entrypointId.serialize().contains(DISPATCHER));
     }
 
     @Test
     void dispatchAllReachesEmitterSink() {
         assertThat(model.dataFlowPaths)
                 .as("DataFlowPath from dispatchAll reaching a MESSAGING sink")
-                .anyMatch(p -> p.entrypointId.contains("dispatchAll")
+                .anyMatch(p -> p.entrypointId.serialize().contains("dispatchAll")
                         && p.sinks.stream()
                                 .anyMatch(s -> s.kind == dev.dominikbreu.spoonmcp.model.DataFlowSink.Kind.MESSAGING));
     }
@@ -148,9 +150,10 @@ class SchedulerHubIntegrationTest extends ExtractorTestBase {
         // follow same-component method dispatch to reach this sink.
         assertThat(model.dataFlowPaths)
                 .as("DataFlowPath from dispatchAll reaching BrokerClient (HTTP_CLIENT) sink")
-                .anyMatch(p -> p.entrypointId.contains("dispatchAll")
+                .anyMatch(p -> p.entrypointId.serialize().contains("dispatchAll")
                         && p.sinks.stream()
-                                .anyMatch(s -> s.componentId != null && s.componentId.contains("BrokerClient")));
+                                .anyMatch(s -> s.componentId != null
+                                        && s.componentId.qualifiedName().contains("BrokerClient")));
     }
 
     // ── cross-component field access ──────────────────────────────────────────
@@ -160,10 +163,10 @@ class SchedulerHubIntegrationTest extends ExtractorTestBase {
         assertThat(model.fieldAccesses)
                 .as("cross-component field access: RecordDispatcher#dispatchAll reads RecordStore.records via getter")
                 .anyMatch(fa -> fa.kind == dev.dominikbreu.spoonmcp.model.FieldAccess.Kind.READ
-                        && fa.componentId.contains(DISPATCHER)
-                        && fa.fieldOwnerComponentId != null
-                        && fa.fieldOwnerComponentId.contains("RecordStore")
-                        && "records".equals(fa.fieldName)
+                        && fa.componentId.qualifiedName().contains(DISPATCHER)
+                        && fa.fieldBinding instanceof FieldBinding.CrossComponent cc
+                        && cc.ref().owner().qualifiedName().contains("RecordStore")
+                        && "records".equals(cc.ref().fieldName())
                         && "dispatchAll".equals(fa.method));
     }
 
@@ -173,10 +176,10 @@ class SchedulerHubIntegrationTest extends ExtractorTestBase {
                 .as(
                         "cross-component field access: RecordDispatcher#dispatchAll reads RecordStore.records via activeItems")
                 .anyMatch(fa -> fa.kind == dev.dominikbreu.spoonmcp.model.FieldAccess.Kind.READ
-                        && fa.componentId.contains(DISPATCHER)
-                        && fa.fieldOwnerComponentId != null
-                        && fa.fieldOwnerComponentId.contains("RecordStore")
-                        && "records".equals(fa.fieldName)
+                        && fa.componentId.qualifiedName().contains(DISPATCHER)
+                        && fa.fieldBinding instanceof FieldBinding.CrossComponent cc
+                        && cc.ref().owner().qualifiedName().contains("RecordStore")
+                        && "records".equals(cc.ref().fieldName())
                         && "dispatchAll".equals(fa.method)
                         && fa.id.contains("activeItems"));
     }
@@ -188,7 +191,7 @@ class SchedulerHubIntegrationTest extends ExtractorTestBase {
                 .as("SCHEDULER entrypoint for %s", methodName)
                 .anyMatch(e -> e.type == EntrypointType.SCHEDULER
                         && e.name.equals(methodName)
-                        && e.componentId.contains(DISPATCHER));
+                        && e.componentId.qualifiedName().contains(DISPATCHER));
     }
 
     private void assertHasEmitterProducer(String channelName) {
@@ -196,21 +199,22 @@ class SchedulerHubIntegrationTest extends ExtractorTestBase {
                 .as("MESSAGING_PRODUCER emitter for channel %s", channelName)
                 .anyMatch(e -> e.type == EntrypointType.MESSAGING_PRODUCER
                         && channelName.equals(e.channelName)
-                        && e.componentId.contains(DISPATCHER));
+                        && e.componentId.qualifiedName().contains(DISPATCHER));
     }
 
     private void assertHasDependency(String fromName, String toName) {
         assertThat(model.dependencies)
                 .as("dependency %s -> %s", fromName, toName)
-                .anyMatch(d -> d.fromId.contains(fromName) && d.toId.contains(toName));
+                .anyMatch(d -> d.fromId.serialize().contains(fromName)
+                        && d.toId.serialize().contains(toName));
     }
 
     private void assertHasCallEdge(String fromComp, String fromMethod, String toComp, String toMethod) {
         assertThat(model.callEdges)
                 .as("call edge %s#%s -> %s#%s", fromComp, fromMethod, toComp, toMethod)
-                .anyMatch(e -> e.fromComponentId.contains(fromComp)
+                .anyMatch(e -> e.fromComponentId.qualifiedName().contains(fromComp)
                         && e.fromMethod.equals(fromMethod)
-                        && e.toComponentId.contains(toComp)
+                        && e.toComponentId.qualifiedName().contains(toComp)
                         && e.toMethod.equals(toMethod));
     }
 }

@@ -58,7 +58,7 @@ class SpringExtractorTest extends ExtractorTestBase {
         assertThat(model.entrypoints)
                 .filteredOn(e -> e.type == EntrypointType.REST_ENDPOINT
                         && "GET".equals(e.httpMethod)
-                        && e.componentId.endsWith(".OrderController")
+                        && e.componentId.qualifiedName().endsWith(".OrderController")
                         && ("get".equals(e.name)))
                 .extracting(e -> e.id)
                 .doesNotHaveDuplicates();
@@ -77,7 +77,7 @@ class SpringExtractorTest extends ExtractorTestBase {
         assertThat(model.entrypoints)
                 .anyMatch(e -> e.type == EntrypointType.SCHEDULER
                         && "cleanUp".equals(e.name)
-                        && e.componentId.contains("OrderScheduler"));
+                        && e.componentId.qualifiedName().contains("OrderScheduler"));
     }
 
     @Test
@@ -116,11 +116,11 @@ class SpringExtractorTest extends ExtractorTestBase {
         assertThat(model.entrypoints)
                 .anyMatch(e -> e.type == EntrypointType.MAIN_METHOD
                         && "main".equals(e.name)
-                        && e.componentId.contains("GradleSpringApplication"));
+                        && e.componentId.qualifiedName().contains("GradleSpringApplication"));
         assertThat(model.entrypoints)
                 .anyMatch(e -> e.type == EntrypointType.MAIN_METHOD
                         && "run".equals(e.name)
-                        && e.componentId.contains("GradleSpringApplication"));
+                        && e.componentId.qualifiedName().contains("GradleSpringApplication"));
     }
 
     @Test

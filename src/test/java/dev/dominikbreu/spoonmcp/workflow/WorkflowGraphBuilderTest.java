@@ -7,6 +7,8 @@ import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -21,7 +23,7 @@ class WorkflowGraphBuilderTest {
         DataFlowPath a = path("df:A", "ep:A");
         DataFlowSink sink = new DataFlowSink();
         sink.kind = DataFlowSink.Kind.STORE;
-        sink.fieldOwnerComponentId = "comp:Store";
+        sink.fieldOwnerComponentId = ComponentId.of("comp:Store");
         sink.fieldName = "cache";
         sink.linkedPathIds.add("df:B");
         a.sinks.add(sink);
@@ -66,7 +68,7 @@ class WorkflowGraphBuilderTest {
 
     private static Entrypoint ep(String id, String name, EntrypointType type) {
         Entrypoint ep = new Entrypoint();
-        ep.id = id;
+        ep.id = EntrypointId.deserialize(id);
         ep.name = name;
         ep.type = type;
         return ep;
@@ -75,7 +77,7 @@ class WorkflowGraphBuilderTest {
     private static DataFlowPath path(String id, String entrypointId) {
         DataFlowPath path = new DataFlowPath();
         path.id = id;
-        path.entrypointId = entrypointId;
+        path.entrypointId = EntrypointId.deserialize(entrypointId);
         return path;
     }
 }

@@ -76,7 +76,8 @@ public class DetectUseCasesTool {
         return useCases.stream()
                 .filter(uc -> {
                     Entrypoint ep = model.entrypoints.stream()
-                            .filter(e -> e.id.equals(uc.entrypointId))
+                            .filter(e -> uc.entrypointId != null
+                                    && uc.entrypointId.serialize().equals(e.id))
                             .findFirst()
                             .orElse(null);
                     if (ep == null) return false;
@@ -120,13 +121,14 @@ public class DetectUseCasesTool {
         return sb.toString();
     }
 
-    private String resolveNames(List<String> componentIds, ArchitectureModel model) {
+    private String resolveNames(
+            List<dev.dominikbreu.spoonmcp.model.ids.ComponentId> componentIds, ArchitectureModel model) {
         return componentIds.stream()
                 .map(id -> model.components.stream()
                         .filter(c -> c.id.equals(id))
                         .map(c -> c.name)
                         .findFirst()
-                        .orElse(id))
+                        .orElse(id.serialize()))
                 .collect(Collectors.joining(", "));
     }
 }

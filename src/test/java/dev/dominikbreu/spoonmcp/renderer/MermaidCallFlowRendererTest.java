@@ -3,6 +3,8 @@ package dev.dominikbreu.spoonmcp.renderer;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import org.junit.jupiter.api.Test;
 
 class MermaidCallFlowRendererTest {
@@ -68,19 +70,19 @@ class MermaidCallFlowRendererTest {
         ArchitectureModel m = model(3);
         RuntimeFlow f = new RuntimeFlow();
         f.id = "flow:test";
-        f.entrypointId = "ep:test";
+        f.entrypointId = EntrypointId.deserialize("ep:test");
         for (int i = 0; i < 3; i++) {
             RuntimeFlowStep s = new RuntimeFlowStep();
             s.order = i;
-            s.componentId = "comp:Comp" + i;
+            s.componentId = ComponentId.of("comp:Comp" + i);
             s.componentName = "Comp" + i;
             s.componentType = "SERVICE";
             s.via = "call";
             f.steps.add(s);
         }
         // Comp0 fans out to both Comp1 and Comp2 — not a chain
-        f.edges.add(new RuntimeFlow.FlowEdge("comp:Comp0", "comp:Comp1", "doB"));
-        f.edges.add(new RuntimeFlow.FlowEdge("comp:Comp0", "comp:Comp2", "doC"));
+        f.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of("comp:Comp0"), ComponentId.of("comp:Comp1"), "doB"));
+        f.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of("comp:Comp0"), ComponentId.of("comp:Comp2"), "doC"));
 
         String out = renderer.render(f, m);
         assertThat(out).contains("Comp0 -->|doB| Comp1");
@@ -92,10 +94,10 @@ class MermaidCallFlowRendererTest {
     void clientEdgeShowsHttpMethodAndPath() {
         ArchitectureModel m = model(2);
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:Comp0#create";
+        ep.id = EntrypointId.deserialize("ep:Comp0#create");
         ep.httpMethod = "POST";
         ep.path = "/orders";
-        ep.componentId = "comp:Comp0";
+        ep.componentId = ComponentId.of("comp:Comp0");
         m.entrypoints.add(ep);
         RuntimeFlow f = flow(2);
         f.entrypointId = ep.id;
@@ -107,9 +109,9 @@ class MermaidCallFlowRendererTest {
     void clientEdgeShowsChannelNameForMessaging() {
         ArchitectureModel m = model(2);
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:Comp0#handle";
+        ep.id = EntrypointId.deserialize("ep:Comp0#handle");
         ep.channelName = "order-events";
-        ep.componentId = "comp:Comp0";
+        ep.componentId = ComponentId.of("comp:Comp0");
         m.entrypoints.add(ep);
         RuntimeFlow f = flow(2);
         f.entrypointId = ep.id;
@@ -128,7 +130,7 @@ class MermaidCallFlowRendererTest {
     void emptyFlowProducesFallbackNote() {
         RuntimeFlow f = new RuntimeFlow();
         f.id = "flow:empty";
-        f.entrypointId = "ep:none";
+        f.entrypointId = EntrypointId.deserialize("ep:none");
         String out = renderer.render(f, new ArchitectureModel("test"));
         assertThat(out).contains("flowchart TD");
         assertThat(out).contains("no flow steps");
@@ -139,17 +141,17 @@ class MermaidCallFlowRendererTest {
         ArchitectureModel m = new ArchitectureModel("test");
         for (int i = 0; i < 2; i++) {
             Component c = new Component();
-            c.id = "comp:pkg" + i + ".Service";
+            c.id = ComponentId.of("comp:pkg" + i + ".Service");
             c.name = "Service";
             c.type = ComponentType.SERVICE;
             m.components.add(c);
         }
         RuntimeFlow f = new RuntimeFlow();
         f.id = "flow:test";
-        f.entrypointId = "ep:test";
+        f.entrypointId = EntrypointId.deserialize("ep:test");
         for (int i = 0; i < 2; i++) {
             RuntimeFlowStep s = new RuntimeFlowStep();
-            s.componentId = "comp:pkg" + i + ".Service";
+            s.componentId = ComponentId.of("comp:pkg" + i + ".Service");
             s.componentName = "Service";
             s.componentType = "SERVICE";
             s.via = "call";
@@ -166,7 +168,7 @@ class MermaidCallFlowRendererTest {
         ArchitectureModel m = new ArchitectureModel("test");
         for (int i = 0; i < n; i++) {
             Component c = new Component();
-            c.id = "comp:Comp" + i;
+            c.id = ComponentId.of("comp:Comp" + i);
             c.name = "Comp" + i;
             c.type = i == 0 ? ComponentType.REST_RESOURCE : ComponentType.SERVICE;
             m.components.add(c);
@@ -177,17 +179,18 @@ class MermaidCallFlowRendererTest {
     private RuntimeFlow flow(int n) {
         RuntimeFlow f = new RuntimeFlow();
         f.id = "flow:test";
-        f.entrypointId = "ep:test";
+        f.entrypointId = EntrypointId.deserialize("ep:test");
         for (int i = 0; i < n; i++) {
             RuntimeFlowStep s = new RuntimeFlowStep();
             s.order = i;
-            s.componentId = "comp:Comp" + i;
+            s.componentId = ComponentId.of("comp:Comp" + i);
             s.componentName = "Comp" + i;
             s.componentType = i == 0 ? "REST_RESOURCE" : "SERVICE";
             s.via = "call";
             f.steps.add(s);
             if (i > 0) {
-                f.edges.add(new RuntimeFlow.FlowEdge("comp:Comp" + (i - 1), "comp:Comp" + i, "call"));
+                f.edges.add(new RuntimeFlow.FlowEdge(
+                        ComponentId.of("comp:Comp" + (i - 1)), ComponentId.of("comp:Comp" + i), "call"));
             }
         }
         return f;

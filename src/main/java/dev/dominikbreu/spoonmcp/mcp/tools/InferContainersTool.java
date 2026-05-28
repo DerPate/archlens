@@ -43,7 +43,8 @@ public class InferContainersTool {
 
             if (containers.isEmpty()) return "No containers found. Re-run index_workspace to build containers.";
 
-            Map<String, Component> compById = model.components.stream().collect(Collectors.toMap(c -> c.id, c -> c));
+            Map<dev.dominikbreu.spoonmcp.model.ids.ComponentId, Component> compById =
+                    model.components.stream().collect(Collectors.toMap(c -> c.id, c -> c));
 
             StringBuilder sb = new StringBuilder();
             sb.append("Containers (").append(containers.size()).append("):\n\n");
@@ -58,7 +59,7 @@ public class InferContainersTool {
                 sb.append("    Technology: ").append(c.technology).append("\n");
                 sb.append("    Derived from: ").append(c.derivedFrom).append("\n");
                 sb.append("    Components (").append(c.componentIds.size()).append("):\n");
-                for (String cid : c.componentIds) {
+                for (dev.dominikbreu.spoonmcp.model.ids.ComponentId cid : c.componentIds) {
                     Component comp = compById.get(cid);
                     if (comp != null) {
                         sb.append("      - [")

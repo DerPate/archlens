@@ -45,8 +45,8 @@ public class MermaidSourceOverviewRenderer {
             int rendered = 0;
             for (Component component : entry.getValue()) {
                 if (rendered >= maxPerPackage) break;
-                String compNode = nodeId(component.id);
-                componentToPackageNode.put(component.id, compNode);
+                String compNode = nodeId(component.id.serialize());
+                componentToPackageNode.put(component.id.serialize(), compNode);
                 sb.append("        ")
                         .append(compNode)
                         .append("[\"")
@@ -70,8 +70,8 @@ public class MermaidSourceOverviewRenderer {
 
         Set<String> drawn = new LinkedHashSet<>();
         for (Dependency dependency : model.dependencies) {
-            String from = componentToPackageNode.get(dependency.fromId);
-            String to = componentToPackageNode.get(dependency.toId);
+            String from = componentToPackageNode.get(dependency.fromId.serialize());
+            String to = componentToPackageNode.get(dependency.toId.serialize());
             if (from == null || to == null || from.equals(to)) continue;
             String key = from + "-->" + to;
             if (drawn.add(key)) {
