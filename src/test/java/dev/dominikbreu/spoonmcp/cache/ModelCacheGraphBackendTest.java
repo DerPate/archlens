@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -26,7 +27,7 @@ class ModelCacheGraphBackendTest {
         assertThat(cache.getBackend()).isEqualTo(ModelCache.CacheBackend.GRAPH);
         assertThat(cache.graph().findNodes("Component", "BillingService", Map.of(), 10))
                 .extracting(ArchitectureGraph.GraphNode::id)
-                .containsExactly("comp:BillingService");
+                .containsExactly("BillingService");
     }
 
     @Test
@@ -46,7 +47,7 @@ class ModelCacheGraphBackendTest {
         assertThat(reloaded.load().workspacePath).isEqualTo("second-workspace");
         assertThat(reloaded.graph().findNodes("Component", "SecondService", Map.of(), 10))
                 .extracting(ArchitectureGraph.GraphNode::id)
-                .containsExactly("comp:SecondService");
+                .containsExactly("SecondService");
         assertThat(reloaded.graph().findNodes("Component", "FirstService", Map.of(), 10))
                 .isEmpty();
     }
@@ -73,7 +74,7 @@ class ModelCacheGraphBackendTest {
     private ArchitectureModel model(String workspacePath, String componentName) {
         ArchitectureModel model = new ArchitectureModel(workspacePath);
         Component component = new Component();
-        component.id = "comp:" + componentName;
+        component.id = ComponentId.of(componentName);
         component.name = componentName;
         component.type = ComponentType.SERVICE;
         model.components.add(component);

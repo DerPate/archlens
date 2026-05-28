@@ -1,5 +1,6 @@
 package dev.dominikbreu.spoonmcp.model;
 
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,7 +23,7 @@ public class AppEntry {
     /** Identifier of the parent WAR deployment unit, set when role is internal_module. */
     public String parentAppId;
     /** Component identifiers owned by this application or module. */
-    public List<String> componentIds = new ArrayList<>();
+    public List<ComponentId> componentIds = new ArrayList<>();
 
     /** Creates an empty application entry for JSON deserialization. */
     public AppEntry() {}

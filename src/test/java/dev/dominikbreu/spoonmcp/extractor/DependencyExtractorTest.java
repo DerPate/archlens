@@ -84,7 +84,7 @@ class DependencyExtractorTest extends ExtractorTestBase {
     @Test
     void doesNotAddDependencyToNonComponent() {
         // EntityManager is not a known component — no dep to it
-        assertThat(javaeeModel.dependencies).noneMatch(d -> d.toId.contains("EntityManager"));
+        assertThat(javaeeModel.dependencies).noneMatch(d -> d.toId.serialize().contains("EntityManager"));
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
@@ -92,6 +92,7 @@ class DependencyExtractorTest extends ExtractorTestBase {
     private void assertHasDependency(ArchitectureModel m, String fromName, String toName) {
         assertThat(m.dependencies)
                 .as("dependency %s -> %s", fromName, toName)
-                .anyMatch(d -> d.fromId.contains(fromName) && d.toId.contains(toName));
+                .anyMatch(d -> d.fromId.serialize().contains(fromName)
+                        && d.toId.serialize().contains(toName));
     }
 }

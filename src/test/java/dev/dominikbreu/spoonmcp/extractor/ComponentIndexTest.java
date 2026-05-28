@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -11,7 +12,7 @@ class ComponentIndexTest {
 
     private static Component comp(String qualifiedName, String name) {
         Component c = new Component();
-        c.id = "comp:" + qualifiedName;
+        c.id = ComponentId.of(qualifiedName);
         c.name = name;
         c.type = ComponentType.SERVICE;
         return c;
@@ -21,12 +22,13 @@ class ComponentIndexTest {
     void get_returnsComponent_whenIdMatches() {
         Component c = comp("com.example.OrderService", "OrderService");
         ComponentIndex index = ComponentIndex.build(List.of(c));
-        assertThat(index.get("comp:com.example.OrderService")).isSameAs(c);
+        assertThat(index.get(ComponentId.of("com.example.OrderService"))).isSameAs(c);
     }
 
     @Test
     void get_returnsNull_whenNotFound() {
-        assertThat(ComponentIndex.build(List.of()).get("comp:Unknown")).isNull();
+        assertThat(ComponentIndex.build(List.of()).get(ComponentId.of("Unknown")))
+                .isNull();
     }
 
     @Test

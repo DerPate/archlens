@@ -214,7 +214,9 @@ public class PipelineGraphBuilder {
         StringBuilder sb = new StringBuilder();
         for (Segment s : c.segments) {
             if (sb.length() > 0) sb.append('|');
-            String epId = s.entrypoint != null ? s.entrypoint.id : (s.path != null ? s.path.entrypointId : "");
+            String epId = s.entrypoint != null
+                    ? s.entrypoint.id.serialize()
+                    : (s.path != null && s.path.entrypointId != null ? s.path.entrypointId.serialize() : "");
             sb.append(epId != null ? epId : "");
         }
         return sb.toString();
@@ -244,7 +246,7 @@ public class PipelineGraphBuilder {
         }
         // Entrypoint-level cycle: same entrypoint appearing twice means a STORE loop
         // (e.g. defaultStateCalculation → stateCache → defaultStateCalculation).
-        String epId = current.entrypointId;
+        String epId = current.entrypointId != null ? current.entrypointId.serialize() : null;
         if (epId != null && !prefix.isEmpty() && epStack.contains(epId)) {
             emit(prefix, out);
             return;

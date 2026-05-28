@@ -81,7 +81,9 @@ public class RenderPipelineTool {
             for (int i = 0; i < filtered.size(); i++) {
                 Chain c = filtered.get(i);
                 Segment root = c.segments.get(0);
-                String rootEpId = root.entrypoint != null ? root.entrypoint.id : root.path.entrypointId;
+                String rootEpId = root.entrypoint != null
+                        ? root.entrypoint.id.serialize()
+                        : (root.path.entrypointId != null ? root.path.entrypointId.serialize() : "");
                 out.append("%% chain ")
                         .append(i + 1)
                         .append(": root=")
@@ -104,7 +106,8 @@ public class RenderPipelineTool {
         Entrypoint ep = first.entrypoint;
         if (ep != null) return LIFECYCLE_TYPES.contains(ep.type);
         // Fallback: check entrypoint ID suffix when entrypoint object is not in the model index.
-        String epId = first.path != null ? first.path.entrypointId : null;
+        String epId =
+                first.path != null && first.path.entrypointId != null ? first.path.entrypointId.serialize() : null;
         return epId != null && epId.endsWith(":observer");
     }
 
@@ -115,12 +118,14 @@ public class RenderPipelineTool {
         String method = RuntimeFlowInferrer.extractMethodFromRef(filter);
         String pathFilter = RuntimeFlowInferrer.extractPathFromRef(filter);
         String lower = pathFilter.toLowerCase();
-        if (ep == null) return root.path.entrypointId.toLowerCase().contains(lower);
+        if (ep == null)
+            return root.path.entrypointId != null
+                    && root.path.entrypointId.serialize().toLowerCase().contains(lower);
         if (method != null && !method.equalsIgnoreCase(ep.httpMethod)) return false;
         if (ep.name != null && ep.name.toLowerCase().contains(lower)) return true;
         if (RuntimeFlowInferrer.pathPrefixMatches(ep.path, pathFilter)) return true;
         if (ep.channelName != null && ep.channelName.toLowerCase().contains(lower)) return true;
-        return ep.id != null && ep.id.toLowerCase().contains(lower);
+        return ep.id != null && ep.id.serialize().toLowerCase().contains(lower);
     }
 
     private boolean chainHasChannel(Chain c, String filter) {
@@ -161,9 +166,9 @@ public class RenderPipelineTool {
     private String rootEntrypointId(Chain c) {
         if (c.segments.isEmpty()) return "";
         Segment seg = c.segments.get(0);
-        if (seg.entrypoint != null && seg.entrypoint.id != null) return seg.entrypoint.id;
+        if (seg.entrypoint != null && seg.entrypoint.id != null) return seg.entrypoint.id.serialize();
         DataFlowPath root = seg.path;
-        return root.entrypointId != null ? root.entrypointId : root.id;
+        return root.entrypointId != null ? root.entrypointId.serialize() : root.id;
     }
 
     private String diagnostic(ArchitectureModel model) {

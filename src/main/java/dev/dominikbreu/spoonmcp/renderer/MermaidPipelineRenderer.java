@@ -36,7 +36,7 @@ public class MermaidPipelineRenderer {
             return "flowchart TD\n    note[no pipeline chain]\n";
         }
         Map<String, Component> compById = new HashMap<>();
-        for (Component c : model.components) compById.put(c.id, c);
+        for (Component c : model.components) compById.put(c.id.serialize(), c);
 
         StringBuilder sb = new StringBuilder("flowchart TD\n");
         StringBuilder edges = new StringBuilder();
@@ -87,12 +87,14 @@ public class MermaidPipelineRenderer {
 
             // Entrypoint header step (segment header) — represents the entrypoint method itself.
             String headerNodeId = "S" + segIdx + "_0";
-            String headerComponentName = ep != null && ep.componentId != null && compById.get(ep.componentId) != null
-                    ? compById.get(ep.componentId).name
-                    : (seg.path.steps.isEmpty() ? "?" : seg.path.steps.get(0).componentName);
-            ComponentType headerType = ep != null && ep.componentId != null && compById.get(ep.componentId) != null
-                    ? compById.get(ep.componentId).type
-                    : null;
+            String headerComponentName =
+                    ep != null && ep.componentId != null && compById.get(ep.componentId.serialize()) != null
+                            ? compById.get(ep.componentId.serialize()).name
+                            : (seg.path.steps.isEmpty() ? "?" : seg.path.steps.get(0).componentName);
+            ComponentType headerType =
+                    ep != null && ep.componentId != null && compById.get(ep.componentId.serialize()) != null
+                            ? compById.get(ep.componentId.serialize()).type
+                            : null;
             String headerLabel = headerComponentName + (ep != null && ep.name != null ? "." + ep.name : "");
             sb.append("    ")
                     .append(headerNodeId)
@@ -103,8 +105,9 @@ public class MermaidPipelineRenderer {
             for (int i = 1; i < seg.path.steps.size(); i++) {
                 DataFlowStep step = seg.path.steps.get(i);
                 String nodeId = "S" + segIdx + "_" + i;
-                ComponentType type =
-                        compById.containsKey(step.componentId) ? compById.get(step.componentId).type : null;
+                ComponentType type = step.componentId != null && compById.containsKey(step.componentId.serialize())
+                        ? compById.get(step.componentId.serialize()).type
+                        : null;
                 String label = step.componentName + "." + step.method;
                 sb.append("    ").append(nodeId).append(nodeShape(label, type)).append("\n");
                 edges.append("    ")
@@ -189,9 +192,10 @@ public class MermaidPipelineRenderer {
 
     private String boundaryLabel(DataFlowSink sink, Map<String, Component> compById) {
         if (sink.kind == DataFlowSink.Kind.STORE) {
-            String owner = sink.fieldOwnerComponentId != null && compById.get(sink.fieldOwnerComponentId) != null
-                    ? compById.get(sink.fieldOwnerComponentId).name
-                    : (sink.componentName != null ? sink.componentName : "?");
+            String owner =
+                    sink.fieldOwnerComponentId != null && compById.get(sink.fieldOwnerComponentId.serialize()) != null
+                            ? compById.get(sink.fieldOwnerComponentId.serialize()).name
+                            : (sink.componentName != null ? sink.componentName : "?");
             return owner + "." + (sink.fieldName != null ? sink.fieldName : "?");
         }
         if (sink.kind == DataFlowSink.Kind.MESSAGING || sink.kind == DataFlowSink.Kind.EVENT_BUS) {

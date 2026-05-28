@@ -28,7 +28,7 @@ public class DependencyCondenser {
     public List<Dependency> condense(List<Dependency> dependencies, List<Component> components) {
         Set<String> nonArch = new HashSet<>();
         for (Component c : components) {
-            if (NON_ARCHITECTURAL.contains(c.type)) nonArch.add(c.id);
+            if (NON_ARCHITECTURAL.contains(c.type)) nonArch.add(c.id.serialize());
         }
 
         if (nonArch.isEmpty()) return new ArrayList<>(dependencies);
@@ -37,8 +37,9 @@ public class DependencyCondenser {
         Map<String, Set<String>> out = new LinkedHashMap<>();
         Map<String, Set<String>> in = new LinkedHashMap<>();
         for (Dependency dep : dependencies) {
-            out.computeIfAbsent(dep.fromId, k -> new LinkedHashSet<>()).add(dep.toId);
-            in.computeIfAbsent(dep.toId, k -> new LinkedHashSet<>()).add(dep.fromId);
+            out.computeIfAbsent(dep.fromId.serialize(), k -> new LinkedHashSet<>())
+                    .add(dep.toId.serialize());
+            in.computeIfAbsent(dep.toId.serialize(), k -> new LinkedHashSet<>()).add(dep.fromId.serialize());
         }
 
         // For each non-architectural node, bypass it
@@ -68,8 +69,8 @@ public class DependencyCondenser {
             for (String to : entry.getValue()) {
                 Dependency dep = new Dependency();
                 dep.id = "dep:" + from + "->" + to + ":condensed";
-                dep.fromId = from;
-                dep.toId = to;
+                dep.fromId = dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(from);
+                dep.toId = dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(to);
                 dep.kind = "condensed";
                 dep.derivedFrom = "condensation";
                 dep.confidence = 0.75;
@@ -79,9 +80,9 @@ public class DependencyCondenser {
 
         // Also keep original deps between architectural nodes unchanged
         for (Dependency orig : dependencies) {
-            boolean bothArch = !nonArch.contains(orig.fromId) && !nonArch.contains(orig.toId);
+            boolean bothArch = !nonArch.contains(orig.fromId.serialize()) && !nonArch.contains(orig.toId.serialize());
             if (bothArch) {
-                String condensedId = "dep:" + orig.fromId + "->" + orig.toId + ":condensed";
+                String condensedId = "dep:" + orig.fromId.serialize() + "->" + orig.toId.serialize() + ":condensed";
                 boolean alreadyPresent = result.stream().anyMatch(d -> d.id.equals(condensedId));
                 if (!alreadyPresent) {
                     result.add(orig);

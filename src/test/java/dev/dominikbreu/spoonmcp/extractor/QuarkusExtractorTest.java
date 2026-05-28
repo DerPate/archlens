@@ -150,7 +150,7 @@ class QuarkusExtractorTest extends ExtractorTestBase {
     @Test
     void entrypointsHaveComponentLink() {
         model.entrypoints.forEach(ep ->
-                assertThat(ep.componentId).as("componentId for %s", ep.name).isNotEmpty());
+                assertThat(ep.componentId).as("componentId for %s", ep.name).isNotNull());
     }
 
     @Test
@@ -318,9 +318,9 @@ class QuarkusExtractorTest extends ExtractorTestBase {
     void fieldLevelFallbackSuppressedWhenCallSitesExist() {
         assertThat(model.interfaces)
                 .filteredOn(i -> i.componentId != null
-                        && (i.componentId.endsWith("HiveMqClientService")
-                                || i.componentId.endsWith("PahoMqttClientService")
-                                || i.componentId.endsWith("KafkaClientService")))
+                        && (i.componentId.qualifiedName().endsWith("HiveMqClientService")
+                                || i.componentId.qualifiedName().endsWith("PahoMqttClientService")
+                                || i.componentId.qualifiedName().endsWith("KafkaClientService")))
                 .filteredOn(i -> "messaging_client".equals(i.type))
                 .isEmpty();
     }
@@ -348,7 +348,7 @@ class QuarkusExtractorTest extends ExtractorTestBase {
         assertThat(model.entrypoints)
                 .as("ChatResource.onMessage must be detected as WEBSOCKET_ENDPOINT with path /chat/{id}")
                 .anyMatch(e -> e.type == EntrypointType.WEBSOCKET_ENDPOINT
-                        && e.componentId.endsWith("ChatResource")
+                        && e.componentId.qualifiedName().endsWith("ChatResource")
                         && "/chat/{id}".equals(e.path));
     }
 

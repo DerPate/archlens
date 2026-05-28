@@ -114,9 +114,9 @@ public class ExportArchitectureDocsTool {
         sb.append("## Dependency Details\n\n");
         for (Dependency dependency : model.dependencies) {
             sb.append("- `")
-                    .append(dependency.fromId)
+                    .append(dependency.fromId.serialize())
                     .append("` -> `")
-                    .append(dependency.toId)
+                    .append(dependency.toId.serialize())
                     .append("`")
                     .append(" (")
                     .append(dependency.kind)

@@ -89,8 +89,8 @@ public class MermaidFlowchartRenderer {
         Set<String> drawn = new HashSet<>();
         Map<String, String> compToApp = buildCompToAppMap(model);
         for (Dependency dep : model.dependencies) {
-            String fromApp = compToApp.get(dep.fromId);
-            String toApp = compToApp.get(dep.toId);
+            String fromApp = compToApp.get(dep.fromId.serialize());
+            String toApp = compToApp.get(dep.toId.serialize());
             if (fromApp == null || toApp == null || fromApp.equals(toApp)) continue;
             String key = fromApp + "->" + toApp;
             if (drawn.add(key)) {
@@ -107,7 +107,8 @@ public class MermaidFlowchartRenderer {
     private Map<String, String> buildCompToAppMap(ArchitectureModel model) {
         Map<String, String> map = new HashMap<>();
         for (AppEntry app : model.applications) {
-            for (String cid : app.componentIds) map.put(cid, app.id);
+            for (dev.dominikbreu.spoonmcp.model.ids.ComponentId cid : app.componentIds)
+                map.put(cid.serialize(), app.id);
         }
         return map;
     }
@@ -134,18 +135,18 @@ public class MermaidFlowchartRenderer {
         Set<String> referencedExternals = new LinkedHashSet<>();
         Set<String> drawnEdges = new LinkedHashSet<>();
         for (Dependency dep : model.dependencies) {
-            if (!isExternalSystem(model, dep.toId)) continue;
-            String fromApp = compToApp.get(dep.fromId);
+            if (!isExternalSystem(model, dep.toId.serialize())) continue;
+            String fromApp = compToApp.get(dep.fromId.serialize());
             if (fromApp == null || !visibleApps.contains(fromApp)) continue;
-            referencedExternals.add(dep.toId);
-            String key = fromApp + "->" + dep.toId + ":" + dep.kind;
+            referencedExternals.add(dep.toId.serialize());
+            String key = fromApp + "->" + dep.toId.serialize() + ":" + dep.kind;
             if (drawnEdges.add(key)) {
                 sb.append("    ")
                         .append(nid(fromApp))
                         .append(" -->|")
                         .append(escape(dep.kind == null ? "" : dep.kind))
                         .append("| ")
-                        .append(nid(dep.toId))
+                        .append(nid(dep.toId.serialize()))
                         .append("\n");
             }
         }
@@ -193,7 +194,9 @@ public class MermaidFlowchartRenderer {
         Map<String, Long> epByContainer = model.entrypoints.stream()
                 .filter(ep -> ep.componentId != null)
                 .collect(Collectors.groupingBy(
-                        ep -> compToContainer.getOrDefault(ep.componentId, ""), Collectors.counting()));
+                        ep -> compToContainer.getOrDefault(
+                                ep.componentId != null ? ep.componentId.serialize() : "", ""),
+                        Collectors.counting()));
 
         Set<String> visibleContainers = new LinkedHashSet<>();
         for (AppEntry app : apps) {
@@ -230,17 +233,17 @@ public class MermaidFlowchartRenderer {
         Set<String> referencedExternals = new LinkedHashSet<>();
 
         for (Dependency dep : model.dependencies) {
-            String fromC = compToContainer.get(dep.fromId);
+            String fromC = compToContainer.get(dep.fromId.serialize());
 
-            if (fromC != null && visibleContainers.contains(fromC) && isExternalSystem(model, dep.toId)) {
-                referencedExternals.add(dep.toId);
+            if (fromC != null && visibleContainers.contains(fromC) && isExternalSystem(model, dep.toId.serialize())) {
+                referencedExternals.add(dep.toId.serialize());
                 edgeKinds
-                        .computeIfAbsent(fromC + "\0" + dep.toId, k -> new LinkedHashSet<>())
+                        .computeIfAbsent(fromC + "\0" + dep.toId.serialize(), k -> new LinkedHashSet<>())
                         .add(nullToEmpty(dep.kind));
                 continue;
             }
 
-            String toC = compToContainer.get(dep.toId);
+            String toC = compToContainer.get(dep.toId.serialize());
             if (fromC == null || toC == null || fromC.equals(toC)) continue;
             if (!visibleContainers.contains(fromC) || !visibleContainers.contains(toC)) continue;
             edgeKinds
@@ -304,8 +307,8 @@ public class MermaidFlowchartRenderer {
 
             if (appContainers.isEmpty()) {
                 // No containers — flat list of components
-                for (String cid : app.componentIds) {
-                    renderComponentNode(sb, cid, model, "        ");
+                for (dev.dominikbreu.spoonmcp.model.ids.ComponentId cid : app.componentIds) {
+                    renderComponentNode(sb, cid.serialize(), model, "        ");
                 }
             } else {
                 for (Container container : appContainers) {
@@ -314,8 +317,8 @@ public class MermaidFlowchartRenderer {
                             .append("[\"")
                             .append(escape(container.name))
                             .append("\"]\n");
-                    for (String cid : container.componentIds) {
-                        renderComponentNode(sb, cid, model, "            ");
+                    for (dev.dominikbreu.spoonmcp.model.ids.ComponentId cid : container.componentIds) {
+                        renderComponentNode(sb, cid.serialize(), model, "            ");
                     }
                     sb.append("        end\n");
                 }
@@ -324,17 +327,19 @@ public class MermaidFlowchartRenderer {
         }
 
         // Draw edges only between components belonging to the filtered apps
-        Set<String> visibleComps =
-                apps.stream().flatMap(a -> a.componentIds.stream()).collect(Collectors.toSet());
+        Set<String> visibleComps = apps.stream()
+                .flatMap(a -> a.componentIds.stream())
+                .map(dev.dominikbreu.spoonmcp.model.ids.ComponentId::serialize)
+                .collect(Collectors.toSet());
 
         for (Dependency dep : model.dependencies) {
-            if (visibleComps.contains(dep.fromId) && visibleComps.contains(dep.toId)) {
+            if (visibleComps.contains(dep.fromId.serialize()) && visibleComps.contains(dep.toId.serialize())) {
                 sb.append("    ")
-                        .append(nid(dep.fromId))
+                        .append(nid(dep.fromId.serialize()))
                         .append(" -->|")
                         .append(escape(dep.kind))
                         .append("| ")
-                        .append(nid(dep.toId))
+                        .append(nid(dep.toId.serialize()))
                         .append("\n");
             }
         }
@@ -342,18 +347,21 @@ public class MermaidFlowchartRenderer {
     }
 
     private void renderComponentNode(StringBuilder sb, String compId, ArchitectureModel model, String indent) {
-        model.components.stream().filter(c -> c.id.equals(compId)).findFirst().ifPresent(comp -> {
-            String[] shape = shapeFor(comp.type);
-            String label = comp.type.name() + "\\n" + escape(comp.name);
-            sb.append(indent)
-                    .append(nid(comp.id))
-                    .append(shape[0])
-                    .append("\"")
-                    .append(label)
-                    .append("\"")
-                    .append(shape[1])
-                    .append("\n");
-        });
+        model.components.stream()
+                .filter(c -> c.id.serialize().equals(compId))
+                .findFirst()
+                .ifPresent(comp -> {
+                    String[] shape = shapeFor(comp.type);
+                    String label = comp.type.name() + "\\n" + escape(comp.name);
+                    sb.append(indent)
+                            .append(nid(comp.id.serialize()))
+                            .append(shape[0])
+                            .append("\"")
+                            .append(label)
+                            .append("\"")
+                            .append(shape[1])
+                            .append("\n");
+                });
     }
 
     /** Returns [open, close] Mermaid shape brackets. */
@@ -368,7 +376,7 @@ public class MermaidFlowchartRenderer {
     private Map<String, String> buildCompToContainerMap(ArchitectureModel model) {
         Map<String, String> map = new HashMap<>();
         for (Container c : model.containers) {
-            for (String cid : c.componentIds) map.put(cid, c.id);
+            for (dev.dominikbreu.spoonmcp.model.ids.ComponentId cid : c.componentIds) map.put(cid.serialize(), c.id);
         }
         return map;
     }

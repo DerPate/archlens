@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,7 +20,7 @@ class FindEntrypointsToolTest {
     void setUp() {
         model = new ArchitectureModel("test");
         Component ctrl = new Component();
-        ctrl.id = "comp:CustomerController";
+        ctrl.id = ComponentId.of("comp:CustomerController");
         ctrl.name = "CustomerController";
         ctrl.type = ComponentType.REST_RESOURCE;
         ctrl.technology = "spring";
@@ -149,12 +151,13 @@ class FindEntrypointsToolTest {
 
     private static Entrypoint restEp(String id, String name, String method, String path) {
         Entrypoint ep = new Entrypoint();
-        ep.id = id;
+        ep.id = EntrypointId.deserialize(id);
         ep.name = name;
         ep.type = EntrypointType.REST_ENDPOINT;
         ep.httpMethod = method;
         ep.path = path;
-        ep.componentId = id.startsWith("ep:Customer") ? "comp:CustomerController" : "comp:AccountController";
+        ep.componentId =
+                ComponentId.of(id.startsWith("ep:Customer") ? "comp:CustomerController" : "comp:AccountController");
         return ep;
     }
 }

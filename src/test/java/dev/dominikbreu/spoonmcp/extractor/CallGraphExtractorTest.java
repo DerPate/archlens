@@ -8,6 +8,7 @@ import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndex;
 import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndexBuilder;
 import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -33,9 +34,9 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         assertThat(model.callEdges)
                 .as("OrderResource.get -> OrderService.find edge")
                 .anySatisfy(e -> {
-                    assertThat(e.fromComponentId).isEqualTo("comp:com.example.api.OrderResource");
+                    assertThat(e.fromComponentId).isEqualTo(ComponentId.of("com.example.api.OrderResource"));
                     assertThat(e.fromMethod).isEqualTo("get");
-                    assertThat(e.toComponentId).isEqualTo("comp:com.example.service.OrderService");
+                    assertThat(e.toComponentId).isEqualTo(ComponentId.of("com.example.service.OrderService"));
                     assertThat(e.toMethod).isEqualTo("find");
                     assertThat(e.callKind).isEqualTo("direct");
                 });
@@ -52,9 +53,9 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         new CallGraphExtractor(ObjectFlowIndex.empty(), sourceFacts).extract(ctModel, sourceModel);
 
         assertThat(sourceModel.callEdges).anySatisfy(edge -> {
-            assertThat(edge.fromComponentId).isEqualTo("comp:com.example.api.OrderResource");
+            assertThat(edge.fromComponentId).isEqualTo(ComponentId.of("com.example.api.OrderResource"));
             assertThat(edge.fromMethod).isEqualTo("get");
-            assertThat(edge.toComponentId).isEqualTo("comp:com.example.service.OrderService");
+            assertThat(edge.toComponentId).isEqualTo(ComponentId.of("com.example.service.OrderService"));
             assertThat(edge.toMethod).isEqualTo("find");
         });
     }
@@ -70,9 +71,9 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         new CallGraphExtractor(ObjectFlowIndex.empty(), sourceFacts).extract(ctModel, sourceModel);
 
         assertThat(sourceModel.callEdges).anySatisfy(edge -> {
-            assertThat(edge.fromComponentId).isEqualTo("comp:com.example.constructor.AccountController");
+            assertThat(edge.fromComponentId).isEqualTo(ComponentId.of("com.example.constructor.AccountController"));
             assertThat(edge.fromMethod).isEqualTo("get");
-            assertThat(edge.toComponentId).isEqualTo("comp:com.example.constructor.AccountService");
+            assertThat(edge.toComponentId).isEqualTo(ComponentId.of("com.example.constructor.AccountService"));
             assertThat(edge.toMethod).isEqualTo("getById");
             assertThat(edge.receiverEvidence).isEqualTo("legacy-field-read");
         });
@@ -83,9 +84,9 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         assertThat(model.callEdges)
                 .as("OrderService.find -> OrderRepository.findById edge")
                 .anySatisfy(e -> {
-                    assertThat(e.fromComponentId).isEqualTo("comp:com.example.service.OrderService");
+                    assertThat(e.fromComponentId).isEqualTo(ComponentId.of("com.example.service.OrderService"));
                     assertThat(e.fromMethod).isEqualTo("find");
-                    assertThat(e.toComponentId).isEqualTo("comp:com.example.repository.OrderRepository");
+                    assertThat(e.toComponentId).isEqualTo(ComponentId.of("com.example.repository.OrderRepository"));
                     assertThat(e.toMethod).isEqualTo("findById");
                     assertThat(e.callKind).isEqualTo("direct");
                 });
@@ -154,7 +155,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         assertThat(model.outboundSinkSites)
                 .as("OrderRepository.archive uses java.nio.file.Files → FILE_OUTBOUND site")
                 .anySatisfy(s -> {
-                    assertThat(s.componentId).contains("OrderRepository");
+                    assertThat(s.componentId.serialize()).contains("OrderRepository");
                     assertThat(s.method).isEqualTo("archive");
                     assertThat(s.calleeQualifiedName).startsWith("java.nio.file.Files");
                     assertThat(s.calleeMethod).isEqualTo("writeString");
@@ -171,7 +172,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         assertThat(model.outboundSinkSites)
                 .as("KafkaService.publishAudit -> Emitter.send is a MESSAGING sink")
                 .anySatisfy(s -> {
-                    assertThat(s.componentId).contains("KafkaService");
+                    assertThat(s.componentId.serialize()).contains("KafkaService");
                     assertThat(s.method).isEqualTo("publishAudit");
                     assertThat(s.calleeMethod).isEqualTo("send");
                     assertThat(s.kind).isEqualTo(DataFlowSink.Kind.MESSAGING);
@@ -193,12 +194,16 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         List<DataFlowPath> paths = new DataFlowTracer().trace(model);
 
         DataFlowPath consumerPath = paths.stream()
-                .filter(p -> p.entrypointId.contains("OrderIngest") && p.entrypointId.contains("#consume"))
+                .filter(p -> p.entrypointId != null
+                        && p.entrypointId.serialize().contains("OrderIngest")
+                        && p.entrypointId.serialize().contains("#consume"))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("no data-flow path traced from OrderIngest.consume"));
 
         DataFlowPath schedulerPath = paths.stream()
-                .filter(p -> p.entrypointId.contains("OrderForwarder") && p.entrypointId.contains("#forward"))
+                .filter(p -> p.entrypointId != null
+                        && p.entrypointId.serialize().contains("OrderForwarder")
+                        && p.entrypointId.serialize().contains("#forward"))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("no data-flow path traced from OrderForwarder.forward"));
 
@@ -206,7 +211,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                 .filter(s -> s.kind == DataFlowSink.Kind.STORE
                         && "cache".equals(s.fieldName)
                         && s.fieldOwnerComponentId != null
-                        && s.fieldOwnerComponentId.contains("OrderBuffer"))
+                        && s.fieldOwnerComponentId.serialize().contains("OrderBuffer"))
                 .findFirst()
                 .orElseThrow(
                         () -> new AssertionError("OrderIngest.consume did not emit a STORE sink on OrderBuffer.cache"));
@@ -222,7 +227,9 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                 .isEqualTo("orders-out");
 
         DataFlowPath nextStagePath = paths.stream()
-                .filter(p -> p.entrypointId.contains("OrderNextStage") && p.entrypointId.contains("#process"))
+                .filter(p -> p.entrypointId != null
+                        && p.entrypointId.serialize().contains("OrderNextStage")
+                        && p.entrypointId.serialize().contains("#process"))
                 .findFirst()
                 .orElse(null);
         // OrderNextStage.process has no parameters and no call edges → no path with sinks,
@@ -267,7 +274,9 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         List<DataFlowPath> paths = new DataFlowTracer().trace(model);
         assertThat(paths)
                 .as("no DataFlowPath should be seeded from a Logger field")
-                .noneMatch(p -> p.entrypointId.contains("KafkaService") && "log".equals(p.trackedParam));
+                .noneMatch(p -> p.entrypointId != null
+                        && p.entrypointId.serialize().contains("KafkaService")
+                        && "log".equals(p.trackedParam));
     }
 
     @Test
@@ -287,10 +296,10 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         assertThat(model.fieldAccesses)
                 .as("CachingConsumer.handle -> WRITE to 'cache'")
                 .anySatisfy(fa -> {
-                    assertThat(fa.componentId).contains("CachingConsumer");
+                    assertThat(fa.componentId.serialize()).contains("CachingConsumer");
                     assertThat(fa.method).isEqualTo("handle");
                     assertThat(fa.kind).isEqualTo(FieldAccess.Kind.WRITE);
-                    assertThat(fa.fieldName).isEqualTo("cache");
+                    assertThat(fa.fieldBinding.fieldName()).isEqualTo("cache");
                 });
     }
 
@@ -299,18 +308,18 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         ArchitectureModel generic = new ArchitectureExtractor().extract(List.of(projectPath("generic-object-flow")));
 
         assertThat(generic.callEdges).anySatisfy(edge -> {
-            assertThat(edge.fromComponentId).isEqualTo("comp:com.example.objectflow.MainApp");
+            assertThat(edge.fromComponentId.serialize()).isEqualTo("com.example.objectflow.MainApp");
             assertThat(edge.fromMethod).isEqualTo("run");
-            assertThat(edge.toComponentId).isEqualTo("comp:com.example.objectflow.GameService");
+            assertThat(edge.toComponentId.serialize()).isEqualTo("com.example.objectflow.GameService");
             assertThat(edge.toMethod).isEqualTo("run");
             assertThat(edge.receiverEvidence).isIn("constructor-assignment", "declared-field-type");
         });
 
         assertThat(generic.callEdges).anySatisfy(edge -> {
-            assertThat(edge.fromComponentId).isEqualTo("comp:com.example.objectflow.GameService");
+            assertThat(edge.fromComponentId.serialize()).isEqualTo("com.example.objectflow.GameService");
             assertThat(edge.fromMethod).isEqualTo("run");
-            assertThat(edge.toComponentId)
-                    .isIn("comp:com.example.objectflow.RandomPlayer", "comp:com.example.objectflow.SimplePlayer");
+            assertThat(edge.toComponentId.serialize())
+                    .isIn("com.example.objectflow.RandomPlayer", "com.example.objectflow.SimplePlayer");
             assertThat(edge.toMethod).isEqualTo("nextMove");
         });
     }
@@ -320,7 +329,8 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         ArchitectureModel generic = new ArchitectureExtractor().extract(List.of(projectPath("generic-object-flow")));
 
         long expanded = generic.callEdges.stream()
-                .filter(edge -> edge.toComponentId != null && edge.toComponentId.contains("TooManyHandler"))
+                .filter(edge -> edge.toComponentId != null
+                        && edge.toComponentId.serialize().contains("TooManyHandler"))
                 .count();
 
         assertThat(expanded).isLessThanOrEqualTo(25);
@@ -331,17 +341,29 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         ArchitectureModel generic = new ArchitectureExtractor().extract(List.of(projectPath("generic-object-flow")));
 
         assertThat(generic.fieldAccesses).anySatisfy(access -> {
-            assertThat(access.componentId).isEqualTo("comp:com.example.objectflow.StateWriter");
+            assertThat(access.componentId.serialize()).isEqualTo("com.example.objectflow.StateWriter");
             assertThat(access.kind).isEqualTo(FieldAccess.Kind.WRITE);
-            assertThat(access.fieldOwnerComponentId).isEqualTo("comp:com.example.objectflow.StateStore");
-            assertThat(access.fieldName).isEqualTo("cache");
+            assertThat(access.fieldBinding)
+                    .isInstanceOf(dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent.class);
+            assertThat(((dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent) access.fieldBinding)
+                            .ref()
+                            .owner()
+                            .serialize())
+                    .isEqualTo("com.example.objectflow.StateStore");
+            assertThat(access.fieldBinding.fieldName()).isEqualTo("cache");
         });
 
         assertThat(generic.fieldAccesses).anySatisfy(access -> {
-            assertThat(access.componentId).isEqualTo("comp:com.example.objectflow.StateReader");
+            assertThat(access.componentId.serialize()).isEqualTo("com.example.objectflow.StateReader");
             assertThat(access.kind).isEqualTo(FieldAccess.Kind.READ);
-            assertThat(access.fieldOwnerComponentId).isEqualTo("comp:com.example.objectflow.StateStore");
-            assertThat(access.fieldName).isEqualTo("cache");
+            assertThat(access.fieldBinding)
+                    .isInstanceOf(dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent.class);
+            assertThat(((dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent) access.fieldBinding)
+                            .ref()
+                            .owner()
+                            .serialize())
+                    .isEqualTo("com.example.objectflow.StateStore");
+            assertThat(access.fieldBinding.fieldName()).isEqualTo("cache");
         });
     }
 
@@ -392,19 +414,19 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                 .extract(launcher.getModel(), fixture);
 
         assertThat(fixture.callEdges)
-                .noneMatch(edge -> edge.fromComponentId.equals("comp:example.Resource")
-                        && edge.toComponentId.equals("comp:example.Budget")
+                .noneMatch(edge -> edge.fromComponentId.equals(ComponentId.of("example.Resource"))
+                        && edge.toComponentId.equals(ComponentId.of("example.Budget"))
                         && edge.toMethod.equals("equals"));
         assertThat(fixture.callEdges)
                 .anySatisfy(edge -> {
-                    assertThat(edge.fromComponentId).isEqualTo("comp:example.Resource");
-                    assertThat(edge.toComponentId).isEqualTo("comp:example.Dto");
+                    assertThat(edge.fromComponentId).isEqualTo(ComponentId.of("example.Resource"));
+                    assertThat(edge.toComponentId).isEqualTo(ComponentId.of("example.Dto"));
                     assertThat(edge.toMethod).isEqualTo("getId");
                     assertThat(edge.receiverLocalName).isEqualTo("dto");
                 })
                 .anySatisfy(edge -> {
-                    assertThat(edge.fromComponentId).isEqualTo("comp:example.Resource");
-                    assertThat(edge.toComponentId).isEqualTo("comp:example.Dto");
+                    assertThat(edge.fromComponentId).isEqualTo(ComponentId.of("example.Resource"));
+                    assertThat(edge.toComponentId).isEqualTo(ComponentId.of("example.Dto"));
                     assertThat(edge.toMethod).isEqualTo("getInvoiceNumber");
                     assertThat(edge.receiverLocalName).isEqualTo("dto");
                 });
@@ -447,8 +469,8 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                 .extract(launcher.getModel(), fixture);
 
         assertThat(fixture.callEdges).anySatisfy(edge -> {
-            assertThat(edge.fromComponentId).isEqualTo("comp:example.Resource");
-            assertThat(edge.toComponentId).isEqualTo("comp:example.Budget");
+            assertThat(edge.fromComponentId).isEqualTo(ComponentId.of("example.Resource"));
+            assertThat(edge.toComponentId).isEqualTo(ComponentId.of("example.Budget"));
             assertThat(edge.toMethod).isEqualTo("equals");
             assertThat(edge.receiverEvidence).isEqualTo("accessor-name-fallback");
             assertThat(edge.receiverConfidence).isEqualTo(0.20);
@@ -489,8 +511,8 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                 .extract(launcher.getModel(), fixture);
 
         assertThat(fixture.callEdges).anySatisfy(edge -> {
-            assertThat(edge.fromComponentId).isEqualTo("comp:example.Service");
-            assertThat(edge.toComponentId).isEqualTo("comp:example.Producer");
+            assertThat(edge.fromComponentId).isEqualTo(ComponentId.of("example.Service"));
+            assertThat(edge.toComponentId).isEqualTo(ComponentId.of("example.Producer"));
             assertThat(edge.toMethod).isEqualTo("sendKafkaEvent");
             assertThat(edge.resolvedLiteralArgs).containsEntry("topic", "orders.created");
         });
@@ -498,7 +520,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
 
     private static Component component(String qualifiedName) {
         Component component = new Component();
-        component.id = "comp:" + qualifiedName;
+        component.id = ComponentId.of(qualifiedName);
         component.name = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1);
         component.qualifiedName = qualifiedName;
         component.module = "app:constructor-injection-sample";

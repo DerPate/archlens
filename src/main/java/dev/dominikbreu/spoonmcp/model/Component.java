@@ -1,5 +1,6 @@
 package dev.dominikbreu.spoonmcp.model;
 
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -7,8 +8,8 @@ import java.util.List;
  * Source-level architecture component such as a REST resource, service, repository, or entity.
  */
 public class Component {
-    /** Stable component identifier, usually {@code comp:<qualified-class-name>}. */
-    public String id;
+    /** Stable component identifier — the component's fully-qualified class name. */
+    public ComponentId id;
     /** Architectural role assigned to the component. */
     public ComponentType type;
     /** Simple display name, usually the Java type simple name. */

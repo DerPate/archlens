@@ -25,7 +25,7 @@ class GenericJavaExtractorTest extends ExtractorTestBase {
         assertThat(model.entrypoints)
                 .anyMatch(e -> e.type == EntrypointType.MAIN_METHOD
                         && "main".equals(e.name)
-                        && e.componentId.contains("PlainServer"));
+                        && e.componentId.qualifiedName().contains("PlainServer"));
     }
 
     @Test
@@ -45,6 +45,7 @@ class GenericJavaExtractorTest extends ExtractorTestBase {
     @Test
     void noMainEntrypointForClassWithoutMainMethod() {
         assertThat(model.entrypoints)
-                .noneMatch(e -> e.type == EntrypointType.MAIN_METHOD && e.componentId.contains("PlainTool"));
+                .noneMatch(e -> e.type == EntrypointType.MAIN_METHOD
+                        && e.componentId.qualifiedName().contains("PlainTool"));
     }
 }

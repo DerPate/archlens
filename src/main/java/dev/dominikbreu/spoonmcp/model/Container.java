@@ -1,5 +1,6 @@
 package dev.dominikbreu.spoonmcp.model;
 
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,7 +17,7 @@ public class Container {
     /** Dominant technology represented by the container. */
     public String technology;
     /** Component identifiers assigned to this container. */
-    public List<String> componentIds = new ArrayList<>();
+    public List<ComponentId> componentIds = new ArrayList<>();
     /** Extraction rule or evidence category used to infer the container. */
     public String derivedFrom;
 

@@ -36,12 +36,13 @@ public final class WorkflowLinker {
 
         Map<String, Entrypoint> entrypointById = new HashMap<>();
         for (Entrypoint entrypoint : model.entrypoints) {
-            entrypointById.put(entrypoint.id, entrypoint);
+            entrypointById.put(entrypoint.id.serialize(), entrypoint);
         }
 
         List<WorkflowLink> links = new ArrayList<>();
         for (DataFlowPath fromPath : model.dataFlowPaths) {
-            Entrypoint fromEntrypoint = entrypointById.get(fromPath.entrypointId);
+            Entrypoint fromEntrypoint =
+                    fromPath.entrypointId != null ? entrypointById.get(fromPath.entrypointId.serialize()) : null;
             if (!policy.isWorkflowRoot(fromEntrypoint)) {
                 continue;
             }
@@ -58,18 +59,25 @@ public final class WorkflowLinker {
                     if (toPath == null) {
                         continue;
                     }
-                    Entrypoint toEntrypoint = entrypointById.get(toPath.entrypointId);
+                    Entrypoint toEntrypoint =
+                            toPath.entrypointId != null ? entrypointById.get(toPath.entrypointId.serialize()) : null;
                     if (!policy.isWorkflowRoot(toEntrypoint)) {
+                        continue;
+                    }
+                    // A scheduler pre-loading reference data into a store that a primary consumer
+                    // reads is a background data-feed, not a pipeline trigger. Skip the link so
+                    // the consumer remains an independent pipeline root.
+                    if (policy.isBackgroundDataFeedLink(fromEntrypoint, toEntrypoint, kind)) {
                         continue;
                     }
                     links.add(new WorkflowLink(
                             kind,
                             fromPath.id,
                             toPath.id,
-                            fromPath.entrypointId,
-                            toPath.entrypointId,
+                            fromPath.entrypointId != null ? fromPath.entrypointId.serialize() : null,
+                            toPath.entrypointId != null ? toPath.entrypointId.serialize() : null,
                             sink.channel,
-                            sink.fieldOwnerComponentId,
+                            sink.fieldOwnerComponentId != null ? sink.fieldOwnerComponentId.serialize() : null,
                             sink.fieldName,
                             sink.entityType,
                             sink.repositoryOperation,

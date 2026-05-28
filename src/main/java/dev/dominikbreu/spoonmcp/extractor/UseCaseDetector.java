@@ -1,6 +1,7 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import dev.dominikbreu.spoonmcp.workflow.WorkflowTraversalPolicy;
 import java.util.*;
 
@@ -36,7 +37,7 @@ public class UseCaseDetector {
      * @return list of use cases, one per entrypoint
      */
     public List<UseCase> detect(ArchitectureModel model, UseCaseNamingConfig config) {
-        Map<String, Component> compById = new HashMap<>();
+        Map<ComponentId, Component> compById = new HashMap<>();
         for (Component c : model.components) compById.put(c.id, c);
 
         boolean hasCallGraph = !model.callEdges.isEmpty();
@@ -54,26 +55,26 @@ public class UseCaseDetector {
     private UseCase buildUseCase(
             Entrypoint ep,
             ArchitectureModel model,
-            Map<String, Component> compById,
+            Map<ComponentId, Component> compById,
             boolean hasCallGraph,
             Map<String, List<CallEdge>> callAdj,
             Map<String, List<String>> depAdj,
             UseCaseNamingConfig config) {
         UseCase uc = new UseCase();
-        uc.id = "usecase:" + ep.id;
+        uc.id = "usecase:" + ep.id.serialize();
         uc.entrypointId = ep.id;
         uc.type = ep.type;
         uc.channelOrPath = ep.channelName != null ? ep.channelName : ep.path;
-        uc.name = config.resolveName(ep.id, deriveName(ep));
+        uc.name = config.resolveName(ep.id.serialize(), deriveName(ep));
 
         Set<String> visitedKeys = new LinkedHashSet<>();
-        Set<String> visitedComps = new LinkedHashSet<>();
+        Set<ComponentId> visitedComps = new LinkedHashSet<>();
 
         if (hasCallGraph) {
             collectCallChain(
                     ep.componentId, ep.name, null, 0, 5, callAdj, compById, visitedKeys, visitedComps, uc.methodChain);
         } else {
-            collectDepChain(ep.componentId, 0, 5, depAdj, compById, visitedComps);
+            collectDepChain(ep.componentId.serialize(), 0, 5, depAdj, compById, visitedComps);
         }
 
         uc.componentIds = new ArrayList<>(visitedComps);
@@ -81,17 +82,17 @@ public class UseCaseDetector {
     }
 
     private void collectCallChain(
-            String compId,
+            ComponentId compId,
             String method,
             String visibleSourceName,
             int depth,
             int maxDepth,
             Map<String, List<CallEdge>> adj,
-            Map<String, Component> compById,
+            Map<ComponentId, Component> compById,
             Set<String> visitedKeys,
-            Set<String> visitedComps,
+            Set<ComponentId> visitedComps,
             List<String> chain) {
-        String key = compId + "#" + method;
+        String key = compId.serialize() + "#" + method;
         if (visitedKeys.contains(key) || depth > maxDepth) return;
         visitedKeys.add(key);
 
@@ -100,14 +101,14 @@ public class UseCaseDetector {
         if (visible) {
             visitedComps.add(compId);
         }
-        String fromName = fromComp != null ? fromComp.name : compId;
+        String fromName = fromComp != null ? fromComp.name : compId.serialize();
         String currentVisibleSource = visible ? fromName : visibleSourceName;
 
         for (CallEdge edge : adj.getOrDefault(key, List.of())) {
             if (!traversalPolicy.canTraverseInline(edge)) continue;
             Component toComp = compById.get(edge.toComponentId);
             boolean targetVisible = traversalPolicy.isHumanVisible(toComp);
-            String toName = toComp != null ? toComp.name : edge.toComponentId;
+            String toName = toComp != null ? toComp.name : edge.toComponentId.serialize();
             if (targetVisible && currentVisibleSource != null) {
                 chain.add(currentVisibleSource + "." + edge.fromMethod + " → " + toName + "." + edge.toMethod);
             }
@@ -130,12 +131,13 @@ public class UseCaseDetector {
             int depth,
             int maxDepth,
             Map<String, List<String>> adj,
-            Map<String, Component> compById,
-            Set<String> visitedComps) {
-        if (visitedComps.contains(compId) || depth > maxDepth) return;
-        Component comp = compById.get(compId);
+            Map<ComponentId, Component> compById,
+            Set<ComponentId> visitedComps) {
+        ComponentId cid = ComponentId.of(compId);
+        if (visitedComps.contains(cid) || depth > maxDepth) return;
+        Component comp = compById.get(cid);
         if (traversalPolicy.isHumanVisible(comp)) {
-            visitedComps.add(compId);
+            visitedComps.add(cid);
         }
         for (String nextId : adj.getOrDefault(compId, List.of())) {
             collectDepChain(nextId, depth + 1, maxDepth, adj, compById, visitedComps);
@@ -161,7 +163,7 @@ public class UseCaseDetector {
             case SCHEDULER -> "Scheduled: " + camelToTitle(ep.name);
             case CDI_EVENT_OBSERVER -> "On Event: " + (ep.path != null ? ep.path : ep.name);
             case JMS_CONSUMER -> "Consume " + camelToTitle(ep.name);
-            default -> ep.name != null ? camelToTitle(ep.name) : ep.id;
+            default -> ep.name != null ? camelToTitle(ep.name) : ep.id.serialize();
         };
     }
 
@@ -184,7 +186,7 @@ public class UseCaseDetector {
     private Map<String, List<CallEdge>> buildCallAdj(List<CallEdge> edges) {
         Map<String, List<CallEdge>> adj = new HashMap<>();
         for (CallEdge e : edges) {
-            adj.computeIfAbsent(e.fromComponentId + "#" + e.fromMethod, k -> new ArrayList<>())
+            adj.computeIfAbsent(e.fromComponentId.serialize() + "#" + e.fromMethod, k -> new ArrayList<>())
                     .add(e);
         }
         return adj;
@@ -193,7 +195,7 @@ public class UseCaseDetector {
     private Map<String, List<String>> buildDepAdj(List<Dependency> deps) {
         Map<String, List<String>> adj = new HashMap<>();
         for (Dependency d : deps) {
-            adj.computeIfAbsent(d.fromId, k -> new ArrayList<>()).add(d.toId);
+            adj.computeIfAbsent(d.fromId.serialize(), k -> new ArrayList<>()).add(d.toId.serialize());
         }
         return adj;
     }

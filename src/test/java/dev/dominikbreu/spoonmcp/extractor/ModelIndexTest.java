@@ -10,6 +10,8 @@ import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.FieldAccess;
 import dev.dominikbreu.spoonmcp.model.OutboundSinkSite;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.FieldBinding;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -18,58 +20,58 @@ class ModelIndexTest {
     @Test
     void callAdjacency_returnsEdgesForNode() {
         CallEdge e = new CallEdge();
-        e.fromComponentId = "comp:A";
+        e.fromComponentId = ComponentId.of("comp:A");
         e.fromMethod = "go";
-        e.toComponentId = "comp:B";
+        e.toComponentId = ComponentId.of("comp:B");
         e.toMethod = "run";
         e.id = "call:A#go->B#run";
 
         CallAdjacency adj = CallAdjacency.build(List.of(e));
 
-        assertThat(adj.edges("comp:A", "go")).containsExactly(e);
-        assertThat(adj.edges("comp:B", "run")).isEmpty();
+        assertThat(adj.edges(ComponentId.of("comp:A"), "go")).containsExactly(e);
+        assertThat(adj.edges(ComponentId.of("comp:B"), "run")).isEmpty();
     }
 
     @Test
     void fieldAccessIndex_separatesReadsAndWrites() {
         FieldAccess read = new FieldAccess();
         read.kind = FieldAccess.Kind.READ;
-        read.componentId = "comp:A";
+        read.componentId = ComponentId.of("comp:A");
         read.method = "get";
-        read.fieldName = "cache";
+        read.fieldBinding = new FieldBinding.Own("cache");
         read.id = "r1";
         FieldAccess write = new FieldAccess();
         write.kind = FieldAccess.Kind.WRITE;
-        write.componentId = "comp:A";
+        write.componentId = ComponentId.of("comp:A");
         write.method = "put";
-        write.fieldName = "cache";
+        write.fieldBinding = new FieldBinding.Own("cache");
         write.id = "w1";
 
         FieldAccessIndex idx = FieldAccessIndex.build(List.of(read, write));
 
-        assertThat(idx.reads("comp:A", "get")).containsExactly(read);
-        assertThat(idx.writes("comp:A", "put")).containsExactly(write);
-        assertThat(idx.reads("comp:A", "put")).isEmpty();
+        assertThat(idx.reads(ComponentId.of("comp:A"), "get")).containsExactly(read);
+        assertThat(idx.writes(ComponentId.of("comp:A"), "put")).containsExactly(write);
+        assertThat(idx.reads(ComponentId.of("comp:A"), "put")).isEmpty();
     }
 
     @Test
     void outboundSinkIndex_returnsSitesByComponentAndMethod() {
         OutboundSinkSite site = new OutboundSinkSite();
         site.id = "o1";
-        site.componentId = "comp:A";
+        site.componentId = ComponentId.of("comp:A");
         site.method = "send";
         site.kind = DataFlowSink.Kind.MESSAGING;
 
         OutboundSinkIndex idx = OutboundSinkIndex.build(List.of(site));
 
-        assertThat(idx.sites("comp:A", "send")).containsExactly(site);
-        assertThat(idx.sites("comp:A", "other")).isEmpty();
+        assertThat(idx.sites(ComponentId.of("comp:A"), "send")).containsExactly(site);
+        assertThat(idx.sites(ComponentId.of("comp:A"), "other")).isEmpty();
     }
 
     @Test
     void entityIndex_resolvesByBasePackageAndName() {
         Component entity = new Component();
-        entity.id = "comp:com.example.model.Order";
+        entity.id = ComponentId.of("comp:com.example.model.Order");
         entity.name = "Order";
         entity.qualifiedName = "com.example.model.Order";
         entity.type = ComponentType.ENTITY;
@@ -84,7 +86,7 @@ class ModelIndexTest {
     @Test
     void entityIndex_resolvesByEntitySuffix() {
         Component entity = new Component();
-        entity.id = "comp:com.example.model.OrderEntity";
+        entity.id = ComponentId.of("comp:com.example.model.OrderEntity");
         entity.name = "OrderEntity";
         entity.qualifiedName = "com.example.model.OrderEntity";
         entity.type = ComponentType.ENTITY;
@@ -97,29 +99,29 @@ class ModelIndexTest {
     @Test
     void dependencyAdjacency_returnsTargetsForComponent() {
         Dependency dep = new Dependency();
-        dep.fromId = "comp:A";
-        dep.toId = "comp:B";
+        dep.fromId = ComponentId.of("comp:A");
+        dep.toId = ComponentId.of("comp:B");
         dep.kind = "injection";
         dep.id = "d1";
 
         DependencyAdjacency adj = DependencyAdjacency.build(List.of(dep));
 
-        assertThat(adj.targets("comp:A")).containsEntry("comp:B", "injection");
-        assertThat(adj.targets("comp:B")).isEmpty();
+        assertThat(adj.targets(ComponentId.of("comp:A"))).containsEntry(ComponentId.of("comp:B"), "injection");
+        assertThat(adj.targets(ComponentId.of("comp:B"))).isEmpty();
     }
 
     @Test
     void modelIndex_build_populatesAllSubIndexes() {
         ArchitectureModel model = new ArchitectureModel("test");
         Component c = new Component();
-        c.id = "comp:A";
+        c.id = ComponentId.of("comp:A");
         c.name = "A";
         c.type = ComponentType.SERVICE;
         model.components.add(c);
 
         ModelIndex idx = ModelIndex.build(model);
 
-        assertThat(idx.components.get("comp:A")).isSameAs(c);
-        assertThat(idx.callAdj.edges("comp:A", "go")).isEmpty();
+        assertThat(idx.components.get(ComponentId.of("comp:A"))).isSameAs(c);
+        assertThat(idx.callAdj.edges(ComponentId.of("comp:A"), "go")).isEmpty();
     }
 }

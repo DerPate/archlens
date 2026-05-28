@@ -1,6 +1,8 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.CallEdge;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.MethodRef;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -9,30 +11,22 @@ import java.util.Map;
 
 public final class CallAdjacency {
 
-    private final Map<String, List<CallEdge>> index;
+    private final Map<MethodRef, List<CallEdge>> index;
 
     public static CallAdjacency build(Collection<CallEdge> edges) {
-        Map<String, List<CallEdge>> index = new HashMap<>();
+        Map<MethodRef, List<CallEdge>> index = new HashMap<>();
         for (CallEdge edge : edges) {
-            index.computeIfAbsent(key(edge.fromComponentId, edge.fromMethod), k -> new ArrayList<>())
+            index.computeIfAbsent(new MethodRef(edge.fromComponentId, edge.fromMethod), k -> new ArrayList<>())
                     .add(edge);
         }
         return new CallAdjacency(index);
     }
 
-    private CallAdjacency(Map<String, List<CallEdge>> index) {
+    private CallAdjacency(Map<MethodRef, List<CallEdge>> index) {
         this.index = index;
     }
 
-    public List<CallEdge> edges(String componentId, String method) {
-        return edgesByKey(key(componentId, method));
-    }
-
-    List<CallEdge> edgesByKey(String composedKey) {
-        return index.getOrDefault(composedKey, List.of());
-    }
-
-    static String key(String componentId, String method) {
-        return componentId + "#" + method;
+    public List<CallEdge> edges(ComponentId componentId, String method) {
+        return index.getOrDefault(new MethodRef(componentId, method), List.of());
     }
 }

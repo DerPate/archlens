@@ -43,7 +43,9 @@ public class GetComponentDependenciesTool {
 
             final String finalRef = ref;
             Component root = model.components.stream()
-                    .filter(c -> c.id.equals(finalRef) || c.name.equals(finalRef) || c.id.contains(finalRef))
+                    .filter(c -> c.id.serialize().equals(finalRef)
+                            || c.name.equals(finalRef)
+                            || c.id.qualifiedName().contains(finalRef))
                     .findFirst()
                     .orElse(null);
 
@@ -54,19 +56,20 @@ public class GetComponentDependenciesTool {
 
             // BFS up to depth
             Map<String, Component> byId = new HashMap<>();
-            for (Component c : model.components) byId.put(c.id, c);
+            for (Component c : model.components) byId.put(c.id.serialize(), c);
 
             Map<String, List<Dependency>> outgoing = new HashMap<>();
             for (Dependency d : deps) {
-                outgoing.computeIfAbsent(d.fromId, k -> new ArrayList<>()).add(d);
+                outgoing.computeIfAbsent(d.fromId.serialize(), k -> new ArrayList<>())
+                        .add(d);
             }
 
             List<Dependency> result = new ArrayList<>();
             Set<String> visited = new HashSet<>();
             Deque<String> queue = new ArrayDeque<>();
             Map<String, Integer> depthMap = new HashMap<>();
-            queue.add(root.id);
-            depthMap.put(root.id, 0);
+            queue.add(root.id.serialize());
+            depthMap.put(root.id.serialize(), 0);
 
             while (!queue.isEmpty()) {
                 String cur = queue.poll();
@@ -76,9 +79,9 @@ public class GetComponentDependenciesTool {
                 if (d >= depth) continue;
                 for (Dependency dep : outgoing.getOrDefault(cur, List.of())) {
                     result.add(dep);
-                    if (!visited.contains(dep.toId)) {
-                        depthMap.put(dep.toId, d + 1);
-                        queue.add(dep.toId);
+                    if (!visited.contains(dep.toId.serialize())) {
+                        depthMap.put(dep.toId.serialize(), d + 1);
+                        queue.add(dep.toId.serialize());
                     }
                 }
             }
@@ -99,8 +102,8 @@ public class GetComponentDependenciesTool {
                     .append(condensed)
                     .append("):\n\n");
             for (Dependency dep : result) {
-                Component to = byId.get(dep.toId);
-                String toLabel = to != null ? "[" + to.type + "] " + to.name : dep.toId;
+                Component to = byId.get(dep.toId.serialize());
+                String toLabel = to != null ? "[" + to.type + "] " + to.name : dep.toId.serialize();
                 sb.append("  -> ")
                         .append(toLabel)
                         .append(" [")

@@ -7,6 +7,8 @@ import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -21,7 +23,7 @@ class WorkflowLinkerTest {
         DataFlowPath writer = path("df:consumer#payload", "ep:consumer");
         DataFlowSink store = new DataFlowSink();
         store.kind = DataFlowSink.Kind.STORE;
-        store.fieldOwnerComponentId = "comp:StateStore";
+        store.fieldOwnerComponentId = ComponentId.of("comp:StateStore");
         store.fieldName = "cache";
         store.linkedPathIds.add("df:scheduler#cache");
         writer.sinks.add(store);
@@ -49,7 +51,7 @@ class WorkflowLinkerTest {
         DataFlowPath writer = path("df:consumer#payload", "ep:consumer");
         DataFlowSink store = new DataFlowSink();
         store.kind = DataFlowSink.Kind.STORE;
-        store.fieldOwnerComponentId = "comp:StateStore";
+        store.fieldOwnerComponentId = ComponentId.of("comp:StateStore");
         store.fieldName = "cache";
         store.linkedPathIds.add("df:shutdown#cache");
         writer.sinks.add(store);
@@ -86,7 +88,7 @@ class WorkflowLinkerTest {
 
     private static Entrypoint entrypoint(String id, String name, EntrypointType type) {
         Entrypoint entrypoint = new Entrypoint();
-        entrypoint.id = id;
+        entrypoint.id = EntrypointId.deserialize(id);
         entrypoint.name = name;
         entrypoint.type = type;
         return entrypoint;
@@ -95,7 +97,7 @@ class WorkflowLinkerTest {
     private static DataFlowPath path(String id, String entrypointId) {
         DataFlowPath path = new DataFlowPath();
         path.id = id;
-        path.entrypointId = entrypointId;
+        path.entrypointId = EntrypointId.deserialize(entrypointId);
         return path;
     }
 }

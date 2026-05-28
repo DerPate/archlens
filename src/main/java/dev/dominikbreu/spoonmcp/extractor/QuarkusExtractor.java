@@ -92,7 +92,7 @@ public class QuarkusExtractor {
      * @param appId owning application identifier
      */
     public void extract(Collection<CtType<?>> types, ArchitectureModel model, String appId) {
-        Set<String> existingIds = new HashSet<>();
+        Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> existingIds = new HashSet<>();
         for (Component c : model.components) existingIds.add(c.id);
 
         for (CtType<?> type : types) {
@@ -173,7 +173,7 @@ public class QuarkusExtractor {
         }
 
         Component c = new Component();
-        c.id = "comp:" + type.getQualifiedName();
+        c.id = dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName());
         c.type = compType;
         c.name = type.getSimpleName();
         c.qualifiedName = type.getQualifiedName();
@@ -196,7 +196,10 @@ public class QuarkusExtractor {
         for (CtMethod<?> method : type.getMethods()) {
             if (hasAnnotation(method, WS_ON_MESSAGE_ANNOTATIONS)) {
                 Entrypoint ep = new Entrypoint();
-                ep.id = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + ":websocket";
+                ep.id = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
+                        dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
+                        method.getSimpleName(),
+                        "websocket");
                 ep.type = EntrypointType.WEBSOCKET_ENDPOINT;
                 ep.name = method.getSimpleName();
                 ep.path = wsClassPath;
@@ -211,7 +214,10 @@ public class QuarkusExtractor {
                 String fullPath = combinePaths(classBasePath, methodPath);
                 boolean isSse = isSseEndpoint(method, type);
                 Entrypoint ep = new Entrypoint();
-                ep.id = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + (isSse ? ":sse" : "");
+                ep.id = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
+                        dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
+                        method.getSimpleName(),
+                        isSse ? "sse" : "");
                 ep.type = isSse ? EntrypointType.SSE_ENDPOINT : EntrypointType.REST_ENDPOINT;
                 ep.name = method.getSimpleName();
                 ep.httpMethod = httpMethod;
@@ -231,7 +237,10 @@ public class QuarkusExtractor {
 
             if (hasAnnotation(method, SCHEDULED_ANNOTATIONS)) {
                 Entrypoint ep = new Entrypoint();
-                ep.id = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + ":scheduled";
+                ep.id = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
+                        dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
+                        method.getSimpleName(),
+                        "scheduled");
                 ep.type = EntrypointType.SCHEDULER;
                 ep.name = method.getSimpleName();
                 ep.componentId = component.id;
@@ -257,7 +266,10 @@ public class QuarkusExtractor {
             String channel = getAnnotationStringValue(field, CHANNEL_ANNOTATIONS);
             if (channel.isEmpty()) continue;
             Entrypoint ep = new Entrypoint();
-            ep.id = "ep:" + type.getQualifiedName() + "#" + field.getSimpleName() + ":emitter:" + channel;
+            ep.id = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
+                    dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
+                    field.getSimpleName(),
+                    "emitter:" + channel);
             ep.type = EntrypointType.MESSAGING_PRODUCER;
             ep.name = field.getSimpleName();
             ep.channelName = channel;
@@ -345,7 +357,10 @@ public class QuarkusExtractor {
             String suffix,
             ArchitectureModel model) {
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + ":msg-" + suffix + ":" + channel;
+        ep.id = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
+                dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
+                method.getSimpleName(),
+                "msg-" + suffix + ":" + channel);
         ep.type = entryType;
         ep.name = method.getSimpleName();
         ep.channelName = channel;
@@ -371,8 +386,8 @@ public class QuarkusExtractor {
             String ifaceType,
             String topic,
             String evidence) {
-        String id = "iface:" + component.id.substring("comp:".length()) + ":" + ifaceType + ":raw:"
-                + field.getSimpleName() + ":" + topic;
+        String id = "iface:" + component.id.qualifiedName() + ":" + ifaceType + ":raw:" + field.getSimpleName() + ":"
+                + topic;
         if (model.interfaces.stream().anyMatch(i -> i.id.equals(id))) return;
         InterfaceEntry entry = new InterfaceEntry();
         entry.id = id;
@@ -422,7 +437,7 @@ public class QuarkusExtractor {
 
     private InterfaceEntry addInterface(
             CtElement element, Component component, String type, String name, String path, ArchitectureModel model) {
-        String id = "iface:" + component.id.substring("comp:".length()) + ":" + type + ":" + name;
+        String id = "iface:" + component.id.qualifiedName() + ":" + type + ":" + name;
         if (model.interfaces.stream().anyMatch(i -> i.id.equals(id))) return null;
         InterfaceEntry entry = new InterfaceEntry();
         entry.id = id;
@@ -475,8 +490,11 @@ public class QuarkusExtractor {
         for (CtMethod<?> method : type.getMethods()) {
             if (!method.getModifiers().contains(spoon.reflect.declaration.ModifierKind.PUBLIC)) continue;
             if (method.getSimpleName().equals("bindService")) continue;
-            String epId = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + ":grpc";
-            if (model.entrypoints.stream().anyMatch(e -> e.id.equals(epId))) continue;
+            dev.dominikbreu.spoonmcp.model.ids.EntrypointId epId = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
+                    dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
+                    method.getSimpleName(),
+                    "grpc");
+            if (model.entrypoints.stream().anyMatch(e -> epId.equals(e.id))) continue;
             Entrypoint ep = new Entrypoint();
             ep.id = epId;
             ep.type = EntrypointType.GRPC_METHOD;

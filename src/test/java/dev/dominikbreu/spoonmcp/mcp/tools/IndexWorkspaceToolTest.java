@@ -7,6 +7,7 @@ import dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +46,7 @@ class IndexWorkspaceToolTest {
     private static ArchitectureModel model(String workspacePath, String componentName) {
         ArchitectureModel model = new ArchitectureModel(workspacePath);
         Component component = new Component();
-        component.id = "comp:" + componentName;
+        component.id = ComponentId.of("comp:" + componentName);
         component.name = componentName;
         component.type = ComponentType.SERVICE;
         model.components.add(component);

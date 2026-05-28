@@ -49,8 +49,9 @@ public class MermaidCallFlowRenderer {
 
         // Component nodes with type-appropriate shapes
         for (RuntimeFlowStep step : steps) {
-            String pid = pidMap.get(step.componentId);
-            ComponentType type = compById.containsKey(step.componentId) ? compById.get(step.componentId).type : null;
+            String compKey = step.componentId != null ? step.componentId.serialize() : step.componentName;
+            String pid = pidMap.get(compKey);
+            ComponentType type = compById.containsKey(compKey) ? compById.get(compKey).type : null;
             sb.append("    ")
                     .append(pid)
                     .append(nodeShape(step.componentName, type))
@@ -64,14 +65,17 @@ public class MermaidCallFlowRenderer {
             sb.append("    Client -->|")
                     .append(escape(label))
                     .append("| ")
-                    .append(pidMap.get(steps.get(0).componentId))
+                    .append(pidMap.get(
+                            steps.get(0).componentId != null
+                                    ? steps.get(0).componentId.serialize()
+                                    : steps.get(0).componentName))
                     .append("\n");
         }
 
         // Forward edges — derived from the recorded call-graph topology
         for (RuntimeFlow.FlowEdge edge : flow.edges) {
-            String fromPid = pidMap.get(edge.fromId);
-            String toPid = pidMap.get(edge.toId);
+            String fromPid = pidMap.get(edge.fromId.serialize());
+            String toPid = pidMap.get(edge.toId.serialize());
             if (fromPid == null || toPid == null) continue;
             String label = (edge.label != null && !edge.label.isBlank()) ? edge.label : "call";
             sb.append("    ")
@@ -111,13 +115,14 @@ public class MermaidCallFlowRenderer {
         Map<String, Integer> counter = new HashMap<>();
         Map<String, String> result = new LinkedHashMap<>();
         for (RuntimeFlowStep step : steps) {
-            if (result.containsKey(step.componentId)) continue;
+            String compKey = step.componentId != null ? step.componentId.serialize() : step.componentName;
+            if (result.containsKey(compKey)) continue;
             String base = sanitize(step.componentName);
             if (freq.get(base) == 1) {
-                result.put(step.componentId, base);
+                result.put(compKey, base);
             } else {
                 int idx = counter.merge(base, 1, Integer::sum);
-                result.put(step.componentId, base + "_" + idx);
+                result.put(compKey, base + "_" + idx);
             }
         }
         return result;
@@ -134,15 +139,16 @@ public class MermaidCallFlowRenderer {
     }
 
     private Entrypoint findEntrypoint(RuntimeFlow flow, ArchitectureModel model) {
+        if (flow.entrypointId == null) return null;
         return model.entrypoints.stream()
-                .filter(e -> e.id.equals(flow.entrypointId))
+                .filter(e -> flow.entrypointId.equals(e.id))
                 .findFirst()
                 .orElse(null);
     }
 
     private Map<String, Component> buildCompById(ArchitectureModel model) {
         Map<String, Component> map = new HashMap<>();
-        for (Component c : model.components) map.put(c.id, c);
+        for (Component c : model.components) map.put(c.id.serialize(), c);
         return map;
     }
 }

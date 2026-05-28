@@ -50,7 +50,7 @@ public class GetRuntimeFlowTool {
             final RuntimeFlow flow = resolvedFlow;
 
             Entrypoint ep = model.entrypoints.stream()
-                    .filter(e -> e.id.equals(flow.entrypointId))
+                    .filter(e -> flow.entrypointId != null && flow.entrypointId.equals(e.id))
                     .findFirst()
                     .orElse(null);
 
@@ -91,7 +91,11 @@ public class GetRuntimeFlowTool {
     private String listEntrypoints(ArchitectureModel model) {
         StringBuilder sb = new StringBuilder();
         for (Entrypoint ep : model.entrypoints) {
-            sb.append("  - ").append(ep.id).append(" (").append(ep.name).append(")\n");
+            sb.append("  - ")
+                    .append(ep.id.serialize())
+                    .append(" (")
+                    .append(ep.name)
+                    .append(")\n");
         }
         return sb.isEmpty() ? "  (none)\n" : sb.toString();
     }
@@ -100,7 +104,7 @@ public class GetRuntimeFlowTool {
         Entrypoint ep = inferrer.findEntrypoint(ref, model);
         if (ep == null) return null;
         return model.runtimeFlows.stream()
-                .filter(f -> f.entrypointId.equals(ep.id))
+                .filter(f -> f.entrypointId != null && f.entrypointId.equals(ep.id))
                 .filter(f -> maxDepth >= Math.max(0, f.steps.size() - 1))
                 .findFirst()
                 .orElse(null);

@@ -27,7 +27,10 @@ public class MermaidDependencyMapRenderer {
     public String render(ArchitectureModel model) {
         Map<String, Component> componentsById = model.components.stream()
                 .collect(Collectors.toMap(
-                        component -> component.id, component -> component, (left, right) -> left, LinkedHashMap::new));
+                        component -> component.id.serialize(),
+                        component -> component,
+                        (left, right) -> left,
+                        LinkedHashMap::new));
 
         String commonPrefix = commonPackagePrefix(model.components);
 
@@ -40,8 +43,8 @@ public class MermaidDependencyMapRenderer {
         }
 
         for (Dependency dependency : model.dependencies) {
-            Component from = componentsById.get(dependency.fromId);
-            Component to = componentsById.get(dependency.toId);
+            Component from = componentsById.get(dependency.fromId.serialize());
+            Component to = componentsById.get(dependency.toId.serialize());
             if (from == null || to == null) continue;
 
             String fromGroup = groupName(from, commonPrefix);

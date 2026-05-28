@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -61,16 +63,16 @@ class TraceDataFlowToolTest {
 
     private static Component component(String name, ComponentType type) {
         Component c = new Component();
-        c.id = "comp:" + name;
+        c.id = ComponentId.of("comp:" + name);
         c.name = name;
         c.type = type;
         c.stereotypes = new java.util.ArrayList<>();
         return c;
     }
 
-    private static Entrypoint ep(String id, String name, String path, String httpMethod, String compId) {
+    private static Entrypoint ep(String id, String name, String path, String httpMethod, ComponentId compId) {
         Entrypoint ep = new Entrypoint();
-        ep.id = id;
+        ep.id = EntrypointId.deserialize(id);
         ep.name = name;
         ep.path = path;
         ep.httpMethod = httpMethod;
@@ -79,7 +81,7 @@ class TraceDataFlowToolTest {
         return ep;
     }
 
-    private static DataFlowPath dataFlowPath(String id, String entrypointId, String param) {
+    private static DataFlowPath dataFlowPath(String id, EntrypointId entrypointId, String param) {
         DataFlowPath p = new DataFlowPath();
         p.id = id;
         p.entrypointId = entrypointId;

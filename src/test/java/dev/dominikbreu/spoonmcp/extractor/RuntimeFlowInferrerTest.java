@@ -3,6 +3,8 @@ package dev.dominikbreu.spoonmcp.extractor;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +20,7 @@ class RuntimeFlowInferrerTest {
         ArchitectureModel model = threeLayerModel();
         Entrypoint ep = model.entrypoints.get(0);
 
-        RuntimeFlow flow = inferrer.infer(ep.id, 5, model);
+        RuntimeFlow flow = inferrer.infer(ep.id.serialize(), 5, model);
 
         assertThat(flow).isNotNull();
         assertThat(flow.steps).hasSize(3);
@@ -32,7 +34,7 @@ class RuntimeFlowInferrerTest {
         ArchitectureModel model = threeLayerModel();
         Entrypoint ep = model.entrypoints.get(0);
 
-        RuntimeFlow flow = inferrer.infer(ep.id, 5, model);
+        RuntimeFlow flow = inferrer.infer(ep.id.serialize(), 5, model);
 
         assertThat(flow.entrypointId).isEqualTo(ep.id);
     }
@@ -43,7 +45,7 @@ class RuntimeFlowInferrerTest {
         Entrypoint ep = model.entrypoints.get(0);
         ModelIndex index = ModelIndex.build(model);
 
-        RuntimeFlow flow = inferrer.infer(ep.id, 5, model, index);
+        RuntimeFlow flow = inferrer.infer(ep.id.serialize(), 5, model, index);
 
         assertThat(flow).isNotNull();
         assertThat(flow.entrypointId).isEqualTo(ep.id);
@@ -52,7 +54,7 @@ class RuntimeFlowInferrerTest {
     @Test
     void stepsHaveCorrectOrderField() {
         ArchitectureModel model = threeLayerModel();
-        RuntimeFlow flow = inferrer.infer(model.entrypoints.get(0).id, 5, model);
+        RuntimeFlow flow = inferrer.infer(model.entrypoints.get(0).id.serialize(), 5, model);
 
         for (int i = 0; i < flow.steps.size(); i++) {
             assertThat(flow.steps.get(i).order).isEqualTo(i);
@@ -62,7 +64,7 @@ class RuntimeFlowInferrerTest {
     @Test
     void stepsHaveComponentType() {
         ArchitectureModel model = threeLayerModel();
-        RuntimeFlow flow = inferrer.infer(model.entrypoints.get(0).id, 5, model);
+        RuntimeFlow flow = inferrer.infer(model.entrypoints.get(0).id.serialize(), 5, model);
 
         assertThat(flow.steps).allMatch(s -> s.componentType != null && !s.componentType.isEmpty());
     }
@@ -70,7 +72,7 @@ class RuntimeFlowInferrerTest {
     @Test
     void respectsMaxDepthOfOne() {
         ArchitectureModel model = threeLayerModel();
-        RuntimeFlow flow = inferrer.infer(model.entrypoints.get(0).id, 1, model);
+        RuntimeFlow flow = inferrer.infer(model.entrypoints.get(0).id.serialize(), 1, model);
 
         // depth=1: Resource (0) + Service (1) only
         assertThat(flow.steps).hasSize(2);
@@ -81,7 +83,7 @@ class RuntimeFlowInferrerTest {
     @Test
     void respectsMaxDepthOfZero() {
         ArchitectureModel model = threeLayerModel();
-        RuntimeFlow flow = inferrer.infer(model.entrypoints.get(0).id, 0, model);
+        RuntimeFlow flow = inferrer.infer(model.entrypoints.get(0).id.serialize(), 0, model);
 
         assertThat(flow.steps).hasSize(1);
         assertThat(flow.steps.get(0).componentName).isEqualTo("Resource");
@@ -90,7 +92,7 @@ class RuntimeFlowInferrerTest {
     @Test
     void filtersUtilityNodesFromFlow() {
         ArchitectureModel model = modelWithUtility();
-        RuntimeFlow flow = inferrer.infer(model.entrypoints.get(0).id, 5, model);
+        RuntimeFlow flow = inferrer.infer(model.entrypoints.get(0).id.serialize(), 5, model);
 
         assertThat(flow.steps).noneMatch(s -> s.componentName.equals("Mapper"));
         assertThat(flow.steps).anyMatch(s -> s.componentName.equals("Resource"));
@@ -100,7 +102,7 @@ class RuntimeFlowInferrerTest {
     @Test
     void step0ViaUsesEntrypointHttpMethodAndPath() {
         ArchitectureModel model = threeLayerModel();
-        RuntimeFlow flow = inferrer.infer(model.entrypoints.get(0).id, 5, model);
+        RuntimeFlow flow = inferrer.infer(model.entrypoints.get(0).id.serialize(), 5, model);
 
         assertThat(flow.steps.get(0).via).isEqualTo("GET /orders/{id}");
     }
@@ -111,14 +113,14 @@ class RuntimeFlowInferrerTest {
         Component resource = comp("Processor", ComponentType.SERVICE);
         m.components.add(resource);
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:Processor#onMessage";
+        ep.id = EntrypointId.deserialize("ep:Processor#onMessage");
         ep.name = "onMessage";
         ep.componentId = resource.id;
         ep.type = EntrypointType.MESSAGING_CONSUMER;
         ep.channelName = "orders-in";
         m.entrypoints.add(ep);
 
-        RuntimeFlow flow = inferrer.infer(ep.id, 5, m);
+        RuntimeFlow flow = inferrer.infer(ep.id.serialize(), 5, m);
 
         assertThat(flow.steps.get(0).via).isEqualTo("orders-in");
     }
@@ -138,7 +140,7 @@ class RuntimeFlowInferrerTest {
         m.dependencies.add(d);
         m.entrypoints.add(ep("ep:Producer#fire", "fire", producer.id, null, null));
 
-        RuntimeFlow flow = inferrer.infer("ep:Producer#fire", 5, m);
+        RuntimeFlow flow = inferrer.infer(m.entrypoints.get(0).id.serialize(), 5, m);
 
         assertThat(flow.steps).hasSize(2);
         assertThat(flow.steps.get(1).via).isEqualTo("cdi-event");
@@ -156,14 +158,14 @@ class RuntimeFlowInferrerTest {
         m.components.addAll(List.of(consumer, mqttClient, service));
         m.dependencies.addAll(List.of(dep(consumer.id, mqttClient.id), dep(consumer.id, service.id)));
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:MQTTConsumer#handle";
+        ep.id = EntrypointId.deserialize("ep:MQTTConsumer#handle");
         ep.name = "handle";
         ep.componentId = consumer.id;
         ep.type = EntrypointType.MESSAGING_CONSUMER;
         ep.channelName = "device-events";
         m.entrypoints.add(ep);
 
-        RuntimeFlow flow = inferrer.infer(ep.id, 5, m);
+        RuntimeFlow flow = inferrer.infer(ep.id.serialize(), 5, m);
 
         assertThat(flow.steps).noneMatch(s -> s.componentName.equals("VertxMqttClient"));
         assertThat(flow.steps).anyMatch(s -> s.componentName.equals("MQTTConsumer"));
@@ -233,8 +235,8 @@ class RuntimeFlowInferrerTest {
         m.entrypoints.add(post); // POST registered first
         m.entrypoints.add(get);
 
-        assertThat(inferrer.findEntrypoint("GET /account", m).id).isEqualTo("ep:AccountController#getAll:GET");
-        assertThat(inferrer.findEntrypoint("POST /account", m).id).isEqualTo("ep:AccountController#add:POST");
+        assertThat(inferrer.findEntrypoint("GET /account", m).id).isEqualTo(get.id);
+        assertThat(inferrer.findEntrypoint("POST /account", m).id).isEqualTo(post.id);
     }
 
     @Test
@@ -248,7 +250,7 @@ class RuntimeFlowInferrerTest {
         m.entrypoints.add(post);
         m.entrypoints.add(get);
 
-        assertThat(inferrer.findEntrypoint("/account", m).id).isEqualTo("ep:AccountController#add:POST");
+        assertThat(inferrer.findEntrypoint("/account", m).id).isEqualTo(post.id);
     }
 
     @Test
@@ -276,7 +278,7 @@ class RuntimeFlowInferrerTest {
         Component ctrl = comp("CustomerController", ComponentType.REST_RESOURCE);
         m.components.add(ctrl);
         Entrypoint sub = new Entrypoint();
-        sub.id = "ep:CustomerController#addContact:POST";
+        sub.id = EntrypointId.deserialize("ep:CustomerController#addContact:POST");
         sub.name = "addContact";
         sub.componentId = ctrl.id;
         sub.type = EntrypointType.REST_ENDPOINT;
@@ -284,7 +286,7 @@ class RuntimeFlowInferrerTest {
         sub.httpMethod = "POST";
         m.entrypoints.add(sub); // added first so it appears before the exact match
         Entrypoint exact = new Entrypoint();
-        exact.id = "ep:CustomerController#getAll:GET";
+        exact.id = EntrypointId.deserialize("ep:CustomerController#getAll:GET");
         exact.name = "getAll";
         exact.componentId = ctrl.id;
         exact.type = EntrypointType.REST_ENDPOINT;
@@ -294,7 +296,7 @@ class RuntimeFlowInferrerTest {
 
         Entrypoint found = inferrer.findEntrypoint("/customer", m);
         assertThat(found).isNotNull();
-        assertThat(found.id).isEqualTo("ep:CustomerController#getAll:GET");
+        assertThat(found.id).isEqualTo(exact.id);
     }
 
     @Test
@@ -334,7 +336,7 @@ class RuntimeFlowInferrerTest {
         m.components.add(ctrl);
 
         Entrypoint patch = new Entrypoint();
-        patch.id = "ep:CustomerController#updateAddress:PATCH";
+        patch.id = EntrypointId.deserialize("ep:CustomerController#updateAddress:PATCH");
         patch.name = "updateAddress";
         patch.componentId = ctrl.id;
         patch.type = EntrypointType.REST_ENDPOINT;
@@ -343,7 +345,7 @@ class RuntimeFlowInferrerTest {
         m.entrypoints.add(patch); // comes before the GET in iteration order
 
         Entrypoint get = new Entrypoint();
-        get.id = "ep:CustomerController#getAddress:GET";
+        get.id = EntrypointId.deserialize("ep:CustomerController#getAddress:GET");
         get.name = "getAddress";
         get.componentId = ctrl.id;
         get.type = EntrypointType.REST_ENDPOINT;
@@ -353,7 +355,7 @@ class RuntimeFlowInferrerTest {
 
         Entrypoint found = inferrer.findEntrypoint("/customer/{customerId}/address/{addressId}", m);
         assertThat(found).isNotNull();
-        assertThat(found.id).isEqualTo("ep:CustomerController#getAddress:GET");
+        assertThat(found.id).isEqualTo(get.id);
     }
 
     @Test
@@ -363,7 +365,7 @@ class RuntimeFlowInferrerTest {
         Component ctrl = comp("OtherController", ComponentType.REST_RESOURCE);
         model.components.add(ctrl);
         Entrypoint nested = new Entrypoint();
-        nested.id = "ep:OtherController#get";
+        nested.id = EntrypointId.deserialize("ep:OtherController#get");
         nested.name = "get";
         nested.componentId = ctrl.id;
         nested.type = EntrypointType.REST_ENDPOINT;
@@ -380,7 +382,7 @@ class RuntimeFlowInferrerTest {
     @Test
     void noVisitedNodeAppearsMoreThanOnce() {
         ArchitectureModel model = threeLayerModel();
-        RuntimeFlow flow = inferrer.infer(model.entrypoints.get(0).id, 5, model);
+        RuntimeFlow flow = inferrer.infer(model.entrypoints.get(0).id.serialize(), 5, model);
 
         long unique = flow.steps.stream().map(s -> s.componentId).distinct().count();
         assertThat(unique).isEqualTo(flow.steps.size());
@@ -394,7 +396,7 @@ class RuntimeFlowInferrerTest {
         model.components.addAll(List.of(scheduler, consumer));
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:Scheduler#tick";
+        ep.id = EntrypointId.deserialize("ep:Scheduler#tick");
         ep.name = "tick";
         ep.componentId = scheduler.id;
         ep.type = EntrypointType.SCHEDULER;
@@ -408,7 +410,7 @@ class RuntimeFlowInferrerTest {
         edge.callKind = "messaging";
         model.callEdges.add(edge);
 
-        RuntimeFlow flow = inferrer.infer(ep.id, 5, model);
+        RuntimeFlow flow = inferrer.infer(ep.id.serialize(), 5, model);
 
         assertThat(flow.steps).extracting(step -> step.componentName).contains("Scheduler");
         assertThat(flow.steps).extracting(step -> step.componentName).doesNotContain("Consumer");
@@ -439,7 +441,7 @@ class RuntimeFlowInferrerTest {
         toService.callKind = "direct";
         model.callEdges.add(toService);
 
-        RuntimeFlow flow = inferrer.infer("ep:Resource#get", 5, model);
+        RuntimeFlow flow = inferrer.infer(model.entrypoints.get(0).id.serialize(), 5, model);
 
         assertThat(flow.steps).extracting(step -> step.componentName).contains("Resource", "Service");
         assertThat(flow.steps).extracting(step -> step.componentName).doesNotContain("Mapper");
@@ -457,7 +459,7 @@ class RuntimeFlowInferrerTest {
         ep.type = EntrypointType.MAIN_METHOD;
         model.entrypoints.add(ep);
 
-        RuntimeFlow flow = inferrer.infer(ep.id, 5, model);
+        RuntimeFlow flow = inferrer.infer(ep.id.serialize(), 5, model);
 
         assertThat(flow.steps).extracting(step -> step.componentName).containsExactly("Main", "Game");
     }
@@ -482,7 +484,7 @@ class RuntimeFlowInferrerTest {
                 callEdge(random.id, "nextMove", strategy.id, "nextSign"),
                 callEdge(simple.id, "nextMove", strategy.id, "nextSign")));
 
-        RuntimeFlow flow = inferrer.infer("ep:Game#run", 10, model);
+        RuntimeFlow flow = inferrer.infer(model.entrypoints.get(0).id.serialize(), 10, model);
 
         assertThat(flow.edges).anySatisfy(e -> {
             assertThat(e.fromId).isEqualTo(random.id);
@@ -522,16 +524,16 @@ class RuntimeFlowInferrerTest {
 
     private static Component comp(String name, ComponentType type) {
         Component c = new Component();
-        c.id = "comp:" + name;
+        c.id = ComponentId.of("comp:" + name);
         c.name = name;
         c.type = type;
         c.technology = "test";
         return c;
     }
 
-    private static Dependency dep(String from, String to) {
+    private static Dependency dep(ComponentId from, ComponentId to) {
         Dependency d = new Dependency();
-        d.id = "dep:" + from + "->" + to;
+        d.id = "dep:" + from.serialize() + "->" + to.serialize();
         d.fromId = from;
         d.toId = to;
         d.kind = "injection";
@@ -540,7 +542,7 @@ class RuntimeFlowInferrerTest {
         return d;
     }
 
-    private static CallEdge callEdge(String fromComp, String fromMethod, String toComp, String toMethod) {
+    private static CallEdge callEdge(ComponentId fromComp, String fromMethod, ComponentId toComp, String toMethod) {
         CallEdge e = new CallEdge();
         e.fromComponentId = fromComp;
         e.fromMethod = fromMethod;
@@ -550,9 +552,9 @@ class RuntimeFlowInferrerTest {
         return e;
     }
 
-    private static Entrypoint ep(String id, String name, String compId, String method, String path) {
+    private static Entrypoint ep(String id, String name, ComponentId compId, String method, String path) {
         Entrypoint e = new Entrypoint();
-        e.id = id;
+        e.id = EntrypointId.deserialize(id);
         e.name = name;
         e.componentId = compId;
         e.type = method != null ? EntrypointType.REST_ENDPOINT : EntrypointType.UNKNOWN;

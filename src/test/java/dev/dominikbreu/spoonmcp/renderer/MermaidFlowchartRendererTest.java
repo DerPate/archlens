@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.extractor.ContainerInferrer;
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,8 +33,8 @@ class MermaidFlowchartRendererTest {
 
         app.componentIds.addAll(List.of(resource.id, service.id, repository.id, entity.id));
 
-        model.dependencies.add(dep(resource.id, service.id));
-        model.dependencies.add(dep(service.id, repository.id));
+        model.dependencies.add(dep(resource.id.serialize(), service.id.serialize()));
+        model.dependencies.add(dep(service.id.serialize(), repository.id.serialize()));
 
         model.containers.addAll(new ContainerInferrer().infer(model.components));
     }
@@ -273,7 +274,7 @@ class MermaidFlowchartRendererTest {
 
     private Component comp(String id, ComponentType type, String module, String tech) {
         Component c = new Component();
-        c.id = id;
+        c.id = ComponentId.of(id);
         c.name = id.replace("comp:", "");
         c.type = type;
         c.module = module;
@@ -285,8 +286,8 @@ class MermaidFlowchartRendererTest {
     private Dependency dep(String from, String to) {
         Dependency d = new Dependency();
         d.id = "dep:" + from + "->" + to;
-        d.fromId = from;
-        d.toId = to;
+        d.fromId = ComponentId.of(from);
+        d.toId = ComponentId.of(to);
         d.kind = "injection";
         d.derivedFrom = "annotation";
         d.confidence = 0.95;

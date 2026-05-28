@@ -4,6 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.model.MessagingBroker;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
+import dev.dominikbreu.spoonmcp.model.ids.FieldBinding;
+import dev.dominikbreu.spoonmcp.model.ids.FieldRef;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -59,11 +63,11 @@ class DataFlowTracerTest {
         model.components.add(comp("AbsenceRepository", ComponentType.REPOSITORY));
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:add-absence";
+        ep.id = EntrypointId.deserialize("ep:add-absence");
         ep.name = "add";
         ep.type = EntrypointType.REST_ENDPOINT;
         ep.httpMethod = "POST";
-        ep.componentId = "comp:AbsenceResource";
+        ep.componentId = ComponentId.of("comp:AbsenceResource");
         ep.parameters.add("selectedOfficeLocation");
         ep.parameters.add("personAbsenceClientModel");
         model.entrypoints.add(ep);
@@ -103,11 +107,11 @@ class DataFlowTracerTest {
         model.components.add(comp("AbsenceRepository", ComponentType.REPOSITORY));
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:add-absence";
+        ep.id = EntrypointId.deserialize("ep:add-absence");
         ep.name = "add";
         ep.type = EntrypointType.REST_ENDPOINT;
         ep.httpMethod = "POST";
-        ep.componentId = "comp:AbsenceResource";
+        ep.componentId = ComponentId.of("comp:AbsenceResource");
         ep.parameters.add("personAbsenceClientModel");
         model.entrypoints.add(ep);
 
@@ -159,11 +163,11 @@ class DataFlowTracerTest {
         model.components.add(comp("InvoiceRepository", ComponentType.REPOSITORY));
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:check-invoice";
+        ep.id = EntrypointId.deserialize("ep:check-invoice");
         ep.name = "check";
         ep.type = EntrypointType.REST_ENDPOINT;
         ep.httpMethod = "POST";
-        ep.componentId = "comp:InvoiceResource";
+        ep.componentId = ComponentId.of("comp:InvoiceResource");
         ep.parameters.add("invoice");
         model.entrypoints.add(ep);
 
@@ -268,10 +272,10 @@ class DataFlowTracerTest {
         Component scheduler = comp("JobScheduler", ComponentType.SCHEDULER);
         model.components.add(scheduler);
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:scheduled";
+        ep.id = EntrypointId.deserialize("ep:scheduled");
         ep.name = "runJob";
         ep.type = EntrypointType.SCHEDULER;
-        ep.componentId = "comp:JobScheduler";
+        ep.componentId = ComponentId.of("comp:JobScheduler");
         // ep.parameters intentionally left empty
         model.entrypoints.add(ep);
 
@@ -281,7 +285,7 @@ class DataFlowTracerTest {
         List<DataFlowPath> paths = tracer.trace(model);
 
         assertThat(paths).anySatisfy(p -> {
-            assertThat(p.entrypointId).isEqualTo("ep:scheduled");
+            assertThat(p.entrypointId).isEqualTo(EntrypointId.deserialize("ep:scheduled"));
             assertThat(p.trackedParam).isEqualTo("*");
             assertThat(p.sinks).anySatisfy(s -> {
                 assertThat(s.kind).isEqualTo(DataFlowSink.Kind.PERSISTENCE);
@@ -298,19 +302,18 @@ class DataFlowTracerTest {
         model.components.add(comp("SnapshotIngestor", ComponentType.SERVICE));
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:incoming";
+        ep.id = EntrypointId.deserialize("ep:incoming");
         ep.name = "consume";
         ep.type = EntrypointType.MESSAGING_CONSUMER;
-        ep.componentId = "comp:SnapshotIngestor";
+        ep.componentId = ComponentId.of("comp:SnapshotIngestor");
         ep.parameters.add("payload");
         model.entrypoints.add(ep);
 
         FieldAccess fw = new FieldAccess();
         fw.kind = FieldAccess.Kind.WRITE;
-        fw.componentId = "comp:SnapshotIngestor";
-        fw.fieldOwnerComponentId = "comp:SnapshotIngestor";
+        fw.componentId = ComponentId.of("comp:SnapshotIngestor");
+        fw.fieldBinding = new FieldBinding.Own("snapshots");
         fw.method = "consume";
-        fw.fieldName = "snapshots";
         fw.sourceVarName = "payload";
         fw.id = "field:comp:SnapshotIngestor#consume@snapshots:write";
         model.fieldAccesses.add(fw);
@@ -318,12 +321,12 @@ class DataFlowTracerTest {
         List<DataFlowPath> paths = tracer.trace(model);
 
         assertThat(paths).anySatisfy(p -> {
-            assertThat(p.entrypointId).isEqualTo("ep:incoming");
+            assertThat(p.entrypointId).isEqualTo(EntrypointId.deserialize("ep:incoming"));
             assertThat(p.trackedParam).isEqualTo("payload");
             assertThat(p.sinks).anySatisfy(s -> {
                 assertThat(s.kind).isEqualTo(DataFlowSink.Kind.STORE);
                 assertThat(s.fieldName).isEqualTo("snapshots");
-                assertThat(s.fieldOwnerComponentId).isEqualTo("comp:SnapshotIngestor");
+                assertThat(s.fieldOwnerComponentId).isEqualTo(ComponentId.of("comp:SnapshotIngestor"));
             });
         });
     }
@@ -339,19 +342,18 @@ class DataFlowTracerTest {
         model.components.add(comp("DeviceStateDataService", ComponentType.SERVICE));
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:ingest";
+        ep.id = EntrypointId.deserialize("ep:ingest");
         ep.name = "ingest";
         ep.type = EntrypointType.MESSAGING_CONSUMER;
-        ep.componentId = "comp:DeviceStateDataService";
+        ep.componentId = ComponentId.of("comp:DeviceStateDataService");
         ep.parameters.add("deviceSnapshot");
         model.entrypoints.add(ep);
 
         FieldAccess fw = new FieldAccess();
         fw.kind = FieldAccess.Kind.WRITE;
-        fw.componentId = "comp:DeviceStateDataService";
-        fw.fieldOwnerComponentId = "comp:DeviceStateDataService";
+        fw.componentId = ComponentId.of("comp:DeviceStateDataService");
+        fw.fieldBinding = new FieldBinding.Own("store");
         fw.method = "ingest";
-        fw.fieldName = "store";
         fw.sourceVarName = "device"; // derived local var, not the raw param name
         fw.id = "field:comp:DeviceStateDataService#ingest@store:write";
         model.fieldAccesses.add(fw);
@@ -359,12 +361,12 @@ class DataFlowTracerTest {
         List<DataFlowPath> paths = tracer.trace(model);
 
         assertThat(paths).anySatisfy(p -> {
-            assertThat(p.entrypointId).isEqualTo("ep:ingest");
+            assertThat(p.entrypointId).isEqualTo(EntrypointId.deserialize("ep:ingest"));
             assertThat(p.trackedParam).isEqualTo("deviceSnapshot");
             assertThat(p.sinks).anySatisfy(s -> {
                 assertThat(s.kind).isEqualTo(DataFlowSink.Kind.STORE);
                 assertThat(s.fieldName).isEqualTo("store");
-                assertThat(s.fieldOwnerComponentId).isEqualTo("comp:DeviceStateDataService");
+                assertThat(s.fieldOwnerComponentId).isEqualTo(ComponentId.of("comp:DeviceStateDataService"));
             });
         });
     }
@@ -379,18 +381,17 @@ class DataFlowTracerTest {
         mqtt.stereotypes = List.of("messaging");
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:tick";
+        ep.id = EntrypointId.deserialize("ep:tick");
         ep.name = "tick";
         ep.type = EntrypointType.SCHEDULER;
-        ep.componentId = "comp:StateScheduler";
+        ep.componentId = ComponentId.of("comp:StateScheduler");
         model.entrypoints.add(ep);
 
         FieldAccess fr = new FieldAccess();
         fr.kind = FieldAccess.Kind.READ;
-        fr.componentId = "comp:StateScheduler";
-        fr.fieldOwnerComponentId = "comp:StateScheduler";
+        fr.componentId = ComponentId.of("comp:StateScheduler");
+        fr.fieldBinding = new FieldBinding.Own("snapshots");
         fr.method = "tick";
-        fr.fieldName = "snapshots";
         fr.id = "field:comp:StateScheduler#tick@snapshots:read";
         model.fieldAccesses.add(fr);
 
@@ -399,7 +400,7 @@ class DataFlowTracerTest {
         List<DataFlowPath> paths = tracer.trace(model);
 
         assertThat(paths).anySatisfy(p -> {
-            assertThat(p.entrypointId).isEqualTo("ep:tick");
+            assertThat(p.entrypointId).isEqualTo(EntrypointId.deserialize("ep:tick"));
             assertThat(p.trackedParam).isEqualTo("snapshots");
             assertThat(p.sinks).anySatisfy(s -> assertThat(s.kind).isEqualTo(DataFlowSink.Kind.MESSAGING));
         });
@@ -419,36 +420,35 @@ class DataFlowTracerTest {
         model.components.get(2).stereotypes = List.of("messaging");
 
         Entrypoint consumer = new Entrypoint();
-        consumer.id = "ep:consume";
+        consumer.id = EntrypointId.deserialize("ep:consume");
         consumer.name = "consume";
         consumer.type = EntrypointType.MESSAGING_CONSUMER;
-        consumer.componentId = "comp:SnapshotIngestor";
+        consumer.componentId = ComponentId.of("comp:SnapshotIngestor");
         consumer.parameters.add("payload");
         model.entrypoints.add(consumer);
 
         Entrypoint producer = new Entrypoint();
-        producer.id = "ep:tick";
+        producer.id = EntrypointId.deserialize("ep:tick");
         producer.name = "tick";
         producer.type = EntrypointType.MESSAGING_PRODUCER;
-        producer.componentId = "comp:StatePublisher";
+        producer.componentId = ComponentId.of("comp:StatePublisher");
         model.entrypoints.add(producer);
 
         FieldAccess fw = new FieldAccess();
         fw.kind = FieldAccess.Kind.WRITE;
-        fw.componentId = "comp:SnapshotIngestor";
-        fw.fieldOwnerComponentId = "comp:SnapshotIngestor";
+        fw.componentId = ComponentId.of("comp:SnapshotIngestor");
+        fw.fieldBinding = new FieldBinding.Own("snapshots");
         fw.method = "consume";
-        fw.fieldName = "snapshots";
         fw.sourceVarName = "payload";
         fw.id = "field:comp:SnapshotIngestor#consume@snapshots:write";
         model.fieldAccesses.add(fw);
 
         FieldAccess fr = new FieldAccess();
         fr.kind = FieldAccess.Kind.READ;
-        fr.componentId = "comp:StatePublisher";
-        fr.fieldOwnerComponentId = "comp:SnapshotIngestor";
+        fr.componentId = ComponentId.of("comp:StatePublisher");
+        fr.fieldBinding =
+                new FieldBinding.CrossComponent(new FieldRef(ComponentId.of("comp:SnapshotIngestor"), "snapshots"));
         fr.method = "tick";
-        fr.fieldName = "snapshots";
         fr.id = "field:comp:StatePublisher#tick@snapshots:read";
         model.fieldAccesses.add(fr);
 
@@ -457,11 +457,11 @@ class DataFlowTracerTest {
         List<DataFlowPath> paths = tracer.trace(model);
 
         DataFlowPath consumerPath = paths.stream()
-                .filter(p -> p.entrypointId.equals("ep:consume"))
+                .filter(p -> p.entrypointId.equals(EntrypointId.deserialize("ep:consume")))
                 .findFirst()
                 .orElseThrow();
         DataFlowPath producerPath = paths.stream()
-                .filter(p -> p.entrypointId.equals("ep:tick"))
+                .filter(p -> p.entrypointId.equals(EntrypointId.deserialize("ep:tick")))
                 .findFirst()
                 .orElseThrow();
 
@@ -486,19 +486,18 @@ class DataFlowTracerTest {
         model.components.get(1).stereotypes = List.of("messaging");
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:publish";
+        ep.id = EntrypointId.deserialize("ep:publish");
         ep.name = "publish";
         ep.type = EntrypointType.MESSAGING_PRODUCER;
-        ep.componentId = "comp:StatePublisher";
+        ep.componentId = ComponentId.of("comp:StatePublisher");
         ep.parameters.add("trigger"); // declared param — but not what reaches the sink
         model.entrypoints.add(ep);
 
         FieldAccess fr = new FieldAccess();
         fr.kind = FieldAccess.Kind.READ;
-        fr.componentId = "comp:StatePublisher";
-        fr.fieldOwnerComponentId = "comp:StatePublisher";
+        fr.componentId = ComponentId.of("comp:StatePublisher");
+        fr.fieldBinding = new FieldBinding.Own("snapshots");
         fr.method = "publish";
-        fr.fieldName = "snapshots";
         fr.id = "field:comp:StatePublisher#publish@snapshots:read";
         model.fieldAccesses.add(fr);
 
@@ -507,7 +506,7 @@ class DataFlowTracerTest {
         List<DataFlowPath> paths = tracer.trace(model);
 
         assertThat(paths).anySatisfy(p -> {
-            assertThat(p.entrypointId).isEqualTo("ep:publish");
+            assertThat(p.entrypointId).isEqualTo(EntrypointId.deserialize("ep:publish"));
             assertThat(p.trackedParam).isEqualTo("snapshots");
             assertThat(p.sinks).anySatisfy(s -> assertThat(s.kind).isEqualTo(DataFlowSink.Kind.MESSAGING));
         });
@@ -526,27 +525,25 @@ class DataFlowTracerTest {
         model.components.add(comp("Pump", ComponentType.SCHEDULER));
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:pump";
+        ep.id = EntrypointId.deserialize("ep:pump");
         ep.name = "pump";
         ep.type = EntrypointType.SCHEDULER;
-        ep.componentId = "comp:Pump";
+        ep.componentId = ComponentId.of("comp:Pump");
         model.entrypoints.add(ep);
 
         FieldAccess fr = new FieldAccess();
         fr.kind = FieldAccess.Kind.READ;
-        fr.componentId = "comp:Pump";
-        fr.fieldOwnerComponentId = "comp:Pump";
+        fr.componentId = ComponentId.of("comp:Pump");
+        fr.fieldBinding = new FieldBinding.Own("inbox");
         fr.method = "pump";
-        fr.fieldName = "inbox";
         fr.id = "field:comp:Pump#pump@inbox:read";
         model.fieldAccesses.add(fr);
 
         FieldAccess fw = new FieldAccess();
         fw.kind = FieldAccess.Kind.WRITE;
-        fw.componentId = "comp:Pump";
-        fw.fieldOwnerComponentId = "comp:Pump";
+        fw.componentId = ComponentId.of("comp:Pump");
+        fw.fieldBinding = new FieldBinding.Own("outbox");
         fw.method = "pump";
-        fw.fieldName = "outbox";
         fw.sourceFieldName = "inbox";
         fw.id = "field:comp:Pump#pump@outbox:write";
         model.fieldAccesses.add(fw);
@@ -577,10 +574,10 @@ class DataFlowTracerTest {
         model.components.add(comp("SomeRepo", ComponentType.REPOSITORY));
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:EP1";
+        ep.id = EntrypointId.deserialize("ep:EP1");
         ep.name = "onMessage";
         ep.type = EntrypointType.MESSAGING_CONSUMER;
-        ep.componentId = "comp:FC";
+        ep.componentId = ComponentId.of("comp:FC");
         ep.parameters.add("cacheField");
         ep.parameters.add("machineId");
         model.entrypoints.add(ep);
@@ -588,10 +585,9 @@ class DataFlowTracerTest {
         // Path A: WRITE of 'myField', sourced from 'cacheField'
         FieldAccess fw = new FieldAccess();
         fw.kind = FieldAccess.Kind.WRITE;
-        fw.componentId = "comp:FC";
-        fw.fieldOwnerComponentId = "comp:FC";
+        fw.componentId = ComponentId.of("comp:FC");
+        fw.fieldBinding = new FieldBinding.Own("myField");
         fw.method = "onMessage";
-        fw.fieldName = "myField";
         fw.sourceVarName = "cacheField";
         fw.id = "field:comp:FC#onMessage@myField:write";
         model.fieldAccesses.add(fw);
@@ -599,10 +595,9 @@ class DataFlowTracerTest {
         // Path B: READ of 'myField' — from the same entrypoint component/method
         FieldAccess fr = new FieldAccess();
         fr.kind = FieldAccess.Kind.READ;
-        fr.componentId = "comp:FC";
-        fr.fieldOwnerComponentId = "comp:FC";
+        fr.componentId = ComponentId.of("comp:FC");
+        fr.fieldBinding = new FieldBinding.Own("myField");
         fr.method = "onMessage";
-        fr.fieldName = "myField";
         fr.id = "field:comp:FC#onMessage@myField:read";
         model.fieldAccesses.add(fr);
 
@@ -613,7 +608,8 @@ class DataFlowTracerTest {
 
         // The path tracking 'cacheField' is path A — find its STORE sink if present
         paths.stream()
-                .filter(p -> p.entrypointId.equals("ep:EP1") && p.trackedParam.equals("cacheField"))
+                .filter(p -> p.entrypointId.equals(EntrypointId.deserialize("ep:EP1"))
+                        && p.trackedParam.equals("cacheField"))
                 .findFirst()
                 .ifPresent(pathA -> {
                     String pathBId = "df:ep:EP1#machineId";
@@ -633,9 +629,9 @@ class DataFlowTracerTest {
 
         CallEdge fetch = new CallEdge();
         fetch.id = "call:comp:OrderResource#create->comp:OrderService#lookup";
-        fetch.fromComponentId = "comp:OrderResource";
+        fetch.fromComponentId = ComponentId.of("comp:OrderResource");
         fetch.fromMethod = "create";
-        fetch.toComponentId = "comp:OrderService";
+        fetch.toComponentId = ComponentId.of("comp:OrderService");
         fetch.toMethod = "lookup";
         fetch.callKind = "direct";
         fetch.assignedToVar = "loaded";
@@ -660,9 +656,9 @@ class DataFlowTracerTest {
 
         CallEdge edge = new CallEdge();
         edge.id = "call:comp:OrderResource#create->comp:OrderRepository#save";
-        edge.fromComponentId = "comp:OrderResource";
+        edge.fromComponentId = ComponentId.of("comp:OrderResource");
         edge.fromMethod = "create";
-        edge.toComponentId = "comp:OrderRepository";
+        edge.toComponentId = ComponentId.of("comp:OrderRepository");
         edge.toMethod = "save";
         edge.callKind = "direct";
         edge.paramMapping.put("order", "entity");
@@ -685,17 +681,17 @@ class DataFlowTracerTest {
         model.components.add(comp("Reporter", ComponentType.SERVICE));
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:write";
+        ep.id = EntrypointId.deserialize("ep:write");
         ep.name = "writeReport";
         ep.type = EntrypointType.REST_ENDPOINT;
-        ep.componentId = "comp:Reporter";
+        ep.componentId = ComponentId.of("comp:Reporter");
         ep.parameters.add("payload");
         model.entrypoints.add(ep);
 
         OutboundSinkSite site = new OutboundSinkSite();
         site.id = "outbound:comp:Reporter#writeReport:0";
         site.kind = DataFlowSink.Kind.FILE_OUTBOUND;
-        site.componentId = "comp:Reporter";
+        site.componentId = ComponentId.of("comp:Reporter");
         site.method = "writeReport";
         site.calleeQualifiedName = "java.nio.file.Files";
         site.calleeMethod = "writeString";
@@ -711,17 +707,17 @@ class DataFlowTracerTest {
         model.components.add(comp("Reporter", ComponentType.REST_RESOURCE));
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:write";
+        ep.id = EntrypointId.deserialize("ep:write");
         ep.name = "writeReport";
         ep.type = EntrypointType.REST_ENDPOINT;
-        ep.componentId = "comp:Reporter";
+        ep.componentId = ComponentId.of("comp:Reporter");
         ep.parameters.add("payload");
         model.entrypoints.add(ep);
 
         OutboundSinkSite site = new OutboundSinkSite();
         site.id = "outbound:comp:Reporter#writeReport:0";
         site.kind = DataFlowSink.Kind.FILE_OUTBOUND;
-        site.componentId = "comp:Reporter";
+        site.componentId = ComponentId.of("comp:Reporter");
         site.method = "writeReport";
         site.calleeQualifiedName = "java.nio.file.Files";
         site.calleeMethod = "writeString";
@@ -748,10 +744,10 @@ class DataFlowTracerTest {
         model.components.add(s3);
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:upload";
+        ep.id = EntrypointId.deserialize("ep:upload");
         ep.name = "upload";
         ep.type = EntrypointType.REST_ENDPOINT;
-        ep.componentId = "comp:Resource";
+        ep.componentId = ComponentId.of("comp:Resource");
         ep.parameters.add("payload");
         model.entrypoints.add(ep);
 
@@ -787,10 +783,10 @@ class DataFlowTracerTest {
         model.components.add(internal);
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:consume-order";
+        ep.id = EntrypointId.deserialize("ep:consume-order");
         ep.name = "consume";
         ep.type = EntrypointType.MESSAGING_CONSUMER;
-        ep.componentId = "comp:OrderConsumer";
+        ep.componentId = ComponentId.of("comp:OrderConsumer");
         ep.parameters.add("order");
         model.entrypoints.add(ep);
 
@@ -802,7 +798,7 @@ class DataFlowTracerTest {
 
         assertThat(paths)
                 .as("terminal consumer path should be present even without sinks")
-                .anySatisfy(p -> assertThat(p.entrypointId).isEqualTo("ep:consume-order"));
+                .anySatisfy(p -> assertThat(p.entrypointId).isEqualTo(EntrypointId.deserialize("ep:consume-order")));
     }
 
     // ── D2: messaging-edge boundary guards ───────────────────────────────────────
@@ -815,17 +811,17 @@ class DataFlowTracerTest {
         model.components.add(comp("Repo", ComponentType.REPOSITORY));
 
         Entrypoint schedulerEp = new Entrypoint();
-        schedulerEp.id = "ep:scheduler";
+        schedulerEp.id = EntrypointId.deserialize("ep:scheduler");
         schedulerEp.name = "run";
         schedulerEp.type = EntrypointType.SCHEDULER;
-        schedulerEp.componentId = "comp:Scheduler";
+        schedulerEp.componentId = ComponentId.of("comp:Scheduler");
         model.entrypoints.add(schedulerEp);
 
         Entrypoint consumerEp = new Entrypoint();
-        consumerEp.id = "ep:consumer";
+        consumerEp.id = EntrypointId.deserialize("ep:consumer");
         consumerEp.name = "process";
         consumerEp.type = EntrypointType.MESSAGING_CONSUMER;
-        consumerEp.componentId = "comp:Consumer";
+        consumerEp.componentId = ComponentId.of("comp:Consumer");
         consumerEp.parameters.add("msg");
         model.entrypoints.add(consumerEp);
 
@@ -835,10 +831,9 @@ class DataFlowTracerTest {
         // Consumer reads 'cache' field and saves to repo
         FieldAccess fr = new FieldAccess();
         fr.kind = FieldAccess.Kind.READ;
-        fr.componentId = "comp:Consumer";
-        fr.fieldOwnerComponentId = "comp:Consumer";
+        fr.componentId = ComponentId.of("comp:Consumer");
+        fr.fieldBinding = new FieldBinding.Own("cache");
         fr.method = "process";
-        fr.fieldName = "cache";
         fr.id = "field:comp:Consumer#process@cache:read";
         model.fieldAccesses.add(fr);
 
@@ -848,7 +843,8 @@ class DataFlowTracerTest {
 
         assertThat(paths)
                 .as("scheduler must not produce a path tracking 'cache' (field behind messaging boundary)")
-                .noneMatch(p -> p.entrypointId.equals("ep:scheduler") && "cache".equals(p.trackedParam));
+                .noneMatch(p -> p.entrypointId.equals(EntrypointId.deserialize("ep:scheduler"))
+                        && "cache".equals(p.trackedParam));
     }
 
     @Test
@@ -859,27 +855,26 @@ class DataFlowTracerTest {
         model.components.add(comp("Repo", ComponentType.REPOSITORY));
 
         Entrypoint consumerEp = new Entrypoint();
-        consumerEp.id = "ep:consumer";
+        consumerEp.id = EntrypointId.deserialize("ep:consumer");
         consumerEp.name = "ingest";
         consumerEp.type = EntrypointType.MESSAGING_CONSUMER;
-        consumerEp.componentId = "comp:Consumer";
+        consumerEp.componentId = ComponentId.of("comp:Consumer");
         consumerEp.parameters.add("payload");
         model.entrypoints.add(consumerEp);
 
         Entrypoint schedulerEp = new Entrypoint();
-        schedulerEp.id = "ep:scheduler";
+        schedulerEp.id = EntrypointId.deserialize("ep:scheduler");
         schedulerEp.name = "tick";
         schedulerEp.type = EntrypointType.SCHEDULER;
-        schedulerEp.componentId = "comp:Scheduler";
+        schedulerEp.componentId = ComponentId.of("comp:Scheduler");
         model.entrypoints.add(schedulerEp);
 
         // Consumer writes 'stateMap' sourced from payload
         FieldAccess fw = new FieldAccess();
         fw.kind = FieldAccess.Kind.WRITE;
-        fw.componentId = "comp:Consumer";
-        fw.fieldOwnerComponentId = "comp:Consumer";
+        fw.componentId = ComponentId.of("comp:Consumer");
+        fw.fieldBinding = new FieldBinding.Own("stateMap");
         fw.method = "ingest";
-        fw.fieldName = "stateMap";
         fw.sourceVarName = "payload";
         fw.id = "field:comp:Consumer#ingest@stateMap:write";
         model.fieldAccesses.add(fw);
@@ -890,10 +885,9 @@ class DataFlowTracerTest {
         // Consumer also reads stateMap
         FieldAccess fr = new FieldAccess();
         fr.kind = FieldAccess.Kind.READ;
-        fr.componentId = "comp:Consumer";
-        fr.fieldOwnerComponentId = "comp:Consumer";
+        fr.componentId = ComponentId.of("comp:Consumer");
+        fr.fieldBinding = new FieldBinding.Own("stateMap");
         fr.method = "ingest";
-        fr.fieldName = "stateMap";
         fr.id = "field:comp:Consumer#ingest@stateMap:read";
         model.fieldAccesses.add(fr);
 
@@ -903,7 +897,7 @@ class DataFlowTracerTest {
         List<DataFlowPath> paths = tracer.trace(model);
 
         List<DataFlowSink> storeSinks = paths.stream()
-                .filter(p -> p.entrypointId.equals("ep:consumer"))
+                .filter(p -> p.entrypointId.equals(EntrypointId.deserialize("ep:consumer")))
                 .flatMap(p -> p.sinks.stream())
                 .filter(s -> s.kind == DataFlowSink.Kind.STORE && "stateMap".equals(s.fieldName))
                 .toList();
@@ -920,17 +914,17 @@ class DataFlowTracerTest {
         model.components.add(comp("Repository", ComponentType.REPOSITORY));
 
         Entrypoint shutdown = new Entrypoint();
-        shutdown.id = "ep:shutdown";
+        shutdown.id = EntrypointId.deserialize("ep:shutdown");
         shutdown.name = "onShutdown";
         shutdown.type = EntrypointType.CDI_EVENT_OBSERVER;
-        shutdown.componentId = "comp:ShutdownHandler";
+        shutdown.componentId = ComponentId.of("comp:ShutdownHandler");
         model.entrypoints.add(shutdown);
 
         addCallEdge(model, "comp:ShutdownHandler", "onShutdown", "comp:Repository", "deleteAll", Map.of());
 
         List<DataFlowPath> paths = tracer.trace(model);
 
-        assertThat(paths).noneMatch(path -> path.entrypointId.equals("ep:shutdown"));
+        assertThat(paths).noneMatch(path -> path.entrypointId.equals(EntrypointId.deserialize("ep:shutdown")));
     }
 
     // ── G7: nested outbound messaging sink ───────────────────────────────────────
@@ -946,7 +940,7 @@ class DataFlowTracerTest {
         OutboundSinkSite site = new OutboundSinkSite();
         site.id = "outbound:publisher";
         site.kind = DataFlowSink.Kind.MESSAGING;
-        site.componentId = "comp:Publisher";
+        site.componentId = ComponentId.of("comp:Publisher");
         site.method = "publishCreated";
         site.channel = "orders.created";
         site.topic = "orders.created";
@@ -980,18 +974,18 @@ class DataFlowTracerTest {
         model.components.add(comp("Consumer", ComponentType.MESSAGE_DRIVEN_BEAN));
 
         Entrypoint publisherEp = new Entrypoint();
-        publisherEp.id = "ep:publish";
+        publisherEp.id = EntrypointId.deserialize("ep:publish");
         publisherEp.name = "publish";
         publisherEp.type = EntrypointType.REST_ENDPOINT;
-        publisherEp.componentId = "comp:Publisher";
+        publisherEp.componentId = ComponentId.of("comp:Publisher");
         publisherEp.parameters.add("order");
         model.entrypoints.add(publisherEp);
 
         Entrypoint consumerEp = new Entrypoint();
-        consumerEp.id = "ep:consume";
+        consumerEp.id = EntrypointId.deserialize("ep:consume");
         consumerEp.name = "consume";
         consumerEp.type = EntrypointType.MESSAGING_CONSUMER;
-        consumerEp.componentId = "comp:Consumer";
+        consumerEp.componentId = ComponentId.of("comp:Consumer");
         consumerEp.channelName = "orders.created";
         consumerEp.broker = MessagingBroker.KAFKA;
         consumerEp.parameters.add("order");
@@ -1000,7 +994,7 @@ class DataFlowTracerTest {
         OutboundSinkSite site = new OutboundSinkSite();
         site.id = "outbound:publish";
         site.kind = DataFlowSink.Kind.MESSAGING;
-        site.componentId = "comp:Publisher";
+        site.componentId = ComponentId.of("comp:Publisher");
         site.method = "publish";
         site.channel = "orders.created";
         site.topic = "orders.created";
@@ -1011,11 +1005,11 @@ class DataFlowTracerTest {
         List<DataFlowPath> paths = tracer.trace(model);
 
         DataFlowPath publishPath = paths.stream()
-                .filter(path -> path.entrypointId.equals("ep:publish"))
+                .filter(path -> path.entrypointId.equals(EntrypointId.deserialize("ep:publish")))
                 .findFirst()
                 .orElseThrow();
         DataFlowPath consumePath = paths.stream()
-                .filter(path -> path.entrypointId.equals("ep:consume"))
+                .filter(path -> path.entrypointId.equals(EntrypointId.deserialize("ep:consume")))
                 .findFirst()
                 .orElseThrow();
 
@@ -1035,17 +1029,17 @@ class DataFlowTracerTest {
         model.components.add(comp("RuleEngine", ComponentType.MESSAGE_DRIVEN_BEAN));
 
         Entrypoint schedulerEp = new Entrypoint();
-        schedulerEp.id = "ep:tick";
+        schedulerEp.id = EntrypointId.deserialize("ep:tick");
         schedulerEp.name = "tick";
         schedulerEp.type = EntrypointType.SCHEDULER;
-        schedulerEp.componentId = "comp:MyScheduler";
+        schedulerEp.componentId = ComponentId.of("comp:MyScheduler");
         model.entrypoints.add(schedulerEp);
 
         Entrypoint consumerEp = new Entrypoint();
-        consumerEp.id = "ep:evaluate";
+        consumerEp.id = EntrypointId.deserialize("ep:evaluate");
         consumerEp.name = "evaluate";
         consumerEp.type = EntrypointType.MESSAGING_CONSUMER;
-        consumerEp.componentId = "comp:RuleEngine";
+        consumerEp.componentId = ComponentId.of("comp:RuleEngine");
         consumerEp.channelName = "processed-events";
         consumerEp.broker = MessagingBroker.UNKNOWN; // set by QuarkusExtractor for @Incoming
         consumerEp.parameters.add("event");
@@ -1055,7 +1049,7 @@ class DataFlowTracerTest {
         OutboundSinkSite site = new OutboundSinkSite();
         site.id = "outbound:tick:0";
         site.kind = DataFlowSink.Kind.MESSAGING;
-        site.componentId = "comp:MyScheduler";
+        site.componentId = ComponentId.of("comp:MyScheduler");
         site.method = "tick";
         site.channel = "processed-events";
         site.broker = null; // null, not UNKNOWN — this is the mismatch under test
@@ -1064,11 +1058,11 @@ class DataFlowTracerTest {
         List<DataFlowPath> paths = tracer.trace(model);
 
         DataFlowPath schedulerPath = paths.stream()
-                .filter(p -> p.entrypointId.equals("ep:tick"))
+                .filter(p -> p.entrypointId.equals(EntrypointId.deserialize("ep:tick")))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("scheduler path not found"));
         DataFlowPath consumerPath = paths.stream()
-                .filter(p -> p.entrypointId.equals("ep:evaluate"))
+                .filter(p -> p.entrypointId.equals(EntrypointId.deserialize("ep:evaluate")))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("consumer path not found"));
 
@@ -1092,19 +1086,18 @@ class DataFlowTracerTest {
         model.components.add(comp("MyScheduler", ComponentType.SCHEDULER));
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:run";
+        ep.id = EntrypointId.deserialize("ep:run");
         ep.name = "run";
         ep.type = EntrypointType.SCHEDULER;
-        ep.componentId = "comp:MyScheduler";
+        ep.componentId = ComponentId.of("comp:MyScheduler");
         // no parameters → tracked as "*"
         model.entrypoints.add(ep);
 
         FieldAccess fw = new FieldAccess();
         fw.kind = FieldAccess.Kind.WRITE;
-        fw.componentId = "comp:MyScheduler";
-        fw.fieldOwnerComponentId = "comp:MyScheduler";
+        fw.componentId = ComponentId.of("comp:MyScheduler");
+        fw.fieldBinding = new FieldBinding.Own("cache");
         fw.method = "run";
-        fw.fieldName = "cache";
         fw.sourceVarName = null;
         fw.sourceFieldName = null;
         fw.id = "field:comp:MyScheduler#run@cache:write";
@@ -1114,7 +1107,7 @@ class DataFlowTracerTest {
 
         // Scheduler paths with no sinks are omitted; if one appears it must not have a STORE sink
         paths.stream()
-                .filter(p -> p.entrypointId.equals("ep:run"))
+                .filter(p -> p.entrypointId.equals(EntrypointId.deserialize("ep:run")))
                 .forEach(p -> assertThat(p.sinks)
                         .as("wildcard-tracked scheduler must not emit STORE sinks from null-source writes")
                         .noneMatch(s -> s.kind == DataFlowSink.Kind.STORE));
@@ -1130,18 +1123,18 @@ class DataFlowTracerTest {
         model.components.add(comp("ProcessorService", ComponentType.SERVICE));
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:handle";
+        ep.id = EntrypointId.deserialize("ep:handle");
         ep.name = "handle";
         ep.type = EntrypointType.MESSAGING_CONSUMER;
-        ep.componentId = "comp:ProcessorService";
+        ep.componentId = ComponentId.of("comp:ProcessorService");
         ep.parameters.add("payload");
         model.entrypoints.add(ep);
 
         CallEdge intraEdge = new CallEdge();
         intraEdge.id = "call:comp:ProcessorService#handle->comp:ProcessorService#persist";
-        intraEdge.fromComponentId = "comp:ProcessorService";
+        intraEdge.fromComponentId = ComponentId.of("comp:ProcessorService");
         intraEdge.fromMethod = "handle";
-        intraEdge.toComponentId = "comp:ProcessorService";
+        intraEdge.toComponentId = ComponentId.of("comp:ProcessorService");
         intraEdge.toMethod = "persist";
         intraEdge.callKind = "intra";
         intraEdge.paramMapping.put("payload", "data");
@@ -1151,10 +1144,9 @@ class DataFlowTracerTest {
         // sourceVarName is non-null → valueSourceUnresolvable stays false → no STORE.
         FieldAccess fw = new FieldAccess();
         fw.kind = FieldAccess.Kind.WRITE;
-        fw.componentId = "comp:ProcessorService";
-        fw.fieldOwnerComponentId = "comp:ProcessorService";
+        fw.componentId = ComponentId.of("comp:ProcessorService");
+        fw.fieldBinding = new FieldBinding.Own("auditStore");
         fw.method = "persist";
-        fw.fieldName = "auditStore";
         fw.sourceVarName = "unrelatedVar";
         fw.sourceFieldName = null;
         fw.id = "field:comp:ProcessorService#persist@auditStore:write";
@@ -1163,7 +1155,7 @@ class DataFlowTracerTest {
         List<DataFlowPath> paths = tracer.trace(model);
 
         paths.stream()
-                .filter(p -> p.entrypointId.equals("ep:handle"))
+                .filter(p -> p.entrypointId.equals(EntrypointId.deserialize("ep:handle")))
                 .forEach(p -> assertThat(p.sinks)
                         .as("STORE sink must not be emitted when sourceVarName is present "
                                 + "but does not match the tracked param")
@@ -1181,10 +1173,10 @@ class DataFlowTracerTest {
         model.components.add(comp("DeviceSvc", ComponentType.SERVICE));
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:consume";
+        ep.id = EntrypointId.deserialize("ep:consume");
         ep.name = "consume";
         ep.type = EntrypointType.MESSAGING_CONSUMER;
-        ep.componentId = "comp:DeviceSvc";
+        ep.componentId = ComponentId.of("comp:DeviceSvc");
         ep.parameters.add("device");
         model.entrypoints.add(ep);
 
@@ -1192,10 +1184,9 @@ class DataFlowTracerTest {
         // but isEntrypointBody=true → STORE must still be emitted.
         FieldAccess fw = new FieldAccess();
         fw.kind = FieldAccess.Kind.WRITE;
-        fw.componentId = "comp:DeviceSvc";
-        fw.fieldOwnerComponentId = "comp:DeviceSvc";
+        fw.componentId = ComponentId.of("comp:DeviceSvc");
+        fw.fieldBinding = new FieldBinding.Own("deviceCache");
         fw.method = "consume";
-        fw.fieldName = "deviceCache";
         fw.sourceVarName = "computedValue";
         fw.id = "field:comp:DeviceSvc#consume@deviceCache:write";
         model.fieldAccesses.add(fw);
@@ -1203,7 +1194,7 @@ class DataFlowTracerTest {
         List<DataFlowPath> paths = tracer.trace(model);
 
         assertThat(paths).anySatisfy(p -> {
-            assertThat(p.entrypointId).isEqualTo("ep:consume");
+            assertThat(p.entrypointId).isEqualTo(EntrypointId.deserialize("ep:consume"));
             assertThat(p.sinks).anySatisfy(s -> {
                 assertThat(s.kind).isEqualTo(DataFlowSink.Kind.STORE);
                 assertThat(s.fieldName).isEqualTo("deviceCache");
@@ -1221,18 +1212,18 @@ class DataFlowTracerTest {
         model.components.add(comp("DeviceSvc", ComponentType.SERVICE));
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:consume";
+        ep.id = EntrypointId.deserialize("ep:consume");
         ep.name = "consume";
         ep.type = EntrypointType.MESSAGING_CONSUMER;
-        ep.componentId = "comp:DeviceSvc";
+        ep.componentId = ComponentId.of("comp:DeviceSvc");
         ep.parameters.add("device");
         model.entrypoints.add(ep);
 
         CallEdge intra = new CallEdge();
         intra.id = "call:comp:DeviceSvc#consume->comp:DeviceSvc#persist";
-        intra.fromComponentId = "comp:DeviceSvc";
+        intra.fromComponentId = ComponentId.of("comp:DeviceSvc");
         intra.fromMethod = "consume";
-        intra.toComponentId = "comp:DeviceSvc";
+        intra.toComponentId = ComponentId.of("comp:DeviceSvc");
         intra.toMethod = "persist";
         intra.callKind = "intra";
         intra.paramMapping.put("device", "id");
@@ -1241,10 +1232,9 @@ class DataFlowTracerTest {
         // persist does store.put(id, computedValue): keyVarName="id" matches tracked "id".
         FieldAccess fw = new FieldAccess();
         fw.kind = FieldAccess.Kind.WRITE;
-        fw.componentId = "comp:DeviceSvc";
-        fw.fieldOwnerComponentId = "comp:DeviceSvc";
+        fw.componentId = ComponentId.of("comp:DeviceSvc");
+        fw.fieldBinding = new FieldBinding.Own("deviceCache");
         fw.method = "persist";
-        fw.fieldName = "deviceCache";
         fw.sourceVarName = "computedValue";
         fw.keyVarName = "id";
         fw.id = "field:comp:DeviceSvc#persist@deviceCache:write";
@@ -1253,7 +1243,7 @@ class DataFlowTracerTest {
         List<DataFlowPath> paths = tracer.trace(model);
 
         assertThat(paths).anySatisfy(p -> {
-            assertThat(p.entrypointId).isEqualTo("ep:consume");
+            assertThat(p.entrypointId).isEqualTo(EntrypointId.deserialize("ep:consume"));
             assertThat(p.trackedParam).isEqualTo("device");
             assertThat(p.sinks).anySatisfy(s -> {
                 assertThat(s.kind).isEqualTo(DataFlowSink.Kind.STORE);
@@ -1275,19 +1265,19 @@ class DataFlowTracerTest {
         model.components.add(comp("SnapshotIngestor", ComponentType.SERVICE));
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:ingest";
+        ep.id = EntrypointId.deserialize("ep:ingest");
         ep.name = "ingest";
         ep.type = EntrypointType.MESSAGING_CONSUMER;
-        ep.componentId = "comp:SnapshotIngestor";
+        ep.componentId = ComponentId.of("comp:SnapshotIngestor");
         ep.parameters.add("payload");
         model.entrypoints.add(ep);
 
         // Intra-component call: ingest(payload) → storeSnapshot(data)
         CallEdge intraEdge = new CallEdge();
         intraEdge.id = "call:comp:SnapshotIngestor#ingest->comp:SnapshotIngestor#storeSnapshot";
-        intraEdge.fromComponentId = "comp:SnapshotIngestor";
+        intraEdge.fromComponentId = ComponentId.of("comp:SnapshotIngestor");
         intraEdge.fromMethod = "ingest";
-        intraEdge.toComponentId = "comp:SnapshotIngestor";
+        intraEdge.toComponentId = ComponentId.of("comp:SnapshotIngestor");
         intraEdge.toMethod = "storeSnapshot";
         intraEdge.callKind = "intra";
         intraEdge.paramMapping.put("payload", "data");
@@ -1296,10 +1286,9 @@ class DataFlowTracerTest {
         // Field write inside the helper: snapshots.put(key, data) → sourceVarName="data"
         FieldAccess fw = new FieldAccess();
         fw.kind = FieldAccess.Kind.WRITE;
-        fw.componentId = "comp:SnapshotIngestor";
-        fw.fieldOwnerComponentId = "comp:SnapshotIngestor";
+        fw.componentId = ComponentId.of("comp:SnapshotIngestor");
+        fw.fieldBinding = new FieldBinding.Own("snapshots");
         fw.method = "storeSnapshot";
-        fw.fieldName = "snapshots";
         fw.sourceVarName = "data";
         fw.id = "field:comp:SnapshotIngestor#storeSnapshot@snapshots:write";
         model.fieldAccesses.add(fw);
@@ -1307,12 +1296,12 @@ class DataFlowTracerTest {
         List<DataFlowPath> paths = tracer.trace(model);
 
         assertThat(paths).anySatisfy(p -> {
-            assertThat(p.entrypointId).isEqualTo("ep:ingest");
+            assertThat(p.entrypointId).isEqualTo(EntrypointId.deserialize("ep:ingest"));
             assertThat(p.trackedParam).isEqualTo("payload");
             assertThat(p.sinks).anySatisfy(s -> {
                 assertThat(s.kind).isEqualTo(DataFlowSink.Kind.STORE);
                 assertThat(s.fieldName).isEqualTo("snapshots");
-                assertThat(s.fieldOwnerComponentId).isEqualTo("comp:SnapshotIngestor");
+                assertThat(s.fieldOwnerComponentId).isEqualTo(ComponentId.of("comp:SnapshotIngestor"));
             });
         });
     }
@@ -1332,18 +1321,18 @@ class DataFlowTracerTest {
         model.components.add(comp("DeviceStateIngestor", ComponentType.SERVICE));
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:onEvent";
+        ep.id = EntrypointId.deserialize("ep:onEvent");
         ep.name = "onEvent";
         ep.type = EntrypointType.MESSAGING_CONSUMER;
-        ep.componentId = "comp:DeviceStateIngestor";
+        ep.componentId = ComponentId.of("comp:DeviceStateIngestor");
         ep.parameters.add("payload");
         model.entrypoints.add(ep);
 
         CallEdge intraEdge = new CallEdge();
         intraEdge.id = "call:comp:DeviceStateIngestor#onEvent->comp:DeviceStateIngestor#processAndStore";
-        intraEdge.fromComponentId = "comp:DeviceStateIngestor";
+        intraEdge.fromComponentId = ComponentId.of("comp:DeviceStateIngestor");
         intraEdge.fromMethod = "onEvent";
-        intraEdge.toComponentId = "comp:DeviceStateIngestor";
+        intraEdge.toComponentId = ComponentId.of("comp:DeviceStateIngestor");
         intraEdge.toMethod = "processAndStore";
         intraEdge.callKind = "intra";
         intraEdge.paramMapping.put("payload", "data");
@@ -1353,10 +1342,9 @@ class DataFlowTracerTest {
         // Value is CtInvocation → extractor sets sourceVarName=null, sourceFieldName=null
         FieldAccess fw = new FieldAccess();
         fw.kind = FieldAccess.Kind.WRITE;
-        fw.componentId = "comp:DeviceStateIngestor";
-        fw.fieldOwnerComponentId = "comp:DeviceStateIngestor";
+        fw.componentId = ComponentId.of("comp:DeviceStateIngestor");
+        fw.fieldBinding = new FieldBinding.Own("deviceStore");
         fw.method = "processAndStore";
-        fw.fieldName = "deviceStore";
         fw.sourceVarName = null;
         fw.sourceFieldName = null;
         fw.id = "field:comp:DeviceStateIngestor#processAndStore@deviceStore:write";
@@ -1365,12 +1353,12 @@ class DataFlowTracerTest {
         List<DataFlowPath> paths = tracer.trace(model);
 
         assertThat(paths).anySatisfy(p -> {
-            assertThat(p.entrypointId).isEqualTo("ep:onEvent");
+            assertThat(p.entrypointId).isEqualTo(EntrypointId.deserialize("ep:onEvent"));
             assertThat(p.trackedParam).isEqualTo("payload");
             assertThat(p.sinks).anySatisfy(s -> {
                 assertThat(s.kind).isEqualTo(DataFlowSink.Kind.STORE);
                 assertThat(s.fieldName).isEqualTo("deviceStore");
-                assertThat(s.fieldOwnerComponentId).isEqualTo("comp:DeviceStateIngestor");
+                assertThat(s.fieldOwnerComponentId).isEqualTo(ComponentId.of("comp:DeviceStateIngestor"));
             });
         });
     }
@@ -1389,26 +1377,26 @@ class DataFlowTracerTest {
         model.components.get(2).stereotypes = List.of("messaging");
 
         Entrypoint consumer = new Entrypoint();
-        consumer.id = "ep:ingest";
+        consumer.id = EntrypointId.deserialize("ep:ingest");
         consumer.name = "ingest";
         consumer.type = EntrypointType.MESSAGING_CONSUMER;
-        consumer.componentId = "comp:SnapshotIngestor";
+        consumer.componentId = ComponentId.of("comp:SnapshotIngestor");
         consumer.parameters.add("payload");
         model.entrypoints.add(consumer);
 
         Entrypoint scheduler = new Entrypoint();
-        scheduler.id = "ep:publishAll";
+        scheduler.id = EntrypointId.deserialize("ep:publishAll");
         scheduler.name = "publishAll";
         scheduler.type = EntrypointType.SCHEDULER;
-        scheduler.componentId = "comp:SnapshotPublisher";
+        scheduler.componentId = ComponentId.of("comp:SnapshotPublisher");
         model.entrypoints.add(scheduler);
 
         // Intra-component call with paramMapping
         CallEdge intraEdge = new CallEdge();
         intraEdge.id = "call:comp:SnapshotIngestor#ingest->comp:SnapshotIngestor#storeSnapshot";
-        intraEdge.fromComponentId = "comp:SnapshotIngestor";
+        intraEdge.fromComponentId = ComponentId.of("comp:SnapshotIngestor");
         intraEdge.fromMethod = "ingest";
-        intraEdge.toComponentId = "comp:SnapshotIngestor";
+        intraEdge.toComponentId = ComponentId.of("comp:SnapshotIngestor");
         intraEdge.toMethod = "storeSnapshot";
         intraEdge.callKind = "intra";
         intraEdge.paramMapping.put("payload", "data");
@@ -1417,10 +1405,9 @@ class DataFlowTracerTest {
         // Write in the helper
         FieldAccess fw = new FieldAccess();
         fw.kind = FieldAccess.Kind.WRITE;
-        fw.componentId = "comp:SnapshotIngestor";
-        fw.fieldOwnerComponentId = "comp:SnapshotIngestor";
+        fw.componentId = ComponentId.of("comp:SnapshotIngestor");
+        fw.fieldBinding = new FieldBinding.Own("snapshots");
         fw.method = "storeSnapshot";
-        fw.fieldName = "snapshots";
         fw.sourceVarName = "data";
         fw.id = "field:comp:SnapshotIngestor#storeSnapshot@snapshots:write";
         model.fieldAccesses.add(fw);
@@ -1429,10 +1416,10 @@ class DataFlowTracerTest {
         // (emitted by emitCallerSideFieldReadIfGetter when the scheduler calls ingestor.getSnapshots())
         FieldAccess fr = new FieldAccess();
         fr.kind = FieldAccess.Kind.READ;
-        fr.componentId = "comp:SnapshotPublisher";
-        fr.fieldOwnerComponentId = "comp:SnapshotIngestor";
+        fr.componentId = ComponentId.of("comp:SnapshotPublisher");
+        fr.fieldBinding =
+                new FieldBinding.CrossComponent(new FieldRef(ComponentId.of("comp:SnapshotIngestor"), "snapshots"));
         fr.method = "publishAll";
-        fr.fieldName = "snapshots";
         fr.id = "field:comp:SnapshotPublisher#publishAll@comp:SnapshotIngestor#getSnapshots:snapshots:read:xcomp";
         model.fieldAccesses.add(fr);
 
@@ -1442,11 +1429,11 @@ class DataFlowTracerTest {
         List<DataFlowPath> paths = tracer.trace(model);
 
         DataFlowPath consumerPath = paths.stream()
-                .filter(p -> p.entrypointId.equals("ep:ingest"))
+                .filter(p -> p.entrypointId.equals(EntrypointId.deserialize("ep:ingest")))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("consumer path not found"));
         DataFlowPath schedulerPath = paths.stream()
-                .filter(p -> p.entrypointId.equals("ep:publishAll"))
+                .filter(p -> p.entrypointId.equals(EntrypointId.deserialize("ep:publishAll")))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("scheduler path not found"));
 
@@ -1469,11 +1456,11 @@ class DataFlowTracerTest {
         model.components.add(comp("OrderRepository", ComponentType.REPOSITORY));
 
         Entrypoint ep = new Entrypoint();
-        ep.id = "ep:create";
+        ep.id = EntrypointId.deserialize("ep:create");
         ep.name = "create";
         ep.type = EntrypointType.REST_ENDPOINT;
         ep.httpMethod = "POST";
-        ep.componentId = "comp:OrderResource";
+        ep.componentId = ComponentId.of("comp:OrderResource");
         ep.parameters.add("order");
         model.entrypoints.add(ep);
 
@@ -1482,7 +1469,7 @@ class DataFlowTracerTest {
 
     private static Component comp(String name, ComponentType type) {
         Component c = new Component();
-        c.id = "comp:" + name;
+        c.id = ComponentId.of("comp:" + name);
         c.name = name;
         c.type = type;
         return c;
@@ -1508,9 +1495,9 @@ class DataFlowTracerTest {
             String callKind) {
         CallEdge e = new CallEdge();
         e.id = "call:" + fromComp + "#" + fromMethod + "->" + toComp + "#" + toMethod;
-        e.fromComponentId = fromComp;
+        e.fromComponentId = ComponentId.of(fromComp);
         e.fromMethod = fromMethod;
-        e.toComponentId = toComp;
+        e.toComponentId = ComponentId.of(toComp);
         e.toMethod = toMethod;
         e.callKind = callKind;
         e.paramMapping.putAll(paramMapping);
@@ -1521,9 +1508,9 @@ class DataFlowTracerTest {
             String fromComp, String fromMethod, String toComp, String toMethod, Map<String, String> paramMapping) {
         CallEdge e = new CallEdge();
         e.id = "call:" + fromComp + "#" + fromMethod + "->" + toComp + "#" + toMethod;
-        e.fromComponentId = fromComp;
+        e.fromComponentId = ComponentId.of(fromComp);
         e.fromMethod = fromMethod;
-        e.toComponentId = toComp;
+        e.toComponentId = ComponentId.of(toComp);
         e.toMethod = toMethod;
         e.callKind = "direct";
         e.paramMapping.putAll(paramMapping);

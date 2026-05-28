@@ -2,6 +2,7 @@ package dev.dominikbreu.spoonmcp.model;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 
 /**
  * Terminal point in a data-flow path where a tracked value leaves the component or is persisted.
@@ -70,7 +71,7 @@ public class DataFlowSink {
     /** Sink category. */
     public Kind kind;
     /** Component that acts as the sink. */
-    public String componentId;
+    public ComponentId componentId;
     /** Display name of the sink component. */
     public String componentName;
     /** Method name at which the value is consumed or forwarded. */
@@ -80,7 +81,7 @@ public class DataFlowSink {
     /** For {@code store} sinks: simple name of the field that receives the tracked value. */
     public String fieldName;
     /** For {@code store} sinks: id of the component declaring the field. */
-    public String fieldOwnerComponentId;
+    public ComponentId fieldOwnerComponentId;
     /**
      * For {@code store} sinks: ids of {@link DataFlowPath}s that read this same field and
      * therefore form the downstream half of a two-phase pipeline (consumer → cache → producer).
@@ -118,7 +119,7 @@ public class DataFlowSink {
      * @param method          method name at the call site
      * @param source          source location
      */
-    public DataFlowSink(Kind kind, String componentId, String componentName, String method, SourceInfo source) {
+    public DataFlowSink(Kind kind, ComponentId componentId, String componentName, String method, SourceInfo source) {
         this.kind = kind;
         this.componentId = componentId;
         this.componentName = componentName;
@@ -139,12 +140,12 @@ public class DataFlowSink {
      */
     public DataFlowSink(
             Kind kind,
-            String componentId,
+            ComponentId componentId,
             String componentName,
             String method,
             SourceInfo source,
             String fieldName,
-            String fieldOwnerComponentId) {
+            ComponentId fieldOwnerComponentId) {
         this(kind, componentId, componentName, method, source);
         this.fieldName = fieldName;
         this.fieldOwnerComponentId = fieldOwnerComponentId;

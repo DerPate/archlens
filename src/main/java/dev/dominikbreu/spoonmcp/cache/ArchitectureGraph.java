@@ -79,18 +79,27 @@ public class ArchitectureGraph {
         sourceModel.externalSystems.forEach(this::addExternalSystem);
         sourceModel.runtimeFlows.forEach(this::addRuntimeFlow);
 
-        sourceModel.applications.forEach(app -> app.componentIds.forEach(
-                componentId -> addEdge(app.id, componentId, "OWNS", Map.of("source", "application.componentIds"))));
+        sourceModel.applications.forEach(app -> app.componentIds.forEach(componentId ->
+                addEdge(app.id, componentId.serialize(), "OWNS", Map.of("source", "application.componentIds"))));
         sourceModel.entrypoints.forEach(entrypoint -> addEdge(
-                entrypoint.id, entrypoint.componentId, "STARTS_AT", Map.of("source", "entrypoint.componentId")));
+                entrypoint.id.serialize(),
+                entrypoint.componentId.serialize(),
+                "STARTS_AT",
+                Map.of("source", "entrypoint.componentId")));
         sourceModel.interfaces.forEach(interfaceEntry -> addEdge(
-                interfaceEntry.id, interfaceEntry.componentId, "EXPOSES", Map.of("source", "interface.componentId")));
-        sourceModel.containers.forEach(container -> container.componentIds.forEach(componentId ->
-                addEdge(container.id, componentId, "CONTAINS", Map.of("source", "container.componentIds"))));
+                interfaceEntry.id,
+                interfaceEntry.componentId.serialize(),
+                "EXPOSES",
+                Map.of("source", "interface.componentId")));
+        sourceModel.containers.forEach(container -> container.componentIds.forEach(componentId -> addEdge(
+                container.id, componentId.serialize(), "CONTAINS", Map.of("source", "container.componentIds"))));
         sourceModel.deployments.forEach(deployment -> deployment.appIds.forEach(
                 appId -> addEdge(deployment.id, appId, "DEPLOYS", Map.of("source", "deployment.appIds"))));
-        sourceModel.dependencies.forEach(dependency ->
-                addEdge(dependency.fromId, dependency.toId, "DEPENDS_ON", dependencyProperties(dependency)));
+        sourceModel.dependencies.forEach(dependency -> addEdge(
+                dependency.fromId.serialize(),
+                dependency.toId.serialize(),
+                "DEPENDS_ON",
+                dependencyProperties(dependency)));
         addCallEdges(sourceModel);
         addFieldAccessEdges(sourceModel);
         sourceModel.runtimeFlows.forEach(this::addRuntimeFlowEdges);
@@ -355,7 +364,7 @@ public class ArchitectureGraph {
     }
 
     private void addComponent(Component component) {
-        Vertex vertex = addVertex(component.id, "Component", component.name);
+        Vertex vertex = addVertex(component.id.serialize(), "Component", component.name);
         set(vertex, "kind", "component");
         set(vertex, "type", component.type != null ? component.type.name() : null);
         set(vertex, "componentType", component.type != null ? component.type.name() : null);
@@ -369,7 +378,7 @@ public class ArchitectureGraph {
     }
 
     private void addEntrypoint(Entrypoint entrypoint) {
-        Vertex vertex = addVertex(entrypoint.id, "Entrypoint", entrypoint.name);
+        Vertex vertex = addVertex(entrypoint.id.serialize(), "Entrypoint", entrypoint.name);
         set(vertex, "kind", "entrypoint");
         set(vertex, "type", entrypoint.type != null ? entrypoint.type.name() : null);
         set(vertex, "entrypointType", entrypoint.type != null ? entrypoint.type.name() : null);
@@ -430,30 +439,38 @@ public class ArchitectureGraph {
     private void addRuntimeFlow(RuntimeFlow flow) {
         Vertex vertex = addVertex(flow.id, "RuntimeFlow", flow.id);
         set(vertex, "kind", "runtimeFlow");
-        set(vertex, "entrypointId", flow.entrypointId);
+        set(vertex, "entrypointId", flow.entrypointId != null ? flow.entrypointId.serialize() : null);
         set(vertex, "stepCount", flow.steps.size());
     }
 
     private void addRuntimeFlowEdges(RuntimeFlow flow) {
-        addEdge(flow.id, flow.entrypointId, "STARTED_BY", Map.of("source", "runtimeFlow.entrypointId"));
+        addEdge(
+                flow.id,
+                flow.entrypointId != null ? flow.entrypointId.serialize() : "",
+                "STARTED_BY",
+                Map.of("source", "runtimeFlow.entrypointId"));
         for (RuntimeFlowStep step : flow.steps) {
             String stepId = flow.id + ":step:" + step.order;
             Vertex stepVertex = addVertex(stepId, "RuntimeFlowStep", step.componentName);
             set(stepVertex, "kind", "runtimeFlowStep");
             set(stepVertex, "flowId", flow.id);
             set(stepVertex, "order", step.order);
-            set(stepVertex, "componentId", step.componentId);
+            set(stepVertex, "componentId", step.componentId != null ? step.componentId.serialize() : null);
             set(stepVertex, "componentType", step.componentType);
             set(stepVertex, "via", step.via);
             addEdge(flow.id, stepId, "HAS_STEP", Map.of("order", step.order));
-            addEdge(stepId, step.componentId, "VISITS", Map.of("via", Objects.toString(step.via, "")));
+            addEdge(
+                    stepId,
+                    step.componentId != null ? step.componentId.serialize() : "",
+                    "VISITS",
+                    Map.of("via", Objects.toString(step.via, "")));
         }
     }
 
     private void addDataFlowPath(DataFlowPath path) {
         Vertex vertex = addVertex(path.id, "DataFlowPath", path.id);
         set(vertex, "kind", "dataFlowPath");
-        set(vertex, "entrypointId", path.entrypointId);
+        set(vertex, "entrypointId", path.entrypointId != null ? path.entrypointId.serialize() : null);
         set(vertex, "trackedParam", path.trackedParam);
         set(vertex, "stepCount", path.steps.size());
         set(vertex, "sinkCount", path.sinks.size());
@@ -488,16 +505,13 @@ public class ArchitectureGraph {
                 props.put("sourceFile", Objects.toString(callEdge.source.file, ""));
                 props.put("sourceLine", callEdge.source.line);
             }
-            addEdge(callEdge.fromComponentId, callEdge.toComponentId, "CALLS", props);
+            addEdge(callEdge.fromComponentId.serialize(), callEdge.toComponentId.serialize(), "CALLS", props);
         }
     }
 
     private void addDataFlowEdges(DataFlowPath path) {
-        addEdge(
-                path.entrypointId,
-                path.id,
-                "ORIGINATES",
-                Map.of("trackedParam", Objects.toString(path.trackedParam, "")));
+        String epVertexId = path.entrypointId != null ? path.entrypointId.serialize() : "";
+        addEdge(epVertexId, path.id, "ORIGINATES", Map.of("trackedParam", Objects.toString(path.trackedParam, "")));
 
         for (int i = 0; i < path.sinks.size(); i++) {
             DataFlowSink sink = path.sinks.get(i);
@@ -506,10 +520,13 @@ public class ArchitectureGraph {
             set(sinkVertex, "kind", "dataFlowSink");
             set(sinkVertex, "sinkKind", sink.kind != null ? sink.kind.value() : null);
             set(sinkVertex, "pathId", path.id);
-            set(sinkVertex, "componentId", sink.componentId);
+            set(sinkVertex, "componentId", sink.componentId != null ? sink.componentId.serialize() : null);
             set(sinkVertex, "method", sink.method);
             set(sinkVertex, "fieldName", sink.fieldName);
-            set(sinkVertex, "fieldOwnerComponentId", sink.fieldOwnerComponentId);
+            set(
+                    sinkVertex,
+                    "fieldOwnerComponentId",
+                    sink.fieldOwnerComponentId != null ? sink.fieldOwnerComponentId.serialize() : null);
             set(sinkVertex, "channel", sink.channel);
             set(sinkVertex, "broker", sink.broker != null ? sink.broker.name() : null);
             set(sinkVertex, "topic", sink.topic);
@@ -526,11 +543,15 @@ public class ArchitectureGraph {
             if (sink.kind == DataFlowSink.Kind.STORE && sink.fieldOwnerComponentId != null) {
                 addEdge(
                         sinkId,
-                        sink.fieldOwnerComponentId,
+                        sink.fieldOwnerComponentId.serialize(),
                         "ON_FIELD",
                         Map.of("fieldName", Objects.toString(sink.fieldName, "")));
             } else if (sink.componentId != null) {
-                addEdge(sinkId, sink.componentId, "AT_COMPONENT", Map.of("method", Objects.toString(sink.method, "")));
+                addEdge(
+                        sinkId,
+                        sink.componentId.serialize(),
+                        "AT_COMPONENT",
+                        Map.of("method", Objects.toString(sink.method, "")));
             }
         }
     }
@@ -557,7 +578,9 @@ public class ArchitectureGraph {
                 props.put("linkKind", sink.kind.value());
                 if (sink.kind == DataFlowSink.Kind.STORE) {
                     props.put("viaField", Objects.toString(sink.fieldName, ""));
-                    props.put("fieldOwnerComponentId", Objects.toString(sink.fieldOwnerComponentId, ""));
+                    props.put(
+                            "fieldOwnerComponentId",
+                            sink.fieldOwnerComponentId != null ? sink.fieldOwnerComponentId.serialize() : "");
                 } else {
                     props.put("viaChannel", Objects.toString(sink.channel, ""));
                 }
@@ -611,7 +634,8 @@ public class ArchitectureGraph {
             chainIdx++;
             String chainId = "chain:" + chainIdx;
             Segment root = chain.segments.get(0);
-            String rootEpId = root.path != null ? root.path.entrypointId : "";
+            String rootEpId =
+                    root.path != null && root.path.entrypointId != null ? root.path.entrypointId.serialize() : "";
             Vertex vertex = addVertex(chainId, "PipelineChain", chainId);
             set(vertex, "kind", "pipelineChain");
             set(vertex, "segmentCount", chain.segments.size());
@@ -634,7 +658,9 @@ public class ArchitectureGraph {
                     edgeProps.put("incomingSinkId", incomingSinkId(chain, i, sourceModel));
                     if (in.kind == DataFlowSink.Kind.STORE) {
                         edgeProps.put("viaField", Objects.toString(in.fieldName, ""));
-                        edgeProps.put("fieldOwnerComponentId", Objects.toString(in.fieldOwnerComponentId, ""));
+                        edgeProps.put(
+                                "fieldOwnerComponentId",
+                                in.fieldOwnerComponentId != null ? in.fieldOwnerComponentId.serialize() : "");
                     } else {
                         edgeProps.put("viaChannel", Objects.toString(in.channel, ""));
                     }
@@ -664,8 +690,8 @@ public class ArchitectureGraph {
         properties.put("isRuntimeRelevant", isRuntimeRelevant(dependency));
         properties.put("isCondensable", isCondensable(dependency));
         properties.put("weight", dependency.confidence);
-        Component from = componentById(dependency.fromId);
-        Component to = componentById(dependency.toId);
+        Component from = componentById(dependency.fromId.serialize());
+        Component to = componentById(dependency.toId.serialize());
         properties.put("fromModule", from != null ? Objects.toString(from.module, "") : "");
         properties.put("toModule", to != null ? Objects.toString(to.module, "") : "");
         properties.put("isCrossModule", from != null && to != null && !Objects.equals(from.module, to.module));
@@ -673,18 +699,21 @@ public class ArchitectureGraph {
     }
 
     private void addFieldAccessEdges(ArchitectureModel sourceModel) {
-        Map<String, List<FieldAccess>> readsByState = new LinkedHashMap<>();
-        Map<String, List<FieldAccess>> writesByState = new LinkedHashMap<>();
+        Map<dev.dominikbreu.spoonmcp.model.ids.FieldRef, List<FieldAccess>> readsByState = new LinkedHashMap<>();
+        Map<dev.dominikbreu.spoonmcp.model.ids.FieldRef, List<FieldAccess>> writesByState = new LinkedHashMap<>();
         for (FieldAccess access : sourceModel.fieldAccesses) {
-            if (access.kind == null
-                    || access.componentId == null
-                    || access.fieldOwnerComponentId == null
-                    || access.fieldName == null) {
+            if (access.kind == null || access.componentId == null || access.fieldBinding == null) {
                 continue;
             }
+            dev.dominikbreu.spoonmcp.model.ids.ComponentId fieldOwner =
+                    access.fieldBinding instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent cc
+                            ? cc.ref().owner()
+                            : access.componentId;
+            String fieldName = access.fieldBinding.fieldName();
             String edgeLabel = access.kind == FieldAccess.Kind.WRITE ? "WRITES_STATE" : "READS_STATE";
-            addEdge(access.componentId, access.fieldOwnerComponentId, edgeLabel, fieldAccessProperties(access));
-            String key = access.fieldOwnerComponentId + "@" + access.fieldName;
+            addEdge(access.componentId.serialize(), fieldOwner.serialize(), edgeLabel, fieldAccessProperties(access));
+            dev.dominikbreu.spoonmcp.model.ids.FieldRef key =
+                    new dev.dominikbreu.spoonmcp.model.ids.FieldRef(fieldOwner, fieldName);
             if (access.kind == FieldAccess.Kind.WRITE) {
                 writesByState.computeIfAbsent(key, ignored -> new ArrayList<>()).add(access);
             } else if (access.kind == FieldAccess.Kind.READ) {
@@ -692,7 +721,8 @@ public class ArchitectureGraph {
             }
         }
 
-        for (Map.Entry<String, List<FieldAccess>> entry : writesByState.entrySet()) {
+        for (Map.Entry<dev.dominikbreu.spoonmcp.model.ids.FieldRef, List<FieldAccess>> entry :
+                writesByState.entrySet()) {
             List<FieldAccess> reads = readsByState.get(entry.getKey());
             if (reads == null) {
                 continue;
@@ -705,8 +735,8 @@ public class ArchitectureGraph {
                         }
                     } else {
                         addEdge(
-                                write.componentId,
-                                read.componentId,
+                                write.componentId.serialize(),
+                                read.componentId.serialize(),
                                 "STATE_HANDOFF",
                                 stateHandoffProperties(write, read));
                     }
@@ -717,8 +747,13 @@ public class ArchitectureGraph {
 
     private Map<String, Object> fieldAccessProperties(FieldAccess access) {
         Map<String, Object> properties = new HashMap<>();
-        properties.put("fieldName", Objects.toString(access.fieldName, ""));
-        properties.put("fieldOwnerComponentId", Objects.toString(access.fieldOwnerComponentId, ""));
+        String fieldName = access.fieldBinding != null ? access.fieldBinding.fieldName() : "";
+        dev.dominikbreu.spoonmcp.model.ids.ComponentId fieldOwner =
+                access.fieldBinding instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent cc
+                        ? cc.ref().owner()
+                        : (access.componentId != null ? access.componentId : null);
+        properties.put("fieldName", fieldName);
+        properties.put("fieldOwnerComponentId", fieldOwner != null ? fieldOwner.serialize() : "");
         properties.put("method", Objects.toString(access.method, ""));
         properties.put("accessKind", access.kind != null ? access.kind.name().toLowerCase(Locale.ROOT) : "");
         properties.put("source", "field_access");
@@ -732,8 +767,13 @@ public class ArchitectureGraph {
 
     private Map<String, Object> stateHandoffProperties(FieldAccess write, FieldAccess read) {
         Map<String, Object> properties = new HashMap<>();
-        properties.put("fieldName", Objects.toString(write.fieldName, ""));
-        properties.put("fieldOwnerComponentId", Objects.toString(write.fieldOwnerComponentId, ""));
+        String writeFieldName = write.fieldBinding != null ? write.fieldBinding.fieldName() : "";
+        dev.dominikbreu.spoonmcp.model.ids.ComponentId writeFieldOwner =
+                write.fieldBinding instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent cc
+                        ? cc.ref().owner()
+                        : (write.componentId != null ? write.componentId : null);
+        properties.put("fieldName", writeFieldName);
+        properties.put("fieldOwnerComponentId", writeFieldOwner != null ? writeFieldOwner.serialize() : "");
         properties.put("writerMethod", Objects.toString(write.method, ""));
         properties.put("readerMethod", Objects.toString(read.method, ""));
         properties.put("source", "field_access");
@@ -743,8 +783,8 @@ public class ArchitectureGraph {
 
     private void propagateStateHandoffThroughCallers(
             FieldAccess write, FieldAccess read, ArchitectureModel sourceModel) {
-        Set<String> writerCallers = new HashSet<>();
-        Set<String> readerCallers = new HashSet<>();
+        Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> writerCallers = new HashSet<>();
+        Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> readerCallers = new HashSet<>();
         for (CallEdge e : sourceModel.callEdges) {
             if (e.fromComponentId == null || e.toComponentId == null || e.toMethod == null) {
                 continue;
@@ -756,10 +796,14 @@ public class ArchitectureGraph {
                 readerCallers.add(e.fromComponentId);
             }
         }
-        for (String caller1 : writerCallers) {
-            for (String caller2 : readerCallers) {
+        for (dev.dominikbreu.spoonmcp.model.ids.ComponentId caller1 : writerCallers) {
+            for (dev.dominikbreu.spoonmcp.model.ids.ComponentId caller2 : readerCallers) {
                 if (!caller1.equals(caller2)) {
-                    addEdge(caller1, caller2, "STATE_HANDOFF", stateHandoffProperties(write, read));
+                    addEdge(
+                            caller1.serialize(),
+                            caller2.serialize(),
+                            "STATE_HANDOFF",
+                            stateHandoffProperties(write, read));
                 }
             }
         }
@@ -1003,7 +1047,7 @@ public class ArchitectureGraph {
             return null;
         }
         return model.components.stream()
-                .filter(component -> componentId.equals(component.id))
+                .filter(component -> componentId.equals(component.id.serialize()))
                 .findFirst()
                 .orElse(null);
     }
@@ -1047,8 +1091,8 @@ public class ArchitectureGraph {
     }
 
     private boolean isCondensable(Dependency dependency) {
-        Component from = componentById(dependency.fromId);
-        Component to = componentById(dependency.toId);
+        Component from = componentById(dependency.fromId.serialize());
+        Component to = componentById(dependency.toId.serialize());
         return isUtilityLike(from) || isUtilityLike(to);
     }
 

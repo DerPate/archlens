@@ -102,7 +102,7 @@ class JavaEEExtractorTest extends ExtractorTestBase {
                 .toList();
         assertThat(jms).hasSize(1);
         assertThat(jms.get(0).name).isEqualTo("onMessage");
-        assertThat(jms.get(0).componentId).contains("NotificationMDB");
+        assertThat(jms.get(0).componentId.qualifiedName()).contains("NotificationMDB");
     }
 
     @Test

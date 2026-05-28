@@ -69,11 +69,12 @@ public class MermaidUseCaseTimelineRenderer {
     }
 
     private String sectionLabel(Entrypoint ep, RuntimeFlow flow) {
-        if (ep == null) return flow.entrypointId;
+        String epId = flow.entrypointId != null ? flow.entrypointId.serialize() : "";
+        if (ep == null) return epId;
         if (ep.httpMethod != null && ep.path != null) return ep.httpMethod + " " + ep.path;
         if (ep.channelName != null) return ep.channelName;
         if (ep.name != null) return ep.name;
-        return flow.entrypointId;
+        return epId;
     }
 
     private String taskLabel(RuntimeFlowStep step) {
@@ -93,8 +94,9 @@ public class MermaidUseCaseTimelineRenderer {
     }
 
     private Entrypoint findEntrypoint(RuntimeFlow flow, ArchitectureModel model) {
+        if (flow.entrypointId == null) return null;
         return model.entrypoints.stream()
-                .filter(e -> e.id.equals(flow.entrypointId))
+                .filter(e -> flow.entrypointId.equals(e.id))
                 .findFirst()
                 .orElse(null);
     }

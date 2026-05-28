@@ -48,7 +48,7 @@ public class ExternalSystemInferrer {
                 s.technology = "microprofile-rest-client";
                 return s;
             });
-            addDependency(model, existingDeps, iface.componentId, system.id, "rest-client");
+            addDependency(model, existingDeps, iface.componentId.serialize(), system.id, "rest-client");
         }
 
         for (InterfaceEntry iface : model.interfaces) {
@@ -56,7 +56,7 @@ public class ExternalSystemInferrer {
             MessagingBroker broker = iface.broker != null ? iface.broker : MessagingBroker.UNKNOWN;
             if (broker == MessagingBroker.IN_MEMORY) continue;
             ExternalSystem system = systemForBroker(systemsById, broker);
-            addDependency(model, existingDeps, iface.componentId, system.id, "messaging");
+            addDependency(model, existingDeps, iface.componentId.serialize(), system.id, "messaging");
         }
 
         for (Entrypoint ep : model.entrypoints) {
@@ -64,7 +64,7 @@ public class ExternalSystemInferrer {
             MessagingBroker broker = ep.broker != null ? ep.broker : MessagingBroker.UNKNOWN;
             if (broker == MessagingBroker.IN_MEMORY) continue;
             ExternalSystem system = systemForBroker(systemsById, broker);
-            addDependency(model, existingDeps, ep.componentId, system.id, "messaging");
+            addDependency(model, existingDeps, ep.componentId.serialize(), system.id, "messaging");
         }
 
         for (ExternalSystem s : systemsById.values()) {
@@ -111,8 +111,8 @@ public class ExternalSystemInferrer {
         if (!existing.add(id)) return;
         Dependency d = new Dependency();
         d.id = id;
-        d.fromId = fromId;
-        d.toId = toId;
+        d.fromId = dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(fromId);
+        d.toId = dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(toId);
         d.kind = kind;
         d.derivedFrom = "external-system-inferrer";
         d.confidence = 0.95;

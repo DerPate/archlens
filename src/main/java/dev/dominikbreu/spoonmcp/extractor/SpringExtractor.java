@@ -66,7 +66,7 @@ public class SpringExtractor {
     public void extract(Collection<CtType<?>> types, ArchitectureModel model, String appId) {
         Span span = tracer().spanBuilder("spring.extract").startSpan();
         try (Scope scope = span.makeCurrent()) {
-            Set<String> existingIds = new HashSet<>();
+            Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> existingIds = new HashSet<>();
             for (Component component : model.components) existingIds.add(component.id);
 
             for (CtType<?> type : types) {
@@ -130,7 +130,7 @@ public class SpringExtractor {
 
         if (componentType == null) return null;
         Component component = new Component();
-        component.id = "comp:" + type.getQualifiedName();
+        component.id = dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName());
         component.type = componentType;
         component.name = type.getSimpleName();
         component.qualifiedName = type.getQualifiedName();
@@ -229,8 +229,12 @@ public class SpringExtractor {
         extractOutboundCallSites(type, component, model);
     }
 
-    private String restEndpointId(CtType<?> type, CtMethod<?> method, Mapping mapping, String fullPath) {
-        return "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + ":" + mapping.method() + ":" + fullPath;
+    private dev.dominikbreu.spoonmcp.model.ids.EntrypointId restEndpointId(
+            CtType<?> type, CtMethod<?> method, Mapping mapping, String fullPath) {
+        return new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
+                dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
+                method.getSimpleName(),
+                mapping.method() + ":" + fullPath);
     }
 
     private void addSimpleEntrypoint(
@@ -240,8 +244,11 @@ public class SpringExtractor {
             EntrypointType entrypointType,
             String suffix,
             ArchitectureModel model) {
-        String id = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + ":" + suffix;
-        if (model.entrypoints.stream().anyMatch(e -> e.id.equals(id))) return;
+        dev.dominikbreu.spoonmcp.model.ids.EntrypointId id = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
+                dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
+                method.getSimpleName(),
+                suffix);
+        if (model.entrypoints.stream().anyMatch(e -> id.equals(e.id))) return;
         Entrypoint ep = new Entrypoint();
         ep.id = id;
         ep.type = entrypointType;
@@ -263,9 +270,11 @@ public class SpringExtractor {
         if (!hasAnnotation(method, annotation)) return;
         String resolved = config.resolve(channel);
         if (resolved == null || resolved.isBlank()) resolved = "(unresolved)";
-        String id = "ep:" + type.getQualifiedName() + "#" + method.getSimpleName() + ":spring-listener:" + broker + ":"
-                + resolved;
-        if (model.entrypoints.stream().anyMatch(e -> e.id.equals(id))) return;
+        dev.dominikbreu.spoonmcp.model.ids.EntrypointId id = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
+                dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
+                method.getSimpleName(),
+                "spring-listener:" + broker + ":" + resolved);
+        if (model.entrypoints.stream().anyMatch(e -> id.equals(e.id))) return;
         Entrypoint ep = new Entrypoint();
         ep.id = id;
         ep.type = entrypointType;
@@ -357,7 +366,7 @@ public class SpringExtractor {
 
     protected InterfaceEntry addInterface(
             CtElement element, Component component, String type, String name, String path, ArchitectureModel model) {
-        String id = "iface:" + component.id.substring("comp:".length()) + ":" + type + ":" + name;
+        String id = "iface:" + component.id.qualifiedName() + ":" + type + ":" + name;
         if (model.interfaces.stream().anyMatch(i -> i.id.equals(id))) return null;
         InterfaceEntry entry = new InterfaceEntry();
         entry.id = id;

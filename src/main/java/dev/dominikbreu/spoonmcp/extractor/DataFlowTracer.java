@@ -92,7 +92,7 @@ public class DataFlowTracer {
                 Map<String, String> currentToOriginal = new LinkedHashMap<>();
                 for (String tracked : trackedNames) {
                     DataFlowPath path = new DataFlowPath();
-                    path.id = "df:" + ep.id + "#" + tracked;
+                    path.id = "df:" + ep.id.serialize() + "#" + tracked;
                     path.entrypointId = ep.id;
                     path.trackedParam = tracked;
                     pathsByOriginal.put(tracked, path);
@@ -131,17 +131,18 @@ public class DataFlowTracer {
      */
     private void linkStoreSinksToFieldReaders(List<DataFlowPath> paths, ArchitectureModel model, ModelIndex index) {
         // Build entrypointId → set of (fieldOwnerComponentId, fieldName) pairs read transitively.
-        Map<String, Set<String>> readsByEntrypoint = new HashMap<>();
+        Map<String, Set<dev.dominikbreu.spoonmcp.model.ids.FieldRef>> readsByEntrypoint = new HashMap<>();
         for (Entrypoint ep : model.entrypoints) {
-            readsByEntrypoint.put(ep.id, collectReachableReadFieldKeys(ep, index));
+            readsByEntrypoint.put(ep.id.serialize(), collectReachableReadFieldKeys(ep, index));
         }
 
-        // Index reader paths by (owner, field) → pathIds.
-        Map<String, List<String>> readerPathsByKey = new HashMap<>();
+        // Index reader paths by FieldRef → pathIds.
+        Map<dev.dominikbreu.spoonmcp.model.ids.FieldRef, List<String>> readerPathsByKey = new HashMap<>();
         for (DataFlowPath p : paths) {
-            Set<String> keys = readsByEntrypoint.get(p.entrypointId);
+            String epIdStr = p.entrypointId != null ? p.entrypointId.serialize() : null;
+            Set<dev.dominikbreu.spoonmcp.model.ids.FieldRef> keys = readsByEntrypoint.get(epIdStr);
             if (keys == null) continue;
-            for (String key : keys) {
+            for (dev.dominikbreu.spoonmcp.model.ids.FieldRef key : keys) {
                 readerPathsByKey.computeIfAbsent(key, k -> new ArrayList<>()).add(p.id);
             }
         }
@@ -151,20 +152,22 @@ public class DataFlowTracer {
         // that would create phantom loops back to the same entrypoint in the pipeline diagram.
         Map<String, String> pathIdToEpId = new HashMap<>();
         for (DataFlowPath p2 : paths) {
-            pathIdToEpId.put(p2.id, p2.entrypointId);
+            pathIdToEpId.put(p2.id, p2.entrypointId != null ? p2.entrypointId.serialize() : null);
         }
 
         for (DataFlowPath p : paths) {
+            String pEpIdStr = p.entrypointId != null ? p.entrypointId.serialize() : null;
             for (DataFlowSink s : p.sinks) {
                 if (s.kind != DataFlowSink.Kind.STORE) continue;
                 if (s.fieldOwnerComponentId == null || s.fieldName == null) continue;
-                String key = s.fieldOwnerComponentId + "@" + s.fieldName;
+                dev.dominikbreu.spoonmcp.model.ids.FieldRef key =
+                        new dev.dominikbreu.spoonmcp.model.ids.FieldRef(s.fieldOwnerComponentId, s.fieldName);
                 List<String> readerIds = readerPathsByKey.get(key);
                 if (readerIds == null) continue;
                 for (String rid : readerIds) {
                     String readerEpId = pathIdToEpId.get(rid);
                     if (!rid.equals(p.id)
-                            && (readerEpId == null || !readerEpId.equals(p.entrypointId))
+                            && (readerEpId == null || !readerEpId.equals(pEpIdStr))
                             && !s.linkedPathIds.contains(rid)) {
                         s.linkedPathIds.add(rid);
                     }
@@ -186,10 +189,10 @@ public class DataFlowTracer {
         Map<String, List<String>> consumerPathsByChannel = new HashMap<>();
         Map<String, Entrypoint> entrypointById = new HashMap<>();
         for (Entrypoint ep : model.entrypoints) {
-            entrypointById.put(ep.id, ep);
+            entrypointById.put(ep.id.serialize(), ep);
         }
         for (DataFlowPath path : paths) {
-            Entrypoint ep = entrypointById.get(path.entrypointId);
+            Entrypoint ep = entrypointById.get(path.entrypointId != null ? path.entrypointId.serialize() : null);
             if (ep == null) continue;
             if (ep.type != EntrypointType.MESSAGING_CONSUMER && ep.type != EntrypointType.JMS_CONSUMER) continue;
             String key = destinationKey(ep.broker, ep.channelName);
@@ -232,25 +235,27 @@ public class DataFlowTracer {
         return brokerKey + ":" + destination.trim();
     }
 
-    private Set<String> collectReachableReadFieldKeys(Entrypoint ep, ModelIndex index) {
-        Set<String> keys = new LinkedHashSet<>();
-        Deque<String> stack = new ArrayDeque<>();
-        Set<String> seen = new HashSet<>();
-        String start = ep.componentId + "#" + ep.name;
+    private Set<dev.dominikbreu.spoonmcp.model.ids.FieldRef> collectReachableReadFieldKeys(
+            Entrypoint ep, ModelIndex index) {
+        Set<dev.dominikbreu.spoonmcp.model.ids.FieldRef> keys = new LinkedHashSet<>();
+        Deque<dev.dominikbreu.spoonmcp.model.ids.MethodRef> stack = new ArrayDeque<>();
+        Set<dev.dominikbreu.spoonmcp.model.ids.MethodRef> seen = new HashSet<>();
+        dev.dominikbreu.spoonmcp.model.ids.MethodRef start =
+                new dev.dominikbreu.spoonmcp.model.ids.MethodRef(ep.componentId, ep.name);
         stack.push(start);
         seen.add(start);
         int budget = 64;
         while (!stack.isEmpty() && budget-- > 0) {
-            String key = stack.pop();
-            String[] parts = key.split("#", 2);
-            for (FieldAccess r : index.fieldAccess.reads(parts[0], parts[1])) {
-                if (r.fieldOwnerComponentId != null && r.fieldName != null) {
-                    keys.add(r.fieldOwnerComponentId + "@" + r.fieldName);
+            dev.dominikbreu.spoonmcp.model.ids.MethodRef current = stack.pop();
+            for (FieldAccess r : index.fieldAccess.reads(current.component(), current.method())) {
+                if (r.fieldBinding instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent cc) {
+                    keys.add(cc.ref());
                 }
             }
-            for (CallEdge edge : index.callAdj.edgesByKey(key)) {
+            for (CallEdge edge : index.callAdj.edges(current.component(), current.method())) {
                 if (!traversalPolicy.canTraverseInline(edge)) continue;
-                String next = edge.toComponentId + "#" + edge.toMethod;
+                dev.dominikbreu.spoonmcp.model.ids.MethodRef next =
+                        new dev.dominikbreu.spoonmcp.model.ids.MethodRef(edge.toComponentId, edge.toMethod);
                 if (seen.add(next)) stack.push(next);
             }
         }
@@ -258,7 +263,7 @@ public class DataFlowTracer {
     }
 
     private void dfs(
-            String compId,
+            dev.dominikbreu.spoonmcp.model.ids.ComponentId compId,
             String method,
             Map<String, String> currentToOriginal,
             Map<String, DataFlowPath> pathsByOriginal,
@@ -267,13 +272,13 @@ public class DataFlowTracer {
             Set<String> onCurrentPath,
             Map<String, String> resolvedCallerArgs) {
 
-        String nodeKey = compId + "#" + method;
+        String nodeKey = compId.serialize() + "#" + method;
         if (onCurrentPath.contains(nodeKey) || depth > MAX_DEPTH) return;
         onCurrentPath.add(nodeKey);
 
         try {
             Component comp = index.components.get(compId);
-            String compName = comp != null ? comp.name : compId;
+            String compName = comp != null ? comp.name : compId.serialize();
 
             for (Map.Entry<String, String> e : currentToOriginal.entrySet()) {
                 DataFlowPath path = pathsByOriginal.get(e.getValue());
@@ -312,17 +317,22 @@ public class DataFlowTracer {
                     boolean valueSourceUnresolvable =
                             !"*".equals(currentName) && fw.sourceVarName == null && fw.sourceFieldName == null;
                     if (isEntrypointBody || sourceMatches || valueSourceUnresolvable) {
+                        dev.dominikbreu.spoonmcp.model.ids.ComponentId fieldOwner = fw.fieldBinding
+                                        instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent cc
+                                ? cc.ref().owner()
+                                : fw.componentId;
+                        String fieldName = fw.fieldBinding.fieldName();
                         pathsByOriginal
                                 .get(e.getValue())
                                 .sinks
                                 .add(new DataFlowSink(
                                         DataFlowSink.Kind.STORE,
-                                        fw.fieldOwnerComponentId,
+                                        fieldOwner,
                                         compName,
-                                        fw.fieldName,
+                                        fieldName,
                                         fw.source,
-                                        fw.fieldName,
-                                        fw.fieldOwnerComponentId));
+                                        fieldName,
+                                        fieldOwner));
                     }
                 }
             }
@@ -338,7 +348,7 @@ public class DataFlowTracer {
                         DataFlowSink sink = new DataFlowSink(
                                 sinkKind,
                                 edge.toComponentId,
-                                target != null ? target.name : edge.toComponentId,
+                                target != null ? target.name : edge.toComponentId.serialize(),
                                 edge.toMethod,
                                 edge.source);
                         if (sinkKind == DataFlowSink.Kind.PERSISTENCE) {
@@ -403,21 +413,22 @@ public class DataFlowTracer {
 
     private Set<String> collectReachableReadFields(Entrypoint ep, ModelIndex index) {
         Set<String> fields = new LinkedHashSet<>();
-        Deque<String> stack = new ArrayDeque<>();
-        Set<String> seen = new HashSet<>();
-        String start = ep.componentId + "#" + ep.name;
+        Deque<dev.dominikbreu.spoonmcp.model.ids.MethodRef> stack = new ArrayDeque<>();
+        Set<dev.dominikbreu.spoonmcp.model.ids.MethodRef> seen = new HashSet<>();
+        dev.dominikbreu.spoonmcp.model.ids.MethodRef start =
+                new dev.dominikbreu.spoonmcp.model.ids.MethodRef(ep.componentId, ep.name);
         stack.push(start);
         seen.add(start);
         int budget = 64;
         while (!stack.isEmpty() && budget-- > 0) {
-            String key = stack.pop();
-            String[] parts = key.split("#", 2);
-            for (FieldAccess r : index.fieldAccess.reads(parts[0], parts[1])) {
-                fields.add(r.fieldName);
+            dev.dominikbreu.spoonmcp.model.ids.MethodRef current = stack.pop();
+            for (FieldAccess r : index.fieldAccess.reads(current.component(), current.method())) {
+                fields.add(r.fieldBinding.fieldName());
             }
-            for (CallEdge edge : index.callAdj.edgesByKey(key)) {
+            for (CallEdge edge : index.callAdj.edges(current.component(), current.method())) {
                 if (!traversalPolicy.canTraverseInline(edge)) continue;
-                String next = edge.toComponentId + "#" + edge.toMethod;
+                dev.dominikbreu.spoonmcp.model.ids.MethodRef next =
+                        new dev.dominikbreu.spoonmcp.model.ids.MethodRef(edge.toComponentId, edge.toMethod);
                 if (seen.add(next)) stack.push(next);
             }
         }
@@ -466,12 +477,12 @@ public class DataFlowTracer {
     private void linkPersistenceWritesToReaders(List<DataFlowPath> paths, ArchitectureModel model) {
         Map<String, Entrypoint> entrypointById = new HashMap<>();
         for (Entrypoint ep : model.entrypoints) {
-            entrypointById.put(ep.id, ep);
+            entrypointById.put(ep.id.serialize(), ep);
         }
 
         Map<String, List<String>> readPathsByEntity = new HashMap<>();
         for (DataFlowPath path : paths) {
-            Entrypoint ep = entrypointById.get(path.entrypointId);
+            Entrypoint ep = entrypointById.get(path.entrypointId != null ? path.entrypointId.serialize() : null);
             if (ep != null && PERSISTENCE_HANDOFF_EXCLUDED_TARGETS.contains(ep.type)) continue;
             for (DataFlowSink sink : path.sinks) {
                 if (sink.kind != DataFlowSink.Kind.PERSISTENCE) continue;
@@ -510,9 +521,11 @@ public class DataFlowTracer {
         if (entity.isBlank()) return null;
         String basePackage = qn.substring(0, repoIndex);
         String candidate = basePackage + ".model." + entity;
-        if (index.components.get("comp:" + candidate) != null) return candidate;
+        if (index.components.get(dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(candidate)) != null)
+            return candidate;
         String withEntitySuffix = candidate + "Entity";
-        if (index.components.get("comp:" + withEntitySuffix) != null) return withEntitySuffix;
+        if (index.components.get(dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(withEntitySuffix)) != null)
+            return withEntitySuffix;
         return index.entityIndex.resolve(basePackage, entity);
     }
 

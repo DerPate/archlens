@@ -1,5 +1,7 @@
 package dev.dominikbreu.spoonmcp.model;
 
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,7 +12,7 @@ public class RuntimeFlow {
     /** Stable runtime flow identifier. */
     public String id;
     /** Entrypoint identifier that starts this flow. */
-    public String entrypointId;
+    public EntrypointId entrypointId;
     /** Ordered steps in the inferred runtime flow. */
     public List<RuntimeFlowStep> steps = new ArrayList<>();
     /** Directed edges between component steps, preserving branching topology. */
@@ -22,9 +24,9 @@ public class RuntimeFlow {
     /** A directed call edge between two component steps in the flow. */
     public static class FlowEdge {
         /** Source component identifier. */
-        public String fromId;
+        public ComponentId fromId;
         /** Target component identifier. */
-        public String toId;
+        public ComponentId toId;
         /** Optional edge label (e.g. method name or channel). */
         public String label;
 
@@ -38,7 +40,7 @@ public class RuntimeFlow {
          * @param toId   target component id
          * @param label  optional label; may be null
          */
-        public FlowEdge(String fromId, String toId, String label) {
+        public FlowEdge(ComponentId fromId, ComponentId toId, String label) {
             this.fromId = fromId;
             this.toId = toId;
             this.label = label;

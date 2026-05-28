@@ -193,7 +193,8 @@ public class CallGraphExtractor {
             Map<String, List<String>> entrypointParams = buildEntrypointParamMap(model);
 
             for (CtType<?> type : ctModel.getAllTypes()) {
-                String fromId = "comp:" + type.getQualifiedName();
+                dev.dominikbreu.spoonmcp.model.ids.ComponentId fromId =
+                        dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName());
                 Component fromComp = ctx.components.get(fromId);
                 if (fromComp == null) continue;
 
@@ -341,13 +342,12 @@ public class CallGraphExtractor {
         FieldAccess fa = new FieldAccess();
         fa.kind = kind;
         fa.componentId = owner.id;
-        fa.fieldOwnerComponentId = owner.id;
-        fa.fieldName = fieldName;
+        fa.fieldBinding = new dev.dominikbreu.spoonmcp.model.ids.FieldBinding.Own(fieldName);
         fa.method = method;
         fa.sourceVarName = sourceVar;
         fa.sourceFieldName = sourceField;
         fa.keyVarName = keyVar;
-        fa.id = "field:" + owner.id + "#" + method + "@" + fieldName + ":"
+        fa.id = "field:" + owner.id.serialize() + "#" + method + "@" + fieldName + ":"
                 + kind.name().toLowerCase();
         String file = (pos != null && pos.isValidPosition()) ? pos.getFile().getAbsolutePath() : "unknown";
         int line = (pos != null && pos.isValidPosition()) ? pos.getLine() : 0;
@@ -402,7 +402,8 @@ public class CallGraphExtractor {
                 continue;
             }
             for (ReceiverTarget target : objectFlowIndex.resolveReceiver(inv)) {
-                Component owner = ctx.components.get(target.componentId());
+                Component owner = ctx.components.get(
+                        dev.dominikbreu.spoonmcp.model.ids.ComponentId.deserialize(target.componentId()));
                 if (owner == null) {
                     continue;
                 }
@@ -424,11 +425,11 @@ public class CallGraphExtractor {
         FieldAccess access = new FieldAccess();
         access.kind = kind;
         access.componentId = fromComp.id;
-        access.fieldOwnerComponentId = fieldOwner.id;
-        access.fieldName = fieldName;
+        access.fieldBinding = new dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent(
+                new dev.dominikbreu.spoonmcp.model.ids.FieldRef(fieldOwner.id, fieldName));
         access.method = methodName;
-        access.id = "field:" + fromComp.id + "#" + methodName + "@" + fieldOwner.id + "#" + fieldName + ":"
-                + kind.name().toLowerCase() + ":object-flow";
+        access.id = "field:" + fromComp.id.serialize() + "#" + methodName + "@" + fieldOwner.id.serialize() + "#"
+                + fieldName + ":" + kind.name().toLowerCase() + ":object-flow";
         var pos = invocation.getPosition();
         String file = (pos != null && pos.isValidPosition()) ? pos.getFile().getAbsolutePath() : "unknown";
         int line = (pos != null && pos.isValidPosition()) ? pos.getLine() : 0;
@@ -490,7 +491,8 @@ public class CallGraphExtractor {
         }
     }
 
-    private Map<String, Component> buildFieldMap(CtType<?> type, String ownId, ExtractionContext ctx) {
+    private Map<String, Component> buildFieldMap(
+            CtType<?> type, dev.dominikbreu.spoonmcp.model.ids.ComponentId ownId, ExtractionContext ctx) {
         Map<String, Component> map = new HashMap<>();
         if (sourceFacts != null) {
             for (SourceInjectionPoint injection :
@@ -515,7 +517,8 @@ public class CallGraphExtractor {
         return map;
     }
 
-    private Component resolveSourceFactType(String qualifiedName, String ownId, ExtractionContext ctx) {
+    private Component resolveSourceFactType(
+            String qualifiedName, dev.dominikbreu.spoonmcp.model.ids.ComponentId ownId, ExtractionContext ctx) {
         Component direct = ctx.components.find(qualifiedName, simpleName(qualifiedName));
         if (direct != null && !direct.id.equals(ownId)) {
             return direct;
@@ -552,7 +555,8 @@ public class CallGraphExtractor {
             List<ReceiverTarget> receiverTargets = objectFlowIndex.resolveReceiver(inv);
             if (!receiverTargets.isEmpty()) {
                 for (ReceiverTarget target : receiverTargets) {
-                    Component toComp = ctx.components.get(target.componentId());
+                    Component toComp = ctx.components.get(
+                            dev.dominikbreu.spoonmcp.model.ids.ComponentId.deserialize(target.componentId()));
                     if (toComp == null || toComp.id.equals(fromComp.id)) continue;
                     emitCallEdge(
                             inv,
@@ -808,11 +812,11 @@ public class CallGraphExtractor {
             FieldAccess fa = new FieldAccess();
             fa.kind = FieldAccess.Kind.READ;
             fa.componentId = fromComp.id;
-            fa.fieldOwnerComponentId = toComp.id;
-            fa.fieldName = fieldName;
+            fa.fieldBinding = new dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent(
+                    new dev.dominikbreu.spoonmcp.model.ids.FieldRef(toComp.id, fieldName));
             fa.method = fromMethod;
-            fa.id = "field:" + fromComp.id + "#" + fromMethod + "@" + toComp.id + "#" + calleeMethod.getSimpleName()
-                    + ":" + fieldName + ":read:xcomp";
+            fa.id = "field:" + fromComp.id.serialize() + "#" + fromMethod + "@" + toComp.id.serialize() + "#"
+                    + calleeMethod.getSimpleName() + ":" + fieldName + ":read:xcomp";
             var pos = inv.getPosition();
             String file = (pos != null && pos.isValidPosition()) ? pos.getFile().getAbsolutePath() : "unknown";
             int line = (pos != null && pos.isValidPosition()) ? pos.getLine() : 0;
@@ -924,14 +928,17 @@ public class CallGraphExtractor {
     private Map<String, List<String>> buildEntrypointParamMap(ArchitectureModel model) {
         Map<String, List<String>> map = new HashMap<>();
         for (Entrypoint ep : model.entrypoints) {
-            map.computeIfAbsent(ep.componentId + "#" + ep.name, k -> new ArrayList<>());
+            map.computeIfAbsent(ep.componentId.serialize() + "#" + ep.name, k -> new ArrayList<>());
         }
         return map;
     }
 
     private void enrichEntrypointParameters(
-            CtMethod<?> method, String compId, Map<String, List<String>> entrypointParams, ArchitectureModel model) {
-        String key = compId + "#" + method.getSimpleName();
+            CtMethod<?> method,
+            dev.dominikbreu.spoonmcp.model.ids.ComponentId compId,
+            Map<String, List<String>> entrypointParams,
+            ArchitectureModel model) {
+        String key = compId.serialize() + "#" + method.getSimpleName();
         if (!entrypointParams.containsKey(key)) return;
         List<String> names =
                 method.getParameters().stream().map(CtParameter::getSimpleName).collect(Collectors.toList());

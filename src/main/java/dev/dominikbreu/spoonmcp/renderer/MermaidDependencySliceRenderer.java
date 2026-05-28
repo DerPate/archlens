@@ -34,12 +34,12 @@ public class MermaidDependencySliceRenderer {
 
         Map<String, Component> byId = new HashMap<>();
         for (Component component : model.components) {
-            byId.put(component.id, component);
+            byId.put(component.id.serialize(), component);
         }
 
         Map<String, List<Dependency>> outgoing = new HashMap<>();
         for (Dependency dependency : model.dependencies) {
-            outgoing.computeIfAbsent(dependency.fromId, ignored -> new ArrayList<>())
+            outgoing.computeIfAbsent(dependency.fromId.serialize(), ignored -> new ArrayList<>())
                     .add(dependency);
         }
 
@@ -50,8 +50,8 @@ public class MermaidDependencySliceRenderer {
         ArrayDeque<String> queue = new ArrayDeque<>();
         Map<String, Integer> depths = new HashMap<>();
 
-        queue.add(root.id);
-        depths.put(root.id, 0);
+        queue.add(root.id.serialize());
+        depths.put(root.id.serialize(), 0);
 
         while (!queue.isEmpty()) {
             String current = queue.poll();
@@ -63,10 +63,10 @@ public class MermaidDependencySliceRenderer {
 
             for (Dependency dependency : outgoing.getOrDefault(current, List.of())) {
                 visibleDependencies.add(dependency);
-                visibleComponents.add(dependency.toId);
-                if (!visited.contains(dependency.toId)) {
-                    depths.put(dependency.toId, currentDepth + 1);
-                    queue.add(dependency.toId);
+                visibleComponents.add(dependency.toId.serialize());
+                if (!visited.contains(dependency.toId.serialize())) {
+                    depths.put(dependency.toId.serialize(), currentDepth + 1);
+                    queue.add(dependency.toId.serialize());
                 }
             }
         }
@@ -83,11 +83,11 @@ public class MermaidDependencySliceRenderer {
         }
         for (Dependency dependency : visibleDependencies) {
             sb.append("    ")
-                    .append(nodeId(dependency.fromId))
+                    .append(nodeId(dependency.fromId.serialize()))
                     .append(" -->|")
                     .append(escape(dependency.kind))
                     .append("| ")
-                    .append(nodeId(dependency.toId))
+                    .append(nodeId(dependency.toId.serialize()))
                     .append("\n");
         }
         return sb.toString();
@@ -96,9 +96,9 @@ public class MermaidDependencySliceRenderer {
     private Component findComponent(ArchitectureModel model, String ref) {
         if (ref == null || ref.isBlank()) return null;
         return model.components.stream()
-                .filter(component -> component.id.equals(ref)
+                .filter(component -> component.id.serialize().equals(ref)
                         || component.name.equals(ref)
-                        || component.id.contains(ref)
+                        || component.id.serialize().contains(ref)
                         || component.qualifiedName != null && component.qualifiedName.contains(ref))
                 .findFirst()
                 .orElse(null);
