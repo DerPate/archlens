@@ -71,6 +71,47 @@ class ArchitectureViewProjectorTest {
     }
 
     @Test
+    void componentViewIncludesAllComponentTypesIncludingRestAndUtility() {
+        // Regression test: architecture_view is a complete overview — it must include
+        // REST endpoints, schedulers, messaging, and utility components, not filter them out.
+        ArchitectureModel model = new ArchitectureModel("bridge-fixture");
+        AppEntry app = new AppEntry();
+        app.id = "app:bridge";
+        app.name = "bridge";
+
+        Component stateStore = component("CoreStateStore", ComponentType.SERVICE);
+        Component writer = component("IngestConsumer", ComponentType.MESSAGE_DRIVEN_BEAN);
+        Component reader = component("PublishScheduler", ComponentType.SCHEDULER);
+        Component restService = component("WidgetRestService", ComponentType.REST_RESOURCE);
+        Component serializer = component("WidgetSerializer", ComponentType.UTILITY);
+
+        app.componentIds.addAll(List.of(stateStore.id, writer.id, reader.id, restService.id, serializer.id));
+        model.applications.add(app);
+        model.components.addAll(List.of(stateStore, writer, reader, restService, serializer));
+
+        model.fieldAccesses.add(fieldAccess(FieldAccess.Kind.WRITE, writer.id, "consume", stateStore.id, "store"));
+        model.fieldAccesses.add(fieldAccess(FieldAccess.Kind.READ, reader.id, "publish", stateStore.id, "store"));
+
+        ArchitectureGraph graph = new ArchitectureGraph();
+        graph.rebuild(model);
+
+        // Pass maxNodes=500 (the new default) — all 5 components must appear
+        ArchitectureViewProjection projection =
+                new ArchitectureViewProjector().projectComponentView(graph, "app:bridge", "Bridge View", 500);
+
+        List<String> titles = projection.nodes().stream()
+                .map(ArchitectureViewProjection.Node::title)
+                .toList();
+
+        assertEquals(5, titles.size(), "All 5 components must appear; got: " + titles);
+        assertTrue(titles.contains("CoreStateStore"), "missing CoreStateStore in " + titles);
+        assertTrue(titles.contains("IngestConsumer"), "missing IngestConsumer in " + titles);
+        assertTrue(titles.contains("PublishScheduler"), "missing PublishScheduler in " + titles);
+        assertTrue(titles.contains("WidgetRestService"), "REST components must not be filtered out; got: " + titles);
+        assertTrue(titles.contains("WidgetSerializer"), "Utility components must not be filtered out; got: " + titles);
+    }
+
+    @Test
     void dependsOnEdgesAppearForConstructorInjectionCodebases() {
         ArchitectureModel model = new ArchitectureModel("injection-fixture");
         AppEntry app = new AppEntry();

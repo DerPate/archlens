@@ -29,7 +29,7 @@ public final class RenderArchitectureViewTool {
             if (!"component".equalsIgnoreCase(view)) {
                 return "Only view=component is supported. Received: " + view;
             }
-            int maxNodes = ToolArgs.getInt(args, "maxNodes", 18);
+            int maxNodes = ToolArgs.getInt(args, "maxNodes", 500);
             AppEntry app = resolveApp(model, ToolArgs.getString(args, "app", ""));
             String scopeId;
             if (app != null) {
