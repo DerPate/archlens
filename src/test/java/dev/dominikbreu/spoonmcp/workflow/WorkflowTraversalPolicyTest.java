@@ -5,8 +5,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import dev.dominikbreu.spoonmcp.model.CallEdge;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
+import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.FieldRef;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class WorkflowTraversalPolicyTest {
@@ -91,6 +95,80 @@ class WorkflowTraversalPolicyTest {
         assertThat(policy.isHumanVisible(unknown)).isTrue();
         assertThat(policy.isHumanVisible(rawMessagingClient)).isFalse();
         assertThat(policy.isHumanVisible(service)).isTrue();
+    }
+
+    @Test
+    void shadowedCrossComponentStoreWriteIsNotAPipelineTrigger() {
+        Entrypoint ep = new Entrypoint();
+        ep.componentId = ComponentId.of("com.example.EventService");
+        ep.type = EntrypointType.MESSAGING_CONSUMER;
+
+        DataFlowSink foreignSink = new DataFlowSink();
+        foreignSink.kind = DataFlowSink.Kind.STORE;
+        foreignSink.fieldOwnerComponentId = ComponentId.of("com.example.DataService");
+        foreignSink.fieldName = "store";
+
+        DataFlowSink ownSink = new DataFlowSink();
+        ownSink.kind = DataFlowSink.Kind.STORE;
+        ownSink.fieldOwnerComponentId = ComponentId.of("com.example.EventService");
+        ownSink.fieldName = "localCache";
+
+        // DataService.store has a same-component writer → cross-component write is shadowed
+        Set<FieldRef> directOwnerWrittenFields =
+                Set.of(new FieldRef(ComponentId.of("com.example.DataService"), "store"));
+
+        assertThat(policy.isShadowedCrossComponentStoreWrite(foreignSink, ep, directOwnerWrittenFields))
+                .isTrue();
+        assertThat(policy.isShadowedCrossComponentStoreWrite(ownSink, ep, directOwnerWrittenFields))
+                .isFalse();
+    }
+
+    @Test
+    void crossComponentStoreWriteIsKeptWhenNoDirectOwnerWriterExists() {
+        Entrypoint ep = new Entrypoint();
+        ep.componentId = ComponentId.of("com.example.Ingestor");
+        ep.type = EntrypointType.MESSAGING_CONSUMER;
+
+        DataFlowSink sink = new DataFlowSink();
+        sink.kind = DataFlowSink.Kind.STORE;
+        sink.fieldOwnerComponentId = ComponentId.of("com.example.Cache");
+        sink.fieldName = "records";
+
+        // No same-component writer for Cache.records → cross-component write is the only producer
+        assertThat(policy.isShadowedCrossComponentStoreWrite(sink, ep, Set.of()))
+                .isFalse();
+    }
+
+    @Test
+    void shadowedStoreWriteCheckerIgnoresNonStoreSinks() {
+        Entrypoint ep = new Entrypoint();
+        ep.componentId = ComponentId.of("com.example.EventService");
+
+        DataFlowSink messaging = new DataFlowSink();
+        messaging.kind = DataFlowSink.Kind.MESSAGING;
+        messaging.fieldOwnerComponentId = ComponentId.of("com.example.Other");
+
+        Set<FieldRef> anyFields = Set.of(new FieldRef(ComponentId.of("com.example.Other"), "x"));
+        assertThat(policy.isShadowedCrossComponentStoreWrite(messaging, ep, anyFields))
+                .isFalse();
+    }
+
+    @Test
+    void shadowedStoreWriteCheckerHandlesNullsGracefully() {
+        Entrypoint epNoComponent = new Entrypoint();
+        epNoComponent.componentId = null;
+
+        DataFlowSink sink = new DataFlowSink();
+        sink.kind = DataFlowSink.Kind.STORE;
+        sink.fieldOwnerComponentId = ComponentId.of("com.example.DataService");
+
+        Set<FieldRef> fields = Set.of(new FieldRef(ComponentId.of("com.example.DataService"), null));
+        assertThat(policy.isShadowedCrossComponentStoreWrite(sink, null, fields))
+                .isFalse();
+        assertThat(policy.isShadowedCrossComponentStoreWrite(sink, epNoComponent, fields))
+                .isFalse();
+        assertThat(policy.isShadowedCrossComponentStoreWrite(null, epNoComponent, fields))
+                .isFalse();
     }
 
     private static CallEdge edge(String kind) {
