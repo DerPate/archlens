@@ -59,14 +59,14 @@ public final class ArchitectureViewProjector {
     }
 
     private static Comparator<ArchitectureGraph.GraphNode> componentPriority() {
-        return Comparator.comparing((ArchitectureGraph.GraphNode node) -> bool(node, "workflowRelevant"))
-                .reversed()
+        // Avoid chained .reversed() — it reverses the entire preceding chain each time,
+        // not just the last criterion. Use Comparator.reverseOrder() or negation per criterion.
+        return Comparator.<ArchitectureGraph.GraphNode, Boolean>comparing(
+                        node -> bool(node, "workflowRelevant"), Comparator.reverseOrder())
                 .thenComparing(node -> bool(node, "businessRelevant"), Comparator.reverseOrder())
-                .thenComparingInt(node -> intProp(node, "workflowBridgeScore"))
-                .reversed()
-                .thenComparingInt(node -> intProp(node, "noiseScore"))
-                .thenComparingInt(node -> intProp(node, "architecturalWeight"))
-                .reversed()
+                .thenComparingInt(node -> -intProp(node, "workflowBridgeScore")) // high bridge score first
+                .thenComparingInt(node -> intProp(node, "noiseScore")) // low noise first
+                .thenComparingInt(node -> -intProp(node, "architecturalWeight")) // high weight first
                 .thenComparing(node -> String.valueOf(node.properties().getOrDefault("name", node.id())));
     }
 
