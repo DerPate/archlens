@@ -32,7 +32,7 @@ public class ExternalSystemInferrer {
      */
     public void infer(ArchitectureModel model) {
         Map<String, ExternalSystem> systemsById = new LinkedHashMap<>();
-        Set<String> existingDeps = new LinkedHashSet<>();
+        Set<dev.dominikbreu.spoonmcp.model.ids.DependencyId> existingDeps = new LinkedHashSet<>();
         for (Dependency d : model.dependencies) existingDeps.add(d.id);
 
         for (InterfaceEntry iface : model.interfaces) {
@@ -105,12 +105,17 @@ public class ExternalSystemInferrer {
         };
     }
 
-    private void addDependency(ArchitectureModel model, Set<String> existing, String fromId, String toId, String kind) {
+    private void addDependency(
+            ArchitectureModel model,
+            Set<dev.dominikbreu.spoonmcp.model.ids.DependencyId> existing,
+            String fromId,
+            String toId,
+            String kind) {
         if (fromId == null || toId == null) return;
         Dependency d = new Dependency();
         d.fromId = dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(fromId);
         d.toId = dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(toId);
-        d.id = Dependency.idFor(d.fromId, d.toId, kind);
+        d.id = dev.dominikbreu.spoonmcp.model.ids.DependencyId.of(d.fromId, d.toId, kind);
         if (!existing.add(d.id)) return;
         d.kind = kind;
         d.derivedFrom = "external-system-inferrer";

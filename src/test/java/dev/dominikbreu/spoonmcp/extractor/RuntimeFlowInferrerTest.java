@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.DependencyId;
 import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -134,7 +135,7 @@ class RuntimeFlowInferrerTest {
         Dependency d = new Dependency();
         d.fromId = producer.id;
         d.toId = consumer.id;
-        d.id = Dependency.idFor(d.fromId, d.toId);
+        d.id = DependencyId.of(d.fromId, d.toId);
         d.kind = "cdi-event";
         d.confidence = 0.8;
         m.dependencies.add(d);
@@ -535,7 +536,7 @@ class RuntimeFlowInferrerTest {
         Dependency d = new Dependency();
         d.fromId = from;
         d.toId = to;
-        d.id = Dependency.idFor(from, to);
+        d.id = DependencyId.of(from, to);
         d.kind = "injection";
         d.derivedFrom = "annotation";
         d.confidence = 0.95;

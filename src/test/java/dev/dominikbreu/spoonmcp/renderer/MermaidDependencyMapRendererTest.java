@@ -7,6 +7,7 @@ import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.DependencyId;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -65,9 +66,9 @@ class MermaidDependencyMapRendererTest {
 
     private Dependency dependency(ComponentId from, ComponentId to, String kind) {
         Dependency dependency = new Dependency();
-        dependency.id = "dep:" + from.serialize() + "->" + to.serialize();
         dependency.fromId = from;
         dependency.toId = to;
+        dependency.id = DependencyId.of(from, to);
         dependency.kind = kind;
         dependency.derivedFrom = "type-relation";
         dependency.confidence = 0.65;

@@ -682,7 +682,7 @@ public class ArchitectureGraph {
 
     private Map<String, Object> dependencyProperties(Dependency dependency) {
         Map<String, Object> properties = new HashMap<>();
-        properties.put("id", dependency.id);
+        properties.put("id", dependency.id != null ? dependency.id.serialize() : null);
         properties.put("kind", Objects.toString(dependency.kind, ""));
         properties.put("dependencyKind", Objects.toString(dependency.kind, ""));
         properties.put("derivedFrom", Objects.toString(dependency.derivedFrom, ""));

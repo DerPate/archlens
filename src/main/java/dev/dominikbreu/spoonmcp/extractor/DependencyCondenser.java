@@ -70,7 +70,7 @@ public class DependencyCondenser {
                 Dependency dep = new Dependency();
                 dep.fromId = dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(from);
                 dep.toId = dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(to);
-                dep.id = Dependency.idFor(dep.fromId, dep.toId, "condensed");
+                dep.id = dev.dominikbreu.spoonmcp.model.ids.DependencyId.of(dep.fromId, dep.toId, "condensed");
                 dep.kind = "condensed";
                 dep.derivedFrom = "condensation";
                 dep.confidence = 0.75;
@@ -82,8 +82,9 @@ public class DependencyCondenser {
         for (Dependency orig : dependencies) {
             boolean bothArch = !nonArch.contains(orig.fromId.serialize()) && !nonArch.contains(orig.toId.serialize());
             if (bothArch) {
-                String condensedId = Dependency.idFor(orig.fromId, orig.toId, "condensed");
-                boolean alreadyPresent = result.stream().anyMatch(d -> d.id.equals(condensedId));
+                dev.dominikbreu.spoonmcp.model.ids.DependencyId condensedId =
+                        dev.dominikbreu.spoonmcp.model.ids.DependencyId.of(orig.fromId, orig.toId, "condensed");
+                boolean alreadyPresent = result.stream().anyMatch(d -> condensedId.equals(d.id));
                 if (!alreadyPresent) {
                     result.add(orig);
                 }
