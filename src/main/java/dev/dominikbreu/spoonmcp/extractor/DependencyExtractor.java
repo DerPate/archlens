@@ -74,9 +74,10 @@ public class DependencyExtractor {
             String kind,
             String derived,
             double conf) {
-        String id = Dependency.idFor(from, to);
+        dev.dominikbreu.spoonmcp.model.ids.DependencyId id =
+                dev.dominikbreu.spoonmcp.model.ids.DependencyId.of(from, to);
         for (Dependency d : model.dependencies) {
-            if (d.id.equals(id)) return;
+            if (id.equals(d.id)) return;
         }
         Dependency dep = new Dependency();
         dep.id = id;
@@ -99,7 +100,7 @@ public class DependencyExtractor {
 
     private void dedup(ArchitectureModel model) {
         Map<String, Dependency> byId = new LinkedHashMap<>();
-        for (Dependency d : model.dependencies) byId.put(d.id, d);
+        for (Dependency d : model.dependencies) byId.put(d.id.serialize(), d);
         model.dependencies.clear();
         model.dependencies.addAll(byId.values());
     }

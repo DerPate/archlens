@@ -11,6 +11,7 @@ import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.FieldAccess;
 import dev.dominikbreu.spoonmcp.model.OutboundSinkSite;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.DependencyId;
 import dev.dominikbreu.spoonmcp.model.ids.FieldBinding;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -102,7 +103,7 @@ class ModelIndexTest {
         dep.fromId = ComponentId.of("comp:A");
         dep.toId = ComponentId.of("comp:B");
         dep.kind = "injection";
-        dep.id = "d1";
+        dep.id = DependencyId.of(dep.fromId, dep.toId);
 
         DependencyAdjacency adj = DependencyAdjacency.build(List.of(dep));
 

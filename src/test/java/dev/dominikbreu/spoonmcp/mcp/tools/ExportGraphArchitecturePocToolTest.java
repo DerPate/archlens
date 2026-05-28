@@ -11,6 +11,7 @@ import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.FieldAccess;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.DependencyId;
 import dev.dominikbreu.spoonmcp.model.ids.FieldBinding;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -84,9 +85,9 @@ class ExportGraphArchitecturePocToolTest {
         model.components.add(repository);
 
         Dependency dependency = new Dependency();
-        dependency.id = "dep:service-repository";
         dependency.fromId = ComponentId.of("comp:OrderService");
         dependency.toId = ComponentId.of("comp:OrderRepository");
+        dependency.id = DependencyId.of(dependency.fromId, dependency.toId);
         dependency.kind = "field-reference";
         dependency.derivedFrom = "field";
         dependency.confidence = 0.85;

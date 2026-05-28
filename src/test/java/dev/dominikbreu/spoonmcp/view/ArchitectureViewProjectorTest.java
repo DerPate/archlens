@@ -11,6 +11,7 @@ import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.FieldAccess;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.DependencyId;
 import dev.dominikbreu.spoonmcp.model.ids.FieldBinding;
 import dev.dominikbreu.spoonmcp.model.ids.FieldRef;
 import java.util.List;
@@ -134,9 +135,9 @@ class ArchitectureViewProjectorTest {
         // give TimestampFormatter high fan-in (many DEPENDS_ON to it) so it looks important by degree
         for (ComponentId id : List.of(kafka.id, scheduler.id, publisher.id, repo.id)) {
             dev.dominikbreu.spoonmcp.model.Dependency dep = new dev.dominikbreu.spoonmcp.model.Dependency();
-            dep.id = "dep:" + id.serialize() + "-formatter";
             dep.fromId = id;
             dep.toId = formatter.id;
+            dep.id = DependencyId.of(dep.fromId, dep.toId);
             dep.kind = "injection";
             dep.confidence = 0.9;
             model.dependencies.add(dep);
@@ -160,7 +161,7 @@ class ArchitectureViewProjectorTest {
         Dependency d = new Dependency();
         d.fromId = fromId;
         d.toId = toId;
-        d.id = Dependency.idFor(fromId, toId);
+        d.id = DependencyId.of(fromId, toId);
         d.kind = kind;
         d.confidence = 0.9;
         return d;

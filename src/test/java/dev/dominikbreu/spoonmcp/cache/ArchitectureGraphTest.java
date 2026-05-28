@@ -18,6 +18,7 @@ import dev.dominikbreu.spoonmcp.model.InterfaceEntry;
 import dev.dominikbreu.spoonmcp.model.MessagingBroker;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.DependencyId;
 import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import dev.dominikbreu.spoonmcp.model.ids.FieldBinding;
 import dev.dominikbreu.spoonmcp.model.ids.FieldRef;
@@ -114,9 +115,9 @@ class ArchitectureGraphTest {
             model.components.add(caller);
 
             Dependency dependency = new Dependency();
-            dependency.id = "dep:caller" + i + "-formatter";
             dependency.fromId = caller.id;
             dependency.toId = formatter.id;
+            dependency.id = DependencyId.of(dependency.fromId, dependency.toId);
             dependency.kind = "method-call";
             dependency.confidence = 0.9;
             model.dependencies.add(dependency);
@@ -600,9 +601,9 @@ class ArchitectureGraphTest {
         model.entrypoints.add(entrypoint);
 
         Dependency dependency = new Dependency();
-        dependency.id = "dep:service-repository";
         dependency.fromId = ComponentId.of("comp:OrderService");
         dependency.toId = ComponentId.of("comp:OrderRepository");
+        dependency.id = DependencyId.of(dependency.fromId, dependency.toId);
         dependency.kind = "injection";
         dependency.derivedFrom = "field";
         dependency.confidence = 0.9;

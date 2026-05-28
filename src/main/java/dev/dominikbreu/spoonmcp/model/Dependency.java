@@ -1,13 +1,14 @@
 package dev.dominikbreu.spoonmcp.model;
 
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.DependencyId;
 
 /**
  * Directed relationship from one architecture component to another.
  */
 public class Dependency {
     /** Stable dependency identifier, usually derived from source and target identifiers. */
-    public String id;
+    public DependencyId id;
     /** Source component identifier. */
     public ComponentId fromId;
     /** Target component identifier. */
@@ -21,12 +22,4 @@ public class Dependency {
 
     /** Creates an empty dependency for JSON deserialization. */
     public Dependency() {}
-
-    public static String idFor(ComponentId from, ComponentId to) {
-        return "dep:" + from.serialize() + "->" + to.serialize();
-    }
-
-    public static String idFor(ComponentId from, ComponentId to, String qualifier) {
-        return "dep:" + from.serialize() + "->" + to.serialize() + ":" + qualifier;
-    }
 }

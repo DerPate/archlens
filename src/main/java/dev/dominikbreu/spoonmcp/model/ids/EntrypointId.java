@@ -11,6 +11,10 @@ import com.fasterxml.jackson.annotation.JsonValue;
  */
 public record EntrypointId(ComponentId component, String method, String suffix) {
 
+    public static EntrypointId of(ComponentId component, String method, String suffix) {
+        return new EntrypointId(component, method, suffix);
+    }
+
     @JsonCreator
     public static EntrypointId deserialize(String value) {
         if (value == null) return null;

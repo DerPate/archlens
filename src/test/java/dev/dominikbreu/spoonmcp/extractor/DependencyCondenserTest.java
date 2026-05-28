@@ -7,6 +7,7 @@ import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.DependencyId;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -152,7 +153,7 @@ class DependencyCondenserTest {
         Dependency d = new Dependency();
         d.fromId = ComponentId.of(from);
         d.toId = ComponentId.of(to);
-        d.id = Dependency.idFor(d.fromId, d.toId);
+        d.id = DependencyId.of(d.fromId, d.toId);
         d.kind = "injection";
         d.derivedFrom = "annotation";
         d.confidence = 0.95;

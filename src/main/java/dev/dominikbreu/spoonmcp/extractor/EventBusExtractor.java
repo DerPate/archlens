@@ -158,7 +158,8 @@ public class EventBusExtractor {
      * @param model architecture model to update
      */
     public void linkCrossModuleEvents(ArchitectureModel model) {
-        Set<String> existingDepIds = model.dependencies.stream().map(d -> d.id).collect(Collectors.toSet());
+        Set<dev.dominikbreu.spoonmcp.model.ids.DependencyId> existingDepIds =
+                model.dependencies.stream().map(d -> d.id).collect(Collectors.toSet());
 
         for (Map.Entry<String, List<String>> entry : producersByEventType.entrySet()) {
             String eventType = entry.getKey();
@@ -168,7 +169,9 @@ public class EventBusExtractor {
             for (String producerId : producers) {
                 for (String consumerId : consumers) {
                     if (producerId.equals(consumerId)) continue;
-                    String depId = "dep:" + producerId + "->cdi-event:" + eventType + "->" + consumerId;
+                    dev.dominikbreu.spoonmcp.model.ids.DependencyId depId =
+                            new dev.dominikbreu.spoonmcp.model.ids.DependencyId(
+                                    producerId + "->cdi-event:" + eventType + "->" + consumerId);
                     if (existingDepIds.add(depId)) {
                         Dependency dep = new Dependency();
                         dep.id = depId;
