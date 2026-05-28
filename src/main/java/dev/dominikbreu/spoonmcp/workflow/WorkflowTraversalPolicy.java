@@ -3,8 +3,10 @@ package dev.dominikbreu.spoonmcp.workflow;
 import dev.dominikbreu.spoonmcp.model.CallEdge;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
+import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
+import dev.dominikbreu.spoonmcp.model.ids.FieldRef;
 import java.util.Locale;
 import java.util.Set;
 
@@ -54,6 +56,36 @@ public final class WorkflowTraversalPolicy {
     /** Returns true when a call can be traversed as an in-process continuation. */
     public boolean canTraverseInline(CallEdge edge) {
         return edge != null && !isAsyncBoundary(edge) && !edge.receiverExpansionCapped && !edge.ambiguous;
+    }
+
+    /**
+     * Returns true when a cross-component STORE write is shadowed by a same-component
+     * (direct-owner) writer for the same field. A cross-component write reaches the store by
+     * calling the owning component's mutation methods — it is a side-effect, not a direct
+     * pipeline trigger. The link is suppressed only when a same-component writer exists; when the
+     * cross-component writer is the only producer, the link is kept.
+     *
+     * <p>Example: {@code handleDeviceEvent} (DeviceEventService) calls
+     * {@code DeviceStateDataService.removeDeviceSnapshot}, which writes to
+     * {@code DeviceStateDataService.store}. Meanwhile {@code ingest} (DeviceStateDataService)
+     * writes to the same {@code store} directly. {@code ingest} is the real pipeline trigger;
+     * {@code handleDeviceEvent}'s write is a shadowed side-effect.
+     *
+     * <p>Contrast with an {@code Ingestor} that is the only writer to {@code Cache.records}
+     * (a field owned by a different component) — no same-component writer exists, so the link
+     * is kept.
+     *
+     * @param directOwnerWrittenFields store fields for which at least one same-component
+     *                                 entrypoint has a direct write (pre-computed by the caller)
+     */
+    public boolean isShadowedCrossComponentStoreWrite(
+            DataFlowSink sink, Entrypoint fromEntrypoint, Set<FieldRef> directOwnerWrittenFields) {
+        if (sink == null || sink.kind != DataFlowSink.Kind.STORE) return false;
+        if (fromEntrypoint == null || fromEntrypoint.componentId == null || sink.fieldOwnerComponentId == null)
+            return false;
+        if (fromEntrypoint.componentId.equals(sink.fieldOwnerComponentId)) return false;
+        return directOwnerWrittenFields != null
+                && directOwnerWrittenFields.contains(new FieldRef(sink.fieldOwnerComponentId, sink.fieldName));
     }
 
     /**

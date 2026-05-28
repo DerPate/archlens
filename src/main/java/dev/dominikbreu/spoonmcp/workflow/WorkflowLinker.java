@@ -4,10 +4,13 @@ import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
+import dev.dominikbreu.spoonmcp.model.ids.FieldRef;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Turns serialized data-flow sink links into typed workflow continuation edges.
@@ -40,6 +43,22 @@ public final class WorkflowLinker {
         }
 
         List<WorkflowLink> links = new ArrayList<>();
+
+        // Pre-compute store fields that have at least one same-component (direct-owner) writer.
+        // Cross-component writes to these fields are shadowed side-effects, not pipeline triggers.
+        Set<FieldRef> directOwnerWrittenFields = new HashSet<>();
+        for (DataFlowPath p : model.dataFlowPaths) {
+            Entrypoint ep = p.entrypointId != null ? entrypointById.get(p.entrypointId.serialize()) : null;
+            if (ep == null || ep.componentId == null) continue;
+            for (DataFlowSink s : p.sinks) {
+                if (s.kind == DataFlowSink.Kind.STORE
+                        && s.fieldOwnerComponentId != null
+                        && ep.componentId.equals(s.fieldOwnerComponentId)) {
+                    directOwnerWrittenFields.add(new FieldRef(s.fieldOwnerComponentId, s.fieldName));
+                }
+            }
+        }
+
         for (DataFlowPath fromPath : model.dataFlowPaths) {
             Entrypoint fromEntrypoint;
             if (fromPath.entrypointId != null) {
@@ -70,6 +89,11 @@ public final class WorkflowLinker {
                         toEntrypoint = null;
                     }
                     if (!policy.isWorkflowRoot(toEntrypoint)) {
+                        continue;
+                    }
+                    // A cross-component write to a field that also has a direct same-component
+                    // writer is a shadowed side-effect, not a pipeline trigger.
+                    if (policy.isShadowedCrossComponentStoreWrite(sink, fromEntrypoint, directOwnerWrittenFields)) {
                         continue;
                     }
                     // A scheduler pre-loading reference data into a store that a primary consumer
