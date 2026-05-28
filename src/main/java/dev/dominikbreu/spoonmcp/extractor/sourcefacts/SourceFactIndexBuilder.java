@@ -164,8 +164,12 @@ public class SourceFactIndexBuilder {
                 annotations.addAll(annotations(typeId, type));
 
                 for (CtField<?> field : type.getFields()) {
-                    String fieldType =
-                            field.getType() == null ? null : field.getType().getQualifiedName();
+                    String fieldType;
+                    if (field.getType() == null) {
+                        fieldType = null;
+                    } else {
+                        fieldType = field.getType().getQualifiedName();
+                    }
                     String fieldId = fieldId(type.getQualifiedName(), field.getSimpleName());
                     fields.add(new SourceField(fieldId, typeId, field.getSimpleName(), fieldType, location(field)));
                     annotations.addAll(annotations(fieldId, field));
@@ -216,8 +220,12 @@ public class SourceFactIndexBuilder {
                     String fieldId = fieldId(type.getQualifiedName(), field.getSimpleName());
                     if (annotationsByOwner.getOrDefault(fieldId, List.of()).stream()
                             .anyMatch(this::isInjectionAnnotation)) {
-                        String fieldType =
-                                field.getType() == null ? null : field.getType().getQualifiedName();
+                        String fieldType;
+                        if (field.getType() == null) {
+                            fieldType = null;
+                        } else {
+                            fieldType = field.getType().getQualifiedName();
+                        }
                         injectionPoints.add(new SourceInjectionPoint(
                                 typeId,
                                 fieldType,
@@ -258,9 +266,13 @@ public class SourceFactIndexBuilder {
 
             CtParameter<?> parameter = parametersByName.get(parameterName);
             if (parameter == null) continue;
+            String targetType;
 
-            String targetType =
-                    parameter.getType() == null ? null : parameter.getType().getQualifiedName();
+            if (parameter.getType() == null) {
+                targetType = null;
+            } else {
+                targetType = parameter.getType().getQualifiedName();
+            }
             injectionPoints.add(new SourceInjectionPoint(
                     typeId,
                     targetType,
@@ -344,11 +356,14 @@ public class SourceFactIndexBuilder {
     }
 
     private SourceAssignment assignmentFact(String methodId, CtAssignment<?, ?> assignment, int index) {
-        SourceEvidence evidence = assignment.getAssigned() instanceof CtFieldWrite<?>
-                ? SourceEvidence.FIELD_ASSIGNMENT
-                : assignment.getAssignment() instanceof CtConstructorCall<?>
-                        ? SourceEvidence.CONSTRUCTOR_CALL
-                        : SourceEvidence.LOCAL_ASSIGNMENT;
+        SourceEvidence evidence;
+        if (assignment.getAssigned() instanceof CtFieldWrite<?>) {
+            evidence = SourceEvidence.FIELD_ASSIGNMENT;
+        } else {
+            evidence = assignment.getAssignment() instanceof CtConstructorCall<?>
+                    ? SourceEvidence.CONSTRUCTOR_CALL
+                    : SourceEvidence.LOCAL_ASSIGNMENT;
+        }
         return new SourceAssignment(
                 methodId + "@assignment:" + index,
                 methodId,
@@ -361,9 +376,12 @@ public class SourceFactIndexBuilder {
     }
 
     private SourceAssignment localAssignmentFact(String methodId, CtLocalVariable<?> localVariable, int index) {
-        SourceEvidence evidence = localVariable.getDefaultExpression() instanceof CtConstructorCall<?>
-                ? SourceEvidence.CONSTRUCTOR_CALL
-                : SourceEvidence.LOCAL_ASSIGNMENT;
+        SourceEvidence evidence;
+        if (localVariable.getDefaultExpression() instanceof CtConstructorCall<?>) {
+            evidence = SourceEvidence.CONSTRUCTOR_CALL;
+        } else {
+            evidence = SourceEvidence.LOCAL_ASSIGNMENT;
+        }
         return new SourceAssignment(
                 methodId + "@assignment:" + index,
                 methodId,
@@ -379,13 +397,16 @@ public class SourceFactIndexBuilder {
         CtExpression<?> returnedExpression = ctReturn.getReturnedExpression();
         String referencedField = referencedField(returnedExpression);
         String referencedParameter = referencedParameter(returnedExpression);
-        SourceEvidence evidence = referencedField != null
-                ? SourceEvidence.METHOD_RETURNS_FIELD
-                : referencedParameter != null
-                        ? SourceEvidence.METHOD_RETURNS_PARAMETER
-                        : returnedExpression instanceof CtInvocation<?>
-                                ? SourceEvidence.METHOD_RETURNS_INVOCATION
-                                : SourceEvidence.METHOD_RETURNS_LOCAL;
+        SourceEvidence evidence;
+        if (referencedField != null) {
+            evidence = SourceEvidence.METHOD_RETURNS_FIELD;
+        } else {
+            evidence = referencedParameter != null
+                    ? SourceEvidence.METHOD_RETURNS_PARAMETER
+                    : returnedExpression instanceof CtInvocation<?>
+                            ? SourceEvidence.METHOD_RETURNS_INVOCATION
+                            : SourceEvidence.METHOD_RETURNS_LOCAL;
+        }
         return new SourceReturn(
                 methodId + "@return:" + index,
                 methodId,
@@ -449,27 +470,35 @@ public class SourceFactIndexBuilder {
     private boolean isInjectionAnnotation(SourceAnnotation annotation) {
         String qn = annotation.qualifiedName();
         return qn.endsWith(".Inject")
-                || qn.equals("Inject")
+                || "Inject".equals(qn)
                 || qn.endsWith(".Autowired")
                 || qn.endsWith(".Resource")
-                || qn.equals("Resource");
+                || "Resource".equals(qn);
     }
 
     private String expressionText(Object expression) {
-        return expression == null ? null : expression.toString();
+        if (expression == null) {
+            return null;
+        } else {
+            return expression.toString();
+        }
     }
 
     private String expressionType(CtExpression<?> expression) {
-        return expression == null || expression.getType() == null
-                ? null
-                : expression.getType().getQualifiedName();
+        if (expression == null || expression.getType() == null) {
+            return null;
+        } else {
+            return expression.getType().getQualifiedName();
+        }
     }
 
     private String referencedField(CtExpression<?> expression) {
         if (expression instanceof CtFieldRead<?> fieldRead) {
-            return fieldRead.getVariable() == null
-                    ? null
-                    : fieldRead.getVariable().getSimpleName();
+            if (fieldRead.getVariable() == null) {
+                return null;
+            } else {
+                return fieldRead.getVariable().getSimpleName();
+            }
         }
         return null;
     }
@@ -536,7 +565,11 @@ public class SourceFactIndexBuilder {
 
     private static String packageName(String qualifiedName) {
         int dot = qualifiedName.lastIndexOf('.');
-        return dot < 0 ? "" : qualifiedName.substring(0, dot);
+        if (dot < 0) {
+            return "";
+        } else {
+            return qualifiedName.substring(0, dot);
+        }
     }
 
     public static SourceLocation location(CtElement element) {

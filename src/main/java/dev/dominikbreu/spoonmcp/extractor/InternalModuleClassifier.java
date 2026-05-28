@@ -79,6 +79,10 @@ public class InternalModuleClassifier {
             score += 1;
         }
 
-        return score >= 2 ? "internal_module" : "technical_library";
+        if (score >= 2) {
+            return "internal_module";
+        } else {
+            return "technical_library";
+        }
     }
 }

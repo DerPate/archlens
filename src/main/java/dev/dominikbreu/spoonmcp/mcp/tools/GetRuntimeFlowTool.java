@@ -97,7 +97,11 @@ public class GetRuntimeFlowTool {
                     .append(ep.name)
                     .append(")\n");
         }
-        return sb.isEmpty() ? "  (none)\n" : sb.toString();
+        if (sb.isEmpty()) {
+            return "  (none)\n";
+        } else {
+            return sb.toString();
+        }
     }
 
     private RuntimeFlow findStoredFlow(String ref, int maxDepth, ArchitectureModel model) {

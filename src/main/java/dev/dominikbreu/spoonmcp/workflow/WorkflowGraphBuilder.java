@@ -40,8 +40,12 @@ public final class WorkflowGraphBuilder {
 
         Map<String, DataFlowPath> pathById = new LinkedHashMap<>();
         for (DataFlowPath path : model.dataFlowPaths) {
-            Entrypoint entrypoint =
-                    path.entrypointId != null ? entrypointById.get(path.entrypointId.serialize()) : null;
+            Entrypoint entrypoint;
+            if (path.entrypointId != null) {
+                entrypoint = entrypointById.get(path.entrypointId.serialize());
+            } else {
+                entrypoint = null;
+            }
             if (policy.isWorkflowRoot(entrypoint)) {
                 pathById.put(path.id, path);
             }

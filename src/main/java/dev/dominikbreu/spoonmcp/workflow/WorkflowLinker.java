@@ -41,8 +41,12 @@ public final class WorkflowLinker {
 
         List<WorkflowLink> links = new ArrayList<>();
         for (DataFlowPath fromPath : model.dataFlowPaths) {
-            Entrypoint fromEntrypoint =
-                    fromPath.entrypointId != null ? entrypointById.get(fromPath.entrypointId.serialize()) : null;
+            Entrypoint fromEntrypoint;
+            if (fromPath.entrypointId != null) {
+                fromEntrypoint = entrypointById.get(fromPath.entrypointId.serialize());
+            } else {
+                fromEntrypoint = null;
+            }
             if (!policy.isWorkflowRoot(fromEntrypoint)) {
                 continue;
             }
@@ -59,8 +63,12 @@ public final class WorkflowLinker {
                     if (toPath == null) {
                         continue;
                     }
-                    Entrypoint toEntrypoint =
-                            toPath.entrypointId != null ? entrypointById.get(toPath.entrypointId.serialize()) : null;
+                    Entrypoint toEntrypoint;
+                    if (toPath.entrypointId != null) {
+                        toEntrypoint = entrypointById.get(toPath.entrypointId.serialize());
+                    } else {
+                        toEntrypoint = null;
+                    }
                     if (!policy.isWorkflowRoot(toEntrypoint)) {
                         continue;
                     }

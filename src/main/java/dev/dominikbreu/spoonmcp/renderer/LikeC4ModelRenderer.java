@@ -144,7 +144,12 @@ public final class LikeC4ModelRenderer {
         for (String id : ids) {
             String base = identifier(id);
             int suffix = nextSuffixByBase.getOrDefault(base, 1);
-            String alias = suffix == 1 ? base : base + "_" + suffix;
+            String alias;
+            if (suffix == 1) {
+                alias = base;
+            } else {
+                alias = base + "_" + suffix;
+            }
             while (used.contains(alias)) {
                 suffix++;
                 alias = base + "_" + suffix;

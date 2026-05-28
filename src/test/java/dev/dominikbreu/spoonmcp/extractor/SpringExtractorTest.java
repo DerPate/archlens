@@ -141,10 +141,10 @@ class SpringExtractorTest extends ExtractorTestBase {
     void detectsRestTemplateAndWebClientOutboundInterfaces() {
         assertThat(model.interfaces)
                 .anyMatch(i ->
-                        "rest_client_operation".equals(i.type) && i.path.equals("https://billing.example.test/health"));
+                        "rest_client_operation".equals(i.type) && "https://billing.example.test/health".equals(i.path));
         assertThat(model.interfaces)
                 .anyMatch(i -> "rest_client_operation".equals(i.type)
-                        && i.path.equals("https://inventory.example.test/items"));
+                        && "https://inventory.example.test/items".equals(i.path));
     }
 
     @Test

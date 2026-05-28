@@ -510,7 +510,12 @@ public class ArchitectureGraph {
     }
 
     private void addDataFlowEdges(DataFlowPath path) {
-        String epVertexId = path.entrypointId != null ? path.entrypointId.serialize() : "";
+        String epVertexId;
+        if (path.entrypointId != null) {
+            epVertexId = path.entrypointId.serialize();
+        } else {
+            epVertexId = "";
+        }
         addEdge(epVertexId, path.id, "ORIGINATES", Map.of("trackedParam", Objects.toString(path.trackedParam, "")));
 
         for (int i = 0; i < path.sinks.size(); i++) {
@@ -634,8 +639,12 @@ public class ArchitectureGraph {
             chainIdx++;
             String chainId = "chain:" + chainIdx;
             Segment root = chain.segments.get(0);
-            String rootEpId =
-                    root.path != null && root.path.entrypointId != null ? root.path.entrypointId.serialize() : "";
+            String rootEpId;
+            if (root.path != null && root.path.entrypointId != null) {
+                rootEpId = root.path.entrypointId.serialize();
+            } else {
+                rootEpId = "";
+            }
             Vertex vertex = addVertex(chainId, "PipelineChain", chainId);
             set(vertex, "kind", "pipelineChain");
             set(vertex, "segmentCount", chain.segments.size());
@@ -705,12 +714,19 @@ public class ArchitectureGraph {
             if (access.kind == null || access.componentId == null || access.fieldBinding == null) {
                 continue;
             }
-            dev.dominikbreu.spoonmcp.model.ids.ComponentId fieldOwner =
-                    access.fieldBinding instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent cc
-                            ? cc.ref().owner()
-                            : access.componentId;
+            dev.dominikbreu.spoonmcp.model.ids.ComponentId fieldOwner;
+            if (access.fieldBinding instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent cc) {
+                fieldOwner = cc.ref().owner();
+            } else {
+                fieldOwner = access.componentId;
+            }
             String fieldName = access.fieldBinding.fieldName();
-            String edgeLabel = access.kind == FieldAccess.Kind.WRITE ? "WRITES_STATE" : "READS_STATE";
+            String edgeLabel;
+            if (access.kind == FieldAccess.Kind.WRITE) {
+                edgeLabel = "WRITES_STATE";
+            } else {
+                edgeLabel = "READS_STATE";
+            }
             addEdge(access.componentId.serialize(), fieldOwner.serialize(), edgeLabel, fieldAccessProperties(access));
             dev.dominikbreu.spoonmcp.model.ids.FieldRef key =
                     new dev.dominikbreu.spoonmcp.model.ids.FieldRef(fieldOwner, fieldName);
@@ -747,11 +763,18 @@ public class ArchitectureGraph {
 
     private Map<String, Object> fieldAccessProperties(FieldAccess access) {
         Map<String, Object> properties = new HashMap<>();
-        String fieldName = access.fieldBinding != null ? access.fieldBinding.fieldName() : "";
-        dev.dominikbreu.spoonmcp.model.ids.ComponentId fieldOwner =
-                access.fieldBinding instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent cc
-                        ? cc.ref().owner()
-                        : (access.componentId != null ? access.componentId : null);
+        String fieldName;
+        if (access.fieldBinding != null) {
+            fieldName = access.fieldBinding.fieldName();
+        } else {
+            fieldName = "";
+        }
+        dev.dominikbreu.spoonmcp.model.ids.ComponentId fieldOwner;
+        if (access.fieldBinding instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent cc) {
+            fieldOwner = cc.ref().owner();
+        } else {
+            fieldOwner = (access.componentId != null ? access.componentId : null);
+        }
         properties.put("fieldName", fieldName);
         properties.put("fieldOwnerComponentId", fieldOwner != null ? fieldOwner.serialize() : "");
         properties.put("method", Objects.toString(access.method, ""));
@@ -767,11 +790,18 @@ public class ArchitectureGraph {
 
     private Map<String, Object> stateHandoffProperties(FieldAccess write, FieldAccess read) {
         Map<String, Object> properties = new HashMap<>();
-        String writeFieldName = write.fieldBinding != null ? write.fieldBinding.fieldName() : "";
-        dev.dominikbreu.spoonmcp.model.ids.ComponentId writeFieldOwner =
-                write.fieldBinding instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent cc
-                        ? cc.ref().owner()
-                        : (write.componentId != null ? write.componentId : null);
+        String writeFieldName;
+        if (write.fieldBinding != null) {
+            writeFieldName = write.fieldBinding.fieldName();
+        } else {
+            writeFieldName = "";
+        }
+        dev.dominikbreu.spoonmcp.model.ids.ComponentId writeFieldOwner;
+        if (write.fieldBinding instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent cc) {
+            writeFieldOwner = cc.ref().owner();
+        } else {
+            writeFieldOwner = (write.componentId != null ? write.componentId : null);
+        }
         properties.put("fieldName", writeFieldName);
         properties.put("fieldOwnerComponentId", writeFieldOwner != null ? writeFieldOwner.serialize() : "");
         properties.put("writerMethod", Objects.toString(write.method, ""));
@@ -1025,9 +1055,12 @@ public class ArchitectureGraph {
 
     private boolean matchesNumeric(String actualText, String expected) {
         try {
-            String operator = expected.startsWith("<=") || expected.startsWith(">=")
-                    ? expected.substring(0, 2)
-                    : expected.substring(0, 1);
+            String operator;
+            if (expected.startsWith("<=") || expected.startsWith(">=")) {
+                operator = expected.substring(0, 2);
+            } else {
+                operator = expected.substring(0, 1);
+            }
             double expectedNumber = Double.parseDouble(expected.substring(operator.length()));
             double actualNumber = Double.parseDouble(actualText);
             return switch (operator) {
@@ -1057,7 +1090,11 @@ public class ArchitectureGraph {
             return null;
         }
         int index = qualifiedName.lastIndexOf('.');
-        return index > 0 ? qualifiedName.substring(0, index) : "";
+        if (index > 0) {
+            return qualifiedName.substring(0, index);
+        } else {
+            return "";
+        }
     }
 
     private String protocolFor(Entrypoint entrypoint) {
@@ -1103,7 +1140,11 @@ public class ArchitectureGraph {
     }
 
     private String normalizeBlank(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
+        if (value == null || value.isBlank()) {
+            return null;
+        } else {
+            return value.trim();
+        }
     }
 
     private int normalizeLimit(int limit) {

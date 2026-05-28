@@ -77,7 +77,12 @@ public class MessagingConfigResolver {
             File file = new File(resources, name);
             if (!file.isFile()) continue;
             try {
-                Map<String, String> flat = name.endsWith(".properties") ? readProperties(file) : readYaml(file);
+                Map<String, String> flat;
+                if (name.endsWith(".properties")) {
+                    flat = readProperties(file);
+                } else {
+                    flat = readYaml(file);
+                }
                 collect(flat, brokers, topics);
             } catch (IOException ignored) {
             }
@@ -141,7 +146,12 @@ public class MessagingConfigResolver {
     @SuppressWarnings("unchecked")
     private void flatten(String prefix, Map<String, Object> in, Map<String, Object> out) {
         for (Map.Entry<String, Object> entry : in.entrySet()) {
-            String key = prefix.isEmpty() ? entry.getKey() : prefix + "." + entry.getKey();
+            String key;
+            if (prefix.isEmpty()) {
+                key = entry.getKey();
+            } else {
+                key = prefix + "." + entry.getKey();
+            }
             Object value = entry.getValue();
             if (value instanceof Map<?, ?> nested) {
                 flatten(key, (Map<String, Object>) nested, out);

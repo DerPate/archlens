@@ -88,6 +88,10 @@ public final class WorkflowTraversalPolicy {
     }
 
     private static String lower(String value) {
-        return value == null ? "" : value.toLowerCase(Locale.ROOT);
+        if (value == null) {
+            return "";
+        } else {
+            return value.toLowerCase(Locale.ROOT);
+        }
     }
 }

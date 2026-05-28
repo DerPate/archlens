@@ -84,8 +84,12 @@ public class EventBusExtractor {
         for (CtMethod<?> method : type.getMethods()) {
             for (CtInvocation<?> inv : method.getElements(new TypeFilter<>(CtInvocation.class))) {
                 if (!"consumer".equals(inv.getExecutable().getSimpleName())) continue;
-                CtTypeReference<?> targetType =
-                        inv.getTarget() != null ? inv.getTarget().getType() : null;
+                CtTypeReference<?> targetType;
+                if (inv.getTarget() != null) {
+                    targetType = inv.getTarget().getType();
+                } else {
+                    targetType = null;
+                }
                 if (targetType == null) continue;
                 if (!"EventBus".equals(targetType.getSimpleName())) continue;
                 if (inv.getArguments().isEmpty()) continue;
@@ -93,10 +97,13 @@ public class EventBusExtractor {
                 String address = literalString(inv.getArguments().get(0));
                 CtLambda<?> lambda = findHandlerLambda(inv);
                 if (address == null || lambda == null) continue;
+                String paramName;
 
-                String paramName = lambda.getParameters().isEmpty()
-                        ? "message"
-                        : lambda.getParameters().get(0).getSimpleName();
+                if (lambda.getParameters().isEmpty()) {
+                    paramName = "message";
+                } else {
+                    paramName = lambda.getParameters().get(0).getSimpleName();
+                }
 
                 dev.dominikbreu.spoonmcp.model.ids.ComponentId compId =
                         dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName());
@@ -287,7 +294,11 @@ public class EventBusExtractor {
                     var val = ann.getValue("value");
                     if (val != null) {
                         String addr = val.toString().replace("\"", "");
-                        return addr.isEmpty() ? method.getSimpleName() : addr;
+                        if (addr.isEmpty()) {
+                            return method.getSimpleName();
+                        } else {
+                            return addr;
+                        }
                     }
                 } catch (Exception ignored) {
                 }
@@ -342,11 +353,19 @@ public class EventBusExtractor {
 
     private String getFile(CtElement el) {
         var pos = el.getPosition();
-        return pos.isValidPosition() ? pos.getFile().getAbsolutePath() : "unknown";
+        if (pos.isValidPosition()) {
+            return pos.getFile().getAbsolutePath();
+        } else {
+            return "unknown";
+        }
     }
 
     private int getLine(CtElement el) {
         var pos = el.getPosition();
-        return pos.isValidPosition() ? pos.getLine() : 0;
+        if (pos.isValidPosition()) {
+            return pos.getLine();
+        } else {
+            return 0;
+        }
     }
 }

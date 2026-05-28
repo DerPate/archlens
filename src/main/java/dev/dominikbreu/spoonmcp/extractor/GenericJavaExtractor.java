@@ -145,11 +145,19 @@ public class GenericJavaExtractor {
 
     private String getFile(CtElement element) {
         var position = element.getPosition();
-        return position.isValidPosition() ? position.getFile().getAbsolutePath() : "unknown";
+        if (position.isValidPosition()) {
+            return position.getFile().getAbsolutePath();
+        } else {
+            return "unknown";
+        }
     }
 
     private int getLine(CtElement element) {
         var position = element.getPosition();
-        return position.isValidPosition() ? position.getLine() : 0;
+        if (position.isValidPosition()) {
+            return position.getLine();
+        } else {
+            return 0;
+        }
     }
 }

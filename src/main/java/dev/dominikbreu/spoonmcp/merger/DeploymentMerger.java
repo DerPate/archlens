@@ -28,7 +28,12 @@ public class DeploymentMerger {
 
             // check common Ansible directories
             for (String sub : List.of(".", "ansible", "deploy", "infra")) {
-                File candidate = ".".equals(sub) ? root : new File(root, sub);
+                File candidate;
+                if (".".equals(sub)) {
+                    candidate = root;
+                } else {
+                    candidate = new File(root, sub);
+                }
                 ansibleMerger.merge(candidate, model);
             }
         }

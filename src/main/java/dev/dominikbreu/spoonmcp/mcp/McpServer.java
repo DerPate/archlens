@@ -454,7 +454,12 @@ public class McpServer {
                 .build();
 
         return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> {
-            Map<String, Object> args = request.arguments() != null ? request.arguments() : Map.of();
+            Map<String, Object> args;
+            if (request.arguments() != null) {
+                args = request.arguments();
+            } else {
+                args = Map.of();
+            }
             String result = handler.apply(args);
             return McpSchema.CallToolResult.builder().addTextContent(result).build();
         });
@@ -464,7 +469,12 @@ public class McpServer {
             String name, String description, List<McpSchema.PromptArgument> args, String template) {
         McpSchema.Prompt prompt = new McpSchema.Prompt(name, description, args);
         return new McpServerFeatures.SyncPromptSpecification(prompt, (exchange, request) -> {
-            Map<String, Object> promptArgs = request.arguments() != null ? request.arguments() : Map.of();
+            Map<String, Object> promptArgs;
+            if (request.arguments() != null) {
+                promptArgs = request.arguments();
+            } else {
+                promptArgs = Map.of();
+            }
             String text = fillTemplate(template, promptArgs);
             return new McpSchema.GetPromptResult(
                     description,
@@ -479,7 +489,12 @@ public class McpServer {
     private static String fillTemplate(String template, Map<String, Object> args) {
         String result = template.strip();
         for (Map.Entry<String, Object> entry : args.entrySet()) {
-            String value = entry.getValue() == null ? "" : entry.getValue().toString();
+            String value;
+            if (entry.getValue() == null) {
+                value = "";
+            } else {
+                value = entry.getValue().toString();
+            }
             result = result.replace("{" + entry.getKey() + "}", value);
         }
         return result.replaceAll("\\{[A-Za-z0-9_]+}", "");

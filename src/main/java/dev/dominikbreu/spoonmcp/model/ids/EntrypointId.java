@@ -31,8 +31,10 @@ public record EntrypointId(ComponentId component, String method, String suffix) 
 
     @JsonValue
     public String serialize() {
-        return suffix.isEmpty()
-                ? component.qualifiedName() + "#" + method
-                : component.qualifiedName() + "#" + method + ":" + suffix;
+        if (suffix.isEmpty()) {
+            return component.qualifiedName() + "#" + method;
+        } else {
+            return component.qualifiedName() + "#" + method + ":" + suffix;
+        }
     }
 }

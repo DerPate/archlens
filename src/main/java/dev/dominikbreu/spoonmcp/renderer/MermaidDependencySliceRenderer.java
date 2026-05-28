@@ -74,7 +74,12 @@ public class MermaidDependencySliceRenderer {
         StringBuilder sb = new StringBuilder("flowchart LR\n");
         for (String componentId : visibleComponents) {
             Component component = byId.get(componentId);
-            String label = component != null ? component.name + "\\n" + component.type : componentId;
+            String label;
+            if (component != null) {
+                label = component.name + "\\n" + component.type;
+            } else {
+                label = componentId;
+            }
             sb.append("    ")
                     .append(nodeId(componentId))
                     .append("[\"")
@@ -109,6 +114,10 @@ public class MermaidDependencySliceRenderer {
     }
 
     private String escape(String input) {
-        return input == null ? "" : input.replace("\"", "'");
+        if (input == null) {
+            return "";
+        } else {
+            return input.replace("\"", "'");
+        }
     }
 }

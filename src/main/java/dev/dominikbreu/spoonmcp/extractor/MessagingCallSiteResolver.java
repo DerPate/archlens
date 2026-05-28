@@ -65,7 +65,12 @@ public class MessagingCallSiteResolver {
         if (trackedFields.isEmpty()) return findings;
 
         for (CtInvocation<?> inv : type.getElements(new TypeFilter<>())) {
-            String name = inv.getExecutable() != null ? inv.getExecutable().getSimpleName() : null;
+            String name;
+            if (inv.getExecutable() != null) {
+                name = inv.getExecutable().getSimpleName();
+            } else {
+                name = null;
+            }
             if (name == null) continue;
 
             // Direct call: target is a tracked field, method name is broker-specific.
@@ -136,7 +141,12 @@ public class MessagingCallSiteResolver {
         Role role = null;
         CtExpression<?> cursor = inv.getTarget();
         while (cursor instanceof CtInvocation<?> chain) {
-            String n = chain.getExecutable() != null ? chain.getExecutable().getSimpleName() : null;
+            String n;
+            if (chain.getExecutable() != null) {
+                n = chain.getExecutable().getSimpleName();
+            } else {
+                n = null;
+            }
             if (FLUENT_PUBLISH_ENTRY.equals(n)) role = Role.PRODUCER;
             else if (FLUENT_SUBSCRIBE_ENTRY.equals(n)) role = Role.CONSUMER;
             cursor = chain.getTarget();
@@ -167,7 +177,11 @@ public class MessagingCallSiteResolver {
     private String resolveStringArg(CtInvocation<?> inv, int index) {
         if (inv.getArguments().size() <= index) return UNRESOLVED;
         String resolved = resolveString(inv.getArguments().get(index));
-        return resolved != null ? resolved : UNRESOLVED;
+        if (resolved != null) {
+            return resolved;
+        } else {
+            return UNRESOLVED;
+        }
     }
 
     private String resolveKafkaSendTopic(CtInvocation<?> sendInv) {
@@ -175,7 +189,11 @@ public class MessagingCallSiteResolver {
         CtExpression<?> arg = sendInv.getArguments().get(0);
         if (arg instanceof CtConstructorCall<?> ctor && !ctor.getArguments().isEmpty()) {
             String resolved = resolveString(ctor.getArguments().get(0));
-            return resolved != null ? resolved : UNRESOLVED;
+            if (resolved != null) {
+                return resolved;
+            } else {
+                return UNRESOLVED;
+            }
         }
         return UNRESOLVED;
     }
@@ -183,7 +201,12 @@ public class MessagingCallSiteResolver {
     private List<String> resolveCollectionOfStrings(CtExpression<?> expr) {
         List<String> out = new ArrayList<>();
         if (expr instanceof CtInvocation<?> inv) {
-            String n = inv.getExecutable() != null ? inv.getExecutable().getSimpleName() : null;
+            String n;
+            if (inv.getExecutable() != null) {
+                n = inv.getExecutable().getSimpleName();
+            } else {
+                n = null;
+            }
             if (n != null && COLLECTION_FACTORY_METHODS.contains(n)) {
                 for (CtExpression<?> a : inv.getArguments()) {
                     String s = resolveString(a);
@@ -217,7 +240,11 @@ public class MessagingCallSiteResolver {
 
     private int line(CtElement el) {
         var pos = el.getPosition();
-        return pos != null && pos.isValidPosition() ? pos.getLine() : 0;
+        if (pos != null && pos.isValidPosition()) {
+            return pos.getLine();
+        } else {
+            return 0;
+        }
     }
 
     /**

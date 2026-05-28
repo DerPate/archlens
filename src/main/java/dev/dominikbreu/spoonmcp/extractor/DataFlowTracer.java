@@ -156,7 +156,12 @@ public class DataFlowTracer {
         }
 
         for (DataFlowPath p : paths) {
-            String pEpIdStr = p.entrypointId != null ? p.entrypointId.serialize() : null;
+            String pEpIdStr;
+            if (p.entrypointId != null) {
+                pEpIdStr = p.entrypointId.serialize();
+            } else {
+                pEpIdStr = null;
+            }
             for (DataFlowSink s : p.sinks) {
                 if (s.kind != DataFlowSink.Kind.STORE) continue;
                 if (s.fieldOwnerComponentId == null || s.fieldName == null) continue;
@@ -231,7 +236,12 @@ public class DataFlowTracer {
 
     private String destinationKey(dev.dominikbreu.spoonmcp.model.MessagingBroker broker, String destination) {
         if (destination == null || destination.isBlank() || "(unresolved)".equals(destination)) return null;
-        String brokerKey = broker == null ? "UNKNOWN" : broker.name();
+        String brokerKey;
+        if (broker == null) {
+            brokerKey = "UNKNOWN";
+        } else {
+            brokerKey = broker.name();
+        }
         return brokerKey + ":" + destination.trim();
     }
 
@@ -279,7 +289,12 @@ public class DataFlowTracer {
 
         try {
             Component comp = index.components.get(compId);
-            String compName = comp != null ? comp.name : compId.serialize();
+            String compName;
+            if (comp != null) {
+                compName = comp.name;
+            } else {
+                compName = compId.serialize();
+            }
 
             for (Map.Entry<String, String> e : currentToOriginal.entrySet()) {
                 DataFlowPath path = pathsByOriginal.get(e.getValue());
@@ -287,9 +302,18 @@ public class DataFlowTracer {
             }
 
             for (OutboundSinkSite site : index.outboundSinks.sites(compId, method)) {
-                String topic = site.topic != null ? resolvedCallerArgs.getOrDefault(site.topic, site.topic) : null;
-                String channel =
-                        site.channel != null ? resolvedCallerArgs.getOrDefault(site.channel, site.channel) : null;
+                String topic;
+                if (site.topic != null) {
+                    topic = resolvedCallerArgs.getOrDefault(site.topic, site.topic);
+                } else {
+                    topic = null;
+                }
+                String channel;
+                if (site.channel != null) {
+                    channel = resolvedCallerArgs.getOrDefault(site.channel, site.channel);
+                } else {
+                    channel = null;
+                }
                 for (String origName : currentToOriginal.values()) {
                     DataFlowSink sink =
                             new DataFlowSink(site.kind, site.componentId, compName, site.calleeMethod, site.source);
@@ -318,10 +342,13 @@ public class DataFlowTracer {
                     boolean valueSourceUnresolvable =
                             !"*".equals(currentName) && fw.sourceVarName == null && fw.sourceFieldName == null;
                     if (isEntrypointBody || sourceMatches || valueSourceUnresolvable) {
-                        dev.dominikbreu.spoonmcp.model.ids.ComponentId fieldOwner = fw.fieldBinding
-                                        instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent cc
-                                ? cc.ref().owner()
-                                : fw.componentId;
+                        dev.dominikbreu.spoonmcp.model.ids.ComponentId fieldOwner;
+                        if (fw.fieldBinding
+                                instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent cc) {
+                            fieldOwner = cc.ref().owner();
+                        } else {
+                            fieldOwner = fw.componentId;
+                        }
                         String fieldName = fw.fieldBinding.fieldName();
                         pathsByOriginal
                                 .get(e.getValue())
@@ -379,9 +406,12 @@ public class DataFlowTracer {
                                 && !edge.receiverLocalName.equals(currentName)) {
                             continue;
                         }
-                        String nextName = "*".equals(currentName)
-                                ? "*"
-                                : edge.paramMapping.getOrDefault(currentName, currentName);
+                        String nextName;
+                        if ("*".equals(currentName)) {
+                            nextName = "*";
+                        } else {
+                            nextName = edge.paramMapping.getOrDefault(currentName, currentName);
+                        }
                         nextMapping.put(nextName, e.getValue());
                     }
                     if (!nextMapping.isEmpty()) {

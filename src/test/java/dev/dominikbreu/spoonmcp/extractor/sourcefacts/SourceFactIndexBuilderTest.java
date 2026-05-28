@@ -72,7 +72,7 @@ class SourceFactIndexBuilderTest extends ExtractorTestBase {
                 .contains("orderService");
         assertThat(index.annotations(orderResource.id()))
                 .extracting(SourceAnnotation::qualifiedName)
-                .anyMatch(name -> name.endsWith(".Path") || name.equals("Path"));
+                .anyMatch(name -> name.endsWith(".Path") || "Path".equals(name));
     }
 
     @Test
@@ -94,7 +94,7 @@ class SourceFactIndexBuilderTest extends ExtractorTestBase {
                 new SourceFactIndexBuilder().build(scan("generic-object-flow"), "generic-object-flow", 1);
         SourceType mainApp = index.type("com.example.objectflow.MainApp");
         SourceMethod run = index.methods(mainApp.id()).stream()
-                .filter(method -> method.name().equals("run"))
+                .filter(method -> "run".equals(method.name()))
                 .findFirst()
                 .orElseThrow();
 
@@ -108,7 +108,7 @@ class SourceFactIndexBuilderTest extends ExtractorTestBase {
 
         SourceType provider = index.type("com.example.objectflow.StateStoreProvider");
         SourceMethod store = index.methods(provider.id()).stream()
-                .filter(method -> method.name().equals("store"))
+                .filter(method -> "store".equals(method.name()))
                 .findFirst()
                 .orElseThrow();
         assertThat(index.returns(store.id())).anySatisfy(ret -> {

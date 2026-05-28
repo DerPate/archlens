@@ -309,7 +309,11 @@ public class SpringExtractor {
 
     private String firstNonEmptyAttribute(CtElement element, Set<String> annotation, String first, String second) {
         String value = annotationAttribute(element, annotation, first);
-        return value.isEmpty() ? annotationAttribute(element, annotation, second) : value;
+        if (value.isEmpty()) {
+            return annotationAttribute(element, annotation, second);
+        } else {
+            return value;
+        }
     }
 
     private boolean isMainMethod(CtMethod<?> method) {
@@ -407,7 +411,11 @@ public class SpringExtractor {
     private String resolveAnnotationValue(CtExpression<?> value) {
         if (value instanceof CtLiteral<?> literal) {
             Object raw = literal.getValue();
-            return raw == null ? "" : raw.toString();
+            if (raw == null) {
+                return "";
+            } else {
+                return raw.toString();
+            }
         }
         if (value instanceof CtNewArray<?> array) {
             for (CtExpression<?> element : array.getElements()) {
@@ -421,7 +429,11 @@ public class SpringExtractor {
                 CtField<?> field = fieldRef.getDeclaration();
                 if (field != null && field.getDefaultExpression() instanceof CtLiteral<?> lit) {
                     Object raw = lit.getValue();
-                    return raw == null ? "" : raw.toString();
+                    if (raw == null) {
+                        return "";
+                    } else {
+                        return raw.toString();
+                    }
                 }
             } catch (Exception ignored) {
             }
@@ -441,7 +453,12 @@ public class SpringExtractor {
     }
 
     private String stripArray(String value) {
-        String out = value == null ? "" : value.trim();
+        String out;
+        if (value == null) {
+            out = "";
+        } else {
+            out = value.trim();
+        }
         // Only strip Java array braces when the inner content is a string literal ("...").
         // Path values can start with { (a path variable like {id}) — those must not be stripped.
         if (out.startsWith("{") && out.endsWith("}")) {
@@ -468,12 +485,20 @@ public class SpringExtractor {
 
     protected String getFile(CtElement element) {
         var position = element.getPosition();
-        return position.isValidPosition() ? position.getFile().getAbsolutePath() : "unknown";
+        if (position.isValidPosition()) {
+            return position.getFile().getAbsolutePath();
+        } else {
+            return "unknown";
+        }
     }
 
     protected int getLine(CtElement element) {
         var position = element.getPosition();
-        return position.isValidPosition() ? position.getLine() : 0;
+        if (position.isValidPosition()) {
+            return position.getLine();
+        } else {
+            return 0;
+        }
     }
 
     private void extractFeignInterfaces(CtType<?> type, Component component, ArchitectureModel model) {
@@ -500,9 +525,12 @@ public class SpringExtractor {
         type.getElements(element -> element instanceof CtInvocation<?>).forEach(element -> {
             CtInvocation<?> invocation = (CtInvocation<?>) element;
             addKafkaOutboundSinkSite(invocation, component, model);
-            String executable = invocation.getExecutable() == null
-                    ? ""
-                    : invocation.getExecutable().getSimpleName();
+            String executable;
+            if (invocation.getExecutable() == null) {
+                executable = "";
+            } else {
+                executable = invocation.getExecutable().getSimpleName();
+            }
             List<String> args = invocation.getArguments().stream()
                     .map(arg -> config.resolve(stripQuotes(arg.toString())))
                     .toList();
@@ -521,8 +549,12 @@ public class SpringExtractor {
                 addProducerInterface(invocation, component, MessagingBroker.KAFKA, args.getFirst(), model);
             }
             if ("convertAndSend".equals(executable)) {
-                MessagingBroker broker =
-                        args.getFirst().contains("jms") ? MessagingBroker.JMS : MessagingBroker.RABBITMQ;
+                MessagingBroker broker;
+                if (args.getFirst().contains("jms")) {
+                    broker = MessagingBroker.JMS;
+                } else {
+                    broker = MessagingBroker.RABBITMQ;
+                }
                 addProducerInterface(invocation, component, broker, args.getFirst(), model);
             }
         });
@@ -530,17 +562,25 @@ public class SpringExtractor {
 
     private void addKafkaOutboundSinkSite(CtInvocation<?> invocation, Component component, ArchitectureModel model) {
         if (invocation.getArguments().isEmpty()) return;
-        String executable = invocation.getExecutable() == null
-                ? ""
-                : invocation.getExecutable().getSimpleName();
+        String executable;
+        if (invocation.getExecutable() == null) {
+            executable = "";
+        } else {
+            executable = invocation.getExecutable().getSimpleName();
+        }
         if (!"send".equals(executable)) return;
-        String declaringType = invocation.getExecutable().getDeclaringType() == null
-                ? ""
-                : invocation.getExecutable().getDeclaringType().getQualifiedName();
-        String targetType =
-                invocation.getTarget() == null || invocation.getTarget().getType() == null
-                        ? ""
-                        : invocation.getTarget().getType().getQualifiedName();
+        String declaringType;
+        if (invocation.getExecutable().getDeclaringType() == null) {
+            declaringType = "";
+        } else {
+            declaringType = invocation.getExecutable().getDeclaringType().getQualifiedName();
+        }
+        String targetType;
+        if (invocation.getTarget() == null || invocation.getTarget().getType() == null) {
+            targetType = "";
+        } else {
+            targetType = invocation.getTarget().getType().getQualifiedName();
+        }
         if (!declaringType.contains("KafkaTemplate") && !targetType.contains("KafkaTemplate")) return;
 
         SpringConfigResolver.ResolvedValue topic = config.resolveWithKey(
@@ -579,7 +619,11 @@ public class SpringExtractor {
         if (invocation.getArguments().size() < 2) return null;
         spoon.reflect.reference.CtTypeReference<?> type =
                 invocation.getArguments().get(1).getType();
-        return type == null ? null : type.getQualifiedName();
+        if (type == null) {
+            return null;
+        } else {
+            return type.getQualifiedName();
+        }
     }
 
     private void addProducerInterface(

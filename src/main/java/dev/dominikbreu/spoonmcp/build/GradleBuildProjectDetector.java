@@ -21,9 +21,13 @@ public class GradleBuildProjectDetector implements BuildProjectDetector {
         boolean groovy = new File(root, "settings.gradle").isFile() || new File(root, "build.gradle").isFile();
         boolean kotlin = new File(root, "settings.gradle.kts").isFile() || new File(root, "build.gradle.kts").isFile();
         if (!groovy && !kotlin) return Optional.empty();
+        BuildSystem system;
 
-        BuildSystem system =
-                groovy && kotlin ? BuildSystem.MIXED : kotlin ? BuildSystem.GRADLE_KOTLIN : BuildSystem.GRADLE_GROOVY;
+        if (groovy && kotlin) {
+            system = BuildSystem.MIXED;
+        } else {
+            system = kotlin ? BuildSystem.GRADLE_KOTLIN : BuildSystem.GRADLE_GROOVY;
+        }
         List<String> includes = readIncludes(root);
         List<BuildModule> modules = new ArrayList<>();
         if (includes.isEmpty()) {
@@ -62,7 +66,7 @@ public class GradleBuildProjectDetector implements BuildProjectDetector {
         // Kotlin DSL bare plugin shorthand: just "java" on its own line
         for (String line : build.lines().toList()) {
             String t = line.trim();
-            if (t.equals("java")) plugins.add("java");
+            if ("java".equals(t)) plugins.add("java");
         }
 
         String packaging = classifyPackaging(plugins);

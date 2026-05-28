@@ -53,6 +53,10 @@ public final class ArchitectureViewMermaidRenderer {
     }
 
     private static String escape(String value) {
-        return value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"");
+        if (value == null) {
+            return "";
+        } else {
+            return value.replace("\\", "\\\\").replace("\"", "\\\"");
+        }
     }
 }

@@ -245,7 +245,11 @@ public class CallGraphExtractor {
     }
 
     private static String lowerFirst(String s) {
-        return s.isEmpty() ? s : Character.toLowerCase(s.charAt(0)) + s.substring(1);
+        if (s.isEmpty()) {
+            return s;
+        } else {
+            return Character.toLowerCase(s.charAt(0)) + s.substring(1);
+        }
     }
 
     private static boolean isSharedStateDenylisted(String simpleTypeName) {
@@ -274,10 +278,18 @@ public class CallGraphExtractor {
             String fieldName = fw.getVariable().getSimpleName();
             if (!sharedStateFields.contains(fieldName)) continue;
             CtExpression<?> rhs = assign.getAssignment();
-            String srcVar =
-                    (rhs instanceof CtVariableRead<?> vr) ? vr.getVariable().getSimpleName() : null;
-            String srcField =
-                    (rhs instanceof CtFieldRead<?> fr) ? fr.getVariable().getSimpleName() : null;
+            String srcVar;
+            if (rhs instanceof CtVariableRead<?> vr) {
+                srcVar = vr.getVariable().getSimpleName();
+            } else {
+                srcVar = null;
+            }
+            String srcField;
+            if (rhs instanceof CtFieldRead<?> fr) {
+                srcField = fr.getVariable().getSimpleName();
+            } else {
+                srcField = null;
+            }
             model.fieldAccesses.add(buildAccess(
                     FieldAccess.Kind.WRITE, fromComp, methodName, fieldName, srcVar, srcField, assign.getPosition()));
         }
@@ -349,8 +361,18 @@ public class CallGraphExtractor {
         fa.keyVarName = keyVar;
         fa.id = "field:" + owner.id.serialize() + "#" + method + "@" + fieldName + ":"
                 + kind.name().toLowerCase();
-        String file = (pos != null && pos.isValidPosition()) ? pos.getFile().getAbsolutePath() : "unknown";
-        int line = (pos != null && pos.isValidPosition()) ? pos.getLine() : 0;
+        String file;
+        if (pos != null && pos.isValidPosition()) {
+            file = pos.getFile().getAbsolutePath();
+        } else {
+            file = "unknown";
+        }
+        int line;
+        if (pos != null && pos.isValidPosition()) {
+            line = pos.getLine();
+        } else {
+            line = 0;
+        }
         fa.source = new SourceInfo(file, line, "field-access", 0.9);
         return fa;
     }
@@ -361,7 +383,11 @@ public class CallGraphExtractor {
         // (add, offer, push, …) have no separate key position.
         if (args.size() < 2) return null;
         CtExpression<?> first = args.get(0);
-        return first instanceof CtVariableRead<?> vr ? vr.getVariable().getSimpleName() : null;
+        if (first instanceof CtVariableRead<?> vr) {
+            return vr.getVariable().getSimpleName();
+        } else {
+            return null;
+        }
     }
 
     private static String lastVarReadName(List<spoon.reflect.code.CtExpression<?>> args) {
@@ -370,15 +396,21 @@ public class CallGraphExtractor {
         // Falling back to earlier arguments would confuse the key with the value
         // for calls like put(key, someInvocation()).
         CtExpression<?> last = args.get(args.size() - 1);
-        return last instanceof CtVariableRead<?> vr ? vr.getVariable().getSimpleName() : null;
+        if (last instanceof CtVariableRead<?> vr) {
+            return vr.getVariable().getSimpleName();
+        } else {
+            return null;
+        }
     }
 
     private static String lastFieldReadName(List<spoon.reflect.code.CtExpression<?>> args) {
         if (args.isEmpty()) return null;
         CtExpression<?> last = args.get(args.size() - 1);
-        return last instanceof spoon.reflect.code.CtFieldRead<?> fr
-                ? fr.getVariable().getSimpleName()
-                : null;
+        if (last instanceof spoon.reflect.code.CtFieldRead<?> fr) {
+            return fr.getVariable().getSimpleName();
+        } else {
+            return null;
+        }
     }
 
     private void extractAccessorChainFieldAccesses(
@@ -431,8 +463,18 @@ public class CallGraphExtractor {
         access.id = "field:" + fromComp.id.serialize() + "#" + methodName + "@" + fieldOwner.id.serialize() + "#"
                 + fieldName + ":" + kind.name().toLowerCase() + ":object-flow";
         var pos = invocation.getPosition();
-        String file = (pos != null && pos.isValidPosition()) ? pos.getFile().getAbsolutePath() : "unknown";
-        int line = (pos != null && pos.isValidPosition()) ? pos.getLine() : 0;
+        String file;
+        if (pos != null && pos.isValidPosition()) {
+            file = pos.getFile().getAbsolutePath();
+        } else {
+            file = "unknown";
+        }
+        int line;
+        if (pos != null && pos.isValidPosition()) {
+            line = pos.getLine();
+        } else {
+            line = 0;
+        }
         access.source = new SourceInfo(file, line, "field-access-via-object-flow", 0.82);
         return access;
     }
@@ -506,10 +548,13 @@ public class CallGraphExtractor {
         }
         for (CtField<?> field : type.getFields()) {
             if (field.getType() == null) continue;
-            Component target = sourceFacts == null
-                    ? ctx.components.find(
-                            field.getType().getQualifiedName(), field.getType().getSimpleName())
-                    : resolveSourceFactType(field.getType().getQualifiedName(), ownId, ctx);
+            Component target;
+            if (sourceFacts == null) {
+                target = ctx.components.find(
+                        field.getType().getQualifiedName(), field.getType().getSimpleName());
+            } else {
+                target = resolveSourceFactType(field.getType().getQualifiedName(), ownId, ctx);
+            }
             if (target != null && !target.id.equals(ownId)) {
                 map.put(field.getSimpleName(), target);
             }
@@ -534,12 +579,20 @@ public class CallGraphExtractor {
                 .filter(component -> !component.id.equals(ownId))
                 .distinct()
                 .toList();
-        return implementationComponents.size() == 1 ? implementationComponents.get(0) : null;
+        if (implementationComponents.size() == 1) {
+            return implementationComponents.get(0);
+        } else {
+            return null;
+        }
     }
 
     private static String simpleName(String qualifiedName) {
         int dot = qualifiedName.lastIndexOf('.');
-        return dot < 0 ? qualifiedName : qualifiedName.substring(dot + 1);
+        if (dot < 0) {
+            return qualifiedName;
+        } else {
+            return qualifiedName.substring(dot + 1);
+        }
     }
 
     private void extractFromMethod(
@@ -703,7 +756,7 @@ public class CallGraphExtractor {
             if (kind == null) {
                 String[] kindAndChannel = classifyMessagingFieldTarget(inv);
                 if (kindAndChannel != null) {
-                    kind = kindAndChannel[0].equals("messaging")
+                    kind = "messaging".equals(kindAndChannel[0])
                             ? DataFlowSink.Kind.MESSAGING
                             : DataFlowSink.Kind.EVENT_BUS;
                     channel = kindAndChannel[1];
@@ -723,8 +776,18 @@ public class CallGraphExtractor {
             site.calleeQualifiedName = qn;
             site.calleeMethod = inv.getExecutable().getSimpleName();
             var pos = inv.getPosition();
-            String file = (pos != null && pos.isValidPosition()) ? pos.getFile().getAbsolutePath() : "unknown";
-            int line = (pos != null && pos.isValidPosition()) ? pos.getLine() : 0;
+            String file;
+            if (pos != null && pos.isValidPosition()) {
+                file = pos.getFile().getAbsolutePath();
+            } else {
+                file = "unknown";
+            }
+            int line;
+            if (pos != null && pos.isValidPosition()) {
+                line = pos.getLine();
+            } else {
+                line = 0;
+            }
             site.source = new SourceInfo(file, line, "invocation", 0.85);
             model.outboundSinkSites.add(site);
         }
@@ -779,8 +842,12 @@ public class CallGraphExtractor {
                 .map(CtParameter::getSimpleName)
                 .collect(Collectors.toSet());
         CtType<?> calleeType = calleeMethod.getDeclaringType();
-        Set<String> calleeSharedState =
-                calleeType != null ? ctx.sharedStateFieldsFor(calleeType, this::buildSharedStateFieldSet) : Set.of();
+        Set<String> calleeSharedState;
+        if (calleeType != null) {
+            calleeSharedState = ctx.sharedStateFieldsFor(calleeType, this::buildSharedStateFieldSet);
+        } else {
+            calleeSharedState = Set.of();
+        }
         for (CtReturn<?> ret : calleeMethod.getElements(new TypeFilter<>(CtReturn.class))) {
             CtExpression<?> ex = ret.getReturnedExpression();
             if (ex == null) continue;
@@ -818,8 +885,18 @@ public class CallGraphExtractor {
             fa.id = "field:" + fromComp.id.serialize() + "#" + fromMethod + "@" + toComp.id.serialize() + "#"
                     + calleeMethod.getSimpleName() + ":" + fieldName + ":read:xcomp";
             var pos = inv.getPosition();
-            String file = (pos != null && pos.isValidPosition()) ? pos.getFile().getAbsolutePath() : "unknown";
-            int line = (pos != null && pos.isValidPosition()) ? pos.getLine() : 0;
+            String file;
+            if (pos != null && pos.isValidPosition()) {
+                file = pos.getFile().getAbsolutePath();
+            } else {
+                file = "unknown";
+            }
+            int line;
+            if (pos != null && pos.isValidPosition()) {
+                line = pos.getLine();
+            } else {
+                line = 0;
+            }
             fa.source = new SourceInfo(file, line, "field-access-via-getter", 0.85);
             model.fieldAccesses.add(fa);
             return;
@@ -832,7 +909,11 @@ public class CallGraphExtractor {
         }
         if (expression instanceof CtFieldRead<?> direct) {
             String fieldName = direct.getVariable().getSimpleName();
-            return sharedStateFields.contains(fieldName) ? fieldName : null;
+            if (sharedStateFields.contains(fieldName)) {
+                return fieldName;
+            } else {
+                return null;
+            }
         }
         for (CtFieldRead<?> read : expression.getElements(new TypeFilter<>(CtFieldRead.class))) {
             String fieldName = read.getVariable().getSimpleName();
@@ -874,13 +955,21 @@ public class CallGraphExtractor {
 
     private static String resolveArgToLiteral(CtExpression<?> arg) {
         if (arg instanceof CtLiteral<?> lit) {
-            return lit.getValue() == null ? "" : lit.getValue().toString();
+            if (lit.getValue() == null) {
+                return "";
+            } else {
+                return lit.getValue().toString();
+            }
         }
         if (arg instanceof CtVariableRead<?> read && read.getVariable() instanceof CtFieldReference<?> ref) {
             try {
                 CtField<?> decl = ref.getDeclaration();
                 if (decl != null && decl.getDefaultExpression() instanceof CtLiteral<?> lit) {
-                    return lit.getValue() == null ? "" : lit.getValue().toString();
+                    if (lit.getValue() == null) {
+                        return "";
+                    } else {
+                        return lit.getValue().toString();
+                    }
                 }
             } catch (Exception ignored) {
             }
@@ -889,7 +978,11 @@ public class CallGraphExtractor {
             try {
                 if (read.getVariable().getDeclaration() instanceof CtLocalVariable<?> local
                         && local.getDefaultExpression() instanceof CtLiteral<?> lit) {
-                    return lit.getValue() == null ? "" : lit.getValue().toString();
+                    if (lit.getValue() == null) {
+                        return "";
+                    } else {
+                        return lit.getValue().toString();
+                    }
                 }
             } catch (Exception ignored) {
             }
@@ -902,7 +995,11 @@ public class CallGraphExtractor {
         if (expr instanceof CtVariableRead<?> vr) return vr.getVariable().getSimpleName();
         if (expr instanceof CtConditional<?> cond) {
             String t = findFirstVarRead(cond.getThenExpression());
-            return t != null ? t : findFirstVarRead(cond.getElseExpression());
+            if (t != null) {
+                return t;
+            } else {
+                return findFirstVarRead(cond.getElseExpression());
+            }
         }
         if (expr instanceof CtConstructorCall<?> ctor) {
             for (CtExpression<?> a : ctor.getArguments()) {
@@ -958,8 +1055,18 @@ public class CallGraphExtractor {
 
     private SourceInfo buildSource(CtInvocation<?> inv) {
         var pos = inv.getPosition();
-        String file = pos.isValidPosition() ? pos.getFile().getAbsolutePath() : "unknown";
-        int line = pos.isValidPosition() ? pos.getLine() : 0;
+        String file;
+        if (pos.isValidPosition()) {
+            file = pos.getFile().getAbsolutePath();
+        } else {
+            file = "unknown";
+        }
+        int line;
+        if (pos.isValidPosition()) {
+            line = pos.getLine();
+        } else {
+            line = 0;
+        }
         return new SourceInfo(file, line, "invocation", 0.95);
     }
 }

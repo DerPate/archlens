@@ -64,7 +64,7 @@ class ArchitectureViewProjectorTest {
                 "TimestampFormatter should appear after SchedulerJob but was: " + titles);
         assertTrue(
                 projection.edges().stream()
-                        .anyMatch(edge -> edge.label().equals("STATE_HANDOFF")
+                        .anyMatch(edge -> "STATE_HANDOFF".equals(edge.label())
                                 && edge.sourceId().contains("KafkaConsumerService")
                                 && edge.targetId().contains("SchedulerJob")),
                 "Expected STATE_HANDOFF edge from KafkaConsumerService to SchedulerJob");

@@ -20,8 +20,8 @@ class ContainerInferrerTest {
         List<Component> comps = List.of(comp("Resource", ComponentType.REST_RESOURCE, "app1"));
         List<Container> containers = inferrer.infer(comps);
         assertThat(containers)
-                .anyMatch(c -> c.name.equals("api")
-                        && c.componentIds.stream().anyMatch(id -> id.serialize().equals("Resource")));
+                .anyMatch(c -> "api".equals(c.name)
+                        && c.componentIds.stream().anyMatch(id -> "Resource".equals(id.serialize())));
     }
 
     @Test
@@ -29,8 +29,8 @@ class ContainerInferrerTest {
         List<Component> comps = List.of(comp("Svc", ComponentType.SERVICE, "app1"));
         List<Container> containers = inferrer.infer(comps);
         assertThat(containers)
-                .anyMatch(c -> c.name.equals("service")
-                        && c.componentIds.stream().anyMatch(id -> id.serialize().equals("Svc")));
+                .anyMatch(c -> "service".equals(c.name)
+                        && c.componentIds.stream().anyMatch(id -> "Svc".equals(id.serialize())));
     }
 
     @Test
@@ -38,8 +38,8 @@ class ContainerInferrerTest {
         List<Component> comps = List.of(comp("Repo", ComponentType.REPOSITORY, "app1"));
         List<Container> containers = inferrer.infer(comps);
         assertThat(containers)
-                .anyMatch(c -> c.name.equals("repository")
-                        && c.componentIds.stream().anyMatch(id -> id.serialize().equals("Repo")));
+                .anyMatch(c -> "repository".equals(c.name)
+                        && c.componentIds.stream().anyMatch(id -> "Repo".equals(id.serialize())));
     }
 
     @Test
@@ -47,8 +47,8 @@ class ContainerInferrerTest {
         List<Component> comps = List.of(comp("Entity", ComponentType.ENTITY, "app1"));
         List<Container> containers = inferrer.infer(comps);
         assertThat(containers)
-                .anyMatch(c -> c.name.equals("domain")
-                        && c.componentIds.stream().anyMatch(id -> id.serialize().equals("Entity")));
+                .anyMatch(c -> "domain".equals(c.name)
+                        && c.componentIds.stream().anyMatch(id -> "Entity".equals(id.serialize())));
     }
 
     @Test
@@ -56,8 +56,8 @@ class ContainerInferrerTest {
         List<Component> comps = List.of(comp("MDB", ComponentType.MESSAGE_DRIVEN_BEAN, "app1"));
         List<Container> containers = inferrer.infer(comps);
         assertThat(containers)
-                .anyMatch(c -> c.name.equals("messaging")
-                        && c.componentIds.stream().anyMatch(id -> id.serialize().equals("MDB")));
+                .anyMatch(c -> "messaging".equals(c.name)
+                        && c.componentIds.stream().anyMatch(id -> "MDB".equals(id.serialize())));
     }
 
     @Test
@@ -65,8 +65,8 @@ class ContainerInferrerTest {
         List<Component> comps = List.of(comp("Sched", ComponentType.SCHEDULER, "app1"));
         List<Container> containers = inferrer.infer(comps);
         assertThat(containers)
-                .anyMatch(c -> c.name.equals("scheduling")
-                        && c.componentIds.stream().anyMatch(id -> id.serialize().equals("Sched")));
+                .anyMatch(c -> "scheduling".equals(c.name)
+                        && c.componentIds.stream().anyMatch(id -> "Sched".equals(id.serialize())));
     }
 
     @Test
@@ -77,7 +77,7 @@ class ContainerInferrerTest {
                 comp("SI", ComponentType.EJB_SINGLETON, "app1"));
         List<Container> containers = inferrer.infer(comps);
         Container svc = containers.stream()
-                .filter(c -> c.name.equals("service"))
+                .filter(c -> "service".equals(c.name))
                 .findFirst()
                 .orElseThrow();
         assertThat(svc.componentIds.stream().map(ComponentId::serialize).toList())
@@ -91,7 +91,7 @@ class ContainerInferrerTest {
                 comp("Resource2", ComponentType.REST_RESOURCE, "app2"));
         List<Container> containers = inferrer.infer(comps);
         List<Container> apiContainers =
-                containers.stream().filter(c -> c.name.equals("api")).toList();
+                containers.stream().filter(c -> "api".equals(c.name)).toList();
         assertThat(apiContainers).hasSize(2);
         assertThat(apiContainers.stream().map(c -> c.appId).collect(Collectors.toSet()))
                 .containsExactlyInAnyOrder("app1", "app2");
@@ -144,14 +144,14 @@ class ContainerInferrerTest {
         List<Container> containers = inferrer.infer(List.of(server, tool, model));
 
         assertThat(containers)
-                .anyMatch(c -> c.name.equals("mcp-server")
-                        && c.componentIds.stream().anyMatch(id -> id.serialize().equals("McpServer")));
+                .anyMatch(c -> "mcp-server".equals(c.name)
+                        && c.componentIds.stream().anyMatch(id -> "McpServer".equals(id.serialize())));
         assertThat(containers)
-                .anyMatch(c -> c.name.equals("mcp-tools")
-                        && c.componentIds.stream().anyMatch(id -> id.serialize().equals("ListAppsTool")));
+                .anyMatch(c -> "mcp-tools".equals(c.name)
+                        && c.componentIds.stream().anyMatch(id -> "ListAppsTool".equals(id.serialize())));
         assertThat(containers)
-                .anyMatch(c -> c.name.equals("model")
-                        && c.componentIds.stream().anyMatch(id -> id.serialize().equals("ArchitectureModel")));
+                .anyMatch(c -> "model".equals(c.name)
+                        && c.componentIds.stream().anyMatch(id -> "ArchitectureModel".equals(id.serialize())));
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

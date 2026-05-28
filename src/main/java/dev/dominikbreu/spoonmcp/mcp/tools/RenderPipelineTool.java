@@ -81,9 +81,12 @@ public class RenderPipelineTool {
             for (int i = 0; i < filtered.size(); i++) {
                 Chain c = filtered.get(i);
                 Segment root = c.segments.get(0);
-                String rootEpId = root.entrypoint != null
-                        ? root.entrypoint.id.serialize()
-                        : (root.path.entrypointId != null ? root.path.entrypointId.serialize() : "");
+                String rootEpId;
+                if (root.entrypoint != null) {
+                    rootEpId = root.entrypoint.id.serialize();
+                } else {
+                    rootEpId = (root.path.entrypointId != null ? root.path.entrypointId.serialize() : "");
+                }
                 out.append("%% chain ")
                         .append(i + 1)
                         .append(": root=")
@@ -168,7 +171,11 @@ public class RenderPipelineTool {
         Segment seg = c.segments.get(0);
         if (seg.entrypoint != null && seg.entrypoint.id != null) return seg.entrypoint.id.serialize();
         DataFlowPath root = seg.path;
-        return root.entrypointId != null ? root.entrypointId.serialize() : root.id;
+        if (root.entrypointId != null) {
+            return root.entrypointId.serialize();
+        } else {
+            return root.id;
+        }
     }
 
     private String diagnostic(ArchitectureModel model) {
@@ -197,7 +204,12 @@ public class RenderPipelineTool {
                 }
                 if (sink.kind == DataFlowSink.Kind.MESSAGING || sink.kind == DataFlowSink.Kind.EVENT_BUS) {
                     messagingSinks++;
-                    String destination = sink.topic != null ? sink.topic : sink.channel;
+                    String destination;
+                    if (sink.topic != null) {
+                        destination = sink.topic;
+                    } else {
+                        destination = sink.channel;
+                    }
                     if (destination == null
                             || destination.isBlank()
                             || destination.contains("${")

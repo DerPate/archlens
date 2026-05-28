@@ -31,7 +31,7 @@ class SchedulerHubIntegrationTest extends ExtractorTestBase {
 
     @Test
     void recordDispatcherIsClassifiedAsScheduler() {
-        assertThat(model.components).anyMatch(c -> c.name.equals(DISPATCHER) && c.type == ComponentType.SCHEDULER);
+        assertThat(model.components).anyMatch(c -> DISPATCHER.equals(c.name) && c.type == ComponentType.SCHEDULER);
     }
 
     // ── container placement ───────────────────────────────────────────────────
@@ -39,13 +39,13 @@ class SchedulerHubIntegrationTest extends ExtractorTestBase {
     @Test
     void recordDispatcherLandsInSchedulingContainer() {
         ComponentId dispatcherId = model.components.stream()
-                .filter(c -> c.name.equals(DISPATCHER))
+                .filter(c -> DISPATCHER.equals(c.name))
                 .map(c -> c.id)
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("RecordDispatcher component not found"));
 
         assertThat(model.containers)
-                .anyMatch(c -> c.name.equals("scheduling") && c.componentIds.contains(dispatcherId));
+                .anyMatch(c -> "scheduling".equals(c.name) && c.componentIds.contains(dispatcherId));
     }
 
     // ── scheduled entrypoints ─────────────────────────────────────────────────

@@ -28,15 +28,9 @@ class DependencyCondenserTest {
 
         List<Dependency> result = condenser.condense(deps, comps);
 
-        assertThat(result)
-                .anyMatch(d ->
-                        d.fromId.serialize().equals("A") && d.toId.serialize().equals("C"));
-        assertThat(result)
-                .noneMatch(d ->
-                        d.fromId.serialize().equals("A") && d.toId.serialize().equals("B"));
-        assertThat(result)
-                .noneMatch(d ->
-                        d.fromId.serialize().equals("B") && d.toId.serialize().equals("C"));
+        assertThat(result).anyMatch(d -> "A".equals(d.fromId.serialize()) && "C".equals(d.toId.serialize()));
+        assertThat(result).noneMatch(d -> "A".equals(d.fromId.serialize()) && "B".equals(d.toId.serialize()));
+        assertThat(result).noneMatch(d -> "B".equals(d.fromId.serialize()) && "C".equals(d.toId.serialize()));
     }
 
     /**
@@ -55,8 +49,7 @@ class DependencyCondenserTest {
         List<Dependency> result = condenser.condense(deps, comps);
 
         assertThat(result)
-                .anyMatch(d -> d.fromId.serialize().equals("Controller")
-                        && d.toId.serialize().equals("Service"));
+                .anyMatch(d -> "Controller".equals(d.fromId.serialize()) && "Service".equals(d.toId.serialize()));
         assertThat(result).noneMatch(d -> "Mapper".equals(d.fromId.serialize()) || "Mapper".equals(d.toId.serialize()));
         assertThat(result)
                 .noneMatch(d -> "Validator".equals(d.fromId.serialize()) || "Validator".equals(d.toId.serialize()));
@@ -74,8 +67,7 @@ class DependencyCondenserTest {
         List<Dependency> result = condenser.condense(deps, comps);
 
         assertThat(result)
-                .anyMatch(d -> d.fromId.serialize().equals("Service")
-                        && d.toId.serialize().equals("Repository"));
+                .anyMatch(d -> "Service".equals(d.fromId.serialize()) && "Repository".equals(d.toId.serialize()));
     }
 
     /**
@@ -92,12 +84,8 @@ class DependencyCondenserTest {
         List<Dependency> result = condenser.condense(deps, comps);
 
         assertThat(result).hasSize(2);
-        assertThat(result)
-                .anyMatch(d ->
-                        d.fromId.serialize().equals("A") && d.toId.serialize().equals("B"));
-        assertThat(result)
-                .anyMatch(d ->
-                        d.fromId.serialize().equals("B") && d.toId.serialize().equals("C"));
+        assertThat(result).anyMatch(d -> "A".equals(d.fromId.serialize()) && "B".equals(d.toId.serialize()));
+        assertThat(result).anyMatch(d -> "B".equals(d.fromId.serialize()) && "C".equals(d.toId.serialize()));
     }
 
     /**
@@ -128,12 +116,8 @@ class DependencyCondenserTest {
 
         List<Dependency> result = condenser.condense(deps, comps);
 
-        assertThat(result)
-                .anyMatch(d ->
-                        d.fromId.serialize().equals("A") && d.toId.serialize().equals("B"));
-        assertThat(result)
-                .anyMatch(d ->
-                        d.fromId.serialize().equals("A") && d.toId.serialize().equals("C"));
+        assertThat(result).anyMatch(d -> "A".equals(d.fromId.serialize()) && "B".equals(d.toId.serialize()));
+        assertThat(result).anyMatch(d -> "A".equals(d.fromId.serialize()) && "C".equals(d.toId.serialize()));
         assertThat(result).noneMatch(d -> "M".equals(d.fromId.serialize()) || "M".equals(d.toId.serialize()));
     }
 

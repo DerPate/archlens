@@ -46,7 +46,7 @@ public class AnsibleMerger {
             File[] files = inventoryDir.listFiles();
             if (files != null) {
                 for (File f : files) {
-                    if (f.getName().endsWith(".ini") || f.getName().equals("hosts")) {
+                    if (f.getName().endsWith(".ini") || "hosts".equals(f.getName())) {
                         parseIniInventory(f, model);
                     }
                 }
@@ -62,7 +62,7 @@ public class AnsibleMerger {
 
             for (String raw : lines) {
                 String line = raw.trim();
-                if (line.isEmpty() || line.startsWith("#") || line.startsWith(";")) continue;
+                if (line.isEmpty() || line.charAt(0) == '#' || line.startsWith(";")) continue;
 
                 if (line.startsWith("[") && line.endsWith("]")) {
                     String header = line.substring(1, line.length() - 1);

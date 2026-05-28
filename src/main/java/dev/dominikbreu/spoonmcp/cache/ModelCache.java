@@ -128,7 +128,11 @@ public class ModelCache {
      * @throws IOException if serialization fails
      */
     public String exportJson() throws IOException {
-        return current != null ? mapper.writeValueAsString(current) : "{}";
+        if (current != null) {
+            return mapper.writeValueAsString(current);
+        } else {
+            return "{}";
+        }
     }
 
     /**
@@ -173,7 +177,12 @@ public class ModelCache {
     }
 
     private String workspaceKey(ArchitectureModel model) {
-        String workspacePath = model != null && model.workspacePath != null ? model.workspacePath : "unknown";
+        String workspacePath;
+        if (model != null && model.workspacePath != null) {
+            workspacePath = model.workspacePath;
+        } else {
+            workspacePath = "unknown";
+        }
         String hash = sha256(workspacePath).substring(0, 16);
         String suffix = workspacePath.replace('\\', '/');
         int slash = suffix.lastIndexOf('/');
@@ -201,7 +210,11 @@ public class ModelCache {
             return null;
         }
         String key = Files.readString(active.toPath(), StandardCharsets.UTF_8).trim();
-        return key.isBlank() ? null : key;
+        if (key.isBlank()) {
+            return null;
+        } else {
+            return key;
+        }
     }
 
     private File activeWorkspaceFile() {
@@ -236,7 +249,11 @@ public class ModelCache {
             if (value == null || value.isBlank()) {
                 return JSON;
             }
-            return "graph".equalsIgnoreCase(value.trim()) ? GRAPH : JSON;
+            if ("graph".equalsIgnoreCase(value.trim())) {
+                return GRAPH;
+            } else {
+                return JSON;
+            }
         }
     }
 }

@@ -48,9 +48,12 @@ public class DetectUseCasesTool {
                 try {
                     config = UseCaseNamingConfig.loadFrom(mapper, configFile);
                 } catch (Exception e) {
-                    String msg = e.getMessage() != null
-                            ? e.getMessage()
-                            : e.getClass().getSimpleName();
+                    String msg;
+                    if (e.getMessage() != null) {
+                        msg = e.getMessage();
+                    } else {
+                        msg = e.getClass().getSimpleName();
+                    }
                     return "Error: could not load naming config — " + msg;
                 }
             }

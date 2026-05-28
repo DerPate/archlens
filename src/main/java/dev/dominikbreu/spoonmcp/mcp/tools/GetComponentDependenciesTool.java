@@ -50,9 +50,13 @@ public class GetComponentDependenciesTool {
                     .orElse(null);
 
             if (root == null) return "Component not found: " + ref;
+            List<Dependency> deps;
 
-            List<Dependency> deps =
-                    condensed ? condenser.condense(model.dependencies, model.components) : model.dependencies;
+            if (condensed) {
+                deps = condenser.condense(model.dependencies, model.components);
+            } else {
+                deps = model.dependencies;
+            }
 
             // BFS up to depth
             Map<String, Component> byId = new HashMap<>();
@@ -103,7 +107,12 @@ public class GetComponentDependenciesTool {
                     .append("):\n\n");
             for (Dependency dep : result) {
                 Component to = byId.get(dep.toId.serialize());
-                String toLabel = to != null ? "[" + to.type + "] " + to.name : dep.toId.serialize();
+                String toLabel;
+                if (to != null) {
+                    toLabel = "[" + to.type + "] " + to.name;
+                } else {
+                    toLabel = dep.toId.serialize();
+                }
                 sb.append("  -> ")
                         .append(toLabel)
                         .append(" [")

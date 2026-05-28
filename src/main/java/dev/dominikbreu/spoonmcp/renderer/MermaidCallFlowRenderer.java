@@ -49,9 +49,19 @@ public class MermaidCallFlowRenderer {
 
         // Component nodes with type-appropriate shapes
         for (RuntimeFlowStep step : steps) {
-            String compKey = step.componentId != null ? step.componentId.serialize() : step.componentName;
+            String compKey;
+            if (step.componentId != null) {
+                compKey = step.componentId.serialize();
+            } else {
+                compKey = step.componentName;
+            }
             String pid = pidMap.get(compKey);
-            ComponentType type = compById.containsKey(compKey) ? compById.get(compKey).type : null;
+            ComponentType type;
+            if (compById.containsKey(compKey)) {
+                type = compById.get(compKey).type;
+            } else {
+                type = null;
+            }
             sb.append("    ")
                     .append(pid)
                     .append(nodeShape(step.componentName, type))
@@ -77,7 +87,12 @@ public class MermaidCallFlowRenderer {
             String fromPid = pidMap.get(edge.fromId.serialize());
             String toPid = pidMap.get(edge.toId.serialize());
             if (fromPid == null || toPid == null) continue;
-            String label = (edge.label != null && !edge.label.isBlank()) ? edge.label : "call";
+            String label;
+            if (edge.label != null && !edge.label.isBlank()) {
+                label = edge.label;
+            } else {
+                label = "call";
+            }
             sb.append("    ")
                     .append(fromPid)
                     .append(" -->|")
@@ -115,7 +130,12 @@ public class MermaidCallFlowRenderer {
         Map<String, Integer> counter = new HashMap<>();
         Map<String, String> result = new LinkedHashMap<>();
         for (RuntimeFlowStep step : steps) {
-            String compKey = step.componentId != null ? step.componentId.serialize() : step.componentName;
+            String compKey;
+            if (step.componentId != null) {
+                compKey = step.componentId.serialize();
+            } else {
+                compKey = step.componentName;
+            }
             if (result.containsKey(compKey)) continue;
             String base = sanitize(step.componentName);
             if (freq.get(base) == 1) {

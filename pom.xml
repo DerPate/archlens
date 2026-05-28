@@ -228,6 +228,12 @@
                 <version>3.4.0</version>
                 <configuration>
                     <java>
+                        <cleanthat>
+                            <version>2.25</version>
+                            <mutators>
+                                <mutator>SafeButNotConsensual</mutator>
+                            </mutators>
+                        </cleanthat>
                         <palantirJavaFormat>
                             <version>2.90.0</version>
                             <style>PALANTIR</style>

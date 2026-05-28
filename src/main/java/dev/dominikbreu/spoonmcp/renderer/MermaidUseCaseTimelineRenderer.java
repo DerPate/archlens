@@ -48,7 +48,12 @@ public class MermaidUseCaseTimelineRenderer {
             for (int i = 0; i < limit; i++) {
                 RuntimeFlowStep step = steps.get(i);
                 String taskLabel = taskLabel(step);
-                String style = (i == 0) ? "active, " : "";
+                String style;
+                if (i == 0) {
+                    style = "active, ";
+                } else {
+                    style = "";
+                }
                 sb.append("    ")
                         .append(pad(taskLabel, 36))
                         .append(":")
@@ -69,7 +74,12 @@ public class MermaidUseCaseTimelineRenderer {
     }
 
     private String sectionLabel(Entrypoint ep, RuntimeFlow flow) {
-        String epId = flow.entrypointId != null ? flow.entrypointId.serialize() : "";
+        String epId;
+        if (flow.entrypointId != null) {
+            epId = flow.entrypointId.serialize();
+        } else {
+            epId = "";
+        }
         if (ep == null) return epId;
         if (ep.httpMethod != null && ep.path != null) return ep.httpMethod + " " + ep.path;
         if (ep.channelName != null) return ep.channelName;
@@ -78,7 +88,12 @@ public class MermaidUseCaseTimelineRenderer {
     }
 
     private String taskLabel(RuntimeFlowStep step) {
-        String via = (step.via != null && !step.via.isBlank()) ? step.via : "call";
+        String via;
+        if (step.via != null && !step.via.isBlank()) {
+            via = step.via;
+        } else {
+            via = "call";
+        }
         return step.componentName + "." + via;
     }
 

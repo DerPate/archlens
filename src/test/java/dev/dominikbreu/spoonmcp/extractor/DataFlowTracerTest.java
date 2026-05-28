@@ -47,7 +47,7 @@ class DataFlowTracerTest {
         List<DataFlowPath> paths = tracer.trace(model);
 
         DataFlowPath path = paths.stream()
-                .filter(p -> p.trackedParam.equals("order"))
+                .filter(p -> "order".equals(p.trackedParam))
                 .findFirst()
                 .orElseThrow();
 
@@ -234,9 +234,9 @@ class DataFlowTracerTest {
 
         List<DataFlowPath> paths = tracer.trace(model);
 
-        assertThat(paths).noneMatch(p -> p.trackedParam.equals("order") && p.sinks.isEmpty() == false);
+        assertThat(paths).noneMatch(p -> "order".equals(p.trackedParam) && p.sinks.isEmpty() == false);
         // path should simply be absent (no sinks found)
-        assertThat(paths.stream().filter(p -> p.trackedParam.equals("order")).toList())
+        assertThat(paths.stream().filter(p -> "order".equals(p.trackedParam)).toList())
                 .isEmpty();
     }
 
@@ -609,7 +609,7 @@ class DataFlowTracerTest {
         // The path tracking 'cacheField' is path A — find its STORE sink if present
         paths.stream()
                 .filter(p -> p.entrypointId.equals(EntrypointId.deserialize("ep:EP1"))
-                        && p.trackedParam.equals("cacheField"))
+                        && "cacheField".equals(p.trackedParam))
                 .findFirst()
                 .ifPresent(pathA -> {
                     String pathBId = "df:ep:EP1#machineId";

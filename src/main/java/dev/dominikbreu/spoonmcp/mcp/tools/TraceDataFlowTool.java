@@ -102,10 +102,13 @@ public class TraceDataFlowTool {
                     .filter(e -> path.entrypointId != null && path.entrypointId.equals(e.id))
                     .findFirst()
                     .orElse(null);
+            String epLabel;
 
-            String epLabel = ep != null
-                    ? (ep.httpMethod != null ? ep.httpMethod + " " : "") + (ep.path != null ? ep.path : ep.name)
-                    : (path.entrypointId != null ? path.entrypointId.serialize() : "");
+            if (ep != null) {
+                epLabel = (ep.httpMethod != null ? ep.httpMethod + " " : "") + (ep.path != null ? ep.path : ep.name);
+            } else {
+                epLabel = (path.entrypointId != null ? path.entrypointId.serialize() : "");
+            }
 
             sb.append("## ")
                     .append(epLabel)
@@ -141,7 +144,7 @@ public class TraceDataFlowTool {
                     if (sink.kind == DataFlowSink.Kind.STORE && sink.fieldName != null) {
                         sb.append("  field=").append(sink.fieldName);
                     }
-                    if (sink.source != null && sink.source.file != null && !sink.source.file.equals("unknown")) {
+                    if (sink.source != null && sink.source.file != null && !"unknown".equals(sink.source.file)) {
                         String file = sink.source.file;
                         int slash = file.lastIndexOf('/');
                         sb.append("  (")

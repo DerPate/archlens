@@ -348,7 +348,7 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
 
         assertThat(idx.resolveReceiver(doWorkCall))
                 .as("doWork() must not resolve to Other via get() name-match")
-                .noneMatch(t -> t.componentId().equals("comp:example.Other"));
+                .noneMatch(t -> "comp:example.Other".equals(t.componentId()));
     }
 
     private static Component component(String qualifiedName) {

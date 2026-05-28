@@ -25,7 +25,12 @@ public final class LikeC4WorkspaceProjector {
     public LikeC4Document projectWorkspace(
             ArchitectureGraph graph, ArchitectureModel model, AppEntry app, int maxNodes) {
         LikeC4Element system = systemElement(model, app);
-        String scopeId = app != null ? app.id : "";
+        String scopeId;
+        if (app != null) {
+            scopeId = app.id;
+        } else {
+            scopeId = "";
+        }
         String title = system.title() + " - Component View";
         ArchitectureViewProjection componentProjection =
                 componentProjector.projectComponentView(graph, scopeId, title, maxNodes);
@@ -70,7 +75,12 @@ public final class LikeC4WorkspaceProjector {
         if (app != null) {
             return new LikeC4Element(app.id, "system", title(app.name, app.id), app.id, appMetadata(app));
         }
-        String workspace = model != null ? model.workspacePath : null;
+        String workspace;
+        if (model != null) {
+            workspace = model.workspacePath;
+        } else {
+            workspace = null;
+        }
         return new LikeC4Element(
                 "system:workspace",
                 "system",
@@ -89,7 +99,11 @@ public final class LikeC4WorkspaceProjector {
     }
 
     private static Map<String, Object> metadata(Map<String, Object> properties) {
-        return properties == null ? Map.of() : properties;
+        if (properties == null) {
+            return Map.of();
+        } else {
+            return properties;
+        }
     }
 
     private static void putIfPresent(Map<String, Object> metadata, String key, String value) {
@@ -99,6 +113,10 @@ public final class LikeC4WorkspaceProjector {
     }
 
     private static String title(String value, String fallback) {
-        return value == null || value.isBlank() ? fallback : value;
+        if (value == null || value.isBlank()) {
+            return fallback;
+        } else {
+            return value;
+        }
     }
 }
