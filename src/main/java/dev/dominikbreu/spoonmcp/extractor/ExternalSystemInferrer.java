@@ -107,12 +107,11 @@ public class ExternalSystemInferrer {
 
     private void addDependency(ArchitectureModel model, Set<String> existing, String fromId, String toId, String kind) {
         if (fromId == null || toId == null) return;
-        String id = "dep:" + fromId + "->" + toId + ":" + kind;
-        if (!existing.add(id)) return;
         Dependency d = new Dependency();
-        d.id = id;
         d.fromId = dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(fromId);
         d.toId = dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(toId);
+        d.id = Dependency.idFor(d.fromId, d.toId, kind);
+        if (!existing.add(d.id)) return;
         d.kind = kind;
         d.derivedFrom = "external-system-inferrer";
         d.confidence = 0.95;
