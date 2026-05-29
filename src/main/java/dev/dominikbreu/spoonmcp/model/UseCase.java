@@ -2,6 +2,7 @@ package dev.dominikbreu.spoonmcp.model;
 
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
+import dev.dominikbreu.spoonmcp.model.ids.UseCaseId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,7 +11,7 @@ import java.util.List;
  */
 public class UseCase {
     /** Stable identifier: {@code usecase:<entrypointId>}. */
-    public String id;
+    public UseCaseId id;
     /** Human-readable name, either auto-derived or supplied via naming config. */
     public String name;
     /** Originating entrypoint identifier. */
