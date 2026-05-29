@@ -15,7 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 class GetComponentDependenciesToolTest {
 
     @Test
-    void resolvesComponentGivenLegacyPrefixedRef(@TempDir Path tempDir) throws Exception {
+    void resolvesComponentByItsId(@TempDir Path tempDir) throws Exception {
         ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON);
         ArchitectureModel model = new ArchitectureModel();
         model.workspacePath = "ws";
@@ -28,7 +28,7 @@ class GetComponentDependenciesToolTest {
         cache.store(model);
 
         GetComponentDependenciesTool tool = new GetComponentDependenciesTool(cache);
-        String out = tool.execute(Map.of("componentId", "comp:com.acme.A"));
+        String out = tool.execute(Map.of("componentId", "com.acme.A"));
 
         assertThat(out).doesNotContain("Component not found");
     }

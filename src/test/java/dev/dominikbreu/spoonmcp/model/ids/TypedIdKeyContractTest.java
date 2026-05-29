@@ -13,8 +13,6 @@ class TypedIdKeyContractTest {
         Map<ComponentId, String> byId = new HashMap<>();
         byId.put(ComponentId.of("com.acme.A"), "A");
         assertThat(byId.get(ComponentId.of("com.acme.A"))).isEqualTo("A");
-        // Defensive of() means a legacy-prefixed lookup resolves to the same key.
-        assertThat(byId.get(ComponentId.of("comp:com.acme.A"))).isEqualTo("A");
-        assertThat(byId.get(ComponentId.deserialize("comp:com.acme.A"))).isEqualTo("A");
+        assertThat(byId.get(ComponentId.deserialize("com.acme.A"))).isEqualTo("A");
     }
 }

@@ -19,9 +19,7 @@ public record DependencyId(String value) {
 
     @JsonCreator
     public static DependencyId deserialize(String s) {
-        if (s == null) return null;
-        // Accept old "dep:..." format from cached JSON
-        return new DependencyId(s.startsWith("dep:") ? s.substring(4) : s);
+        return s == null ? null : new DependencyId(s);
     }
 
     @JsonValue

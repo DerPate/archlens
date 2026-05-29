@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 class RuntimeFlowInferrerRefTest {
 
     @Test
-    void findEntrypointResolvesLegacyPrefixedRef() {
+    void findEntrypointResolvesBySerializedId() {
         ArchitectureModel model = new ArchitectureModel();
         Entrypoint ep = new Entrypoint();
         ep.id = EntrypointId.of(ComponentId.of("com.acme.OrderResource"), "create", "POST:/orders");
@@ -20,7 +20,7 @@ class RuntimeFlowInferrerRefTest {
         ep.name = "create";
         model.entrypoints.add(ep);
 
-        Entrypoint resolved = new RuntimeFlowInferrer().findEntrypoint("ep:" + ep.id.serialize(), model);
+        Entrypoint resolved = new RuntimeFlowInferrer().findEntrypoint(ep.id.serialize(), model);
 
         assertThat(resolved).isNotNull();
         assertThat(resolved.id).isEqualTo(ep.id);

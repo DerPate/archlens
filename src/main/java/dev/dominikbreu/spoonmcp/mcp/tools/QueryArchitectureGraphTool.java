@@ -46,18 +46,18 @@ public class QueryArchitectureGraphTool {
                     renderEdges(graph.findEdges(text(args, "label", null), filters(args), integer(args, "limit", 256)));
                 case "neighborhood" ->
                     renderEdges(graph.neighborhood(
-                            normalizeNodeId(requiredText(args, "nodeId")),
+                            GraphNodeId.of(requiredText(args, "nodeId")),
                             text(args, "direction", "both"),
                             integer(args, "limit", 256)));
                 case "paths" ->
                     renderPaths(graph.paths(
-                            normalizeNodeId(requiredText(args, "fromId")),
-                            normalizeNodeId(requiredText(args, "toId")),
+                            GraphNodeId.of(requiredText(args, "fromId")),
+                            GraphNodeId.of(requiredText(args, "toId")),
                             integer(args, "maxDepth", 5),
                             integer(args, "limit", 256)));
                 case "impacted_by" ->
                     renderNodes(graph.impactedBy(
-                            normalizeNodeId(requiredText(args, "nodeId")),
+                            GraphNodeId.of(requiredText(args, "nodeId")),
                             integer(args, "maxDepth", 3),
                             integer(args, "limit", 256)));
                 default -> "Unknown graph action: " + action;
@@ -245,19 +245,6 @@ public class QueryArchitectureGraphTool {
 
     private String text(Map<String, Object> args, String name, String defaultValue) {
         return ToolArgs.getString(args, name, defaultValue);
-    }
-
-    /**
-     * Strips legacy {@code comp:}/{@code ep:}/{@code dep:} id prefixes so callers using the
-     * old prefixed convention still resolve against the now-unprefixed graph vertex ids.
-     * Other vertex-id schemes (e.g. {@code ext:}, {@code iface:}) are preserved.
-     */
-    private static GraphNodeId normalizeNodeId(String id) {
-        if (id == null) return null;
-        if (id.startsWith("comp:")) return GraphNodeId.of(id.substring(5));
-        if (id.startsWith("ep:")) return GraphNodeId.of(id.substring(3));
-        if (id.startsWith("dep:")) return GraphNodeId.of(id.substring(4));
-        return GraphNodeId.of(id);
     }
 
     private int integer(Map<String, Object> args, String name, int defaultValue) {
