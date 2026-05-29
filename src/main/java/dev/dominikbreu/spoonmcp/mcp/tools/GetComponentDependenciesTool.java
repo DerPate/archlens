@@ -3,6 +3,7 @@ package dev.dominikbreu.spoonmcp.mcp.tools;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.extractor.DependencyCondenser;
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.*;
 import java.util.Map;
 
@@ -37,6 +38,7 @@ public class GetComponentDependenciesTool {
             String ref = ToolArgs.getString(args, "componentId");
             if (ref == null) ref = ToolArgs.getString(args, "name");
             if (ref == null) return "Error: provide 'componentId' or 'name'.";
+            ref = ComponentId.deserialize(ref).serialize();
 
             int depth = ToolArgs.getInt(args, "depth", 1);
             boolean condensed = ToolArgs.getBool(args, "condensed", true);
