@@ -6,6 +6,7 @@ import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.model.MessagingBroker;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
+import dev.dominikbreu.spoonmcp.model.ids.FieldAccessId;
 import dev.dominikbreu.spoonmcp.model.ids.FieldBinding;
 import dev.dominikbreu.spoonmcp.model.ids.FieldRef;
 import java.util.List;
@@ -296,7 +297,7 @@ class DataFlowTracerTest {
         fw.fieldBinding = new FieldBinding.Own("snapshots");
         fw.method = "consume";
         fw.sourceVarName = "payload";
-        fw.id = "field:comp:SnapshotIngestor#consume@snapshots:write";
+        fw.id = FieldAccessId.of("field:comp:SnapshotIngestor#consume@snapshots:write");
         model.fieldAccesses.add(fw);
 
         List<DataFlowPath> paths = tracer.trace(model);
@@ -336,7 +337,7 @@ class DataFlowTracerTest {
         fw.fieldBinding = new FieldBinding.Own("store");
         fw.method = "ingest";
         fw.sourceVarName = "device"; // derived local var, not the raw param name
-        fw.id = "field:comp:DeviceStateDataService#ingest@store:write";
+        fw.id = FieldAccessId.of("field:comp:DeviceStateDataService#ingest@store:write");
         model.fieldAccesses.add(fw);
 
         List<DataFlowPath> paths = tracer.trace(model);
@@ -373,7 +374,7 @@ class DataFlowTracerTest {
         fr.componentId = ComponentId.of("StateScheduler");
         fr.fieldBinding = new FieldBinding.Own("snapshots");
         fr.method = "tick";
-        fr.id = "field:comp:StateScheduler#tick@snapshots:read";
+        fr.id = FieldAccessId.of("field:comp:StateScheduler#tick@snapshots:read");
         model.fieldAccesses.add(fr);
 
         addCallEdgeWithKind(model, "StateScheduler", "tick", "MqttClient", "publish", Map.of(), "messaging");
@@ -421,7 +422,7 @@ class DataFlowTracerTest {
         fw.fieldBinding = new FieldBinding.Own("snapshots");
         fw.method = "consume";
         fw.sourceVarName = "payload";
-        fw.id = "field:comp:SnapshotIngestor#consume@snapshots:write";
+        fw.id = FieldAccessId.of("field:comp:SnapshotIngestor#consume@snapshots:write");
         model.fieldAccesses.add(fw);
 
         FieldAccess fr = new FieldAccess();
@@ -430,7 +431,7 @@ class DataFlowTracerTest {
         fr.fieldBinding =
                 new FieldBinding.CrossComponent(new FieldRef(ComponentId.of("SnapshotIngestor"), "snapshots"));
         fr.method = "tick";
-        fr.id = "field:comp:StatePublisher#tick@snapshots:read";
+        fr.id = FieldAccessId.of("field:comp:StatePublisher#tick@snapshots:read");
         model.fieldAccesses.add(fr);
 
         addCallEdgeWithKind(model, "StatePublisher", "tick", "MqttClient", "publish", Map.of(), "messaging");
@@ -479,7 +480,7 @@ class DataFlowTracerTest {
         fr.componentId = ComponentId.of("StatePublisher");
         fr.fieldBinding = new FieldBinding.Own("snapshots");
         fr.method = "publish";
-        fr.id = "field:comp:StatePublisher#publish@snapshots:read";
+        fr.id = FieldAccessId.of("field:comp:StatePublisher#publish@snapshots:read");
         model.fieldAccesses.add(fr);
 
         addCallEdgeWithKind(model, "StatePublisher", "publish", "MqttClient", "send", Map.of(), "messaging");
@@ -517,7 +518,7 @@ class DataFlowTracerTest {
         fr.componentId = ComponentId.of("Pump");
         fr.fieldBinding = new FieldBinding.Own("inbox");
         fr.method = "pump";
-        fr.id = "field:comp:Pump#pump@inbox:read";
+        fr.id = FieldAccessId.of("field:comp:Pump#pump@inbox:read");
         model.fieldAccesses.add(fr);
 
         FieldAccess fw = new FieldAccess();
@@ -526,7 +527,7 @@ class DataFlowTracerTest {
         fw.fieldBinding = new FieldBinding.Own("outbox");
         fw.method = "pump";
         fw.sourceFieldName = "inbox";
-        fw.id = "field:comp:Pump#pump@outbox:write";
+        fw.id = FieldAccessId.of("field:comp:Pump#pump@outbox:write");
         model.fieldAccesses.add(fw);
 
         List<DataFlowPath> paths = tracer.trace(model);
@@ -570,7 +571,7 @@ class DataFlowTracerTest {
         fw.fieldBinding = new FieldBinding.Own("myField");
         fw.method = "onMessage";
         fw.sourceVarName = "cacheField";
-        fw.id = "field:comp:FC#onMessage@myField:write";
+        fw.id = FieldAccessId.of("field:comp:FC#onMessage@myField:write");
         model.fieldAccesses.add(fw);
 
         // Path B: READ of 'myField' — from the same entrypoint component/method
@@ -579,7 +580,7 @@ class DataFlowTracerTest {
         fr.componentId = ComponentId.of("FC");
         fr.fieldBinding = new FieldBinding.Own("myField");
         fr.method = "onMessage";
-        fr.id = "field:comp:FC#onMessage@myField:read";
+        fr.id = FieldAccessId.of("field:comp:FC#onMessage@myField:read");
         model.fieldAccesses.add(fr);
 
         // Give path B a downstream sink so it appears in the result
@@ -814,7 +815,7 @@ class DataFlowTracerTest {
         fr.componentId = ComponentId.of("Consumer");
         fr.fieldBinding = new FieldBinding.Own("cache");
         fr.method = "process";
-        fr.id = "field:comp:Consumer#process@cache:read";
+        fr.id = FieldAccessId.of("field:comp:Consumer#process@cache:read");
         model.fieldAccesses.add(fr);
 
         addCallEdge(model, "Consumer", "process", "Repo", "save", Map.of("msg", "entity"));
@@ -856,7 +857,7 @@ class DataFlowTracerTest {
         fw.fieldBinding = new FieldBinding.Own("stateMap");
         fw.method = "ingest";
         fw.sourceVarName = "payload";
-        fw.id = "field:comp:Consumer#ingest@stateMap:write";
+        fw.id = FieldAccessId.of("field:comp:Consumer#ingest@stateMap:write");
         model.fieldAccesses.add(fw);
 
         // Scheduler → (messaging) → Consumer (which reads stateMap)
@@ -868,7 +869,7 @@ class DataFlowTracerTest {
         fr.componentId = ComponentId.of("Consumer");
         fr.fieldBinding = new FieldBinding.Own("stateMap");
         fr.method = "ingest";
-        fr.id = "field:comp:Consumer#ingest@stateMap:read";
+        fr.id = FieldAccessId.of("field:comp:Consumer#ingest@stateMap:read");
         model.fieldAccesses.add(fr);
 
         // Consumer also saves to repo so it appears in results
@@ -1080,7 +1081,7 @@ class DataFlowTracerTest {
         fw.method = "run";
         fw.sourceVarName = null;
         fw.sourceFieldName = null;
-        fw.id = "field:comp:MyScheduler#run@cache:write";
+        fw.id = FieldAccessId.of("field:comp:MyScheduler#run@cache:write");
         model.fieldAccesses.add(fw);
 
         List<DataFlowPath> paths = tracer.trace(model);
@@ -1129,7 +1130,7 @@ class DataFlowTracerTest {
         fw.method = "persist";
         fw.sourceVarName = "unrelatedVar";
         fw.sourceFieldName = null;
-        fw.id = "field:comp:ProcessorService#persist@auditStore:write";
+        fw.id = FieldAccessId.of("field:comp:ProcessorService#persist@auditStore:write");
         model.fieldAccesses.add(fw);
 
         List<DataFlowPath> paths = tracer.trace(model);
@@ -1168,7 +1169,7 @@ class DataFlowTracerTest {
         fw.fieldBinding = new FieldBinding.Own("deviceCache");
         fw.method = "consume";
         fw.sourceVarName = "computedValue";
-        fw.id = "field:comp:DeviceSvc#consume@deviceCache:write";
+        fw.id = FieldAccessId.of("field:comp:DeviceSvc#consume@deviceCache:write");
         model.fieldAccesses.add(fw);
 
         List<DataFlowPath> paths = tracer.trace(model);
@@ -1217,7 +1218,7 @@ class DataFlowTracerTest {
         fw.method = "persist";
         fw.sourceVarName = "computedValue";
         fw.keyVarName = "id";
-        fw.id = "field:comp:DeviceSvc#persist@deviceCache:write";
+        fw.id = FieldAccessId.of("field:comp:DeviceSvc#persist@deviceCache:write");
         model.fieldAccesses.add(fw);
 
         List<DataFlowPath> paths = tracer.trace(model);
@@ -1270,7 +1271,7 @@ class DataFlowTracerTest {
         fw.fieldBinding = new FieldBinding.Own("snapshots");
         fw.method = "storeSnapshot";
         fw.sourceVarName = "data";
-        fw.id = "field:comp:SnapshotIngestor#storeSnapshot@snapshots:write";
+        fw.id = FieldAccessId.of("field:comp:SnapshotIngestor#storeSnapshot@snapshots:write");
         model.fieldAccesses.add(fw);
 
         List<DataFlowPath> paths = tracer.trace(model);
@@ -1327,7 +1328,7 @@ class DataFlowTracerTest {
         fw.method = "processAndStore";
         fw.sourceVarName = null;
         fw.sourceFieldName = null;
-        fw.id = "field:comp:DeviceStateIngestor#processAndStore@deviceStore:write";
+        fw.id = FieldAccessId.of("field:comp:DeviceStateIngestor#processAndStore@deviceStore:write");
         model.fieldAccesses.add(fw);
 
         List<DataFlowPath> paths = tracer.trace(model);
@@ -1389,7 +1390,7 @@ class DataFlowTracerTest {
         fw.fieldBinding = new FieldBinding.Own("snapshots");
         fw.method = "storeSnapshot";
         fw.sourceVarName = "data";
-        fw.id = "field:comp:SnapshotIngestor#storeSnapshot@snapshots:write";
+        fw.id = FieldAccessId.of("field:comp:SnapshotIngestor#storeSnapshot@snapshots:write");
         model.fieldAccesses.add(fw);
 
         // Cross-component field read: SnapshotPublisher#publishAll reads SnapshotIngestor.snapshots
@@ -1400,7 +1401,8 @@ class DataFlowTracerTest {
         fr.fieldBinding =
                 new FieldBinding.CrossComponent(new FieldRef(ComponentId.of("SnapshotIngestor"), "snapshots"));
         fr.method = "publishAll";
-        fr.id = "field:comp:SnapshotPublisher#publishAll@comp:SnapshotIngestor#getSnapshots:snapshots:read:xcomp";
+        fr.id = FieldAccessId.of(
+                "field:comp:SnapshotPublisher#publishAll@comp:SnapshotIngestor#getSnapshots:snapshots:read:xcomp");
         model.fieldAccesses.add(fr);
 
         addCallEdgeWithKind(model, "SnapshotPublisher", "publishAll", "MqttClient", "send", Map.of(), "messaging");

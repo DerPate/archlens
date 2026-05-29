@@ -47,6 +47,14 @@ class TypedIdContractTest {
     }
 
     @Test
+    void fieldAccessIdWrapsCompositeValueAndRoundTrips() {
+        FieldAccessId id = FieldAccessId.of("field:com.acme.A#m@cache:write");
+        assertThat(id.serialize()).isEqualTo("field:com.acme.A#m@cache:write");
+        assertThat(FieldAccessId.deserialize("field:com.acme.A#m@cache:write")).isEqualTo(id);
+        assertThat(FieldAccessId.of(null)).isNull();
+    }
+
+    @Test
     void componentJsonEmitsBareIdAndReloads() {
         Component c = new Component();
         c.id = ComponentId.of("com.acme.BillingService");

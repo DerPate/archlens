@@ -7,6 +7,7 @@ import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndexBuilder;
 import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceInjectionPoint;
 import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceType;
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.ids.FieldAccessId;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
@@ -189,7 +190,7 @@ public class CallGraphExtractor {
             ExtractionContext ctx = new ExtractionContext(ComponentIndex.build(model.components));
             model.callEdges.forEach(edge -> ctx.addSeenId(edge.id));
             model.outboundSinkSites.forEach(site -> ctx.addSeenId(site.id));
-            model.fieldAccesses.forEach(access -> ctx.addSeenId(access.id));
+            model.fieldAccesses.forEach(access -> ctx.addSeenId(access.id.serialize()));
             Map<String, List<String>> entrypointParams = buildEntrypointParamMap(model);
 
             for (CtType<?> type : ctModel.getAllTypes()) {
@@ -359,8 +360,8 @@ public class CallGraphExtractor {
         fa.sourceVarName = sourceVar;
         fa.sourceFieldName = sourceField;
         fa.keyVarName = keyVar;
-        fa.id = "field:" + owner.id.serialize() + "#" + method + "@" + fieldName + ":"
-                + kind.name().toLowerCase();
+        fa.id = FieldAccessId.of("field:" + owner.id.serialize() + "#" + method + "@" + fieldName + ":"
+                + kind.name().toLowerCase());
         String file;
         if (pos != null && pos.isValidPosition()) {
             file = pos.getFile().getAbsolutePath();
@@ -440,7 +441,7 @@ public class CallGraphExtractor {
                     continue;
                 }
                 FieldAccess access = buildAccessorAccess(kind, fromComp, methodName, owner, fieldName, inv);
-                if (ctx.addSeenId(access.id)) {
+                if (ctx.addSeenId(access.id.serialize())) {
                     model.fieldAccesses.add(access);
                 }
             }
@@ -460,8 +461,9 @@ public class CallGraphExtractor {
         access.fieldBinding = new dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent(
                 new dev.dominikbreu.spoonmcp.model.ids.FieldRef(fieldOwner.id, fieldName));
         access.method = methodName;
-        access.id = "field:" + fromComp.id.serialize() + "#" + methodName + "@" + fieldOwner.id.serialize() + "#"
-                + fieldName + ":" + kind.name().toLowerCase() + ":object-flow";
+        access.id =
+                FieldAccessId.of("field:" + fromComp.id.serialize() + "#" + methodName + "@" + fieldOwner.id.serialize()
+                        + "#" + fieldName + ":" + kind.name().toLowerCase() + ":object-flow");
         var pos = invocation.getPosition();
         String file;
         if (pos != null && pos.isValidPosition()) {
@@ -884,8 +886,8 @@ public class CallGraphExtractor {
             fa.fieldBinding = new dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent(
                     new dev.dominikbreu.spoonmcp.model.ids.FieldRef(toComp.id, fieldName));
             fa.method = fromMethod;
-            fa.id = "field:" + fromComp.id.serialize() + "#" + fromMethod + "@" + toComp.id.serialize() + "#"
-                    + calleeMethod.getSimpleName() + ":" + fieldName + ":read:xcomp";
+            fa.id = FieldAccessId.of("field:" + fromComp.id.serialize() + "#" + fromMethod + "@" + toComp.id.serialize()
+                    + "#" + calleeMethod.getSimpleName() + ":" + fieldName + ":read:xcomp");
             var pos = inv.getPosition();
             String file;
             if (pos != null && pos.isValidPosition()) {

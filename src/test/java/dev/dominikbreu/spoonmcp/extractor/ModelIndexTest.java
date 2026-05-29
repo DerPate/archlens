@@ -12,6 +12,7 @@ import dev.dominikbreu.spoonmcp.model.FieldAccess;
 import dev.dominikbreu.spoonmcp.model.OutboundSinkSite;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import dev.dominikbreu.spoonmcp.model.ids.DependencyId;
+import dev.dominikbreu.spoonmcp.model.ids.FieldAccessId;
 import dev.dominikbreu.spoonmcp.model.ids.FieldBinding;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -40,13 +41,13 @@ class ModelIndexTest {
         read.componentId = ComponentId.of("A");
         read.method = "get";
         read.fieldBinding = new FieldBinding.Own("cache");
-        read.id = "r1";
+        read.id = FieldAccessId.of("r1");
         FieldAccess write = new FieldAccess();
         write.kind = FieldAccess.Kind.WRITE;
         write.componentId = ComponentId.of("A");
         write.method = "put";
         write.fieldBinding = new FieldBinding.Own("cache");
-        write.id = "w1";
+        write.id = FieldAccessId.of("w1");
 
         FieldAccessIndex idx = FieldAccessIndex.build(List.of(read, write));
 

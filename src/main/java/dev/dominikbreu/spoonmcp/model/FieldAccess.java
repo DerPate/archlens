@@ -1,6 +1,7 @@
 package dev.dominikbreu.spoonmcp.model;
 
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.FieldAccessId;
 import dev.dominikbreu.spoonmcp.model.ids.FieldBinding;
 
 /**
@@ -24,7 +25,7 @@ public class FieldAccess {
     }
 
     /** Stable identifier. */
-    public String id;
+    public FieldAccessId id;
     /** Read or write. */
     public Kind kind;
     /** Component whose method performs the access. */
