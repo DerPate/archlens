@@ -1,8 +1,10 @@
 package dev.dominikbreu.spoonmcp.extractor.sourcefacts;
 
+import dev.dominikbreu.spoonmcp.model.ids.SourceFactId;
+
 public record SourceAssignment(
-        String id,
-        String enclosingMethodId,
+        SourceFactId id,
+        SourceFactId enclosingMethodId,
         String target,
         String valueExpression,
         String valueType,

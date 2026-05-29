@@ -1,10 +1,11 @@
 package dev.dominikbreu.spoonmcp.extractor.sourcefacts;
 
+import dev.dominikbreu.spoonmcp.model.ids.SourceFactId;
 import java.util.List;
 
 public record SourceMethod(
-        String id,
-        String typeId,
+        SourceFactId id,
+        SourceFactId typeId,
         String name,
         String signature,
         boolean constructor,
