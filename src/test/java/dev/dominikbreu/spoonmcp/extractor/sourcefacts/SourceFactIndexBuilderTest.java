@@ -3,6 +3,7 @@ package dev.dominikbreu.spoonmcp.extractor.sourcefacts;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.extractor.ExtractorTestBase;
+import dev.dominikbreu.spoonmcp.model.ids.SourceFactId;
 import org.junit.jupiter.api.Test;
 
 class SourceFactIndexBuilderTest extends ExtractorTestBase {
@@ -11,9 +12,15 @@ class SourceFactIndexBuilderTest extends ExtractorTestBase {
     void sourceFactTypesHaveStableIdsAndLocations() {
         SourceLocation location = new SourceLocation("Example.java", 7);
         SourceType type = new SourceType(
-                "type:com.example.Example", "com.example.Example", "Example", "com.example", false, false, location);
+                SourceFactId.of("type:com.example.Example"),
+                "com.example.Example",
+                "Example",
+                "com.example",
+                false,
+                false,
+                location);
 
-        assertThat(type.id()).isEqualTo("type:com.example.Example");
+        assertThat(type.id().serialize()).isEqualTo("type:com.example.Example");
         assertThat(type.qualifiedName()).isEqualTo("com.example.Example");
         assertThat(type.location()).isSameAs(location);
     }
@@ -21,7 +28,7 @@ class SourceFactIndexBuilderTest extends ExtractorTestBase {
     @Test
     void sourceFactIndexReturnsImmutableFactsByStableIds() {
         SourceType type = new SourceType(
-                "type:example.Service",
+                SourceFactId.of("type:example.Service"),
                 "example.Service",
                 "Service",
                 "example",
@@ -29,7 +36,7 @@ class SourceFactIndexBuilderTest extends ExtractorTestBase {
                 false,
                 SourceLocation.unknown());
         SourceMethod method = new SourceMethod(
-                "method:example.Service#handle(java.lang.String)",
+                SourceFactId.of("method:example.Service#handle(java.lang.String)"),
                 type.id(),
                 "handle",
                 "handle(java.lang.String)",
@@ -51,7 +58,7 @@ class SourceFactIndexBuilderTest extends ExtractorTestBase {
         assertThat(index.type("example.Service")).isSameAs(type);
         assertThat(index.methods(type.id())).containsExactly(method);
         assertThat(index.method(method.id())).isSameAs(method);
-        assertThat(index.methods("type:missing")).isEmpty();
+        assertThat(index.methods(SourceFactId.of("type:missing"))).isEmpty();
     }
 
     @Test

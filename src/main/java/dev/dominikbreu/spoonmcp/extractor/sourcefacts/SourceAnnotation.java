@@ -1,9 +1,10 @@
 package dev.dominikbreu.spoonmcp.extractor.sourcefacts;
 
+import dev.dominikbreu.spoonmcp.model.ids.SourceFactId;
 import java.util.Map;
 
 public record SourceAnnotation(
-        String ownerId,
+        SourceFactId ownerId,
         String qualifiedName,
         Map<String, String> values,
         SourceEvidence evidence,

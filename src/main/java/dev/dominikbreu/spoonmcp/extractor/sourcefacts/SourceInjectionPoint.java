@@ -1,7 +1,9 @@
 package dev.dominikbreu.spoonmcp.extractor.sourcefacts;
 
+import dev.dominikbreu.spoonmcp.model.ids.SourceFactId;
+
 public record SourceInjectionPoint(
-        String ownerTypeId,
+        SourceFactId ownerTypeId,
         String targetType,
         String fieldName,
         String parameterName,

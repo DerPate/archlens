@@ -1,10 +1,11 @@
 package dev.dominikbreu.spoonmcp.extractor.sourcefacts;
 
+import dev.dominikbreu.spoonmcp.model.ids.SourceFactId;
 import java.util.List;
 
 public record SourceInvocation(
-        String id,
-        String enclosingMethodId,
+        SourceFactId id,
+        SourceFactId enclosingMethodId,
         String receiverExpression,
         String executableName,
         List<String> argumentExpressions,

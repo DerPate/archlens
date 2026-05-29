@@ -1,7 +1,9 @@
 package dev.dominikbreu.spoonmcp.extractor.sourcefacts;
 
+import dev.dominikbreu.spoonmcp.model.ids.SourceFactId;
+
 public record SourceType(
-        String id,
+        SourceFactId id,
         String qualifiedName,
         String simpleName,
         String packageName,

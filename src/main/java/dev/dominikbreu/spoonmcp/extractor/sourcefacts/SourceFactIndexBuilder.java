@@ -1,5 +1,6 @@
 package dev.dominikbreu.spoonmcp.extractor.sourcefacts;
 
+import dev.dominikbreu.spoonmcp.model.ids.SourceFactId;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
@@ -151,7 +152,7 @@ public class SourceFactIndexBuilder {
         Span span = tracer().spanBuilder("sourcefacts.members").startSpan();
         try (Scope scope = span.makeCurrent()) {
             for (CtType<?> type : ctModel.getAllTypes()) {
-                String typeId = typeId(type.getQualifiedName());
+                SourceFactId typeId = typeId(type.getQualifiedName());
                 SourceType sourceType = new SourceType(
                         typeId,
                         type.getQualifiedName(),
@@ -170,7 +171,7 @@ public class SourceFactIndexBuilder {
                     } else {
                         fieldType = field.getType().getQualifiedName();
                     }
-                    String fieldId = fieldId(type.getQualifiedName(), field.getSimpleName());
+                    SourceFactId fieldId = fieldId(type.getQualifiedName(), field.getSimpleName());
                     fields.add(new SourceField(fieldId, typeId, field.getSimpleName(), fieldType, location(field)));
                     annotations.addAll(annotations(fieldId, field));
                 }
@@ -208,16 +209,16 @@ public class SourceFactIndexBuilder {
             CtModel ctModel, List<SourceAnnotation> annotations, List<SourceInjectionPoint> injectionPoints) {
         Span span = tracer().spanBuilder("sourcefacts.injection").startSpan();
         try (Scope scope = span.makeCurrent()) {
-            Map<String, List<SourceAnnotation>> annotationsByOwner = new LinkedHashMap<>();
+            Map<SourceFactId, List<SourceAnnotation>> annotationsByOwner = new LinkedHashMap<>();
             for (SourceAnnotation annotation : annotations) {
                 annotationsByOwner
                         .computeIfAbsent(annotation.ownerId(), ignored -> new ArrayList<>())
                         .add(annotation);
             }
             for (CtType<?> type : ctModel.getAllTypes()) {
-                String typeId = typeId(type.getQualifiedName());
+                SourceFactId typeId = typeId(type.getQualifiedName());
                 for (CtField<?> field : type.getFields()) {
-                    String fieldId = fieldId(type.getQualifiedName(), field.getSimpleName());
+                    SourceFactId fieldId = fieldId(type.getQualifiedName(), field.getSimpleName());
                     if (annotationsByOwner.getOrDefault(fieldId, List.of()).stream()
                             .anyMatch(this::isInjectionAnnotation)) {
                         String fieldType;
@@ -258,7 +259,7 @@ public class SourceFactIndexBuilder {
             return;
         }
 
-        String typeId = typeId(type.getQualifiedName());
+        SourceFactId typeId = typeId(type.getQualifiedName());
         for (CtAssignment<?, ?> assignment : constructor.getElements(new TypeFilter<>(CtAssignment.class))) {
             String fieldName = assignedFieldName(assignment);
             String parameterName = assignedParameterName(assignment);
@@ -298,7 +299,7 @@ public class SourceFactIndexBuilder {
             int returnIndex = 0;
             for (CtType<?> type : ctModel.getAllTypes()) {
                 for (CtExecutable<?> executable : executables(type)) {
-                    String methodId = methodId(type.getQualifiedName(), executable.getSignature());
+                    SourceFactId methodId = methodId(type.getQualifiedName(), executable.getSignature());
                     for (CtElement element : executable.getElements(new TypeFilter<>(CtElement.class))) {
                         if (element instanceof CtInvocation<?> invocation) {
                             invocations.add(invocationFact(methodId, invocation, invocationIndex++));
@@ -333,7 +334,7 @@ public class SourceFactIndexBuilder {
         return result;
     }
 
-    private SourceInvocation invocationFact(String methodId, CtInvocation<?> invocation, int index) {
+    private SourceInvocation invocationFact(SourceFactId methodId, CtInvocation<?> invocation, int index) {
         CtElement parent = invocation.getParent();
         String assignedTo = null;
         if (parent instanceof CtAssignment<?, ?> assignment) {
@@ -342,7 +343,7 @@ public class SourceFactIndexBuilder {
             assignedTo = localVariable.getSimpleName();
         }
         return new SourceInvocation(
-                methodId + "@invocation:" + index,
+                SourceFactId.of(methodId.serialize() + "@invocation:" + index),
                 methodId,
                 expressionText(invocation.getTarget()),
                 invocation.getExecutable() == null
@@ -355,7 +356,7 @@ public class SourceFactIndexBuilder {
                 location(invocation));
     }
 
-    private SourceAssignment assignmentFact(String methodId, CtAssignment<?, ?> assignment, int index) {
+    private SourceAssignment assignmentFact(SourceFactId methodId, CtAssignment<?, ?> assignment, int index) {
         SourceEvidence evidence;
         if (assignment.getAssigned() instanceof CtFieldWrite<?>) {
             evidence = SourceEvidence.FIELD_ASSIGNMENT;
@@ -365,7 +366,7 @@ public class SourceFactIndexBuilder {
                     : SourceEvidence.LOCAL_ASSIGNMENT;
         }
         return new SourceAssignment(
-                methodId + "@assignment:" + index,
+                SourceFactId.of(methodId.serialize() + "@assignment:" + index),
                 methodId,
                 expressionText(assignment.getAssigned()),
                 expressionText(assignment.getAssignment()),
@@ -375,7 +376,7 @@ public class SourceFactIndexBuilder {
                 location(assignment));
     }
 
-    private SourceAssignment localAssignmentFact(String methodId, CtLocalVariable<?> localVariable, int index) {
+    private SourceAssignment localAssignmentFact(SourceFactId methodId, CtLocalVariable<?> localVariable, int index) {
         SourceEvidence evidence;
         if (localVariable.getDefaultExpression() instanceof CtConstructorCall<?>) {
             evidence = SourceEvidence.CONSTRUCTOR_CALL;
@@ -383,7 +384,7 @@ public class SourceFactIndexBuilder {
             evidence = SourceEvidence.LOCAL_ASSIGNMENT;
         }
         return new SourceAssignment(
-                methodId + "@assignment:" + index,
+                SourceFactId.of(methodId.serialize() + "@assignment:" + index),
                 methodId,
                 localVariable.getSimpleName(),
                 expressionText(localVariable.getDefaultExpression()),
@@ -393,7 +394,7 @@ public class SourceFactIndexBuilder {
                 location(localVariable));
     }
 
-    private SourceReturn returnFact(String methodId, CtReturn<?> ctReturn, int index) {
+    private SourceReturn returnFact(SourceFactId methodId, CtReturn<?> ctReturn, int index) {
         CtExpression<?> returnedExpression = ctReturn.getReturnedExpression();
         String referencedField = referencedField(returnedExpression);
         String referencedParameter = referencedParameter(returnedExpression);
@@ -408,7 +409,7 @@ public class SourceFactIndexBuilder {
                             : SourceEvidence.METHOD_RETURNS_LOCAL;
         }
         return new SourceReturn(
-                methodId + "@return:" + index,
+                SourceFactId.of(methodId.serialize() + "@return:" + index),
                 methodId,
                 expressionText(returnedExpression),
                 referencedField,
@@ -442,7 +443,7 @@ public class SourceFactIndexBuilder {
                 location(element));
     }
 
-    private List<SourceAnnotation> annotations(String ownerId, CtElement element) {
+    private List<SourceAnnotation> annotations(SourceFactId ownerId, CtElement element) {
         List<SourceAnnotation> result = new ArrayList<>();
         for (CtAnnotation<?> annotation : element.getAnnotations()) {
             String qualifiedName = annotationQualifiedName(annotation);
@@ -551,16 +552,16 @@ public class SourceFactIndexBuilder {
         span.setAttribute("ambiguous-receiver-count", 0L);
     }
 
-    public static String typeId(String qualifiedName) {
-        return "type:" + qualifiedName;
+    public static SourceFactId typeId(String qualifiedName) {
+        return SourceFactId.of("type:" + qualifiedName);
     }
 
-    public static String methodId(String qualifiedTypeName, String signature) {
-        return "method:" + qualifiedTypeName + "#" + signature;
+    public static SourceFactId methodId(String qualifiedTypeName, String signature) {
+        return SourceFactId.of("method:" + qualifiedTypeName + "#" + signature);
     }
 
-    public static String fieldId(String qualifiedTypeName, String fieldName) {
-        return "field:" + qualifiedTypeName + "#" + fieldName;
+    public static SourceFactId fieldId(String qualifiedTypeName, String fieldName) {
+        return SourceFactId.of("field:" + qualifiedTypeName + "#" + fieldName);
     }
 
     private static String packageName(String qualifiedName) {
