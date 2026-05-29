@@ -518,7 +518,8 @@ public class CallGraphExtractor {
             String toMethod = inv.getExecutable().getSimpleName();
             if (!ownMethodNames.contains(toMethod)) continue;
             if (toMethod.equals(fromMethod)) continue; // ignore trivial self-call
-            String edgeId = "call:" + fromComp.id + "#" + fromMethod + "->" + fromComp.id + "#" + toMethod;
+            String edgeId = "call:" + fromComp.id.serialize() + "#" + fromMethod + "->" + fromComp.id.serialize() + "#"
+                    + toMethod;
             if (!ctx.addSeenId(edgeId)) continue;
             CallEdge edge = new CallEdge();
             edge.id = edgeId;
@@ -690,7 +691,8 @@ public class CallGraphExtractor {
             ExtractionContext ctx,
             Set<String> killedSnapshot,
             String callKind) {
-        String edgeId = "call:" + fromComp.id + "#" + fromMethod + "->" + toComp.id + "#" + toMethod;
+        String edgeId =
+                "call:" + fromComp.id.serialize() + "#" + fromMethod + "->" + toComp.id.serialize() + "#" + toMethod;
         if (!ctx.addSeenId(edgeId)) return;
         CallEdge edge = new CallEdge();
         edge.id = edgeId;
@@ -764,7 +766,7 @@ public class CallGraphExtractor {
             }
             if (kind == null) continue;
 
-            String id = "outbound:" + fromComp.id + "#" + methodName + ":" + (index++);
+            String id = "outbound:" + fromComp.id.serialize() + "#" + methodName + ":" + (index++);
             if (!ctx.addSeenId(id)) continue;
 
             OutboundSinkSite site = new OutboundSinkSite();

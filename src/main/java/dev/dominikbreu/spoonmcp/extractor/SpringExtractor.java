@@ -588,7 +588,7 @@ public class SpringExtractor {
         CtMethod<?> enclosingMethod = invocation.getParent(CtMethod.class);
         if (enclosingMethod == null) return;
         OutboundSinkSite site = new OutboundSinkSite();
-        site.id = "outbound:" + component.id + "#" + enclosingMethod.getSimpleName() + ":spring-kafka:"
+        site.id = "outbound:" + component.id.serialize() + "#" + enclosingMethod.getSimpleName() + ":spring-kafka:"
                 + model.outboundSinkSites.size();
         site.kind = DataFlowSink.Kind.MESSAGING;
         site.componentId = component.id;
