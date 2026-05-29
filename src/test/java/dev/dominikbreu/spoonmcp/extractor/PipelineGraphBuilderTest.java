@@ -74,28 +74,28 @@ class PipelineGraphBuilderTest {
     private ArchitectureModel buildFanoutModel() {
         ArchitectureModel m = new ArchitectureModel("test");
 
-        for (String id : List.of("ep:R", "ep:B", "ep:A", "ep:C", "ep:D")) {
+        for (String id : List.of("R", "B", "A", "C", "D")) {
             m.entrypoints.add(ep(id, EntrypointType.MESSAGING_CONSUMER));
         }
 
         // R → B
-        DataFlowPath pR = path("df:R", "ep:R");
+        DataFlowPath pR = path("df:R", "R");
         sink(pR, "df:B");
 
         // B fans out to A and C
-        DataFlowPath pB = path("df:B", "ep:B");
+        DataFlowPath pB = path("df:B", "B");
         sink(pB, "df:A");
         sink(pB, "df:C");
 
         // A: terminal (no links)
-        DataFlowPath pA = path("df:A", "ep:A");
+        DataFlowPath pA = path("df:A", "A");
 
         // C → D
-        DataFlowPath pC = path("df:C", "ep:C");
+        DataFlowPath pC = path("df:C", "C");
         sink(pC, "df:D");
 
         // D: terminal
-        DataFlowPath pD = path("df:D", "ep:D");
+        DataFlowPath pD = path("df:D", "D");
 
         m.dataFlowPaths.addAll(List.of(pR, pB, pA, pC, pD));
         return m;
@@ -108,22 +108,22 @@ class PipelineGraphBuilderTest {
     private ArchitectureModel buildParallelFanoutModel() {
         ArchitectureModel m = new ArchitectureModel("test");
 
-        for (String id : List.of("ep:R", "ep:A", "ep:B", "ep:C", "ep:D")) {
+        for (String id : List.of("R", "A", "B", "C", "D")) {
             m.entrypoints.add(ep(id, EntrypointType.MESSAGING_CONSUMER));
         }
 
-        DataFlowPath pR = path("df:R", "ep:R");
+        DataFlowPath pR = path("df:R", "R");
         sink(pR, "df:A");
         sink(pR, "df:B");
 
-        DataFlowPath pA = path("df:A", "ep:A");
+        DataFlowPath pA = path("df:A", "A");
         sink(pA, "df:C");
 
-        DataFlowPath pB = path("df:B", "ep:B");
+        DataFlowPath pB = path("df:B", "B");
         sink(pB, "df:D");
 
-        DataFlowPath pC = path("df:C", "ep:C");
-        DataFlowPath pD = path("df:D", "ep:D");
+        DataFlowPath pC = path("df:C", "C");
+        DataFlowPath pD = path("df:D", "D");
 
         m.dataFlowPaths.addAll(List.of(pR, pA, pB, pC, pD));
         return m;
@@ -131,17 +131,17 @@ class PipelineGraphBuilderTest {
 
     private ArchitectureModel buildDuplicateModel() {
         ArchitectureModel m = new ArchitectureModel("test");
-        m.entrypoints.add(ep("ep:EP1", EntrypointType.MESSAGING_CONSUMER));
-        m.entrypoints.add(ep("ep:EP2", EntrypointType.MESSAGING_CONSUMER));
+        m.entrypoints.add(ep("EP1", EntrypointType.MESSAGING_CONSUMER));
+        m.entrypoints.add(ep("EP2", EntrypointType.MESSAGING_CONSUMER));
 
         // Two paths from same entrypoint, different trackedName — both link to same downstream
-        DataFlowPath pA = path("df:EP1#a", "ep:EP1");
+        DataFlowPath pA = path("df:EP1#a", "EP1");
         sink(pA, "df:EP2");
 
-        DataFlowPath pB = path("df:EP1#b", "ep:EP1");
+        DataFlowPath pB = path("df:EP1#b", "EP1");
         sink(pB, "df:EP2");
 
-        DataFlowPath pEP2 = path("df:EP2", "ep:EP2");
+        DataFlowPath pEP2 = path("df:EP2", "EP2");
         // terminal: no outgoing sinks
 
         m.dataFlowPaths.addAll(List.of(pA, pB, pEP2));
@@ -160,7 +160,7 @@ class PipelineGraphBuilderTest {
         DataFlowPath p = new DataFlowPath();
         p.id = id;
         p.entrypointId = EntrypointId.deserialize(entrypointId);
-        p.steps.add(new DataFlowStep(0, ComponentId.of("comp:x"), "X", "m", "x"));
+        p.steps.add(new DataFlowStep(0, ComponentId.of("x"), "X", "m", "x"));
         return p;
     }
 
@@ -182,15 +182,15 @@ class PipelineGraphBuilderTest {
         ArchitectureModel m = new ArchitectureModel("test");
 
         // Use MESSAGING_CONSUMER for pS to avoid the SCHEDULER→CONSUMER background-data-feed filter
-        m.entrypoints.add(ep("ep:S", EntrypointType.MESSAGING_CONSUMER));
-        m.entrypoints.add(ep("ep:A", EntrypointType.MESSAGING_CONSUMER));
+        m.entrypoints.add(ep("S", EntrypointType.MESSAGING_CONSUMER));
+        m.entrypoints.add(ep("A", EntrypointType.MESSAGING_CONSUMER));
 
         // Two paths from ep:A, different tracked params
-        DataFlowPath pA1 = path("df:A#star", "ep:A");
-        DataFlowPath pA2 = path("df:A#field", "ep:A");
+        DataFlowPath pA1 = path("df:A#star", "A");
+        DataFlowPath pA2 = path("df:A#field", "A");
 
         // pS → stateCache → pA1
-        DataFlowPath pS = path("df:S", "ep:S");
+        DataFlowPath pS = path("df:S", "S");
         DataFlowSink storeSinkS = new DataFlowSink();
         storeSinkS.kind = DataFlowSink.Kind.STORE;
         storeSinkS.linkedPathIds.add("df:A#star");
@@ -226,10 +226,10 @@ class PipelineGraphBuilderTest {
         ArchitectureModel m = new ArchitectureModel("test");
 
         // Scheduler ep is in the model; observer ep is NOT registered in entrypoints
-        m.entrypoints.add(ep("ep:scheduler", EntrypointType.SCHEDULER));
-        m.entrypoints.add(ep("ep:consumer", EntrypointType.MESSAGING_CONSUMER));
+        m.entrypoints.add(ep("scheduler", EntrypointType.SCHEDULER));
+        m.entrypoints.add(ep("consumer", EntrypointType.MESSAGING_CONSUMER));
 
-        DataFlowPath schedulerPath = path("df:scheduler", "ep:scheduler");
+        DataFlowPath schedulerPath = path("df:scheduler", "scheduler");
         // Scheduler links to both: a lifecycle path (whose ep is absent) and a real consumer path
         DataFlowSink toObserver = new DataFlowSink();
         toObserver.kind = DataFlowSink.Kind.STORE;
@@ -243,9 +243,9 @@ class PipelineGraphBuilderTest {
 
         // Lifecycle path — entrypointId absent from model.entrypoints
         DataFlowPath observerPath =
-                path("df:ep:com.example.Svc#onShutdown:observer#*", "ep:com.example.Svc#onShutdown:observer");
+                path("df:ep:com.example.Svc#onShutdown:observer#*", "com.example.Svc#onShutdown:observer");
 
-        DataFlowPath consumerPath = path("df:consumer", "ep:consumer");
+        DataFlowPath consumerPath = path("df:consumer", "consumer");
 
         m.dataFlowPaths.addAll(List.of(schedulerPath, observerPath, consumerPath));
 
@@ -264,19 +264,19 @@ class PipelineGraphBuilderTest {
         ArchitectureModel m = new ArchitectureModel("test");
 
         Entrypoint schedulerEp = new Entrypoint();
-        schedulerEp.id = EntrypointId.deserialize("ep:scheduler");
+        schedulerEp.id = EntrypointId.deserialize("scheduler");
         schedulerEp.name = "run";
         schedulerEp.type = EntrypointType.SCHEDULER;
         m.entrypoints.add(schedulerEp);
 
         Entrypoint observerEp = new Entrypoint();
-        observerEp.id = EntrypointId.deserialize("ep:shutdown-observer");
+        observerEp.id = EntrypointId.deserialize("shutdown-observer");
         observerEp.name = "onShutdown";
         observerEp.type = EntrypointType.CDI_EVENT_OBSERVER;
         m.entrypoints.add(observerEp);
 
         Entrypoint dataObserverEp = new Entrypoint();
-        dataObserverEp.id = EntrypointId.deserialize("ep:data-observer");
+        dataObserverEp.id = EntrypointId.deserialize("data-observer");
         dataObserverEp.name = "onOrderCreated";
         dataObserverEp.type = EntrypointType.CDI_EVENT_OBSERVER;
         m.entrypoints.add(dataObserverEp);
@@ -284,8 +284,8 @@ class PipelineGraphBuilderTest {
         // Scheduler path links to both the shutdown observer and the data observer
         DataFlowPath schedulerPath = new DataFlowPath();
         schedulerPath.id = "df:scheduler";
-        schedulerPath.entrypointId = EntrypointId.deserialize("ep:scheduler");
-        schedulerPath.steps.add(new DataFlowStep(0, ComponentId.of("comp:x"), "X", "run", "*"));
+        schedulerPath.entrypointId = EntrypointId.deserialize("scheduler");
+        schedulerPath.steps.add(new DataFlowStep(0, ComponentId.of("x"), "X", "run", "*"));
 
         DataFlowSink sinkToShutdown = new DataFlowSink();
         sinkToShutdown.kind = DataFlowSink.Kind.STORE;
@@ -302,14 +302,14 @@ class PipelineGraphBuilderTest {
 
         DataFlowPath shutdownPath = new DataFlowPath();
         shutdownPath.id = "df:shutdown-observer";
-        shutdownPath.entrypointId = EntrypointId.deserialize("ep:shutdown-observer");
-        shutdownPath.steps.add(new DataFlowStep(0, ComponentId.of("comp:x"), "X", "onShutdown", "*"));
+        shutdownPath.entrypointId = EntrypointId.deserialize("shutdown-observer");
+        shutdownPath.steps.add(new DataFlowStep(0, ComponentId.of("x"), "X", "onShutdown", "*"));
         m.dataFlowPaths.add(shutdownPath);
 
         DataFlowPath dataObserverPath = new DataFlowPath();
         dataObserverPath.id = "df:data-observer";
-        dataObserverPath.entrypointId = EntrypointId.deserialize("ep:data-observer");
-        dataObserverPath.steps.add(new DataFlowStep(0, ComponentId.of("comp:x"), "X", "onOrderCreated", "*"));
+        dataObserverPath.entrypointId = EntrypointId.deserialize("data-observer");
+        dataObserverPath.steps.add(new DataFlowStep(0, ComponentId.of("x"), "X", "onOrderCreated", "*"));
         m.dataFlowPaths.add(dataObserverPath);
 
         List<Chain> chains = builder.build(m, 10);

@@ -21,9 +21,9 @@ class TraceDataFlowToolTest {
         Component otherCtrl = component("BudgetControlController", ComponentType.REST_RESOURCE);
         model.components.addAll(List.of(ctrl, otherCtrl));
 
-        Entrypoint customerEp = ep("ep:CustomerController#get", "get", "/customer/{id}", "GET", ctrl.id);
+        Entrypoint customerEp = ep("CustomerController#get", "get", "/customer/{id}", "GET", ctrl.id);
         Entrypoint budgetEp = ep(
-                "ep:BudgetControlController#get",
+                "BudgetControlController#get",
                 "get",
                 "/budgetControl/customer/{customerId}/missionPlan/{missionPlanId}",
                 "GET",
@@ -63,7 +63,7 @@ class TraceDataFlowToolTest {
 
     private static Component component(String name, ComponentType type) {
         Component c = new Component();
-        c.id = ComponentId.of("comp:" + name);
+        c.id = ComponentId.of("" + name);
         c.name = name;
         c.type = type;
         c.stereotypes = new java.util.ArrayList<>();

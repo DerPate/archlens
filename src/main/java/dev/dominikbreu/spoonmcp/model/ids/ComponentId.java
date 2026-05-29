@@ -10,14 +10,15 @@ import com.fasterxml.jackson.annotation.JsonValue;
 public record ComponentId(String qualifiedName) {
 
     public static ComponentId of(String qualifiedName) {
-        return new ComponentId(qualifiedName);
+        if (qualifiedName == null) return null;
+        // Defensive: a component identity is the bare qualified name. Strip any stray
+        // legacy "comp:" prefix at construction so a prefixed id can never exist in-memory.
+        return new ComponentId(qualifiedName.startsWith("comp:") ? qualifiedName.substring(5) : qualifiedName);
     }
 
     @JsonCreator
     public static ComponentId deserialize(String value) {
-        if (value == null) return null;
-        // Accept old "comp:..." format from cached JSON
-        return new ComponentId(value.startsWith("comp:") ? value.substring(5) : value);
+        return of(value);
     }
 
     @JsonValue

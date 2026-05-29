@@ -12,7 +12,7 @@ class DataFlowSinkJsonTest {
     void roundTripsPipelineMetadata() throws Exception {
         DataFlowSink sink = new DataFlowSink();
         sink.kind = DataFlowSink.Kind.MESSAGING;
-        sink.componentId = ComponentId.of("comp:Publisher");
+        sink.componentId = ComponentId.of("Publisher");
         sink.componentName = "Publisher";
         sink.method = "publish";
         sink.channel = "orders.created";

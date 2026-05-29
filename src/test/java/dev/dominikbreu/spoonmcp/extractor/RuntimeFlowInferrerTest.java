@@ -114,7 +114,7 @@ class RuntimeFlowInferrerTest {
         Component resource = comp("Processor", ComponentType.SERVICE);
         m.components.add(resource);
         Entrypoint ep = new Entrypoint();
-        ep.id = EntrypointId.deserialize("ep:Processor#onMessage");
+        ep.id = EntrypointId.deserialize("Processor#onMessage");
         ep.name = "onMessage";
         ep.componentId = resource.id;
         ep.type = EntrypointType.MESSAGING_CONSUMER;
@@ -139,7 +139,7 @@ class RuntimeFlowInferrerTest {
         d.kind = "cdi-event";
         d.confidence = 0.8;
         m.dependencies.add(d);
-        m.entrypoints.add(ep("ep:Producer#fire", "fire", producer.id, null, null));
+        m.entrypoints.add(ep("Producer#fire", "fire", producer.id, null, null));
 
         RuntimeFlow flow = inferrer.infer(m.entrypoints.get(0).id.serialize(), 5, m);
 
@@ -159,7 +159,7 @@ class RuntimeFlowInferrerTest {
         m.components.addAll(List.of(consumer, mqttClient, service));
         m.dependencies.addAll(List.of(dep(consumer.id, mqttClient.id), dep(consumer.id, service.id)));
         Entrypoint ep = new Entrypoint();
-        ep.id = EntrypointId.deserialize("ep:MQTTConsumer#handle");
+        ep.id = EntrypointId.deserialize("MQTTConsumer#handle");
         ep.name = "handle";
         ep.componentId = consumer.id;
         ep.type = EntrypointType.MESSAGING_CONSUMER;
@@ -176,7 +176,7 @@ class RuntimeFlowInferrerTest {
     @Test
     void returnsNullForUnknownEntrypoint() {
         ArchitectureModel model = threeLayerModel();
-        assertThat(inferrer.infer("ep:nonexistent", 5, model)).isNull();
+        assertThat(inferrer.infer("nonexistent", 5, model)).isNull();
     }
 
     @Test
@@ -231,8 +231,8 @@ class RuntimeFlowInferrerTest {
         ArchitectureModel m = new ArchitectureModel("test");
         Component ctrl = comp("AccountController", ComponentType.REST_RESOURCE);
         m.components.add(ctrl);
-        Entrypoint post = ep("ep:AccountController#add:POST", "add", ctrl.id, "POST", "/account");
-        Entrypoint get = ep("ep:AccountController#getAll:GET", "getAll", ctrl.id, "GET", "/account");
+        Entrypoint post = ep("AccountController#add:POST", "add", ctrl.id, "POST", "/account");
+        Entrypoint get = ep("AccountController#getAll:GET", "getAll", ctrl.id, "GET", "/account");
         m.entrypoints.add(post); // POST registered first
         m.entrypoints.add(get);
 
@@ -246,8 +246,8 @@ class RuntimeFlowInferrerTest {
         ArchitectureModel m = new ArchitectureModel("test");
         Component ctrl = comp("AccountController", ComponentType.REST_RESOURCE);
         m.components.add(ctrl);
-        Entrypoint post = ep("ep:AccountController#add:POST", "add", ctrl.id, "POST", "/account");
-        Entrypoint get = ep("ep:AccountController#getAll:GET", "getAll", ctrl.id, "GET", "/account");
+        Entrypoint post = ep("AccountController#add:POST", "add", ctrl.id, "POST", "/account");
+        Entrypoint get = ep("AccountController#getAll:GET", "getAll", ctrl.id, "GET", "/account");
         m.entrypoints.add(post);
         m.entrypoints.add(get);
 
@@ -279,7 +279,7 @@ class RuntimeFlowInferrerTest {
         Component ctrl = comp("CustomerController", ComponentType.REST_RESOURCE);
         m.components.add(ctrl);
         Entrypoint sub = new Entrypoint();
-        sub.id = EntrypointId.deserialize("ep:CustomerController#addContact:POST");
+        sub.id = EntrypointId.deserialize("CustomerController#addContact:POST");
         sub.name = "addContact";
         sub.componentId = ctrl.id;
         sub.type = EntrypointType.REST_ENDPOINT;
@@ -287,7 +287,7 @@ class RuntimeFlowInferrerTest {
         sub.httpMethod = "POST";
         m.entrypoints.add(sub); // added first so it appears before the exact match
         Entrypoint exact = new Entrypoint();
-        exact.id = EntrypointId.deserialize("ep:CustomerController#getAll:GET");
+        exact.id = EntrypointId.deserialize("CustomerController#getAll:GET");
         exact.name = "getAll";
         exact.componentId = ctrl.id;
         exact.type = EntrypointType.REST_ENDPOINT;
@@ -337,7 +337,7 @@ class RuntimeFlowInferrerTest {
         m.components.add(ctrl);
 
         Entrypoint patch = new Entrypoint();
-        patch.id = EntrypointId.deserialize("ep:CustomerController#updateAddress:PATCH");
+        patch.id = EntrypointId.deserialize("CustomerController#updateAddress:PATCH");
         patch.name = "updateAddress";
         patch.componentId = ctrl.id;
         patch.type = EntrypointType.REST_ENDPOINT;
@@ -346,7 +346,7 @@ class RuntimeFlowInferrerTest {
         m.entrypoints.add(patch); // comes before the GET in iteration order
 
         Entrypoint get = new Entrypoint();
-        get.id = EntrypointId.deserialize("ep:CustomerController#getAddress:GET");
+        get.id = EntrypointId.deserialize("CustomerController#getAddress:GET");
         get.name = "getAddress";
         get.componentId = ctrl.id;
         get.type = EntrypointType.REST_ENDPOINT;
@@ -366,7 +366,7 @@ class RuntimeFlowInferrerTest {
         Component ctrl = comp("OtherController", ComponentType.REST_RESOURCE);
         model.components.add(ctrl);
         Entrypoint nested = new Entrypoint();
-        nested.id = EntrypointId.deserialize("ep:OtherController#get");
+        nested.id = EntrypointId.deserialize("OtherController#get");
         nested.name = "get";
         nested.componentId = ctrl.id;
         nested.type = EntrypointType.REST_ENDPOINT;
@@ -397,7 +397,7 @@ class RuntimeFlowInferrerTest {
         model.components.addAll(List.of(scheduler, consumer));
 
         Entrypoint ep = new Entrypoint();
-        ep.id = EntrypointId.deserialize("ep:Scheduler#tick");
+        ep.id = EntrypointId.deserialize("Scheduler#tick");
         ep.name = "tick";
         ep.componentId = scheduler.id;
         ep.type = EntrypointType.SCHEDULER;
@@ -424,7 +424,7 @@ class RuntimeFlowInferrerTest {
         Component mapper = comp("Mapper", ComponentType.UTILITY);
         Component service = comp("Service", ComponentType.SERVICE);
         model.components.addAll(List.of(resource, mapper, service));
-        model.entrypoints.add(ep("ep:Resource#get", "get", resource.id, "GET", "/orders"));
+        model.entrypoints.add(ep("Resource#get", "get", resource.id, "GET", "/orders"));
 
         CallEdge toMapper = new CallEdge();
         toMapper.fromComponentId = resource.id;
@@ -456,7 +456,7 @@ class RuntimeFlowInferrerTest {
         model.components.addAll(List.of(main, game));
         model.dependencies.add(dep(main.id, game.id));
 
-        Entrypoint ep = ep("ep:Main#main", "main", main.id, null, null);
+        Entrypoint ep = ep("Main#main", "main", main.id, null, null);
         ep.type = EntrypointType.MAIN_METHOD;
         model.entrypoints.add(ep);
 
@@ -477,7 +477,7 @@ class RuntimeFlowInferrerTest {
         Component strategy = comp("Strategy", ComponentType.UNKNOWN);
         model.components.addAll(List.of(game, random, simple, strategy));
 
-        model.entrypoints.add(ep("ep:Game#run", "run", game.id, null, null));
+        model.entrypoints.add(ep("Game#run", "run", game.id, null, null));
 
         model.callEdges.addAll(List.of(
                 callEdge(game.id, "run", random.id, "nextMove"),
@@ -507,7 +507,7 @@ class RuntimeFlowInferrerTest {
         Component repository = comp("Repository", ComponentType.REPOSITORY);
         m.components.addAll(List.of(resource, service, repository));
         m.dependencies.addAll(List.of(dep(resource.id, service.id), dep(service.id, repository.id)));
-        m.entrypoints.add(ep("ep:Resource#getOrder", "getOrder", resource.id, "GET", "/orders/{id}"));
+        m.entrypoints.add(ep("Resource#getOrder", "getOrder", resource.id, "GET", "/orders/{id}"));
         return m;
     }
 
@@ -519,13 +519,13 @@ class RuntimeFlowInferrerTest {
         Component service = comp("Service", ComponentType.SERVICE);
         m.components.addAll(List.of(resource, mapper, service));
         m.dependencies.addAll(List.of(dep(resource.id, mapper.id), dep(mapper.id, service.id)));
-        m.entrypoints.add(ep("ep:Resource#doSomething", "doSomething", resource.id, "GET", "/items"));
+        m.entrypoints.add(ep("Resource#doSomething", "doSomething", resource.id, "GET", "/items"));
         return m;
     }
 
     private static Component comp(String name, ComponentType type) {
         Component c = new Component();
-        c.id = ComponentId.of("comp:" + name);
+        c.id = ComponentId.of("" + name);
         c.name = name;
         c.type = type;
         c.technology = "test";
