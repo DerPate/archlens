@@ -27,7 +27,7 @@ class ModelCacheGraphBackendTest {
                 .hasSize(1);
         assertThat(cache.getBackend()).isEqualTo(ModelCache.CacheBackend.GRAPH);
         assertThat(cache.graph().findNodes("Component", "BillingService", Map.of(), 10))
-                .extracting(ArchitectureGraph.GraphNode::id)
+                .extracting(node -> node.id().serialize())
                 .containsExactly("BillingService");
     }
 
@@ -48,7 +48,7 @@ class ModelCacheGraphBackendTest {
         ModelCache reloaded = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON);
         assertThat(reloaded.load().workspacePath).isEqualTo("second-workspace");
         assertThat(reloaded.graph().findNodes("Component", "SecondService", Map.of(), 10))
-                .extracting(ArchitectureGraph.GraphNode::id)
+                .extracting(node -> node.id().serialize())
                 .containsExactly("SecondService");
         assertThat(reloaded.graph().findNodes("Component", "FirstService", Map.of(), 10))
                 .isEmpty();

@@ -19,6 +19,7 @@ import dev.dominikbreu.spoonmcp.model.InterfaceEntry;
 import dev.dominikbreu.spoonmcp.model.RuntimeFlow;
 import dev.dominikbreu.spoonmcp.model.RuntimeFlowStep;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
+import dev.dominikbreu.spoonmcp.model.ids.GraphNodeId;
 import dev.dominikbreu.spoonmcp.workflow.WorkflowLink;
 import dev.dominikbreu.spoonmcp.workflow.WorkflowLinker;
 import java.util.ArrayDeque;
@@ -51,7 +52,7 @@ import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 public class ArchitectureGraph {
 
     private Graph graph = TinkerGraph.open();
-    private final Map<String, Vertex> verticesById = new LinkedHashMap<>();
+    private final Map<GraphNodeId, Vertex> verticesById = new LinkedHashMap<>();
     private ArchitectureModel model;
 
     /** Creates an empty architecture graph projection. */
@@ -162,7 +163,8 @@ public class ArchitectureGraph {
                 nodes.add(node);
             }
         }
-        nodes.sort(Comparator.comparing(GraphNode::label).thenComparing(GraphNode::id));
+        nodes.sort(Comparator.comparing(GraphNode::label)
+                .thenComparing(node -> node.id().serialize()));
         return nodes.stream().limit(normalizeLimit(limit)).toList();
     }
 
@@ -174,7 +176,7 @@ public class ArchitectureGraph {
      * @param limit maximum number of edges to return
      * @return matching graph edges
      */
-    public synchronized List<GraphEdge> neighborhood(String nodeId, String direction, int limit) {
+    public synchronized List<GraphEdge> neighborhood(GraphNodeId nodeId, String direction, int limit) {
         Vertex vertex = vertex(nodeId).orElse(null);
         if (vertex == null) {
             return List.of();
@@ -193,8 +195,8 @@ public class ArchitectureGraph {
             edges.add(toEdge(iterator.next()));
         }
         edges.sort(Comparator.comparing(GraphEdge::label)
-                .thenComparing(GraphEdge::fromId)
-                .thenComparing(GraphEdge::toId));
+                .thenComparing(edge -> edge.fromId().serialize())
+                .thenComparing(edge -> edge.toId().serialize()));
         return edges.stream().limit(normalizeLimit(limit)).toList();
     }
 
@@ -221,8 +223,8 @@ public class ArchitectureGraph {
             }
         }
         edges.sort(Comparator.comparing(GraphEdge::label)
-                .thenComparing(GraphEdge::fromId)
-                .thenComparing(GraphEdge::toId));
+                .thenComparing(edge -> edge.fromId().serialize())
+                .thenComparing(edge -> edge.toId().serialize()));
         return edges.stream().limit(normalizeLimit(limit)).toList();
     }
 
@@ -236,25 +238,25 @@ public class ArchitectureGraph {
      * @param labels edge labels to include; empty set means all labels
      * @return matching edges, one per unique (fromId, toId, label) triple
      */
-    public synchronized List<GraphEdge> findEdgesBetween(Set<String> nodeIds, Set<String> labels) {
+    public synchronized List<GraphEdge> findEdgesBetween(Set<GraphNodeId> nodeIds, Set<String> labels) {
         Map<String, GraphEdge> seen = new LinkedHashMap<>();
-        for (String nodeId : nodeIds) {
+        for (GraphNodeId nodeId : nodeIds) {
             Vertex vertex = verticesById.get(nodeId);
             if (vertex == null) continue;
             Iterator<Edge> edges = vertex.edges(Direction.OUT);
             while (edges.hasNext()) {
                 Edge edge = edges.next();
                 if (!labels.isEmpty() && !labels.contains(edge.label())) continue;
-                String toId = edge.inVertex().id().toString();
+                GraphNodeId toId = nid(edge.inVertex());
                 if (!nodeIds.contains(toId)) continue;
-                String key = edge.outVertex().id().toString() + "->" + toId + ":" + edge.label();
+                String key = nid(edge.outVertex()).serialize() + "->" + toId.serialize() + ":" + edge.label();
                 seen.putIfAbsent(key, toEdge(edge));
             }
         }
         return seen.values().stream()
                 .sorted(Comparator.comparing(GraphEdge::label)
-                        .thenComparing(GraphEdge::fromId)
-                        .thenComparing(GraphEdge::toId))
+                        .thenComparing(edge -> edge.fromId().serialize())
+                        .thenComparing(edge -> edge.toId().serialize()))
                 .toList();
     }
 
@@ -267,7 +269,7 @@ public class ArchitectureGraph {
      * @param limit maximum number of paths to return
      * @return matching graph paths
      */
-    public synchronized List<GraphPath> paths(String fromId, String toId, int maxDepth, int limit) {
+    public synchronized List<GraphPath> paths(GraphNodeId fromId, GraphNodeId toId, int maxDepth, int limit) {
         if (!verticesById.containsKey(fromId) || !verticesById.containsKey(toId)) {
             return List.of();
         }
@@ -291,11 +293,11 @@ public class ArchitectureGraph {
             Iterator<Edge> edges = vertex.edges(Direction.OUT);
             while (edges.hasNext()) {
                 Edge edge = edges.next();
-                String nextId = edge.inVertex().id().toString();
+                GraphNodeId nextId = nid(edge.inVertex());
                 if (state.nodeIds.contains(nextId)) {
                     continue;
                 }
-                List<String> nextNodes = new ArrayList<>(state.nodeIds);
+                List<GraphNodeId> nextNodes = new ArrayList<>(state.nodeIds);
                 nextNodes.add(nextId);
                 List<String> nextEdges = new ArrayList<>(state.edgeLabels);
                 nextEdges.add(edge.label());
@@ -313,13 +315,13 @@ public class ArchitectureGraph {
      * @param limit maximum number of nodes to return
      * @return upstream nodes that can impact the target
      */
-    public synchronized List<GraphNode> impactedBy(String targetId, int maxDepth, int limit) {
+    public synchronized List<GraphNode> impactedBy(GraphNodeId targetId, int maxDepth, int limit) {
         if (!verticesById.containsKey(targetId)) {
             return List.of();
         }
         int depthLimit = Math.max(1, Math.min(maxDepth <= 0 ? 3 : maxDepth, 8));
         int resultLimit = normalizeLimit(limit);
-        Set<String> seen = new LinkedHashSet<>();
+        Set<GraphNodeId> seen = new LinkedHashSet<>();
         ArrayDeque<NodeDepth> queue = new ArrayDeque<>();
         queue.add(new NodeDepth(targetId, 0));
 
@@ -331,7 +333,7 @@ public class ArchitectureGraph {
             Vertex vertex = verticesById.get(current.nodeId);
             Iterator<Edge> incoming = vertex.edges(Direction.IN);
             while (incoming.hasNext()) {
-                String sourceId = incoming.next().outVertex().id().toString();
+                GraphNodeId sourceId = nid(incoming.next().outVertex());
                 if (seen.add(sourceId)) {
                     queue.addLast(new NodeDepth(sourceId, current.depth + 1));
                 }
@@ -888,7 +890,7 @@ public class ArchitectureGraph {
             if (!reachable.add(nodeId)) {
                 continue;
             }
-            Vertex vertex = verticesById.get(nodeId);
+            Vertex vertex = verticesById.get(GraphNodeId.of(nodeId));
             Iterator<Edge> edges = vertex.edges(Direction.OUT);
             while (edges.hasNext()) {
                 Edge edge = edges.next();
@@ -941,13 +943,14 @@ public class ArchitectureGraph {
         if (id == null || id.isBlank()) {
             id = label + ":" + verticesById.size();
         }
-        Vertex existing = verticesById.get(id);
+        GraphNodeId key = GraphNodeId.of(id);
+        Vertex existing = verticesById.get(key);
         if (existing != null) {
             return existing;
         }
         Vertex vertex = graph.addVertex(T.id, id, T.label, label);
         set(vertex, "name", name);
-        verticesById.put(id, vertex);
+        verticesById.put(key, vertex);
         return vertex;
     }
 
@@ -955,8 +958,8 @@ public class ArchitectureGraph {
         if (fromId == null || toId == null || fromId.isBlank() || toId.isBlank()) {
             return;
         }
-        Vertex from = verticesById.get(fromId);
-        Vertex to = verticesById.get(toId);
+        Vertex from = verticesById.get(GraphNodeId.of(fromId));
+        Vertex to = verticesById.get(GraphNodeId.of(toId));
         if (from == null || to == null) {
             return;
         }
@@ -964,19 +967,21 @@ public class ArchitectureGraph {
         properties.forEach((key, value) -> set(edge, key, value));
     }
 
-    private Optional<Vertex> vertex(String nodeId) {
+    private Optional<Vertex> vertex(GraphNodeId nodeId) {
         return Optional.ofNullable(verticesById.get(nodeId));
+    }
+
+    private static GraphNodeId nid(Vertex vertex) {
+        return GraphNodeId.of(vertex.id().toString());
     }
 
     private GraphNode toNode(Vertex vertex) {
         Map<String, Object> properties = properties(vertex);
-        return new GraphNode(
-                vertex.id().toString(), vertex.label(), Objects.toString(properties.get("name"), ""), properties);
+        return new GraphNode(nid(vertex), vertex.label(), Objects.toString(properties.get("name"), ""), properties);
     }
 
     private GraphEdge toEdge(Edge edge) {
-        return new GraphEdge(
-                edge.outVertex().id().toString(), edge.inVertex().id().toString(), edge.label(), properties(edge));
+        return new GraphEdge(nid(edge.outVertex()), nid(edge.inVertex()), edge.label(), properties(edge));
     }
 
     private GraphPath toPath(PathState state) {
@@ -1169,10 +1174,10 @@ public class ArchitectureGraph {
      * @param name display name
      * @param properties node properties
      */
-    public record GraphNode(String id, String label, String name, Map<String, Object> properties) {
+    public record GraphNode(GraphNodeId id, String label, String name, Map<String, Object> properties) {
         boolean matches(String query) {
             String needle = query.toLowerCase(Locale.ROOT);
-            if (id.toLowerCase(Locale.ROOT).contains(needle)
+            if (id.serialize().toLowerCase(Locale.ROOT).contains(needle)
                     || label.toLowerCase(Locale.ROOT).contains(needle)
                     || name.toLowerCase(Locale.ROOT).contains(needle)) {
                 return true;
@@ -1192,7 +1197,7 @@ public class ArchitectureGraph {
      * @param label edge label
      * @param properties edge properties
      */
-    public record GraphEdge(String fromId, String toId, String label, Map<String, Object> properties) {}
+    public record GraphEdge(GraphNodeId fromId, GraphNodeId toId, String label, Map<String, Object> properties) {}
 
     /**
      * Serializable graph path view used by MCP tools.
@@ -1202,7 +1207,7 @@ public class ArchitectureGraph {
      */
     public record GraphPath(List<GraphNode> nodes, List<String> edgeLabels) {}
 
-    private record PathState(String nodeId, List<String> nodeIds, List<String> edgeLabels) {}
+    private record PathState(GraphNodeId nodeId, List<GraphNodeId> nodeIds, List<String> edgeLabels) {}
 
-    private record NodeDepth(String nodeId, int depth) {}
+    private record NodeDepth(GraphNodeId nodeId, int depth) {}
 }

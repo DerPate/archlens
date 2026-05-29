@@ -2,6 +2,7 @@ package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import dev.dominikbreu.spoonmcp.model.ids.GraphNodeId;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -95,7 +96,11 @@ public class QueryArchitectureGraphTool {
         StringBuilder sb = new StringBuilder();
         sb.append("Graph nodes:\n");
         for (ArchitectureGraph.GraphNode node : nodes) {
-            sb.append("- ").append(node.id()).append(" [").append(node.label()).append("]");
+            sb.append("- ")
+                    .append(node.id().serialize())
+                    .append(" [")
+                    .append(node.label())
+                    .append("]");
             if (node.name() != null && !node.name().isBlank()) {
                 sb.append(" ").append(node.name());
             }
@@ -154,11 +159,11 @@ public class QueryArchitectureGraphTool {
         sb.append("Graph edges:\n");
         for (ArchitectureGraph.GraphEdge edge : edges) {
             sb.append("- ")
-                    .append(edge.fromId())
+                    .append(edge.fromId().serialize())
                     .append(" -[")
                     .append(edge.label())
                     .append("]-> ")
-                    .append(edge.toId());
+                    .append(edge.toId().serialize());
             appendInterestingProperties(
                     sb,
                     edge.properties(),
@@ -210,7 +215,7 @@ public class QueryArchitectureGraphTool {
         sb.append("Graph paths:\n");
         for (ArchitectureGraph.GraphPath path : paths) {
             List<String> nodeIds =
-                    path.nodes().stream().map(ArchitectureGraph.GraphNode::id).toList();
+                    path.nodes().stream().map(node -> node.id().serialize()).toList();
             sb.append("- ").append(String.join(" -> ", nodeIds));
             if (!path.edgeLabels().isEmpty()) {
                 sb.append(" (").append(String.join(", ", path.edgeLabels())).append(")");
@@ -247,12 +252,12 @@ public class QueryArchitectureGraphTool {
      * old prefixed convention still resolve against the now-unprefixed graph vertex ids.
      * Other vertex-id schemes (e.g. {@code ext:}, {@code iface:}) are preserved.
      */
-    private static String normalizeNodeId(String id) {
+    private static GraphNodeId normalizeNodeId(String id) {
         if (id == null) return null;
-        if (id.startsWith("comp:")) return id.substring(5);
-        if (id.startsWith("ep:")) return id.substring(3);
-        if (id.startsWith("dep:")) return id.substring(4);
-        return id;
+        if (id.startsWith("comp:")) return GraphNodeId.of(id.substring(5));
+        if (id.startsWith("ep:")) return GraphNodeId.of(id.substring(3));
+        if (id.startsWith("dep:")) return GraphNodeId.of(id.substring(4));
+        return GraphNodeId.of(id);
     }
 
     private int integer(Map<String, Object> args, String name, int defaultValue) {

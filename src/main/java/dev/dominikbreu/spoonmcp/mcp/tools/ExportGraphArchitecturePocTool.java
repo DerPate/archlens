@@ -122,12 +122,12 @@ public class ExportGraphArchitecturePocTool {
                 .thenComparing(Comparator.comparingInt((ArchitectureGraph.GraphNode node) ->
                                 numeric(node.properties().get("architecturalWeight")))
                         .reversed())
-                .thenComparing(ArchitectureGraph.GraphNode::id);
+                .thenComparing(node -> node.id().serialize());
         graph.findNodes("Component", null, Map.of(), 100).stream()
                 .sorted(signalOrder)
                 .limit(12)
                 .forEach(node -> {
-                    sb.append("- `").append(node.id()).append("`");
+                    sb.append("- `").append(node.id().serialize()).append("`");
                     if (node.name() != null && !node.name().isBlank()) {
                         sb.append(" ").append(node.name());
                     }
@@ -160,9 +160,9 @@ public class ExportGraphArchitecturePocTool {
                 .limit(20)
                 .forEach(edge -> {
                     sb.append("- `")
-                            .append(edge.fromId())
+                            .append(edge.fromId().serialize())
                             .append("` -> `")
-                            .append(edge.toId())
+                            .append(edge.toId().serialize())
                             .append("`");
                     appendProperties(
                             sb, edge.properties(), "kind", "confidence", "fromModule", "toModule", "isRuntimeRelevant");
@@ -219,7 +219,7 @@ public class ExportGraphArchitecturePocTool {
         graph.findNodes("Component", focusComponent, Map.of(), 5).stream()
                 .findFirst()
                 .ifPresent(node -> {
-                    sb.append("- Node: `").append(node.id()).append("`\n");
+                    sb.append("- Node: `").append(node.id().serialize()).append("`\n");
                     appendProperties(
                             sb,
                             node.properties(),
@@ -234,11 +234,11 @@ public class ExportGraphArchitecturePocTool {
                     sb.append("\n");
                     graph.neighborhood(node.id(), "both", 20).forEach(edge -> {
                         sb.append("- ")
-                                .append(edge.fromId())
+                                .append(edge.fromId().serialize())
                                 .append(" -[")
                                 .append(edge.label())
                                 .append("]-> ")
-                                .append(edge.toId());
+                                .append(edge.toId().serialize());
                         appendProperties(
                                 sb, edge.properties(), "kind", "confidence", "isCrossModule", "isRuntimeRelevant");
                         sb.append("\n");
