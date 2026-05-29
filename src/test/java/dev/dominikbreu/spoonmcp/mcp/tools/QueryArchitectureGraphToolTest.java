@@ -31,6 +31,33 @@ class QueryArchitectureGraphToolTest {
     }
 
     @Test
+    void resolvesPathsWithLegacyPrefixedNodeIds(@TempDir Path tempDir) throws Exception {
+        ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON);
+        ArchitectureModel model = model();
+        Component repository = new Component();
+        repository.id = ComponentId.of("PaymentRepository");
+        repository.name = "PaymentRepository";
+        repository.type = ComponentType.REPOSITORY;
+        model.components.add(repository);
+        dev.dominikbreu.spoonmcp.model.Dependency dependency = new dev.dominikbreu.spoonmcp.model.Dependency();
+        dependency.fromId = ComponentId.of("PaymentService");
+        dependency.toId = ComponentId.of("PaymentRepository");
+        dependency.kind = "injection";
+        dependency.confidence = 0.85;
+        model.dependencies.add(dependency);
+        cache.store(model);
+        QueryArchitectureGraphTool tool = new QueryArchitectureGraphTool(cache);
+
+        String unprefixed =
+                tool.execute(Map.of("action", "paths", "fromId", "PaymentService", "toId", "PaymentRepository"));
+        String prefixed = tool.execute(
+                Map.of("action", "paths", "fromId", "comp:PaymentService", "toId", "comp:PaymentRepository"));
+
+        assertThat(unprefixed).contains("PaymentService");
+        assertThat(prefixed).isEqualTo(unprefixed);
+    }
+
+    @Test
     void findsGraphNodes(@TempDir Path tempDir) throws Exception {
         ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON);
         cache.store(model());
