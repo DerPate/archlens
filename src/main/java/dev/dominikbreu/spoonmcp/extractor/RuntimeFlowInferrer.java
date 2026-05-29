@@ -2,7 +2,6 @@ package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
-import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import dev.dominikbreu.spoonmcp.workflow.WorkflowTraversalPolicy;
 import java.util.*;
 
@@ -254,9 +253,6 @@ public class RuntimeFlowInferrer {
      * @return matching entrypoint, or null when none matches
      */
     public Entrypoint findEntrypoint(String ref, ArchitectureModel model) {
-        if (ref != null && ref.startsWith("ep:")) {
-            ref = EntrypointId.deserialize(ref).serialize();
-        }
         String method = extractMethodFromRef(ref);
         String pathRef = extractPathFromRef(ref);
 

@@ -112,10 +112,9 @@ serialize as bare strings — no scheme prefix:
 - `DependencyId` — `<from>-><to>[:<qualifier>]`, e.g. `com.example.A->com.example.B`.
 
 This serialized form is what every tool emits and expects as input (including the
-`nodeId`/`fromId`/`toId` arguments of `query_architecture_graph`). For backward
-compatibility with caches and clients written against the earlier convention, the
-deserializers and id-accepting tools also accept the legacy `comp:` / `ep:` / `dep:`
-prefixed forms.
+`nodeId`/`fromId`/`toId` arguments of `query_architecture_graph`). Caches written by an
+earlier prefixed convention are not migrated automatically — re-run `index_workspace`
+after upgrading.
 
 ## Documentation
 

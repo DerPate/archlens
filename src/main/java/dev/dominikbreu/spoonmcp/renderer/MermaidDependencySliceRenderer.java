@@ -3,7 +3,6 @@ package dev.dominikbreu.spoonmcp.renderer;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.Dependency;
-import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -101,12 +100,11 @@ public class MermaidDependencySliceRenderer {
 
     private Component findComponent(ArchitectureModel model, String ref) {
         if (ref == null || ref.isBlank()) return null;
-        final String normalizedRef = ComponentId.deserialize(ref).serialize();
         return model.components.stream()
-                .filter(component -> component.id.serialize().equals(normalizedRef)
-                        || component.name.equals(normalizedRef)
-                        || component.id.serialize().contains(normalizedRef)
-                        || component.qualifiedName != null && component.qualifiedName.contains(normalizedRef))
+                .filter(component -> component.id.serialize().equals(ref)
+                        || component.name.equals(ref)
+                        || component.id.serialize().contains(ref)
+                        || component.qualifiedName != null && component.qualifiedName.contains(ref))
                 .findFirst()
                 .orElse(null);
     }

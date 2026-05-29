@@ -18,8 +18,7 @@ public record EntrypointId(ComponentId component, String method, String suffix) 
     @JsonCreator
     public static EntrypointId deserialize(String value) {
         if (value == null) return null;
-        // Accept old "ep:..." format from cached JSON
-        String v = value.startsWith("ep:") ? value.substring(3) : value;
+        String v = value;
         int hash = v.indexOf('#');
         if (hash < 0) return new EntrypointId(ComponentId.of(v), "", "");
         String qualifiedName = v.substring(0, hash);

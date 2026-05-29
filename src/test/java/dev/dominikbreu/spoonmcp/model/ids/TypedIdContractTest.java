@@ -15,11 +15,7 @@ class TypedIdContractTest {
     void componentIdSerializesWithoutPrefixAndRoundTrips() {
         ComponentId id = ComponentId.of("com.acme.BillingService");
         assertThat(id.serialize()).isEqualTo("com.acme.BillingService");
-        assertThat(ComponentId.deserialize("comp:com.acme.BillingService")).isEqualTo(id);
         assertThat(ComponentId.deserialize("com.acme.BillingService")).isEqualTo(id);
-        // Defensive of(): a stray prefix is normalized away at construction.
-        assertThat(ComponentId.of("comp:com.acme.BillingService")).isEqualTo(id);
-        assertThat(ComponentId.of("comp:com.acme.BillingService").serialize()).isEqualTo("com.acme.BillingService");
     }
 
     @Test
@@ -27,14 +23,13 @@ class TypedIdContractTest {
         EntrypointId id = EntrypointId.of(ComponentId.of("com.acme.OrderResource"), "create", "POST:/orders");
         assertThat(id.serialize()).isEqualTo("com.acme.OrderResource#create:POST:/orders");
         assertThat(EntrypointId.deserialize(id.serialize())).isEqualTo(id);
-        assertThat(EntrypointId.deserialize("ep:" + id.serialize())).isEqualTo(id);
     }
 
     @Test
     void dependencyIdSerializesWithoutPrefixAndRoundTrips() {
         DependencyId id = DependencyId.of(ComponentId.of("com.acme.A"), ComponentId.of("com.acme.B"));
         assertThat(id.serialize()).isEqualTo("com.acme.A->com.acme.B");
-        assertThat(DependencyId.deserialize("dep:com.acme.A->com.acme.B")).isEqualTo(id);
+        assertThat(DependencyId.deserialize("com.acme.A->com.acme.B")).isEqualTo(id);
     }
 
     @Test
@@ -68,11 +63,5 @@ class TypedIdContractTest {
 
         Component reloaded = mapper.readValue(json, Component.class);
         assertThat(reloaded.id).isEqualTo(c.id);
-    }
-
-    @Test
-    void legacyPrefixedComponentJsonStillDeserializes() {
-        Component reloaded = mapper.readValue("{\"id\":\"comp:com.acme.BillingService\"}", Component.class);
-        assertThat(reloaded.id).isEqualTo(ComponentId.of("com.acme.BillingService"));
     }
 }

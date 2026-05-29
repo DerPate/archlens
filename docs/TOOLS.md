@@ -170,7 +170,7 @@ Return relevant dependencies for a component.
 Arguments:
 
 - `componentId` string, optional. Component ID such as `com.example.UserService` (the
-  fully-qualified class name). Legacy `comp:`-prefixed ids are still accepted.
+  fully-qualified class name).
 - `name` string, optional. Partial component simple-name match.
 - `depth` integer, optional. Traversal depth, default `1`, maximum `5`.
 - `condensed` boolean, optional. Remove utility or unknown intermediaries, default `true`.

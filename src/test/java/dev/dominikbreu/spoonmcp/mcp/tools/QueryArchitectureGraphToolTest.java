@@ -31,7 +31,7 @@ class QueryArchitectureGraphToolTest {
     }
 
     @Test
-    void resolvesPathsWithLegacyPrefixedNodeIds(@TempDir Path tempDir) throws Exception {
+    void resolvesPathsBetweenComponentIds(@TempDir Path tempDir) throws Exception {
         ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON);
         ArchitectureModel model = model();
         Component repository = new Component();
@@ -48,13 +48,10 @@ class QueryArchitectureGraphToolTest {
         cache.store(model);
         QueryArchitectureGraphTool tool = new QueryArchitectureGraphTool(cache);
 
-        String unprefixed =
+        String result =
                 tool.execute(Map.of("action", "paths", "fromId", "PaymentService", "toId", "PaymentRepository"));
-        String prefixed = tool.execute(
-                Map.of("action", "paths", "fromId", "comp:PaymentService", "toId", "comp:PaymentRepository"));
 
-        assertThat(unprefixed).contains("PaymentService");
-        assertThat(prefixed).isEqualTo(unprefixed);
+        assertThat(result).contains("PaymentService -> PaymentRepository");
     }
 
     @Test

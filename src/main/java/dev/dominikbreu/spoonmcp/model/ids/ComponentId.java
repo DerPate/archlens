@@ -4,16 +4,12 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
- * Typed identity for an architecture component. Replaces the raw {@code "comp:<qualifiedName>"}
- * string convention. Serializes as the bare qualified name (no prefix).
+ * Typed identity for an architecture component. Serializes as the bare qualified name.
  */
 public record ComponentId(String qualifiedName) {
 
     public static ComponentId of(String qualifiedName) {
-        if (qualifiedName == null) return null;
-        // Defensive: a component identity is the bare qualified name. Strip any stray
-        // legacy "comp:" prefix at construction so a prefixed id can never exist in-memory.
-        return new ComponentId(qualifiedName.startsWith("comp:") ? qualifiedName.substring(5) : qualifiedName);
+        return qualifiedName == null ? null : new ComponentId(qualifiedName);
     }
 
     @JsonCreator
