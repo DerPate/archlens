@@ -100,7 +100,7 @@ public class DetectUseCasesTool {
 
         for (UseCase uc : useCases) {
             sb.append("## ").append(uc.name).append("\n");
-            sb.append("  id:           ").append(uc.id).append("\n");
+            sb.append("  id:           ").append(uc.id.serialize()).append("\n");
             sb.append("  type:         ").append(uc.type).append("\n");
             if (uc.channelOrPath != null) {
                 sb.append("  channel/path: ").append(uc.channelOrPath).append("\n");

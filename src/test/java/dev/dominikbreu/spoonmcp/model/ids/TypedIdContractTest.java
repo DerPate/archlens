@@ -38,6 +38,15 @@ class TypedIdContractTest {
     }
 
     @Test
+    void useCaseIdSerializesFromEntrypointAndRoundTrips() {
+        EntrypointId ep = EntrypointId.of(ComponentId.of("com.acme.OrderResource"), "create", "POST:/orders");
+        UseCaseId id = UseCaseId.of(ep);
+        assertThat(id.serialize()).isEqualTo("usecase:com.acme.OrderResource#create:POST:/orders");
+        assertThat(UseCaseId.deserialize(id.serialize())).isEqualTo(id);
+        assertThat(UseCaseId.deserialize(id.serialize()).entrypoint()).isEqualTo(ep);
+    }
+
+    @Test
     void componentJsonEmitsBareIdAndReloads() {
         Component c = new Component();
         c.id = ComponentId.of("com.acme.BillingService");

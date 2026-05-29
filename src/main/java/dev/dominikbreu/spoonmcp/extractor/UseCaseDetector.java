@@ -2,6 +2,7 @@ package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.UseCaseId;
 import dev.dominikbreu.spoonmcp.workflow.WorkflowTraversalPolicy;
 import java.util.*;
 
@@ -61,7 +62,7 @@ public class UseCaseDetector {
             Map<String, List<String>> depAdj,
             UseCaseNamingConfig config) {
         UseCase uc = new UseCase();
-        uc.id = "usecase:" + ep.id.serialize();
+        uc.id = UseCaseId.of(ep.id);
         uc.entrypointId = ep.id;
         uc.type = ep.type;
         uc.channelOrPath = ep.channelName != null ? ep.channelName : ep.path;
