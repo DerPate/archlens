@@ -260,7 +260,7 @@ public class ExportGraphArchitecturePocTool {
         sb.append("```\n\n");
         sb.append("```json\n");
         sb.append(
-                "{\"action\":\"impacted_by\",\"nodeId\":\"comp:dev.dominikbreu.spoonmcp.cache.ArchitectureGraph\",\"maxDepth\":4}\n");
+                "{\"action\":\"impacted_by\",\"nodeId\":\"dev.dominikbreu.spoonmcp.cache.ArchitectureGraph\",\"maxDepth\":4}\n");
         sb.append("```\n");
 
         return sb.toString();

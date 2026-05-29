@@ -26,10 +26,10 @@ class MermaidFlowchartRendererTest {
         app.packagingType = "jar";
         model.applications.add(app);
 
-        Component resource = comp("comp:Resource", ComponentType.REST_RESOURCE, "app:orders", "quarkus");
-        Component service = comp("comp:Service", ComponentType.SERVICE, "app:orders", "quarkus");
-        Component repository = comp("comp:Repository", ComponentType.REPOSITORY, "app:orders", "quarkus");
-        Component entity = comp("comp:Entity", ComponentType.ENTITY, "app:orders", "jpa");
+        Component resource = comp("Resource", ComponentType.REST_RESOURCE, "app:orders", "quarkus");
+        Component service = comp("Service", ComponentType.SERVICE, "app:orders", "quarkus");
+        Component repository = comp("Repository", ComponentType.REPOSITORY, "app:orders", "quarkus");
+        Component entity = comp("Entity", ComponentType.ENTITY, "app:orders", "jpa");
         model.components.addAll(List.of(resource, service, repository, entity));
 
         app.componentIds.addAll(List.of(resource.id, service.id, repository.id, entity.id));
@@ -69,7 +69,7 @@ class MermaidFlowchartRendererTest {
         rest.kind = "REST_API";
         rest.technology = "microprofile-rest-client";
         model.externalSystems.add(rest);
-        Dependency d = dep("comp:Service", "ext:rest:billing");
+        Dependency d = dep("Service", "ext:rest:billing");
         d.kind = "rest-client";
         model.dependencies.add(d);
 
@@ -89,7 +89,7 @@ class MermaidFlowchartRendererTest {
         kafka.kind = "MESSAGE_BROKER";
         kafka.technology = "kafka";
         model.externalSystems.add(kafka);
-        Dependency d = dep("comp:Service", "ext:messaging:kafka");
+        Dependency d = dep("Service", "ext:messaging:kafka");
         d.kind = "messaging";
         model.dependencies.add(d);
 
@@ -124,7 +124,7 @@ class MermaidFlowchartRendererTest {
         other.packagingType = "jar";
         model.applications.add(other);
 
-        Component otherSvc = comp("comp:OtherSvc", ComponentType.SERVICE, "app:other", "quarkus");
+        Component otherSvc = comp("OtherSvc", ComponentType.SERVICE, "app:other", "quarkus");
         model.components.add(otherSvc);
         other.componentIds.add(otherSvc.id);
 
@@ -134,7 +134,7 @@ class MermaidFlowchartRendererTest {
         ext.kind = "REST_API";
         ext.technology = "microprofile-rest-client";
         model.externalSystems.add(ext);
-        Dependency d = dep("comp:OtherSvc", "ext:rest:thirdparty");
+        Dependency d = dep("OtherSvc", "ext:rest:thirdparty");
         d.kind = "rest-client";
         model.dependencies.add(d);
 
@@ -200,7 +200,7 @@ class MermaidFlowchartRendererTest {
         other.technology = "javaee";
         other.packagingType = "war";
         model.applications.add(other);
-        Component c = comp("comp:X", ComponentType.SERVICE, "app:other", "javaee");
+        Component c = comp("X", ComponentType.SERVICE, "app:other", "javaee");
         model.components.add(c);
         other.componentIds.add(c.id);
 
@@ -276,7 +276,7 @@ class MermaidFlowchartRendererTest {
     private Component comp(String id, ComponentType type, String module, String tech) {
         Component c = new Component();
         c.id = ComponentId.of(id);
-        c.name = id.replace("comp:", "");
+        c.name = id.replace("", "");
         c.type = type;
         c.module = module;
         c.technology = tech;

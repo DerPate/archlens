@@ -49,13 +49,13 @@ class ArchitectureGraphTest {
         graph.rebuild(model());
 
         List<ArchitectureGraph.GraphNode> nodes = graph.findNodes("Component", "OrderService", Map.of(), 10);
-        List<ArchitectureGraph.GraphPath> paths = graph.paths("entry:orders#", "comp:OrderRepository", 3, 10);
+        List<ArchitectureGraph.GraphPath> paths = graph.paths("orders#", "OrderRepository", 3, 10);
 
-        assertThat(nodes).extracting(ArchitectureGraph.GraphNode::id).containsExactly("comp:OrderService");
+        assertThat(nodes).extracting(ArchitectureGraph.GraphNode::id).containsExactly("OrderService");
         assertThat(paths).hasSize(1);
         assertThat(paths.getFirst().nodes())
                 .extracting(ArchitectureGraph.GraphNode::id)
-                .containsExactly("entry:orders#", "comp:OrderService", "comp:OrderRepository");
+                .containsExactly("orders#", "OrderService", "OrderRepository");
         assertThat(paths.getFirst().edgeLabels()).containsExactly("STARTS_AT", "DEPENDS_ON");
     }
 
@@ -64,9 +64,9 @@ class ArchitectureGraphTest {
         ArchitectureGraph graph = new ArchitectureGraph();
         graph.rebuild(model());
 
-        List<ArchitectureGraph.GraphNode> impacted = graph.impactedBy("comp:OrderRepository", 3, 10);
+        List<ArchitectureGraph.GraphNode> impacted = graph.impactedBy("OrderRepository", 3, 10);
 
-        assertThat(impacted).extracting(ArchitectureGraph.GraphNode::id).contains("comp:OrderService", "entry:orders#");
+        assertThat(impacted).extracting(ArchitectureGraph.GraphNode::id).contains("OrderService", "orders#");
     }
 
     @Test
@@ -81,9 +81,9 @@ class ArchitectureGraphTest {
 
         assertThat(reachableServices)
                 .extracting(ArchitectureGraph.GraphNode::id)
-                .contains("comp:OrderService", "comp:OrderRepository");
+                .contains("OrderService", "OrderRepository");
         ArchitectureGraph.GraphNode serviceNode = reachableServices.stream()
-                .filter(node -> "comp:OrderService".equals(node.id()))
+                .filter(node -> "OrderService".equals(node.id()))
                 .findFirst()
                 .orElseThrow();
         assertThat(serviceNode.properties())
@@ -100,7 +100,7 @@ class ArchitectureGraphTest {
         ArchitectureModel model = model();
 
         Component formatter = new Component();
-        formatter.id = ComponentId.of("comp:TimestampFormatter");
+        formatter.id = ComponentId.of("TimestampFormatter");
         formatter.name = "TimestampFormatter";
         formatter.qualifiedName = "com.example.util.TimestampFormatter";
         formatter.type = ComponentType.UTILITY;
@@ -108,7 +108,7 @@ class ArchitectureGraphTest {
 
         for (int i = 0; i < 8; i++) {
             Component caller = new Component();
-            caller.id = ComponentId.of("comp:Caller" + i);
+            caller.id = ComponentId.of("Caller" + i);
             caller.name = "Caller" + i;
             caller.qualifiedName = "com.example.Caller" + i;
             caller.type = ComponentType.SERVICE;
@@ -148,11 +148,7 @@ class ArchitectureGraphTest {
         model.components.add(graphInternals);
         for (int i = 0; i < 30; i++) {
             model.fieldAccesses.add(fieldAccess(
-                    FieldAccess.Kind.READ,
-                    "comp:ArchitectureGraph",
-                    "method" + i,
-                    "comp:ArchitectureGraph",
-                    "verticesById"));
+                    FieldAccess.Kind.READ, "ArchitectureGraph", "method" + i, "ArchitectureGraph", "verticesById"));
         }
 
         ArchitectureGraph graph = new ArchitectureGraph();
@@ -205,10 +201,8 @@ class ArchitectureGraphTest {
         ArchitectureModel model = model();
         model.components.add(component("StatePublisher", ComponentType.SCHEDULER));
 
-        FieldAccess write =
-                fieldAccess(FieldAccess.Kind.WRITE, "comp:OrderService", "consume", "comp:OrderService", "snapshots");
-        FieldAccess read =
-                fieldAccess(FieldAccess.Kind.READ, "comp:StatePublisher", "tick", "comp:OrderService", "snapshots");
+        FieldAccess write = fieldAccess(FieldAccess.Kind.WRITE, "OrderService", "consume", "OrderService", "snapshots");
+        FieldAccess read = fieldAccess(FieldAccess.Kind.READ, "StatePublisher", "tick", "OrderService", "snapshots");
         model.fieldAccesses.add(write);
         model.fieldAccesses.add(read);
 
@@ -216,13 +210,12 @@ class ArchitectureGraphTest {
         graph.rebuild(model);
 
         assertThat(graph.findEdges("WRITES_STATE", Map.of("fieldName", "snapshots"), 10))
-                .anyMatch(edge -> "comp:OrderService".equals(edge.fromId()) && "comp:OrderService".equals(edge.toId()));
+                .anyMatch(edge -> "OrderService".equals(edge.fromId()) && "OrderService".equals(edge.toId()));
         assertThat(graph.findEdges("READS_STATE", Map.of("fieldName", "snapshots"), 10))
-                .anyMatch(
-                        edge -> "comp:StatePublisher".equals(edge.fromId()) && "comp:OrderService".equals(edge.toId()));
+                .anyMatch(edge -> "StatePublisher".equals(edge.fromId()) && "OrderService".equals(edge.toId()));
         assertThat(graph.findEdges("STATE_HANDOFF", Map.of("fieldName", "snapshots"), 10))
-                .anyMatch(edge -> "comp:OrderService".equals(edge.fromId())
-                        && "comp:StatePublisher".equals(edge.toId())
+                .anyMatch(edge -> "OrderService".equals(edge.fromId())
+                        && "StatePublisher".equals(edge.toId())
                         && "0.8".equals(edge.properties().get("confidence").toString()));
 
         ArchitectureGraph.GraphNode publisher =
@@ -241,39 +234,35 @@ class ArchitectureGraphTest {
         // producer ep:tick reads it. The graph should expose ORIGINATES, REACHES,
         // ON_FIELD, and a LINKS_TO edge from the store sink to the producer's path.
         Entrypoint producerEp = new Entrypoint();
-        producerEp.id = EntrypointId.deserialize("ep:tick");
+        producerEp.id = EntrypointId.deserialize("tick");
         producerEp.name = "tick";
         producerEp.type = EntrypointType.MESSAGING_PRODUCER;
-        producerEp.componentId = ComponentId.of("comp:OrderService");
+        producerEp.componentId = ComponentId.of("OrderService");
         model.entrypoints.add(producerEp);
 
         DataFlowPath consumerPath = new DataFlowPath();
         consumerPath.id = "df:entry:orders#order";
-        consumerPath.entrypointId = EntrypointId.deserialize("entry:orders");
+        consumerPath.entrypointId = EntrypointId.deserialize("orders");
         consumerPath.trackedParam = "order";
 
         DataFlowSink storeSink = new DataFlowSink(
                 DataFlowSink.Kind.STORE,
-                ComponentId.of("comp:OrderService"),
+                ComponentId.of("OrderService"),
                 "OrderService",
                 "create",
                 null,
                 "snapshots",
-                ComponentId.of("comp:OrderService"));
+                ComponentId.of("OrderService"));
         storeSink.linkedPathIds.add("df:ep:tick#snapshots");
         consumerPath.sinks.add(storeSink);
         model.dataFlowPaths.add(consumerPath);
 
         DataFlowPath producerPath = new DataFlowPath();
         producerPath.id = "df:ep:tick#snapshots";
-        producerPath.entrypointId = EntrypointId.deserialize("ep:tick");
+        producerPath.entrypointId = EntrypointId.deserialize("tick");
         producerPath.trackedParam = "snapshots";
         DataFlowSink msgSink = new DataFlowSink(
-                DataFlowSink.Kind.MESSAGING,
-                ComponentId.of("comp:OrderRepository"),
-                "OrderRepository",
-                "publish",
-                null);
+                DataFlowSink.Kind.MESSAGING, ComponentId.of("OrderRepository"), "OrderRepository", "publish", null);
         producerPath.sinks.add(msgSink);
         model.dataFlowPaths.add(producerPath);
 
@@ -293,12 +282,12 @@ class ArchitectureGraphTest {
         assertThat(linkEdges.getFirst().toId()).isEqualTo("df:ep:tick#snapshots");
         assertThat(linkEdges.getFirst().properties())
                 .containsEntry("viaField", "snapshots")
-                .containsEntry("fieldOwnerComponentId", "comp:OrderService");
+                .containsEntry("fieldOwnerComponentId", "OrderService");
         assertThat(graph.findEdges("WORKFLOW_LINK", Map.of("kind", "STATE_HANDOFF"), 10))
                 .anyMatch(edge -> "df:entry:orders#order".equals(edge.fromId())
                         && "df:ep:tick#snapshots".equals(edge.toId())
                         && "snapshots".equals(edge.properties().get("fieldName"))
-                        && "comp:OrderService".equals(edge.properties().get("fieldOwnerComponentId")));
+                        && "OrderService".equals(edge.properties().get("fieldOwnerComponentId")));
     }
 
     @Test
@@ -307,26 +296,26 @@ class ArchitectureGraphTest {
 
         // Producer ep:tick → MESSAGING(internal) → consumer ep:process
         Entrypoint producerEp = new Entrypoint();
-        producerEp.id = EntrypointId.deserialize("ep:tick");
+        producerEp.id = EntrypointId.deserialize("tick");
         producerEp.name = "tick";
         producerEp.type = EntrypointType.SCHEDULER;
-        producerEp.componentId = ComponentId.of("comp:OrderService");
+        producerEp.componentId = ComponentId.of("OrderService");
         model.entrypoints.add(producerEp);
 
         Entrypoint consumerEp = new Entrypoint();
-        consumerEp.id = EntrypointId.deserialize("ep:process");
+        consumerEp.id = EntrypointId.deserialize("process");
         consumerEp.name = "process";
         consumerEp.type = EntrypointType.MESSAGING_CONSUMER;
         consumerEp.channelName = "internal";
-        consumerEp.componentId = ComponentId.of("comp:OrderRepository");
+        consumerEp.componentId = ComponentId.of("OrderRepository");
         model.entrypoints.add(consumerEp);
 
         DataFlowPath producerPath = new DataFlowPath();
         producerPath.id = "df:ep:tick#snap";
-        producerPath.entrypointId = EntrypointId.deserialize("ep:tick");
+        producerPath.entrypointId = EntrypointId.deserialize("tick");
         producerPath.trackedParam = "snap";
         DataFlowSink msgSink = new DataFlowSink(
-                DataFlowSink.Kind.MESSAGING, ComponentId.of("comp:OrderService"), "OrderService", "send", null);
+                DataFlowSink.Kind.MESSAGING, ComponentId.of("OrderService"), "OrderService", "send", null);
         msgSink.channel = "internal";
         msgSink.linkedPathIds.add("df:ep:process#entry");
         producerPath.sinks.add(msgSink);
@@ -334,7 +323,7 @@ class ArchitectureGraphTest {
 
         DataFlowPath consumerPath = new DataFlowPath();
         consumerPath.id = "df:ep:process#entry";
-        consumerPath.entrypointId = EntrypointId.deserialize("ep:process");
+        consumerPath.entrypointId = EntrypointId.deserialize("process");
         consumerPath.trackedParam = "entry";
         model.dataFlowPaths.add(consumerPath);
 
@@ -358,7 +347,7 @@ class ArchitectureGraphTest {
         assertThat(chains.getFirst().properties())
                 .containsEntry("segmentCount", 2)
                 .containsEntry(
-                        "rootEntrypointId", EntrypointId.deserialize("ep:tick").serialize())
+                        "rootEntrypointId", EntrypointId.deserialize("tick").serialize())
                 .containsEntry("linkKinds", "messaging");
 
         // 3. HAS_SEGMENT edges in order, with linkKind/viaChannel on the bridging segment
@@ -378,18 +367,18 @@ class ArchitectureGraphTest {
         ArchitectureModel model = new ArchitectureModel("test");
 
         Entrypoint ep = new Entrypoint();
-        ep.id = EntrypointId.deserialize("ep:create");
+        ep.id = EntrypointId.deserialize("create");
         ep.name = "create";
         ep.type = EntrypointType.REST_ENDPOINT;
-        ep.componentId = ComponentId.of("comp:OrderController");
+        ep.componentId = ComponentId.of("OrderController");
         model.entrypoints.add(ep);
 
         DataFlowPath path = new DataFlowPath();
         path.id = "df:ep:create#order";
-        path.entrypointId = EntrypointId.deserialize("ep:create");
+        path.entrypointId = EntrypointId.deserialize("create");
         path.trackedParam = "order";
         DataFlowSink sink = new DataFlowSink(
-                DataFlowSink.Kind.MESSAGING, ComponentId.of("comp:KafkaProducer"), "KafkaProducer", "send", null);
+                DataFlowSink.Kind.MESSAGING, ComponentId.of("KafkaProducer"), "KafkaProducer", "send", null);
         sink.channel = "orders.created";
         sink.topic = "orders.created";
         sink.topicPropertyKey = "topics.orders.created";
@@ -423,7 +412,7 @@ class ArchitectureGraphTest {
         entry.name = "orders.created";
         entry.type = "messaging_producer";
         entry.path = "orders.created";
-        entry.componentId = ComponentId.of("comp:OrderService");
+        entry.componentId = ComponentId.of("OrderService");
         entry.module = "app:test";
         entry.technology = "spring";
         entry.broker = MessagingBroker.KAFKA;
@@ -446,7 +435,7 @@ class ArchitectureGraphTest {
     void projectsExternalSystemsSoDependenciesToThemAreQueryable() {
         ArchitectureModel model = new ArchitectureModel("test");
         Component service = new Component();
-        service.id = ComponentId.of("comp:OrderService");
+        service.id = ComponentId.of("OrderService");
         service.name = "OrderService";
         service.type = ComponentType.SERVICE;
         service.module = "app:test";
@@ -460,7 +449,7 @@ class ArchitectureGraphTest {
         model.externalSystems.add(kafka);
 
         Dependency dependency = new Dependency();
-        dependency.fromId = ComponentId.of("comp:OrderService");
+        dependency.fromId = ComponentId.of("OrderService");
         dependency.toId = ComponentId.of("ext:messaging:kafka");
         dependency.kind = "messaging";
         dependency.derivedFrom = "messaging-interface";
@@ -477,7 +466,7 @@ class ArchitectureGraphTest {
                         .containsEntry("technology", "kafka"));
         assertThat(graph.findEdges("DEPENDS_ON", Map.of("kind", "messaging"), 10))
                 .anySatisfy(edge -> {
-                    assertThat(edge.fromId()).isEqualTo("comp:OrderService");
+                    assertThat(edge.fromId()).isEqualTo("OrderService");
                     assertThat(edge.toId()).isEqualTo("ext:messaging:kafka");
                 });
     }
@@ -486,13 +475,13 @@ class ArchitectureGraphTest {
     void exposesMessagingEntrypointMetadataOnGraphNode() {
         ArchitectureModel model = new ArchitectureModel("test");
         Entrypoint ep = new Entrypoint();
-        ep.id = EntrypointId.deserialize("ep:consumer");
+        ep.id = EntrypointId.deserialize("consumer");
         ep.name = "consume";
         ep.type = EntrypointType.MESSAGING_CONSUMER;
         ep.channelName = "orders";
         ep.broker = MessagingBroker.KAFKA;
         ep.topic = "orders";
-        ep.componentId = ComponentId.of("comp:Consumer");
+        ep.componentId = ComponentId.of("Consumer");
         ep.parameters.add("payload");
         ep.parameters.add("key");
         model.entrypoints.add(ep);
@@ -513,10 +502,10 @@ class ArchitectureGraphTest {
         ArchitectureModel model = new ArchitectureModel("test");
         DataFlowPath path = new DataFlowPath();
         path.id = "df:ep:create#order";
-        path.entrypointId = EntrypointId.deserialize("ep:create");
+        path.entrypointId = EntrypointId.deserialize("create");
         path.trackedParam = "order";
         DataFlowSink sink = new DataFlowSink(
-                DataFlowSink.Kind.PERSISTENCE, ComponentId.of("comp:OrderRepository"), "OrderRepository", "save", null);
+                DataFlowSink.Kind.PERSISTENCE, ComponentId.of("OrderRepository"), "OrderRepository", "save", null);
         sink.entityType = "com.example.Order";
         sink.repositoryOperation = "save";
         sink.linkEvidence = "repository-call";
@@ -536,12 +525,12 @@ class ArchitectureGraphTest {
     @Test
     void exposesCallEdgePropagationMetadata() {
         ArchitectureModel model = new ArchitectureModel("test");
-        model.components.add(component("comp:Controller", "Controller", ComponentType.REST_RESOURCE));
-        model.components.add(component("comp:Service", "Service", ComponentType.SERVICE));
+        model.components.add(component("Controller", "Controller", ComponentType.REST_RESOURCE));
+        model.components.add(component("Service", "Service", ComponentType.SERVICE));
         CallEdge edge = new CallEdge();
-        edge.fromComponentId = ComponentId.of("comp:Controller");
+        edge.fromComponentId = ComponentId.of("Controller");
         edge.fromMethod = "create";
-        edge.toComponentId = ComponentId.of("comp:Service");
+        edge.toComponentId = ComponentId.of("Service");
         edge.toMethod = "create";
         edge.callKind = "direct";
         edge.paramMapping.put("request", "dto");
@@ -571,12 +560,12 @@ class ArchitectureGraphTest {
         AppEntry app = new AppEntry();
         app.id = "app:orders";
         app.name = "orders";
-        app.componentIds.add(ComponentId.of("comp:OrderService"));
-        app.componentIds.add(ComponentId.of("comp:OrderRepository"));
+        app.componentIds.add(ComponentId.of("OrderService"));
+        app.componentIds.add(ComponentId.of("OrderRepository"));
         model.applications.add(app);
 
         Component service = new Component();
-        service.id = ComponentId.of("comp:OrderService");
+        service.id = ComponentId.of("OrderService");
         service.name = "OrderService";
         service.qualifiedName = "com.example.OrderService";
         service.type = ComponentType.SERVICE;
@@ -585,7 +574,7 @@ class ArchitectureGraphTest {
         model.components.add(service);
 
         Component repository = new Component();
-        repository.id = ComponentId.of("comp:OrderRepository");
+        repository.id = ComponentId.of("OrderRepository");
         repository.name = "OrderRepository";
         repository.qualifiedName = "com.example.OrderRepository";
         repository.type = ComponentType.REPOSITORY;
@@ -593,16 +582,16 @@ class ArchitectureGraphTest {
         model.components.add(repository);
 
         Entrypoint entrypoint = new Entrypoint();
-        entrypoint.id = EntrypointId.deserialize("entry:orders");
+        entrypoint.id = EntrypointId.deserialize("orders");
         entrypoint.name = "GET /orders";
         entrypoint.path = "/orders";
         entrypoint.type = EntrypointType.REST_ENDPOINT;
-        entrypoint.componentId = ComponentId.of("comp:OrderService");
+        entrypoint.componentId = ComponentId.of("OrderService");
         model.entrypoints.add(entrypoint);
 
         Dependency dependency = new Dependency();
-        dependency.fromId = ComponentId.of("comp:OrderService");
-        dependency.toId = ComponentId.of("comp:OrderRepository");
+        dependency.fromId = ComponentId.of("OrderService");
+        dependency.toId = ComponentId.of("OrderRepository");
         dependency.id = DependencyId.of(dependency.fromId, dependency.toId);
         dependency.kind = "injection";
         dependency.derivedFrom = "field";
@@ -614,7 +603,7 @@ class ArchitectureGraphTest {
 
     private static Component component(String name, ComponentType type) {
         Component component = new Component();
-        component.id = ComponentId.of("comp:" + name);
+        component.id = ComponentId.of("" + name);
         component.name = name;
         component.qualifiedName = "com.example." + name;
         component.type = type;
@@ -651,30 +640,30 @@ class ArchitectureGraphTest {
 
         FieldAccess write = fieldAccess(
                 FieldAccess.Kind.WRITE,
-                "comp:DeviceStateDataService",
+                "DeviceStateDataService",
                 "addDevice",
-                "comp:DeviceStateDataService",
+                "DeviceStateDataService",
                 "deviceStates");
         FieldAccess read = fieldAccess(
                 FieldAccess.Kind.READ,
-                "comp:DeviceStateDataService",
+                "DeviceStateDataService",
                 "getAllDevices",
-                "comp:DeviceStateDataService",
+                "DeviceStateDataService",
                 "deviceStates");
         model.fieldAccesses.add(write);
         model.fieldAccesses.add(read);
 
         CallEdge writeCall = new CallEdge();
-        writeCall.fromComponentId = ComponentId.of("comp:MqttConsumer");
+        writeCall.fromComponentId = ComponentId.of("MqttConsumer");
         writeCall.fromMethod = "onMessage";
-        writeCall.toComponentId = ComponentId.of("comp:DeviceStateDataService");
+        writeCall.toComponentId = ComponentId.of("DeviceStateDataService");
         writeCall.toMethod = "addDevice";
         model.callEdges.add(writeCall);
 
         CallEdge readCall = new CallEdge();
-        readCall.fromComponentId = ComponentId.of("comp:SnapshotPublisher");
+        readCall.fromComponentId = ComponentId.of("SnapshotPublisher");
         readCall.fromMethod = "publishAll";
-        readCall.toComponentId = ComponentId.of("comp:DeviceStateDataService");
+        readCall.toComponentId = ComponentId.of("DeviceStateDataService");
         readCall.toMethod = "getAllDevices";
         model.callEdges.add(readCall);
 
@@ -682,13 +671,12 @@ class ArchitectureGraphTest {
         graph.rebuild(model);
 
         assertThat(graph.findEdges("STATE_HANDOFF", Map.of(), 10))
-                .anyMatch(edge ->
-                        "comp:MqttConsumer".equals(edge.fromId()) && "comp:SnapshotPublisher".equals(edge.toId()));
+                .anyMatch(edge -> "MqttConsumer".equals(edge.fromId()) && "SnapshotPublisher".equals(edge.toId()));
         assertThat(graph.findEdges("STATE_HANDOFF", Map.of(), 10))
                 .noneMatch(edge -> edge.fromId().equals(edge.toId()));
         boolean hasServiceSelfEdge = graph.findEdges("STATE_HANDOFF", Map.of(), 10).stream()
-                .anyMatch(e -> "comp:DeviceStateDataService".equals(e.fromId())
-                        && "comp:DeviceStateDataService".equals(e.toId()));
+                .anyMatch(
+                        e -> "DeviceStateDataService".equals(e.fromId()) && "DeviceStateDataService".equals(e.toId()));
         assertThat(hasServiceSelfEdge).isFalse();
     }
 
@@ -697,7 +685,7 @@ class ArchitectureGraphTest {
         ArchitectureModel model = new ArchitectureModel("test");
         DataFlowPath writer = new DataFlowPath();
         writer.id = "df:writer";
-        writer.entrypointId = EntrypointId.deserialize("ep:writer");
+        writer.entrypointId = EntrypointId.deserialize("writer");
         DataFlowSink sink = new DataFlowSink();
         sink.kind = DataFlowSink.Kind.PERSISTENCE;
         sink.entityType = "com.example.Order";
@@ -707,11 +695,11 @@ class ArchitectureGraphTest {
         writer.sinks.add(sink);
         DataFlowPath reader = new DataFlowPath();
         reader.id = "df:reader";
-        reader.entrypointId = EntrypointId.deserialize("ep:reader");
+        reader.entrypointId = EntrypointId.deserialize("reader");
         model.dataFlowPaths.add(writer);
         model.dataFlowPaths.add(reader);
-        model.entrypoints.add(entrypoint("ep:writer", EntrypointType.REST_ENDPOINT));
-        model.entrypoints.add(entrypoint("ep:reader", EntrypointType.SCHEDULER));
+        model.entrypoints.add(entrypoint("writer", EntrypointType.REST_ENDPOINT));
+        model.entrypoints.add(entrypoint("reader", EntrypointType.SCHEDULER));
 
         ArchitectureGraph graph = new ArchitectureGraph();
         graph.rebuild(model);
@@ -727,12 +715,12 @@ class ArchitectureGraphTest {
     @Test
     void exposesCalleeQualifiedNameOnOutboundSinkVertex() {
         ArchitectureModel model = new ArchitectureModel("test");
-        Entrypoint ep = entrypoint("ep:upload", EntrypointType.REST_ENDPOINT);
+        Entrypoint ep = entrypoint("upload", EntrypointType.REST_ENDPOINT);
         model.entrypoints.add(ep);
 
         DataFlowPath path = new DataFlowPath();
         path.id = "df:ep:upload#file";
-        path.entrypointId = EntrypointId.deserialize("ep:upload");
+        path.entrypointId = EntrypointId.deserialize("upload");
         path.trackedParam = "file";
 
         DataFlowSink sink = new DataFlowSink(DataFlowSink.Kind.FILE_OUTBOUND, null, null, "write", null);
@@ -756,7 +744,7 @@ class ArchitectureGraphTest {
         e.name = id.substring(id.indexOf(':') + 1);
         e.id = EntrypointId.deserialize(id);
         e.type = type;
-        e.componentId = ComponentId.of("comp:" + e.name);
+        e.componentId = ComponentId.of("" + e.name);
         return e;
     }
 

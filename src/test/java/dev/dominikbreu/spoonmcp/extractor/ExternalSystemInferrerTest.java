@@ -20,8 +20,8 @@ class ExternalSystemInferrerTest {
     @Test
     void groupsRestClientInterfacesByExternalServiceName() {
         ArchitectureModel model = new ArchitectureModel("test");
-        addComponent(model, "comp:billingClient", ComponentType.HTTP_CLIENT);
-        addRestClientInterface(model, "comp:billingClient", "billing");
+        addComponent(model, "billingClient", ComponentType.HTTP_CLIENT);
+        addRestClientInterface(model, "billingClient", "billing");
 
         inferrer.infer(model);
 
@@ -29,7 +29,7 @@ class ExternalSystemInferrerTest {
                 .extracting(s -> s.id, s -> s.kind, s -> s.name)
                 .containsExactly(tuple("ext:rest:billing", "REST_API", "billing"));
         assertThat(model.dependencies)
-                .anyMatch(d -> "comp:billingClient".equals(d.fromId.serialize())
+                .anyMatch(d -> "billingClient".equals(d.fromId.serialize())
                         && "ext:rest:billing".equals(d.toId.serialize())
                         && "rest-client".equals(d.kind));
     }
@@ -37,11 +37,11 @@ class ExternalSystemInferrerTest {
     @Test
     void groupsMessagingInterfacesByBroker() {
         ArchitectureModel model = new ArchitectureModel("test");
-        addComponent(model, "comp:KafkaService", ComponentType.SERVICE);
-        addComponent(model, "comp:MqttService", ComponentType.SERVICE);
-        addMessagingInterface(model, "comp:KafkaService", "messaging_consumer", "orders-in", MessagingBroker.KAFKA);
-        addMessagingInterface(model, "comp:KafkaService", "messaging_producer", "audit-log", MessagingBroker.KAFKA);
-        addMessagingInterface(model, "comp:MqttService", "messaging_consumer", "device-events", MessagingBroker.MQTT);
+        addComponent(model, "KafkaService", ComponentType.SERVICE);
+        addComponent(model, "MqttService", ComponentType.SERVICE);
+        addMessagingInterface(model, "KafkaService", "messaging_consumer", "orders-in", MessagingBroker.KAFKA);
+        addMessagingInterface(model, "KafkaService", "messaging_producer", "audit-log", MessagingBroker.KAFKA);
+        addMessagingInterface(model, "MqttService", "messaging_consumer", "device-events", MessagingBroker.MQTT);
 
         inferrer.infer(model);
 
@@ -49,22 +49,22 @@ class ExternalSystemInferrerTest {
                 .extracting(s -> s.id)
                 .containsExactlyInAnyOrder("ext:messaging:kafka", "ext:messaging:mqtt");
         assertThat(model.dependencies)
-                .anyMatch(d -> "comp:KafkaService".equals(d.fromId.serialize())
+                .anyMatch(d -> "KafkaService".equals(d.fromId.serialize())
                         && "ext:messaging:kafka".equals(d.toId.serialize()));
         assertThat(model.dependencies)
-                .anyMatch(d -> "comp:MqttService".equals(d.fromId.serialize())
-                        && "ext:messaging:mqtt".equals(d.toId.serialize()));
+                .anyMatch(d ->
+                        "MqttService".equals(d.fromId.serialize()) && "ext:messaging:mqtt".equals(d.toId.serialize()));
     }
 
     @Test
     void groupsMessagingEntrypointsByBroker() {
         ArchitectureModel model = new ArchitectureModel("test");
-        addComponent(model, "comp:OrderService", ComponentType.SERVICE);
+        addComponent(model, "OrderService", ComponentType.SERVICE);
 
         Entrypoint ep = new Entrypoint();
-        ep.id = EntrypointId.deserialize("ep:OrderService:msg");
+        ep.id = EntrypointId.deserialize("OrderService:msg");
         ep.type = EntrypointType.MESSAGING_PRODUCER;
-        ep.componentId = ComponentId.of("comp:OrderService");
+        ep.componentId = ComponentId.of("OrderService");
         ep.channelName = "orders-out";
         ep.broker = MessagingBroker.KAFKA;
         model.entrypoints.add(ep);
@@ -73,29 +73,29 @@ class ExternalSystemInferrerTest {
 
         assertThat(model.externalSystems).extracting(s -> s.id).contains("ext:messaging:kafka");
         assertThat(model.dependencies)
-                .anyMatch(d -> "comp:OrderService".equals(d.fromId.serialize())
+                .anyMatch(d -> "OrderService".equals(d.fromId.serialize())
                         && "ext:messaging:kafka".equals(d.toId.serialize()));
     }
 
     @Test
     void groupsBidirectionalMessagingClientByBroker() {
         ArchitectureModel model = new ArchitectureModel("test");
-        addComponent(model, "comp:MqttSvc", ComponentType.SERVICE);
-        addMessagingInterface(model, "comp:MqttSvc", "messaging_client", "(unresolved)", MessagingBroker.MQTT);
+        addComponent(model, "MqttSvc", ComponentType.SERVICE);
+        addMessagingInterface(model, "MqttSvc", "messaging_client", "(unresolved)", MessagingBroker.MQTT);
 
         inferrer.infer(model);
 
         assertThat(model.externalSystems).extracting(s -> s.id).contains("ext:messaging:mqtt");
         assertThat(model.dependencies)
-                .anyMatch(d ->
-                        "comp:MqttSvc".equals(d.fromId.serialize()) && "ext:messaging:mqtt".equals(d.toId.serialize()));
+                .anyMatch(
+                        d -> "MqttSvc".equals(d.fromId.serialize()) && "ext:messaging:mqtt".equals(d.toId.serialize()));
     }
 
     @Test
     void unknownBrokerStillGetsExternalSystem() {
         ArchitectureModel model = new ArchitectureModel("test");
-        addComponent(model, "comp:Mystery", ComponentType.SERVICE);
-        addMessagingInterface(model, "comp:Mystery", "messaging_consumer", "huh", MessagingBroker.UNKNOWN);
+        addComponent(model, "Mystery", ComponentType.SERVICE);
+        addMessagingInterface(model, "Mystery", "messaging_consumer", "huh", MessagingBroker.UNKNOWN);
 
         inferrer.infer(model);
 
@@ -105,15 +105,14 @@ class ExternalSystemInferrerTest {
     @Test
     void deduplicatesDependencyEdges() {
         ArchitectureModel model = new ArchitectureModel("test");
-        addComponent(model, "comp:Svc", ComponentType.SERVICE);
-        addMessagingInterface(model, "comp:Svc", "messaging_consumer", "a", MessagingBroker.KAFKA);
-        addMessagingInterface(model, "comp:Svc", "messaging_producer", "b", MessagingBroker.KAFKA);
+        addComponent(model, "Svc", ComponentType.SERVICE);
+        addMessagingInterface(model, "Svc", "messaging_consumer", "a", MessagingBroker.KAFKA);
+        addMessagingInterface(model, "Svc", "messaging_producer", "b", MessagingBroker.KAFKA);
 
         inferrer.infer(model);
 
         long edges = model.dependencies.stream()
-                .filter(d ->
-                        "comp:Svc".equals(d.fromId.serialize()) && "ext:messaging:kafka".equals(d.toId.serialize()))
+                .filter(d -> "Svc".equals(d.fromId.serialize()) && "ext:messaging:kafka".equals(d.toId.serialize()))
                 .count();
         assertThat(edges).isEqualTo(1);
     }
@@ -121,8 +120,8 @@ class ExternalSystemInferrerTest {
     @Test
     void ignoresInterfacesWithoutServiceName() {
         ArchitectureModel model = new ArchitectureModel("test");
-        addComponent(model, "comp:Mystery", ComponentType.HTTP_CLIENT);
-        addRestClientInterface(model, "comp:Mystery", null);
+        addComponent(model, "Mystery", ComponentType.HTTP_CLIENT);
+        addRestClientInterface(model, "Mystery", null);
 
         inferrer.infer(model);
 

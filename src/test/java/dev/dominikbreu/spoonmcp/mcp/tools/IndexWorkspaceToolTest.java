@@ -46,7 +46,7 @@ class IndexWorkspaceToolTest {
     private static ArchitectureModel model(String workspacePath, String componentName) {
         ArchitectureModel model = new ArchitectureModel(workspacePath);
         Component component = new Component();
-        component.id = ComponentId.of("comp:" + componentName);
+        component.id = ComponentId.of("" + componentName);
         component.name = componentName;
         component.type = ComponentType.SERVICE;
         model.components.add(component);

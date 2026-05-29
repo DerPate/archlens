@@ -75,6 +75,6 @@ final class ObjectFlowMethodAnalyzer {
         if (qualifiedName == null || qualifiedName.isBlank()) {
             return List.of();
         }
-        return List.of(new ReceiverTarget("comp:" + qualifiedName, methodName, evidence, evidence.confidence(), false));
+        return List.of(new ReceiverTarget(qualifiedName, methodName, evidence, evidence.confidence(), false));
     }
 }

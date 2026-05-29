@@ -27,12 +27,9 @@ class ArchitectureViewProjectorTest {
                 "Spoon MCP Server - Component View",
                 "app:spoon-mcp-server",
                 List.of(new ArchitectureViewProjection.Node(
-                        "comp:dev.example.McpServer", "McpServer", "component", Map.of("componentType", "SERVICE"))),
+                        "dev.example.McpServer", "McpServer", "component", Map.of("componentType", "SERVICE"))),
                 List.of(new ArchitectureViewProjection.Edge(
-                        "comp:dev.example.McpServer",
-                        "comp:dev.example.IndexWorkspaceTool",
-                        "DEPENDS_ON",
-                        "dispatches")),
+                        "dev.example.McpServer", "dev.example.IndexWorkspaceTool", "DEPENDS_ON", "dispatches")),
                 List.of("No external systems were inferred"));
 
         assertEquals(ArchitectureViewKind.COMPONENT, projection.kind());
@@ -191,7 +188,7 @@ class ArchitectureViewProjectorTest {
 
     private static Component component(String name, ComponentType type) {
         Component c = new Component();
-        c.id = ComponentId.of("comp:" + name);
+        c.id = ComponentId.of("" + name);
         c.name = name;
         c.qualifiedName = "com.example." + name;
         c.type = type;

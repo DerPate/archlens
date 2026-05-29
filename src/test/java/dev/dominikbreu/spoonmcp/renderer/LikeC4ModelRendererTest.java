@@ -22,7 +22,7 @@ class LikeC4ModelRendererTest {
                 "Demo Component View",
                 "app:demo",
                 List.of(new ArchitectureViewProjection.Node(
-                        "comp:SchedulerJob",
+                        "SchedulerJob",
                         "SchedulerJob",
                         "component",
                         Map.of("workflowRelevant", true, "noiseScore", 0))),
@@ -34,7 +34,7 @@ class LikeC4ModelRendererTest {
         assertTrue(likec4.contains("specification"));
         assertTrue(likec4.contains("model"));
         assertTrue(likec4.contains("views"));
-        assertTrue(likec4.contains("comp_schedulerjob = component 'SchedulerJob'"));
+        assertTrue(likec4.contains("schedulerjob = component 'SchedulerJob'"));
         assertTrue(likec4.contains("workflowrelevant 'true'"), "expected workflowrelevant 'true' in:\n" + likec4);
     }
 
@@ -45,18 +45,16 @@ class LikeC4ModelRendererTest {
                 "Demo Component View",
                 "app:demo",
                 List.of(
-                        new ArchitectureViewProjection.Node("comp:SchedulerJob", "SchedulerJob", "component", Map.of()),
-                        new ArchitectureViewProjection.Node(
-                                "comp:BillingService", "BillingService", "component", Map.of())),
-                List.of(new ArchitectureViewProjection.Edge(
-                        "comp:SchedulerJob", "comp:BillingService", "CALLS", "calls")),
+                        new ArchitectureViewProjection.Node("SchedulerJob", "SchedulerJob", "component", Map.of()),
+                        new ArchitectureViewProjection.Node("BillingService", "BillingService", "component", Map.of())),
+                List.of(new ArchitectureViewProjection.Edge("SchedulerJob", "BillingService", "CALLS", "calls")),
                 List.of());
 
         String likec4 = new LikeC4ModelRenderer().render(projection);
 
-        assertTrue(likec4.contains("comp_schedulerjob = component 'SchedulerJob'"), likec4);
-        assertTrue(likec4.contains("comp_billingservice = component 'BillingService'"), likec4);
-        assertTrue(likec4.contains("comp_schedulerjob -> comp_billingservice 'calls'"), likec4);
+        assertTrue(likec4.contains("schedulerjob = component 'SchedulerJob'"), likec4);
+        assertTrue(likec4.contains("billingservice = component 'BillingService'"), likec4);
+        assertTrue(likec4.contains("schedulerjob -> billingservice 'calls'"), likec4);
     }
 
     @Test

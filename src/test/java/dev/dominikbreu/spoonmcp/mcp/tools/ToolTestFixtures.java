@@ -51,7 +51,7 @@ class ToolTestFixtures {
 
     private static Component component(String name, ComponentType type) {
         Component c = new Component();
-        c.id = ComponentId.of("comp:" + name);
+        c.id = ComponentId.of("" + name);
         c.name = name;
         c.qualifiedName = "com.example." + name;
         c.type = type;
