@@ -45,18 +45,20 @@ public class QueryArchitectureGraphTool {
                     renderEdges(graph.findEdges(text(args, "label", null), filters(args), integer(args, "limit", 256)));
                 case "neighborhood" ->
                     renderEdges(graph.neighborhood(
-                            requiredText(args, "nodeId"),
+                            normalizeNodeId(requiredText(args, "nodeId")),
                             text(args, "direction", "both"),
                             integer(args, "limit", 256)));
                 case "paths" ->
                     renderPaths(graph.paths(
-                            requiredText(args, "fromId"),
-                            requiredText(args, "toId"),
+                            normalizeNodeId(requiredText(args, "fromId")),
+                            normalizeNodeId(requiredText(args, "toId")),
                             integer(args, "maxDepth", 5),
                             integer(args, "limit", 256)));
                 case "impacted_by" ->
                     renderNodes(graph.impactedBy(
-                            requiredText(args, "nodeId"), integer(args, "maxDepth", 3), integer(args, "limit", 256)));
+                            normalizeNodeId(requiredText(args, "nodeId")),
+                            integer(args, "maxDepth", 3),
+                            integer(args, "limit", 256)));
                 default -> "Unknown graph action: " + action;
             };
         } catch (Exception e) {
@@ -238,6 +240,19 @@ public class QueryArchitectureGraphTool {
 
     private String text(Map<String, Object> args, String name, String defaultValue) {
         return ToolArgs.getString(args, name, defaultValue);
+    }
+
+    /**
+     * Strips legacy {@code comp:}/{@code ep:}/{@code dep:} id prefixes so callers using the
+     * old prefixed convention still resolve against the now-unprefixed graph vertex ids.
+     * Other vertex-id schemes (e.g. {@code ext:}, {@code iface:}) are preserved.
+     */
+    private static String normalizeNodeId(String id) {
+        if (id == null) return null;
+        if (id.startsWith("comp:")) return id.substring(5);
+        if (id.startsWith("ep:")) return id.substring(3);
+        if (id.startsWith("dep:")) return id.substring(4);
+        return id;
     }
 
     private int integer(Map<String, Object> args, String name, int defaultValue) {
