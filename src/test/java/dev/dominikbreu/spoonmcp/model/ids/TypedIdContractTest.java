@@ -17,6 +17,9 @@ class TypedIdContractTest {
         assertThat(id.serialize()).isEqualTo("com.acme.BillingService");
         assertThat(ComponentId.deserialize("comp:com.acme.BillingService")).isEqualTo(id);
         assertThat(ComponentId.deserialize("com.acme.BillingService")).isEqualTo(id);
+        // Defensive of(): a stray prefix is normalized away at construction.
+        assertThat(ComponentId.of("comp:com.acme.BillingService")).isEqualTo(id);
+        assertThat(ComponentId.of("comp:com.acme.BillingService").serialize()).isEqualTo("com.acme.BillingService");
     }
 
     @Test

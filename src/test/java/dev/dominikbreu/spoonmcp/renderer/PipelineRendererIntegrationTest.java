@@ -40,14 +40,14 @@ class PipelineRendererIntegrationTest {
 
         // 1. Root + correct ordering
         assertThat(chain.segments).hasSize(3);
-        assertThat(chain.segments.get(0).path.entrypointId).isEqualTo(EntrypointId.deserialize("ep:ingest"));
-        assertThat(chain.segments.get(1).path.entrypointId).isEqualTo(EntrypointId.deserialize("ep:schedule"));
-        assertThat(chain.segments.get(2).path.entrypointId).isEqualTo(EntrypointId.deserialize("ep:process"));
+        assertThat(chain.segments.get(0).path.entrypointId).isEqualTo(EntrypointId.deserialize("ingest"));
+        assertThat(chain.segments.get(1).path.entrypointId).isEqualTo(EntrypointId.deserialize("schedule"));
+        assertThat(chain.segments.get(2).path.entrypointId).isEqualTo(EntrypointId.deserialize("process"));
 
         // 2./3. Boundary between segment 1 and 2 is the STORE on Cache.records
         DataFlowSink linkOne = chain.segments.get(1).incomingSink;
         assertThat(linkOne.kind).isEqualTo(DataFlowSink.Kind.STORE);
-        assertThat(linkOne.fieldOwnerComponentId).isEqualTo(ComponentId.of("comp:Cache"));
+        assertThat(linkOne.fieldOwnerComponentId).isEqualTo(ComponentId.of("Cache"));
         assertThat(linkOne.fieldName).isEqualTo("records");
 
         // 4. Boundary between segment 2 and 3 is MESSAGING on the internal channel
@@ -71,7 +71,7 @@ class PipelineRendererIntegrationTest {
         ArchitectureModel model = new ArchitectureModel("synthetic");
         DataFlowPath orphan = new DataFlowPath();
         orphan.id = "df:orphan";
-        orphan.entrypointId = EntrypointId.deserialize("ep:orphan");
+        orphan.entrypointId = EntrypointId.deserialize("orphan");
         model.dataFlowPaths.add(orphan);
 
         assertThat(new PipelineGraphBuilder().build(model, 8)).isEmpty();
@@ -115,36 +115,36 @@ class PipelineRendererIntegrationTest {
         ArchitectureModel m = new ArchitectureModel("synthetic");
 
         m.components.addAll(List.of(
-                comp("comp:Ingestor", "Ingestor", ComponentType.MESSAGE_DRIVEN_BEAN),
-                comp("comp:Cache", "Cache", ComponentType.SERVICE),
-                comp("comp:Scheduler", "Scheduler", ComponentType.SCHEDULER),
-                comp("comp:Processor", "Processor", ComponentType.MESSAGE_DRIVEN_BEAN),
-                comp("comp:Broker", "Broker", ComponentType.HTTP_CLIENT)));
+                comp("Ingestor", "Ingestor", ComponentType.MESSAGE_DRIVEN_BEAN),
+                comp("Cache", "Cache", ComponentType.SERVICE),
+                comp("Scheduler", "Scheduler", ComponentType.SCHEDULER),
+                comp("Processor", "Processor", ComponentType.MESSAGE_DRIVEN_BEAN),
+                comp("Broker", "Broker", ComponentType.HTTP_CLIENT)));
 
         m.entrypoints.addAll(List.of(
-                ep("ep:ingest", "consume", EntrypointType.MESSAGING_CONSUMER, "external", "comp:Ingestor"),
-                ep("ep:schedule", "tick", EntrypointType.SCHEDULER, null, "comp:Scheduler"),
-                ep("ep:process", "process", EntrypointType.MESSAGING_CONSUMER, "internal", "comp:Processor")));
+                ep("ingest", "consume", EntrypointType.MESSAGING_CONSUMER, "external", "Ingestor"),
+                ep("schedule", "tick", EntrypointType.SCHEDULER, null, "Scheduler"),
+                ep("process", "process", EntrypointType.MESSAGING_CONSUMER, "internal", "Processor")));
 
         // Path 1: ingestor → STORE(Cache.records)
-        DataFlowPath p1 = path("df:ingest", "ep:ingest", "snapshot");
-        p1.steps.add(new DataFlowStep(0, ComponentId.of("comp:Ingestor"), "Ingestor", "consume", "snapshot"));
+        DataFlowPath p1 = path("df:ingest", "ingest", "snapshot");
+        p1.steps.add(new DataFlowStep(0, ComponentId.of("Ingestor"), "Ingestor", "consume", "snapshot"));
         DataFlowSink storeSink = new DataFlowSink();
         storeSink.kind = DataFlowSink.Kind.STORE;
-        storeSink.componentId = ComponentId.of("comp:Cache");
+        storeSink.componentId = ComponentId.of("Cache");
         storeSink.componentName = "Cache";
         storeSink.method = "records";
         storeSink.fieldName = "records";
-        storeSink.fieldOwnerComponentId = ComponentId.of("comp:Cache");
+        storeSink.fieldOwnerComponentId = ComponentId.of("Cache");
         storeSink.linkedPathIds.add("df:schedule");
         p1.sinks.add(storeSink);
 
         // Path 2: scheduler → MESSAGING(internal) (also a non-linking HTTP_OUTBOUND terminal)
-        DataFlowPath p2 = path("df:schedule", "ep:schedule", "*");
-        p2.steps.add(new DataFlowStep(0, ComponentId.of("comp:Scheduler"), "Scheduler", "tick", "*"));
+        DataFlowPath p2 = path("df:schedule", "schedule", "*");
+        p2.steps.add(new DataFlowStep(0, ComponentId.of("Scheduler"), "Scheduler", "tick", "*"));
         DataFlowSink msgSink = new DataFlowSink();
         msgSink.kind = DataFlowSink.Kind.MESSAGING;
-        msgSink.componentId = ComponentId.of("comp:Scheduler");
+        msgSink.componentId = ComponentId.of("Scheduler");
         msgSink.componentName = "Scheduler";
         msgSink.method = "send";
         msgSink.channel = "internal";
@@ -152,14 +152,14 @@ class PipelineRendererIntegrationTest {
         p2.sinks.add(msgSink);
         DataFlowSink httpSink = new DataFlowSink();
         httpSink.kind = DataFlowSink.Kind.HTTP_OUTBOUND;
-        httpSink.componentId = ComponentId.of("comp:Broker");
+        httpSink.componentId = ComponentId.of("Broker");
         httpSink.componentName = "Broker";
         httpSink.method = "publish";
         p2.sinks.add(httpSink);
 
         // Path 3: processor (terminal segment, no links forward)
-        DataFlowPath p3 = path("df:process", "ep:process", "entry");
-        p3.steps.add(new DataFlowStep(0, ComponentId.of("comp:Processor"), "Processor", "process", "entry"));
+        DataFlowPath p3 = path("df:process", "process", "entry");
+        p3.steps.add(new DataFlowStep(0, ComponentId.of("Processor"), "Processor", "process", "entry"));
 
         m.dataFlowPaths.addAll(List.of(p1, p2, p3));
         return m;
@@ -194,17 +194,17 @@ class PipelineRendererIntegrationTest {
     @Test
     void renderedSegmentDoesNotStartWithSelfReferentialEdge() {
         ArchitectureModel model = new ArchitectureModel("self-call-test");
-        model.components.add(comp("comp:Scheduler", "Scheduler", ComponentType.SCHEDULER));
-        model.components.add(comp("comp:Repo", "Repo", ComponentType.REPOSITORY));
+        model.components.add(comp("Scheduler", "Scheduler", ComponentType.SCHEDULER));
+        model.components.add(comp("Repo", "Repo", ComponentType.REPOSITORY));
 
-        model.entrypoints.add(ep("ep:tick", "tick", EntrypointType.SCHEDULER, null, "comp:Scheduler"));
+        model.entrypoints.add(ep("tick", "tick", EntrypointType.SCHEDULER, null, "Scheduler"));
 
-        DataFlowPath p1 = path("df:tick", "ep:tick", "*");
-        p1.steps.add(new DataFlowStep(0, ComponentId.of("comp:Scheduler"), "Scheduler", "tick", "*"));
-        p1.steps.add(new DataFlowStep(1, ComponentId.of("comp:Repo"), "Repo", "save", "*"));
+        DataFlowPath p1 = path("df:tick", "tick", "*");
+        p1.steps.add(new DataFlowStep(0, ComponentId.of("Scheduler"), "Scheduler", "tick", "*"));
+        p1.steps.add(new DataFlowStep(1, ComponentId.of("Repo"), "Repo", "save", "*"));
         DataFlowSink terminal = new DataFlowSink();
         terminal.kind = DataFlowSink.Kind.PERSISTENCE;
-        terminal.componentId = ComponentId.of("comp:Repo");
+        terminal.componentId = ComponentId.of("Repo");
         terminal.componentName = "Repo";
         terminal.method = "save";
         p1.sinks.add(terminal);
@@ -229,7 +229,7 @@ class PipelineRendererIntegrationTest {
         ArchitectureModel model = buildModel();
         DataFlowSink persistence = new DataFlowSink();
         persistence.kind = DataFlowSink.Kind.PERSISTENCE;
-        persistence.componentId = ComponentId.of("comp:Repo");
+        persistence.componentId = ComponentId.of("Repo");
         persistence.componentName = "Repo";
         persistence.method = "save";
         persistence.entityType = "com.example.Order";

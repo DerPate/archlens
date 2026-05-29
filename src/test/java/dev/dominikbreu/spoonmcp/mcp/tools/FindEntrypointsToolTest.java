@@ -20,21 +20,21 @@ class FindEntrypointsToolTest {
     void setUp() {
         model = new ArchitectureModel("test");
         Component ctrl = new Component();
-        ctrl.id = ComponentId.of("comp:CustomerController");
+        ctrl.id = ComponentId.of("CustomerController");
         ctrl.name = "CustomerController";
         ctrl.type = ComponentType.REST_RESOURCE;
         ctrl.technology = "spring";
         model.components.add(ctrl);
 
         model.entrypoints.addAll(List.of(
-                restEp("ep:CustomerController#getAll:GET", "getAll", "GET", "/customer"),
-                restEp("ep:CustomerController#get:GET", "get", "GET", "/customer/{id}"),
-                restEp("ep:CustomerController#add:POST", "add", "POST", "/customer"),
-                restEp("ep:CustomerController#update:PUT", "update", "PUT", "/customer/{id}"),
-                restEp("ep:CustomerController#addAddr:POST", "addAddress", "POST", "/customer/{id}/address"),
-                restEp("ep:CustomerController#getAddr:GET", "getAddress", "GET", "/customer/{id}/address/{aid}"),
-                restEp("ep:AccountController#getAll:GET", "getAll", "GET", "/account"),
-                restEp("ep:AccountController#add:POST", "add", "POST", "/account")));
+                restEp("CustomerController#getAll:GET", "getAll", "GET", "/customer"),
+                restEp("CustomerController#get:GET", "get", "GET", "/customer/{id}"),
+                restEp("CustomerController#add:POST", "add", "POST", "/customer"),
+                restEp("CustomerController#update:PUT", "update", "PUT", "/customer/{id}"),
+                restEp("CustomerController#addAddr:POST", "addAddress", "POST", "/customer/{id}/address"),
+                restEp("CustomerController#getAddr:GET", "getAddress", "GET", "/customer/{id}/address/{aid}"),
+                restEp("AccountController#getAll:GET", "getAll", "GET", "/account"),
+                restEp("AccountController#add:POST", "add", "POST", "/account")));
 
         ModelCache cache = new ModelCache(null) {
             @Override
@@ -156,8 +156,7 @@ class FindEntrypointsToolTest {
         ep.type = EntrypointType.REST_ENDPOINT;
         ep.httpMethod = method;
         ep.path = path;
-        ep.componentId =
-                ComponentId.of(id.startsWith("ep:Customer") ? "comp:CustomerController" : "comp:AccountController");
+        ep.componentId = ComponentId.of(id.startsWith("Customer") ? "CustomerController" : "AccountController");
         return ep;
     }
 }

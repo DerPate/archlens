@@ -38,7 +38,7 @@ class QueryArchitectureGraphToolTest {
 
         String result = tool.execute(Map.of("action", "find_nodes", "label", "Component", "query", "Payment"));
 
-        assertThat(result).contains("comp:PaymentService");
+        assertThat(result).contains("PaymentService");
         assertThat(result).contains("SERVICE");
     }
 
@@ -47,13 +47,13 @@ class QueryArchitectureGraphToolTest {
         ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.GRAPH);
         ArchitectureModel model = model();
         Component repository = new Component();
-        repository.id = ComponentId.of("comp:PaymentRepository");
+        repository.id = ComponentId.of("PaymentRepository");
         repository.name = "PaymentRepository";
         repository.type = ComponentType.REPOSITORY;
         model.components.add(repository);
         dev.dominikbreu.spoonmcp.model.Dependency dependency = new dev.dominikbreu.spoonmcp.model.Dependency();
-        dependency.fromId = ComponentId.of("comp:PaymentService");
-        dependency.toId = ComponentId.of("comp:PaymentRepository");
+        dependency.fromId = ComponentId.of("PaymentService");
+        dependency.toId = ComponentId.of("PaymentRepository");
         dependency.kind = "injection";
         dependency.confidence = 0.85;
         model.dependencies.add(dependency);
@@ -65,7 +65,7 @@ class QueryArchitectureGraphToolTest {
                 "label", "DEPENDS_ON",
                 "filters", Map.of("confidence", ">=0.8", "kind", "injection")));
 
-        assertThat(result).contains("comp:PaymentService -[DEPENDS_ON]-> comp:PaymentRepository");
+        assertThat(result).contains("PaymentService -[DEPENDS_ON]-> PaymentRepository");
         assertThat(result).contains("isRuntimeRelevant=true");
     }
 
@@ -75,10 +75,10 @@ class QueryArchitectureGraphToolTest {
         ArchitectureModel model = model();
         DataFlowPath path = new DataFlowPath();
         path.id = "df:payment#payload";
-        path.entrypointId = EntrypointId.deserialize("entry:payment");
+        path.entrypointId = EntrypointId.deserialize("payment");
         path.trackedParam = "payload";
         DataFlowSink sink = new DataFlowSink(
-                DataFlowSink.Kind.MESSAGING, ComponentId.of("comp:PaymentService"), "PaymentService", "send", null);
+                DataFlowSink.Kind.MESSAGING, ComponentId.of("PaymentService"), "PaymentService", "send", null);
         sink.broker = MessagingBroker.KAFKA;
         sink.channel = "payments.created";
         sink.topic = "payments.created";
@@ -105,7 +105,7 @@ class QueryArchitectureGraphToolTest {
     private ArchitectureModel model() {
         ArchitectureModel model = new ArchitectureModel("test");
         Component component = new Component();
-        component.id = ComponentId.of("comp:PaymentService");
+        component.id = ComponentId.of("PaymentService");
         component.name = "PaymentService";
         component.qualifiedName = "com.example.PaymentService";
         component.type = ComponentType.SERVICE;

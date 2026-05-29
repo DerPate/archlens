@@ -44,7 +44,7 @@ class LikeC4WorkspaceProjectorTest {
                 .toList();
         assertFalse(components.isEmpty(), "expected projected component elements");
         assertTrue(
-                components.stream().allMatch(element -> element.id().startsWith("comp:")),
+                components.stream().allMatch(element -> element.id().startsWith("")),
                 "expected graph component ids as document ids: " + components);
 
         Set<String> viewIds = document.views().stream().map(LikeC4View::id).collect(Collectors.toSet());

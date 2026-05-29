@@ -35,9 +35,9 @@ class MermaidUseCaseTimelineRendererTest {
     @Test
     void sectionLabelUsesHttpMethodAndPath() {
         ArchitectureModel m = model();
-        Entrypoint ep = ep("ep:create", "POST", "/orders", null, "comp:Comp0");
+        Entrypoint ep = ep("create", "POST", "/orders", null, "Comp0");
         m.entrypoints.add(ep);
-        RuntimeFlow f = flow("ep:create", 2);
+        RuntimeFlow f = flow("create", 2);
         String out = renderer.render(List.of(f), m, 5);
         assertThat(out).contains("POST /orders");
     }
@@ -45,9 +45,9 @@ class MermaidUseCaseTimelineRendererTest {
     @Test
     void sectionLabelUsesChannelNameForMessaging() {
         ArchitectureModel m = model();
-        Entrypoint ep = ep("ep:msg", null, null, "order-events", "comp:Comp0");
+        Entrypoint ep = ep("msg", null, null, "order-events", "Comp0");
         m.entrypoints.add(ep);
-        RuntimeFlow f = flow("ep:msg", 2);
+        RuntimeFlow f = flow("msg", 2);
         String out = renderer.render(List.of(f), m, 5);
         assertThat(out).contains("order-events");
     }
@@ -88,10 +88,10 @@ class MermaidUseCaseTimelineRendererTest {
     @Test
     void colonInSectionLabelIsSanitized() {
         ArchitectureModel m = model();
-        Entrypoint ep = ep("ep:sched", null, null, null, "comp:Comp0");
+        Entrypoint ep = ep("sched", null, null, null, "Comp0");
         ep.name = "Scheduled: cleanup";
         m.entrypoints.add(ep);
-        RuntimeFlow f = flow("ep:sched", 1);
+        RuntimeFlow f = flow("sched", 1);
         String out = renderer.render(List.of(f), m, 5);
         // Section label must not contain a colon (Mermaid syntax restriction)
         String sectionLine = out.lines()
@@ -113,7 +113,7 @@ class MermaidUseCaseTimelineRendererTest {
         f.entrypointId = EntrypointId.deserialize(entrypointId);
         for (int i = 0; i < steps; i++) {
             RuntimeFlowStep s = new RuntimeFlowStep();
-            s.componentId = ComponentId.of("comp:Comp" + i);
+            s.componentId = ComponentId.of("Comp" + i);
             s.componentName = "Comp" + i;
             s.componentType = "SERVICE";
             s.via = "method" + i;
