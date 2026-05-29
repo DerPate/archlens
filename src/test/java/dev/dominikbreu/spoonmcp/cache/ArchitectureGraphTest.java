@@ -20,6 +20,7 @@ import dev.dominikbreu.spoonmcp.model.SourceInfo;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import dev.dominikbreu.spoonmcp.model.ids.DependencyId;
 import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
+import dev.dominikbreu.spoonmcp.model.ids.FieldAccessId;
 import dev.dominikbreu.spoonmcp.model.ids.FieldBinding;
 import dev.dominikbreu.spoonmcp.model.ids.FieldRef;
 import java.util.List;
@@ -622,8 +623,8 @@ class ArchitectureGraphTest {
             access.fieldBinding =
                     new FieldBinding.CrossComponent(new FieldRef(ComponentId.of(ownerComponentId), fieldName));
         }
-        access.id = "field:" + componentId + "#" + method + "@" + fieldName + ":"
-                + kind.name().toLowerCase();
+        access.id = FieldAccessId.of("field:" + componentId + "#" + method + "@" + fieldName + ":"
+                + kind.name().toLowerCase());
         return access;
     }
 

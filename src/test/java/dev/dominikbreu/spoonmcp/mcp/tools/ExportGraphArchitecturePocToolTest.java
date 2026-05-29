@@ -12,6 +12,7 @@ import dev.dominikbreu.spoonmcp.model.FieldAccess;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import dev.dominikbreu.spoonmcp.model.ids.DependencyId;
+import dev.dominikbreu.spoonmcp.model.ids.FieldAccessId;
 import dev.dominikbreu.spoonmcp.model.ids.FieldBinding;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -107,7 +108,7 @@ class ExportGraphArchitecturePocToolTest {
 
         for (int i = 0; i < 30; i++) {
             FieldAccess read = new FieldAccess();
-            read.id = "field:comp:ArchitectureGraph#method" + i + "@verticesById:read";
+            read.id = FieldAccessId.of("field:ArchitectureGraph#method" + i + "@verticesById:read");
             read.kind = FieldAccess.Kind.READ;
             read.componentId = ComponentId.of("ArchitectureGraph");
             read.method = "method" + i;

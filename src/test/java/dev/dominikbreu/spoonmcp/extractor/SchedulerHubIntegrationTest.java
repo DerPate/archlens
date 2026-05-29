@@ -181,7 +181,7 @@ class SchedulerHubIntegrationTest extends ExtractorTestBase {
                         && cc.ref().owner().qualifiedName().contains("RecordStore")
                         && "records".equals(cc.ref().fieldName())
                         && "dispatchAll".equals(fa.method)
-                        && fa.id.contains("activeItems"));
+                        && fa.id.serialize().contains("activeItems"));
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

@@ -7,6 +7,7 @@ import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.FieldAccess;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.FieldAccessId;
 import dev.dominikbreu.spoonmcp.model.ids.FieldBinding;
 import dev.dominikbreu.spoonmcp.model.ids.FieldRef;
 import java.nio.file.Files;
@@ -69,8 +70,8 @@ class ToolTestFixtures {
         fa.componentId = componentId;
         fa.method = method;
         fa.fieldBinding = new FieldBinding.CrossComponent(new FieldRef(ownerComponentId, fieldName));
-        fa.id = "field:" + componentId.serialize() + "#" + method + "@" + fieldName + ":"
-                + kind.name().toLowerCase();
+        fa.id = FieldAccessId.of("field:" + componentId.serialize() + "#" + method + "@" + fieldName + ":"
+                + kind.name().toLowerCase());
         return fa;
     }
 }
