@@ -261,8 +261,8 @@ class CallGraphExtractorTest extends ExtractorTestBase {
 
         assertThat(graph.findEdges("STATE_HANDOFF", java.util.Map.of("fieldName", "cache"), 20))
                 .as("component graph must expose OrderBuffer.cache handoff to OrderForwarder")
-                .anyMatch(edge -> edge.fromId().contains("OrderBuffer")
-                        && edge.toId().contains("OrderForwarder")
+                .anyMatch(edge -> edge.fromId().serialize().contains("OrderBuffer")
+                        && edge.toId().serialize().contains("OrderForwarder")
                         && "cache".equals(edge.properties().get("fieldName")));
     }
 

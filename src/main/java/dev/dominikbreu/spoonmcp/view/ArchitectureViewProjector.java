@@ -1,12 +1,13 @@
 package dev.dominikbreu.spoonmcp.view;
 
 import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
+import dev.dominikbreu.spoonmcp.model.ids.GraphNodeId;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public final class ArchitectureViewProjector {
 
@@ -19,23 +20,28 @@ public final class ArchitectureViewProjector {
         Set<String> scopeIds = resolveScope(graph, scopeId);
 
         List<ArchitectureViewProjection.Node> nodes = graph.findNodes("Component", null, Map.of(), 500).stream()
-                .filter(node -> scopeIds.isEmpty() || scopeIds.contains(node.id()))
+                .filter(node ->
+                        scopeIds.isEmpty() || scopeIds.contains(node.id().serialize()))
                 .sorted(componentPriority())
                 .limit(Math.max(1, maxNodes))
                 .map(node -> new ArchitectureViewProjection.Node(
-                        node.id(),
-                        String.valueOf(node.properties().getOrDefault("name", node.id())),
+                        node.id().serialize(),
+                        String.valueOf(
+                                node.properties().getOrDefault("name", node.id().serialize())),
                         "component",
                         node.properties()))
                 .toList();
 
-        Set<String> selectedIds = new HashSet<>(
-                nodes.stream().map(ArchitectureViewProjection.Node::id).toList());
+        Set<GraphNodeId> selectedIds =
+                nodes.stream().map(node -> GraphNodeId.of(node.id())).collect(Collectors.toSet());
 
         List<ArchitectureViewProjection.Edge> edges = graph.findEdgesBetween(selectedIds, VIEW_RELATIONSHIPS).stream()
                 .filter(edge -> !edge.fromId().equals(edge.toId()))
                 .map(edge -> new ArchitectureViewProjection.Edge(
-                        edge.fromId(), edge.toId(), edge.label(), relationshipTitle(edge.label(), edge.properties())))
+                        edge.fromId().serialize(),
+                        edge.toId().serialize(),
+                        edge.label(),
+                        relationshipTitle(edge.label(), edge.properties())))
                 .toList();
 
         List<String> warnings = new ArrayList<>();
@@ -51,11 +57,10 @@ public final class ArchitectureViewProjector {
         if (scopeId == null || scopeId.isBlank()) {
             return Set.of();
         }
-        Set<String> ids = new HashSet<>();
-        graph.findEdges("OWNS", Map.of(), 100).stream()
-                .filter(edge -> scopeId.equals(edge.fromId()))
-                .forEach(edge -> ids.add(edge.toId()));
-        return ids;
+        return graph.findEdges("OWNS", Map.of(), 100).stream()
+                .filter(edge -> scopeId.equals(edge.fromId().serialize()))
+                .map(edge -> edge.toId().serialize())
+                .collect(Collectors.toSet());
     }
 
     private static Comparator<ArchitectureGraph.GraphNode> componentPriority() {
@@ -67,7 +72,8 @@ public final class ArchitectureViewProjector {
                 .thenComparingInt(node -> -intProp(node, "workflowBridgeScore")) // high bridge score first
                 .thenComparingInt(node -> intProp(node, "noiseScore")) // low noise first
                 .thenComparingInt(node -> -intProp(node, "architecturalWeight")) // high weight first
-                .thenComparing(node -> String.valueOf(node.properties().getOrDefault("name", node.id())));
+                .thenComparing(node -> String.valueOf(
+                        node.properties().getOrDefault("name", node.id().serialize())));
     }
 
     private static String relationshipTitle(String label, Map<String, Object> properties) {

@@ -23,6 +23,7 @@ import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import dev.dominikbreu.spoonmcp.model.ids.FieldAccessId;
 import dev.dominikbreu.spoonmcp.model.ids.FieldBinding;
 import dev.dominikbreu.spoonmcp.model.ids.FieldRef;
+import dev.dominikbreu.spoonmcp.model.ids.GraphNodeId;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -50,12 +51,13 @@ class ArchitectureGraphTest {
         graph.rebuild(model());
 
         List<ArchitectureGraph.GraphNode> nodes = graph.findNodes("Component", "OrderService", Map.of(), 10);
-        List<ArchitectureGraph.GraphPath> paths = graph.paths("orders#", "OrderRepository", 3, 10);
+        List<ArchitectureGraph.GraphPath> paths =
+                graph.paths(GraphNodeId.of("orders#"), GraphNodeId.of("OrderRepository"), 3, 10);
 
-        assertThat(nodes).extracting(ArchitectureGraph.GraphNode::id).containsExactly("OrderService");
+        assertThat(nodes).extracting(node -> node.id().serialize()).containsExactly("OrderService");
         assertThat(paths).hasSize(1);
         assertThat(paths.getFirst().nodes())
-                .extracting(ArchitectureGraph.GraphNode::id)
+                .extracting(node -> node.id().serialize())
                 .containsExactly("orders#", "OrderService", "OrderRepository");
         assertThat(paths.getFirst().edgeLabels()).containsExactly("STARTS_AT", "DEPENDS_ON");
     }
@@ -65,9 +67,9 @@ class ArchitectureGraphTest {
         ArchitectureGraph graph = new ArchitectureGraph();
         graph.rebuild(model());
 
-        List<ArchitectureGraph.GraphNode> impacted = graph.impactedBy("OrderRepository", 3, 10);
+        List<ArchitectureGraph.GraphNode> impacted = graph.impactedBy(GraphNodeId.of("OrderRepository"), 3, 10);
 
-        assertThat(impacted).extracting(ArchitectureGraph.GraphNode::id).contains("OrderService", "orders#");
+        assertThat(impacted).extracting(node -> node.id().serialize()).contains("OrderService", "orders#");
     }
 
     @Test
@@ -81,10 +83,10 @@ class ArchitectureGraphTest {
                 graph.findEdges("DEPENDS_ON", Map.of("confidence", ">=0.8", "isRuntimeRelevant", "true"), 10);
 
         assertThat(reachableServices)
-                .extracting(ArchitectureGraph.GraphNode::id)
+                .extracting(node -> node.id().serialize())
                 .contains("OrderService", "OrderRepository");
         ArchitectureGraph.GraphNode serviceNode = reachableServices.stream()
-                .filter(node -> "OrderService".equals(node.id()))
+                .filter(node -> "OrderService".equals(node.id().serialize()))
                 .findFirst()
                 .orElseThrow();
         assertThat(serviceNode.properties())
@@ -191,8 +193,8 @@ class ArchitectureGraphTest {
 
         assertThat(graph.findEdges("CALLS", java.util.Map.of("receiverEvidence", "constructor-assignment"), 10))
                 .anySatisfy(graphEdge -> {
-                    assertThat(graphEdge.fromId()).isEqualTo(main.id.serialize());
-                    assertThat(graphEdge.toId()).isEqualTo(game.id.serialize());
+                    assertThat(graphEdge.fromId().serialize()).isEqualTo(main.id.serialize());
+                    assertThat(graphEdge.toId().serialize()).isEqualTo(game.id.serialize());
                     assertThat(graphEdge.properties()).containsEntry("receiverConfidence", 0.90);
                 });
     }
@@ -211,12 +213,14 @@ class ArchitectureGraphTest {
         graph.rebuild(model);
 
         assertThat(graph.findEdges("WRITES_STATE", Map.of("fieldName", "snapshots"), 10))
-                .anyMatch(edge -> "OrderService".equals(edge.fromId()) && "OrderService".equals(edge.toId()));
+                .anyMatch(edge -> "OrderService".equals(edge.fromId().serialize())
+                        && "OrderService".equals(edge.toId().serialize()));
         assertThat(graph.findEdges("READS_STATE", Map.of("fieldName", "snapshots"), 10))
-                .anyMatch(edge -> "StatePublisher".equals(edge.fromId()) && "OrderService".equals(edge.toId()));
+                .anyMatch(edge -> "StatePublisher".equals(edge.fromId().serialize())
+                        && "OrderService".equals(edge.toId().serialize()));
         assertThat(graph.findEdges("STATE_HANDOFF", Map.of("fieldName", "snapshots"), 10))
-                .anyMatch(edge -> "OrderService".equals(edge.fromId())
-                        && "StatePublisher".equals(edge.toId())
+                .anyMatch(edge -> "OrderService".equals(edge.fromId().serialize())
+                        && "StatePublisher".equals(edge.toId().serialize())
                         && "0.8".equals(edge.properties().get("confidence").toString()));
 
         ArchitectureGraph.GraphNode publisher =
@@ -280,13 +284,13 @@ class ArchitectureGraphTest {
 
         List<ArchitectureGraph.GraphEdge> linkEdges = graph.findEdges("LINKS_TO", Map.of(), 10);
         assertThat(linkEdges).hasSize(1);
-        assertThat(linkEdges.getFirst().toId()).isEqualTo("df:ep:tick#snapshots");
+        assertThat(linkEdges.getFirst().toId().serialize()).isEqualTo("df:ep:tick#snapshots");
         assertThat(linkEdges.getFirst().properties())
                 .containsEntry("viaField", "snapshots")
                 .containsEntry("fieldOwnerComponentId", "OrderService");
         assertThat(graph.findEdges("WORKFLOW_LINK", Map.of("kind", "STATE_HANDOFF"), 10))
-                .anyMatch(edge -> "df:entry:orders#order".equals(edge.fromId())
-                        && "df:ep:tick#snapshots".equals(edge.toId())
+                .anyMatch(edge -> "df:entry:orders#order".equals(edge.fromId().serialize())
+                        && "df:ep:tick#snapshots".equals(edge.toId().serialize())
                         && "snapshots".equals(edge.properties().get("fieldName"))
                         && "OrderService".equals(edge.properties().get("fieldOwnerComponentId")));
     }
@@ -334,11 +338,11 @@ class ArchitectureGraphTest {
         // 1. MESSAGING LINKS_TO edge with viaChannel + linkKind
         List<ArchitectureGraph.GraphEdge> linkEdges = graph.findEdges("LINKS_TO", Map.of(), 10);
         assertThat(linkEdges)
-                .anyMatch(e -> "df:ep:process#entry".equals(e.toId())
+                .anyMatch(e -> "df:ep:process#entry".equals(e.toId().serialize())
                         && "messaging".equals(e.properties().get("linkKind"))
                         && "internal".equals(e.properties().get("viaChannel")));
         assertThat(graph.findEdges("WORKFLOW_LINK", Map.of("kind", "MESSAGING"), 10))
-                .anyMatch(e -> "df:ep:process#entry".equals(e.toId())
+                .anyMatch(e -> "df:ep:process#entry".equals(e.toId().serialize())
                         && "internal".equals(e.properties().get("channel")));
 
         // 2. PipelineChain node materialised with segmentCount and rootEntrypointId
@@ -355,9 +359,9 @@ class ArchitectureGraphTest {
         List<ArchitectureGraph.GraphEdge> segEdges = graph.findEdges("HAS_SEGMENT", Map.of(), 10);
         assertThat(segEdges).hasSize(2);
         assertThat(segEdges)
-                .anyMatch(e -> "df:ep:tick#snap".equals(e.toId())
+                .anyMatch(e -> "df:ep:tick#snap".equals(e.toId().serialize())
                         && Integer.valueOf(0).equals(e.properties().get("segmentIndex")))
-                .anyMatch(e -> "df:ep:process#entry".equals(e.toId())
+                .anyMatch(e -> "df:ep:process#entry".equals(e.toId().serialize())
                         && Integer.valueOf(1).equals(e.properties().get("segmentIndex"))
                         && "messaging".equals(e.properties().get("linkKind"))
                         && "internal".equals(e.properties().get("viaChannel")));
@@ -467,8 +471,8 @@ class ArchitectureGraphTest {
                         .containsEntry("technology", "kafka"));
         assertThat(graph.findEdges("DEPENDS_ON", Map.of("kind", "messaging"), 10))
                 .anySatisfy(edge -> {
-                    assertThat(edge.fromId()).isEqualTo("OrderService");
-                    assertThat(edge.toId()).isEqualTo("ext:messaging:kafka");
+                    assertThat(edge.fromId().serialize()).isEqualTo("OrderService");
+                    assertThat(edge.toId().serialize()).isEqualTo("ext:messaging:kafka");
                 });
     }
 
@@ -672,12 +676,13 @@ class ArchitectureGraphTest {
         graph.rebuild(model);
 
         assertThat(graph.findEdges("STATE_HANDOFF", Map.of(), 10))
-                .anyMatch(edge -> "MqttConsumer".equals(edge.fromId()) && "SnapshotPublisher".equals(edge.toId()));
+                .anyMatch(edge -> "MqttConsumer".equals(edge.fromId().serialize())
+                        && "SnapshotPublisher".equals(edge.toId().serialize()));
         assertThat(graph.findEdges("STATE_HANDOFF", Map.of(), 10))
-                .noneMatch(edge -> edge.fromId().equals(edge.toId()));
+                .noneMatch(edge -> edge.fromId().serialize().equals(edge.toId().serialize()));
         boolean hasServiceSelfEdge = graph.findEdges("STATE_HANDOFF", Map.of(), 10).stream()
-                .anyMatch(
-                        e -> "DeviceStateDataService".equals(e.fromId()) && "DeviceStateDataService".equals(e.toId()));
+                .anyMatch(e -> "DeviceStateDataService".equals(e.fromId().serialize())
+                        && "DeviceStateDataService".equals(e.toId().serialize()));
         assertThat(hasServiceSelfEdge).isFalse();
     }
 
