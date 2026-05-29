@@ -17,18 +17,18 @@ class WorkflowGraphBuilderTest {
     @Test
     void rootsExcludePathsWithIncomingWorkflowLinks() {
         ArchitectureModel model = new ArchitectureModel("test");
-        model.entrypoints.add(ep("ep:A", "consume", EntrypointType.MESSAGING_CONSUMER));
-        model.entrypoints.add(ep("ep:B", "publish", EntrypointType.SCHEDULER));
+        model.entrypoints.add(ep("A", "consume", EntrypointType.MESSAGING_CONSUMER));
+        model.entrypoints.add(ep("B", "publish", EntrypointType.SCHEDULER));
 
-        DataFlowPath a = path("df:A", "ep:A");
+        DataFlowPath a = path("df:A", "A");
         DataFlowSink sink = new DataFlowSink();
         sink.kind = DataFlowSink.Kind.STORE;
-        sink.fieldOwnerComponentId = ComponentId.of("comp:Store");
+        sink.fieldOwnerComponentId = ComponentId.of("Store");
         sink.fieldName = "cache";
         sink.linkedPathIds.add("df:B");
         a.sinks.add(sink);
 
-        DataFlowPath b = path("df:B", "ep:B");
+        DataFlowPath b = path("df:B", "B");
         model.dataFlowPaths.addAll(List.of(a, b));
 
         WorkflowGraph graph = new WorkflowGraphBuilder().build(model);
@@ -41,11 +41,11 @@ class WorkflowGraphBuilderTest {
     @Test
     void removesLifecyclePathsFromRootsAndTargets() {
         ArchitectureModel model = new ArchitectureModel("test");
-        model.entrypoints.add(ep("ep:scheduler", "publish", EntrypointType.SCHEDULER));
-        model.entrypoints.add(ep("ep:shutdown", "onShutdown", EntrypointType.CDI_EVENT_OBSERVER));
-        model.entrypoints.add(ep("ep:data", "onOrderCreated", EntrypointType.CDI_EVENT_OBSERVER));
+        model.entrypoints.add(ep("scheduler", "publish", EntrypointType.SCHEDULER));
+        model.entrypoints.add(ep("shutdown", "onShutdown", EntrypointType.CDI_EVENT_OBSERVER));
+        model.entrypoints.add(ep("data", "onOrderCreated", EntrypointType.CDI_EVENT_OBSERVER));
 
-        DataFlowPath scheduler = path("df:scheduler", "ep:scheduler");
+        DataFlowPath scheduler = path("df:scheduler", "scheduler");
         DataFlowSink toShutdown = new DataFlowSink();
         toShutdown.kind = DataFlowSink.Kind.STORE;
         toShutdown.linkedPathIds.add("df:shutdown");
@@ -55,7 +55,7 @@ class WorkflowGraphBuilderTest {
         toData.linkedPathIds.add("df:data");
         scheduler.sinks.add(toData);
 
-        model.dataFlowPaths.addAll(List.of(scheduler, path("df:shutdown", "ep:shutdown"), path("df:data", "ep:data")));
+        model.dataFlowPaths.addAll(List.of(scheduler, path("df:shutdown", "shutdown"), path("df:data", "data")));
 
         WorkflowGraph graph = new WorkflowGraphBuilder().build(model);
 

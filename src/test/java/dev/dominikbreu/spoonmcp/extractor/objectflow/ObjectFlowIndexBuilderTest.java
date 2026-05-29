@@ -90,7 +90,7 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
         List<ReceiverTarget> targets = index.resolveReceiver(invocation("fieldGame.run"));
 
         assertThat(targets).anySatisfy(target -> {
-            assertThat(target.componentId()).isEqualTo("comp:com.example.objectflow.GameService");
+            assertThat(target.componentId()).isEqualTo("com.example.objectflow.GameService");
             assertThat(target.methodName()).isEqualTo("run");
             assertThat(target.evidence()).isEqualTo(ObjectFlowEvidence.CONSTRUCTOR_ASSIGNMENT);
             assertThat(target.confidence()).isEqualTo(0.90);
@@ -102,7 +102,7 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
         List<ReceiverTarget> targets = index.resolveReceiver(invocation("localGame.printStats"));
 
         assertThat(targets).anySatisfy(target -> {
-            assertThat(target.componentId()).isEqualTo("comp:com.example.objectflow.GameService");
+            assertThat(target.componentId()).isEqualTo("com.example.objectflow.GameService");
             assertThat(target.methodName()).isEqualTo("printStats");
             assertThat(target.evidence()).isEqualTo(ObjectFlowEvidence.LOCAL_ASSIGNMENT);
         });
@@ -114,7 +114,7 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
 
         assertThat(targets)
                 .extracting(ReceiverTarget::componentId)
-                .contains("comp:com.example.objectflow.RandomPlayer", "comp:com.example.objectflow.SimplePlayer");
+                .contains("com.example.objectflow.RandomPlayer", "com.example.objectflow.SimplePlayer");
     }
 
     @Test
@@ -122,7 +122,7 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
         List<ReceiverTarget> targets = index.resolveReceiver(invocation("provider.store().cache().put"));
 
         assertThat(targets).anySatisfy(target -> {
-            assertThat(target.componentId()).isEqualTo("comp:com.example.objectflow.StateStore");
+            assertThat(target.componentId()).isEqualTo("com.example.objectflow.StateStore");
             assertThat(target.methodName()).isEqualTo("put");
             assertThat(target.evidence()).isEqualTo(ObjectFlowEvidence.ACCESSOR_STATE_OWNER);
             assertThat(target.confidence()).isEqualTo(0.60);
@@ -139,7 +139,7 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
 
         assertThat(factBacked.resolveReceiver(invocation("provider.store().cache().put")))
                 .extracting(ReceiverTarget::componentId)
-                .contains("comp:com.example.objectflow.StateStore");
+                .contains("com.example.objectflow.StateStore");
         assertThat(factBacked.expandDeclaredType("com.example.objectflow.Player", "nextMove"))
                 .extracting(ReceiverTarget::componentId)
                 .contains("com.example.objectflow.RandomPlayer", "com.example.objectflow.SimplePlayer");
@@ -157,7 +157,7 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
 
         assertThat(factBacked.expandDeclaredType("com.example.constructor.IAccountService", "getById"))
                 .extracting(ReceiverTarget::componentId)
-                .containsExactly("comp:com.example.constructor.AccountService");
+                .containsExactly("com.example.constructor.AccountService");
     }
 
     @Test
@@ -199,22 +199,22 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
 
         assertThat(closureIndex.expandDeclaredType("example.Root", "run"))
                 .extracting(ReceiverTarget::componentId)
-                .containsExactly("comp:example.Concrete");
+                .containsExactly("example.Concrete");
         assertThat(closureIndex.expandDeclaredType("example.Middle", "run"))
                 .extracting(ReceiverTarget::componentId)
-                .containsExactly("comp:example.Concrete");
+                .containsExactly("example.Concrete");
         assertThat(closureIndex.expandDeclaredType("example.Base", "run"))
                 .extracting(ReceiverTarget::componentId)
-                .containsExactly("comp:example.Concrete");
+                .containsExactly("example.Concrete");
         assertThat(closureIndex.expandDeclaredType("example.Concrete", "run"))
                 .extracting(ReceiverTarget::componentId)
-                .containsExactly("comp:example.Concrete");
+                .containsExactly("example.Concrete");
     }
 
     @Test
     void returnsDeclaredInterfaceOnlyEvidenceForKnownInterfaceWithoutImplementations() {
         ObjectFlowIndex.TypeFact interfaceType =
-                new ObjectFlowIndex.TypeFact("example.Interface", "comp:example.Interface", true);
+                new ObjectFlowIndex.TypeFact("example.Interface", "example.Interface", true);
         ObjectFlowIndex emptyImplementationIndex =
                 new ObjectFlowIndex(Map.of(interfaceType.qualifiedName(), interfaceType), Map.of());
 
@@ -255,8 +255,8 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
     @Test
     void includesDeclaredConcreteTypeWhenImplementationsExist() {
         ObjectFlowIndex.TypeFact baseType =
-                new ObjectFlowIndex.TypeFact("example.ConcreteBase", "comp:example.ConcreteBase", false);
-        ObjectFlowIndex.TypeFact childType = new ObjectFlowIndex.TypeFact("example.Child", "comp:example.Child", false);
+                new ObjectFlowIndex.TypeFact("example.ConcreteBase", "example.ConcreteBase", false);
+        ObjectFlowIndex.TypeFact childType = new ObjectFlowIndex.TypeFact("example.Child", "example.Child", false);
         ObjectFlowIndex concreteBaseIndex = new ObjectFlowIndex(
                 Map.of(baseType.qualifiedName(), baseType, childType.qualifiedName(), childType),
                 Map.of(baseType.qualifiedName(), List.of(childType)));
@@ -287,7 +287,7 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
 
         assertThat(targets)
                 .extracting(ReceiverTarget::componentId)
-                .contains("comp:com.example.objectflow.RandomPlayer", "comp:com.example.objectflow.SimplePlayer");
+                .contains("com.example.objectflow.RandomPlayer", "com.example.objectflow.SimplePlayer");
         assertThat(targets)
                 .allSatisfy(target ->
                         assertThat(target.evidence()).isEqualTo(ObjectFlowEvidence.COLLECTION_ELEMENT_ALLOCATION));
@@ -298,7 +298,7 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
         String declaredType = "example.ManyHandlers";
         List<ObjectFlowIndex.TypeFact> implementations = IntStream.range(0, 26)
                 .mapToObj(index ->
-                        new ObjectFlowIndex.TypeFact("example.Handler" + index, "comp:example.Handler" + index, false))
+                        new ObjectFlowIndex.TypeFact("example.Handler" + index, "example.Handler" + index, false))
                 .toList();
         ObjectFlowIndex manyImplementationIndex = new ObjectFlowIndex(Map.of(), Map.of(declaredType, implementations));
 
@@ -348,12 +348,12 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
 
         assertThat(idx.resolveReceiver(doWorkCall))
                 .as("doWork() must not resolve to Other via get() name-match")
-                .noneMatch(t -> "comp:example.Other".equals(t.componentId()));
+                .noneMatch(t -> "example.Other".equals(t.componentId()));
     }
 
     private static Component component(String qualifiedName) {
         Component component = new Component();
-        component.id = ComponentId.of("comp:" + qualifiedName);
+        component.id = ComponentId.of("" + qualifiedName);
         component.name = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1);
         component.qualifiedName = qualifiedName;
         return component;

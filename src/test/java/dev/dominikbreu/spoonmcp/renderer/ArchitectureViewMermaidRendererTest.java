@@ -19,11 +19,11 @@ class ArchitectureViewMermaidRendererTest {
                 "app:demo",
                 List.of(
                         new ArchitectureViewProjection.Node(
-                                "comp:Consumer", "Consumer", "component", Map.of("componentType", "SERVICE")),
+                                "Consumer", "Consumer", "component", Map.of("componentType", "SERVICE")),
                         new ArchitectureViewProjection.Node(
-                                "comp:Scheduler", "Scheduler", "component", Map.of("componentType", "SCHEDULER"))),
+                                "Scheduler", "Scheduler", "component", Map.of("componentType", "SCHEDULER"))),
                 List.of(new ArchitectureViewProjection.Edge(
-                        "comp:Consumer", "comp:Scheduler", "STATE_HANDOFF", "shared state handoff")),
+                        "Consumer", "Scheduler", "STATE_HANDOFF", "shared state handoff")),
                 List.of());
 
         String mermaid = new ArchitectureViewMermaidRenderer().render(projection);

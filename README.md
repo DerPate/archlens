@@ -101,6 +101,22 @@ SPOON_MCP_CACHE_BACKEND=graph java -jar target/spoon-mcp-server.jar
 
 The equivalent JVM property is `-Dspoonmcp.cache.backend=graph`.
 
+## Identity model
+
+Components, entrypoints, and dependencies use typed identifiers (`model/ids/`) that
+serialize as bare strings — no scheme prefix:
+
+- `ComponentId` — the fully-qualified class name, e.g. `com.example.BillingService`.
+- `EntrypointId` — `<qualifiedName>#<method>[:<suffix>]`, e.g.
+  `com.example.OrderResource#create:POST:/orders`.
+- `DependencyId` — `<from>-><to>[:<qualifier>]`, e.g. `com.example.A->com.example.B`.
+
+This serialized form is what every tool emits and expects as input (including the
+`nodeId`/`fromId`/`toId` arguments of `query_architecture_graph`). For backward
+compatibility with caches and clients written against the earlier convention, the
+deserializers and id-accepting tools also accept the legacy `comp:` / `ep:` / `dep:`
+prefixed forms.
+
 ## Documentation
 
 - `docs/INSTALL.md`: install, MCP client wiring, and configuration.

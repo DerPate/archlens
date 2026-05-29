@@ -169,7 +169,8 @@ Return relevant dependencies for a component.
 
 Arguments:
 
-- `componentId` string, optional. Component ID such as `comp:com.example.UserService`.
+- `componentId` string, optional. Component ID such as `com.example.UserService` (the
+  fully-qualified class name). Legacy `comp:`-prefixed ids are still accepted.
 - `name` string, optional. Partial component simple-name match.
 - `depth` integer, optional. Traversal depth, default `1`, maximum `5`.
 - `condensed` boolean, optional. Remove utility or unknown intermediaries, default `true`.
@@ -366,8 +367,8 @@ Arguments:
   ```json
   {
     "names": {
-      "ep:com.example.OrderResource#createOrder": "Create Order",
-      "ep:com.example.DeviceConsumer#handle:msg-in:device-events": "Process Device Event"
+      "com.example.OrderResource#createOrder": "Create Order",
+      "com.example.DeviceConsumer#handle:msg-in:device-events": "Process Device Event"
     }
   }
   ```
@@ -396,7 +397,7 @@ Sample output:
 Detected 4 use case(s):
 
 ## POST Create Order
-  id:           usecase:ep:com.example.api.OrderResource#createOrder
+  id:           usecase:com.example.api.OrderResource#createOrder
   type:         REST_ENDPOINT
   channel/path: /orders
   components:   OrderResource, OrderService, OrderRepository
@@ -405,7 +406,7 @@ Detected 4 use case(s):
     - OrderService.create → OrderRepository.save
 
 ## Process order-events
-  id:           usecase:ep:com.example.messaging.OrderConsumer#handle:msg-in:order-events
+  id:           usecase:com.example.messaging.OrderConsumer#handle:msg-in:order-events
   type:         MESSAGING_CONSUMER
   channel/path: order-events
   components:   OrderConsumer, OrderService
@@ -544,7 +545,7 @@ Sample output — REST entrypoints:
 3 data-flow path(s):
 
 ## POST /orders → param: order
-  id: df:ep:com.example.api.OrderResource#createOrder#order
+  id: df:com.example.api.OrderResource#createOrder#order
   flow:
     1. OrderResource.createOrder (as 'order')
     2. OrderService.create (as 'dto')
@@ -554,7 +555,7 @@ Sample output — REST entrypoints:
     - [messaging] emitter.send  (OrderService.java:27)
 
 ## GET /orders/{id} → param: id
-  id: df:ep:com.example.api.OrderResource#getOrder#id
+  id: df:com.example.api.OrderResource#getOrder#id
   flow:
     1. OrderResource.getOrder (as 'id')
     2. OrderService.find (as 'id')
@@ -568,7 +569,7 @@ Sample output — two-phase pipeline (`MESSAGING_CONSUMER` → cache → `SCHEDU
 2 data-flow path(s):
 
 ## handle (device-snapshots) → param: snapshot
-  id: df:ep:com.example.DeviceConsumer#handle:msg-in:device-snapshots#snapshot
+  id: df:com.example.DeviceConsumer#handle:msg-in:device-snapshots#snapshot
   flow:
     1. DeviceConsumer.handle (as 'snapshot')
     2. StateCache.put (as 'snapshot')
@@ -576,7 +577,7 @@ Sample output — two-phase pipeline (`MESSAGING_CONSUMER` → cache → `SCHEDU
     - [store] stateCache  field owner: StateCache  (DeviceConsumer.java:42)
 
 ## processSnapshots → param: stateCache
-  id: df:ep:com.example.scheduler.SnapshotProcessor#processSnapshots#stateCache
+  id: df:com.example.scheduler.SnapshotProcessor#processSnapshots#stateCache
   flow:
     1. SnapshotProcessor.processSnapshots (as 'stateCache')
     2. StateCalculator.calculate (as 'entry')
@@ -587,7 +588,7 @@ Sample output — two-phase pipeline (`MESSAGING_CONSUMER` → cache → `SCHEDU
 
 The matching field name (`stateCache`) in both paths identifies the shared state linking the
 two phases. The consumer's `store` sink also carries
-`linkedPathIds: ["df:ep:com.example.scheduler.SnapshotProcessor#processSnapshots#stateCache"]`,
+`linkedPathIds: ["df:com.example.scheduler.SnapshotProcessor#processSnapshots#stateCache"]`,
 so agents can stitch the cross-phase pipeline without name matching.
 
 ---
@@ -849,7 +850,7 @@ Example — find all repository components:
 Example — find what is impacted if OrderRepository changes:
 
 ```json
-{ "action": "impacted_by", "nodeId": "comp:com.example.repository.OrderRepository", "maxDepth": 4 }
+{ "action": "impacted_by", "nodeId": "com.example.repository.OrderRepository", "maxDepth": 4 }
 ```
 
 Example — list canonical workflow continuations between data-flow paths:

@@ -18,12 +18,12 @@ class MermaidDependencyMapRendererTest {
     @Test
     void aggregatesDependenciesBySourceResponsibility() {
         ArchitectureModel model = new ArchitectureModel("test");
-        Component server = component("comp:server", "McpServer", "dev.dominikbreu.spoonmcp.mcp.McpServer");
+        Component server = component("server", "McpServer", "dev.dominikbreu.spoonmcp.mcp.McpServer");
         Component tool =
-                component("comp:tool", "IndexWorkspaceTool", "dev.dominikbreu.spoonmcp.mcp.tools.IndexWorkspaceTool");
+                component("tool", "IndexWorkspaceTool", "dev.dominikbreu.spoonmcp.mcp.tools.IndexWorkspaceTool");
         Component extractor = component(
-                "comp:extractor", "ArchitectureExtractor", "dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor");
-        Component scanner = component("comp:scanner", "SpoonScanner", "dev.dominikbreu.spoonmcp.scanner.SpoonScanner");
+                "extractor", "ArchitectureExtractor", "dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor");
+        Component scanner = component("scanner", "SpoonScanner", "dev.dominikbreu.spoonmcp.scanner.SpoonScanner");
         model.components.addAll(List.of(server, tool, extractor, scanner));
         model.dependencies.add(dependency(server.id, tool.id, "field-reference"));
         model.dependencies.add(dependency(tool.id, extractor.id, "field-reference"));
@@ -42,9 +42,9 @@ class MermaidDependencyMapRendererTest {
     void countsInternalDependenciesWithoutDrawingSelfEdges() {
         ArchitectureModel model = new ArchitectureModel("test");
         Component extractor = component(
-                "comp:extractor", "ArchitectureExtractor", "dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor");
-        Component condenser = component(
-                "comp:condenser", "DependencyCondenser", "dev.dominikbreu.spoonmcp.extractor.DependencyCondenser");
+                "extractor", "ArchitectureExtractor", "dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor");
+        Component condenser =
+                component("condenser", "DependencyCondenser", "dev.dominikbreu.spoonmcp.extractor.DependencyCondenser");
         model.components.addAll(List.of(extractor, condenser));
         model.dependencies.add(dependency(extractor.id, condenser.id, "field-reference"));
 

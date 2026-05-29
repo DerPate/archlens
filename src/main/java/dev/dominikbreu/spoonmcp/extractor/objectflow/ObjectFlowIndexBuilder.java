@@ -531,7 +531,7 @@ public class ObjectFlowIndexBuilder {
         if (qualifiedName == null || qualifiedName.isBlank()) {
             return List.of();
         }
-        return List.of(new ReceiverTarget("comp:" + qualifiedName, methodName, evidence, evidence.confidence(), false));
+        return List.of(new ReceiverTarget(qualifiedName, methodName, evidence, evidence.confidence(), false));
     }
 
     private static String variableName(CtExpression<?> expression) {

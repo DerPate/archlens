@@ -134,7 +134,10 @@ public class McpServer {
         specs.add(toolSpec(
                 "get_component_dependencies",
                 "Return relevant dependencies for a component, with optional depth limit and condensation of non-architectural intermediaries.",
-                schema().opt("componentId", "string", "Component ID (e.g. comp:com.example.UserService)")
+                schema().opt(
+                                "componentId",
+                                "string",
+                                "Component ID — the fully-qualified class name, e.g. com.example.UserService")
                         .opt("name", "string", "Component simple name (partial match)")
                         .opt("depth", "integer", "Traversal depth (default 1, max 5)")
                         .opt("condensed", "boolean", "Remove UTILITY/UNKNOWN intermediaries (default true)"),

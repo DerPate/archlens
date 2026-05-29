@@ -113,17 +113,17 @@ class WorkflowLinkerTest {
     @Test
     void linksMessagingAndEventBusSinksWithChannels() {
         ArchitectureModel model = new ArchitectureModel("test");
-        model.entrypoints.add(entrypoint("ep:producer", "send", EntrypointType.MESSAGING_PRODUCER));
-        model.entrypoints.add(entrypoint("ep:consumer", "receive", EntrypointType.MESSAGING_CONSUMER));
+        model.entrypoints.add(entrypoint("producer", "send", EntrypointType.MESSAGING_PRODUCER));
+        model.entrypoints.add(entrypoint("consumer", "receive", EntrypointType.MESSAGING_CONSUMER));
 
-        DataFlowPath producer = path("df:producer#payload", "ep:producer");
+        DataFlowPath producer = path("df:producer#payload", "producer");
         DataFlowSink messaging = new DataFlowSink();
         messaging.kind = DataFlowSink.Kind.MESSAGING;
         messaging.channel = "orders";
         messaging.linkedPathIds.add("df:consumer#payload");
         producer.sinks.add(messaging);
 
-        model.dataFlowPaths.addAll(List.of(producer, path("df:consumer#payload", "ep:consumer")));
+        model.dataFlowPaths.addAll(List.of(producer, path("df:consumer#payload", "consumer")));
 
         List<WorkflowLink> links = new WorkflowLinker().link(model);
 

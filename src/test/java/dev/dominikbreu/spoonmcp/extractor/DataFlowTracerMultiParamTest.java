@@ -27,18 +27,18 @@ class DataFlowTracerMultiParamTest {
         model.components.add(comp("Repo", ComponentType.REPOSITORY));
 
         Entrypoint ep = new Entrypoint();
-        ep.id = EntrypointId.deserialize("ep:handle");
+        ep.id = EntrypointId.deserialize("handle");
         ep.name = "handle";
         ep.type = EntrypointType.REST_ENDPOINT;
-        ep.componentId = ComponentId.of("comp:Handler");
+        ep.componentId = ComponentId.of("Handler");
         ep.parameters.addAll(List.of("userId", "orderId", "sessionId"));
         model.entrypoints.add(ep);
 
         CallEdge edge = new CallEdge();
         edge.id = "call:Handler#handle->Repo#save";
-        edge.fromComponentId = ComponentId.of("comp:Handler");
+        edge.fromComponentId = ComponentId.of("Handler");
         edge.fromMethod = "handle";
-        edge.toComponentId = ComponentId.of("comp:Repo");
+        edge.toComponentId = ComponentId.of("Repo");
         edge.toMethod = "save";
         edge.callKind = "direct";
         edge.paramMapping.put("userId", "id");
@@ -75,16 +75,16 @@ class DataFlowTracerMultiParamTest {
         model.components.add(comp("Repo", ComponentType.REPOSITORY));
 
         Entrypoint ep = new Entrypoint();
-        ep.id = EntrypointId.deserialize("ep:start");
+        ep.id = EntrypointId.deserialize("start");
         ep.name = "start";
         ep.type = EntrypointType.REST_ENDPOINT;
-        ep.componentId = ComponentId.of("comp:A");
+        ep.componentId = ComponentId.of("A");
         ep.parameters.add("data");
         model.entrypoints.add(ep);
 
-        addEdge(model, "comp:A", "start", "comp:B", "process", Map.of("data", "d"), "direct");
-        addEdge(model, "comp:B", "process", "comp:A", "start", Map.of("d", "data"), "direct");
-        addEdge(model, "comp:B", "process", "comp:Repo", "save", Map.of("d", "entity"), "direct");
+        addEdge(model, "A", "start", "B", "process", Map.of("data", "d"), "direct");
+        addEdge(model, "B", "process", "A", "start", Map.of("d", "data"), "direct");
+        addEdge(model, "B", "process", "Repo", "save", Map.of("d", "entity"), "direct");
 
         List<DataFlowPath> paths = tracer.trace(model);
 
@@ -93,7 +93,7 @@ class DataFlowTracerMultiParamTest {
 
     private static Component comp(String name, ComponentType type) {
         Component c = new Component();
-        c.id = ComponentId.of("comp:" + name);
+        c.id = ComponentId.of("" + name);
         c.name = name;
         c.type = type;
         return c;
