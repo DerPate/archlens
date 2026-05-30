@@ -106,36 +106,41 @@ public class AnsibleMerger {
             if (!(doc instanceof List<?> plays)) return;
             for (Object playObj : plays) {
                 if (!(playObj instanceof Map<?, ?> play)) continue;
-
-                Object hostsObj = play.get(HOSTS);
-                String hosts = String.valueOf(hostsObj != null ? hostsObj : "");
-                Object rolesObj = play.get("roles");
-                if (rolesObj == null) continue;
-
-                DeploymentEntry de = new DeploymentEntry();
-                de.id = "deploy:ansible:play:" + f.getName() + ":" + hosts;
-                de.name = f.getName().replace(".yml", "").replace(".yaml", "");
-                de.type = "ansible-host";
-                de.source = f.getAbsolutePath();
-                de.hosts.add(hosts);
-
-                if (rolesObj instanceof List<?> roles) {
-                    for (Object roleEntry : roles) {
-                        String roleName =
-                                switch (roleEntry) {
-                                    case Map<?, ?> roleMap -> {
-                                        Object role = roleMap.get("role");
-                                        yield String.valueOf(role != null ? role : roleEntry);
-                                    }
-                                    default -> String.valueOf(roleEntry);
-                                };
-                        de.roles.add(roleName);
-                    }
-                }
-
-                model.deployments.add(de);
+                DeploymentEntry de = buildPlayDeployment(play, f);
+                if (de != null) model.deployments.add(de);
             }
         } catch (Exception ignored) {
         }
+    }
+
+    private DeploymentEntry buildPlayDeployment(Map<?, ?> play, File f) {
+        Object hostsObj = play.get(HOSTS);
+        String hosts = String.valueOf(hostsObj != null ? hostsObj : "");
+        Object rolesObj = play.get("roles");
+        if (rolesObj == null) return null;
+
+        DeploymentEntry de = new DeploymentEntry();
+        de.id = "deploy:ansible:play:" + f.getName() + ":" + hosts;
+        de.name = f.getName().replace(".yml", "").replace(".yaml", "");
+        de.type = "ansible-host";
+        de.source = f.getAbsolutePath();
+        de.hosts.add(hosts);
+
+        if (rolesObj instanceof List<?> roles) {
+            for (Object roleEntry : roles) {
+                de.roles.add(roleName(roleEntry));
+            }
+        }
+        return de;
+    }
+
+    private String roleName(Object roleEntry) {
+        return switch (roleEntry) {
+            case Map<?, ?> roleMap -> {
+                Object role = roleMap.get("role");
+                yield String.valueOf(role != null ? role : roleEntry);
+            }
+            default -> String.valueOf(roleEntry);
+        };
     }
 }
