@@ -25,31 +25,43 @@ final class ObjectFlowMethodAnalyzer {
             if (!(variable instanceof CtLocalVariable<?> local) || !variableName.equals(local.getSimpleName())) {
                 continue;
             }
-            // Case 1: Direct constructor call → LOCAL_ASSIGNMENT
-            String allocatedType = allocatedType(local.getDefaultExpression());
-            if (allocatedType != null) {
-                return targetFor(allocatedType, methodName, ObjectFlowEvidence.LOCAL_ASSIGNMENT);
+            List<ReceiverTarget> decided = targetsForLocal(local, methodName);
+            if (decided != null) {
+                return decided;
             }
-            // Case 2: Collection factory call (e.g. List.of(new X(), new Y())) → COLLECTION_ELEMENT_ALLOCATION
-            if (local.getDefaultExpression() instanceof CtInvocation<?> inv) {
+        }
+        return List.of();
+    }
+
+    /**
+     * Resolves receiver targets for a single matching local variable, or {@code null} if this local
+     * yields no decision and scanning should continue.
+     */
+    private static List<ReceiverTarget> targetsForLocal(CtLocalVariable<?> local, String methodName) {
+        // Case 1: Direct constructor call → LOCAL_ASSIGNMENT
+        String allocatedType = allocatedType(local.getDefaultExpression());
+        if (allocatedType != null) {
+            return targetFor(allocatedType, methodName, ObjectFlowEvidence.LOCAL_ASSIGNMENT);
+        }
+        // Case 2: Collection factory call (e.g. List.of(new X(), new Y())) → COLLECTION_ELEMENT_ALLOCATION
+        if (local.getDefaultExpression() instanceof CtInvocation<?> inv) {
+            List<ReceiverTarget> targets = collectionElementTargets(inv.getArguments(), methodName);
+            if (!targets.isEmpty()) {
+                return targets;
+            }
+        }
+        // Case 3: For-each iteration variable — look at the iterable's constructor elements
+        CtForEach foreach = local.getParent(CtForEach.class);
+        if (foreach != null && foreach.getExpression() instanceof CtVariableRead<?> iterableRead) {
+            CtVariable<?> iterableVar = iterableRead.getVariable().getDeclaration();
+            if (iterableVar != null && iterableVar.getDefaultExpression() instanceof CtInvocation<?> inv) {
                 List<ReceiverTarget> targets = collectionElementTargets(inv.getArguments(), methodName);
                 if (!targets.isEmpty()) {
                     return targets;
                 }
             }
-            // Case 3: For-each iteration variable — look at the iterable's constructor elements
-            CtForEach foreach = local.getParent(CtForEach.class);
-            if (foreach != null && foreach.getExpression() instanceof CtVariableRead<?> iterableRead) {
-                CtVariable<?> iterableVar = iterableRead.getVariable().getDeclaration();
-                if (iterableVar != null && iterableVar.getDefaultExpression() instanceof CtInvocation<?> inv) {
-                    List<ReceiverTarget> targets = collectionElementTargets(inv.getArguments(), methodName);
-                    if (!targets.isEmpty()) {
-                        return targets;
-                    }
-                }
-            }
         }
-        return List.of();
+        return null;
     }
 
     private static List<ReceiverTarget> collectionElementTargets(List<CtExpression<?>> arguments, String methodName) {
