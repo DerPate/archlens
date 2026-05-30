@@ -157,10 +157,8 @@ public class RuntimeFlowInferrer {
             String compIdStr = entry[0];
             String fromCompIdStr = entry[1];
 
-            if (walk.visited().contains(compIdStr)) continue;
-
             int depth = walk.depths().getOrDefault(compIdStr, 0);
-            if (depth > maxDepth) continue;
+            if (walk.visited().contains(compIdStr) || depth > maxDepth) continue;
 
             walk.visited().add(compIdStr);
 
