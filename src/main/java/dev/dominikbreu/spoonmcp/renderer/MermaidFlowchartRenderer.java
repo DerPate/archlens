@@ -1,6 +1,7 @@
 package dev.dominikbreu.spoonmcp.renderer;
 
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -112,10 +113,10 @@ public class MermaidFlowchartRenderer {
     private void appendCrossModuleDeps(StringBuilder sb, ArchitectureModel model) {
         // Cross-module dependency edges (component-level deps projected to module level)
         Set<String> drawn = new HashSet<>();
-        Map<String, String> compToApp = buildCompToAppMap(model);
+        Map<ComponentId, String> compToApp = buildCompToAppMap(model);
         for (Dependency dep : model.dependencies) {
-            String fromApp = compToApp.get(dep.fromId.serialize());
-            String toApp = compToApp.get(dep.toId.serialize());
+            String fromApp = compToApp.get(dep.fromId);
+            String toApp = compToApp.get(dep.toId);
             if (fromApp == null || toApp == null || fromApp.equals(toApp)) continue;
             String key = fromApp + "->" + toApp;
             if (drawn.add(key)) {
@@ -128,11 +129,11 @@ public class MermaidFlowchartRenderer {
         }
     }
 
-    private Map<String, String> buildCompToAppMap(ArchitectureModel model) {
-        Map<String, String> map = new HashMap<>();
+    private Map<ComponentId, String> buildCompToAppMap(ArchitectureModel model) {
+        Map<ComponentId, String> map = new HashMap<>();
         for (AppEntry app : model.applications) {
             for (dev.dominikbreu.spoonmcp.model.ids.ComponentId cid : app.componentIds)
-                map.put(cid.serialize(), app.id.serialize());
+                map.put(cid, app.id.serialize());
         }
         return map;
     }
@@ -155,12 +156,12 @@ public class MermaidFlowchartRenderer {
         }
 
         Set<String> visibleApps = apps.stream().map(a -> a.id.serialize()).collect(Collectors.toSet());
-        Map<String, String> compToApp = buildCompToAppMap(model);
+        Map<ComponentId, String> compToApp = buildCompToAppMap(model);
         Set<String> referencedExternals = new LinkedHashSet<>();
         Set<String> drawnEdges = new LinkedHashSet<>();
         for (Dependency dep : model.dependencies) {
             if (!isExternalSystem(model, dep.toId.serialize())) continue;
-            String fromApp = compToApp.get(dep.fromId.serialize());
+            String fromApp = compToApp.get(dep.fromId);
             if (fromApp == null || !visibleApps.contains(fromApp)) continue;
             referencedExternals.add(dep.toId.serialize());
             String key = fromApp + "->" + dep.toId.serialize() + ":" + dep.kind;
@@ -212,15 +213,13 @@ public class MermaidFlowchartRenderer {
     private String renderContainerLevel(List<AppEntry> apps, ArchitectureModel model) {
         StringBuilder sb = new StringBuilder(FLOWCHART_HEADER);
 
-        Map<String, String> compToContainer = buildCompToContainerMap(model);
+        Map<ComponentId, String> compToContainer = buildCompToContainerMap(model);
 
         // Count entrypoints per container
         Map<String, Long> epByContainer = model.entrypoints.stream()
                 .filter(ep -> ep.componentId != null)
                 .collect(Collectors.groupingBy(
-                        ep -> compToContainer.getOrDefault(
-                                ep.componentId != null ? ep.componentId.serialize() : "", ""),
-                        Collectors.counting()));
+                        ep -> compToContainer.getOrDefault(ep.componentId, ""), Collectors.counting()));
 
         Set<String> visibleContainers = new LinkedHashSet<>();
         for (AppEntry app : apps) {
@@ -271,13 +270,13 @@ public class MermaidFlowchartRenderer {
 
     private Map<String, Set<String>> aggregateContainerEdges(
             ArchitectureModel model,
-            Map<String, String> compToContainer,
+            Map<ComponentId, String> compToContainer,
             Set<String> visibleContainers,
             Set<String> referencedExternals) {
         // Aggregate cross-container edge kinds by (from, to) pair
         Map<String, Set<String>> edgeKinds = new LinkedHashMap<>();
         for (Dependency dep : model.dependencies) {
-            String fromC = compToContainer.get(dep.fromId.serialize());
+            String fromC = compToContainer.get(dep.fromId);
 
             if (fromC != null && visibleContainers.contains(fromC) && isExternalSystem(model, dep.toId.serialize())) {
                 referencedExternals.add(dep.toId.serialize());
@@ -287,7 +286,7 @@ public class MermaidFlowchartRenderer {
                 continue;
             }
 
-            String toC = compToContainer.get(dep.toId.serialize());
+            String toC = compToContainer.get(dep.toId);
             if (fromC == null || toC == null || fromC.equals(toC)) continue;
             if (!visibleContainers.contains(fromC) || !visibleContainers.contains(toC)) continue;
             edgeKinds
@@ -430,10 +429,10 @@ public class MermaidFlowchartRenderer {
         };
     }
 
-    private Map<String, String> buildCompToContainerMap(ArchitectureModel model) {
-        Map<String, String> map = new HashMap<>();
+    private Map<ComponentId, String> buildCompToContainerMap(ArchitectureModel model) {
+        Map<ComponentId, String> map = new HashMap<>();
         for (Container c : model.containers) {
-            for (dev.dominikbreu.spoonmcp.model.ids.ComponentId cid : c.componentIds) map.put(cid.serialize(), c.id);
+            for (dev.dominikbreu.spoonmcp.model.ids.ComponentId cid : c.componentIds) map.put(cid, c.id);
         }
         return map;
     }

@@ -43,7 +43,7 @@ public class UseCaseDetector {
 
         boolean hasCallGraph = !model.callEdges.isEmpty();
         Map<String, List<CallEdge>> callAdj = buildCallAdj(model.callEdges);
-        Map<String, List<String>> depAdj = buildDepAdj(model.dependencies);
+        Map<ComponentId, List<ComponentId>> depAdj = buildDepAdj(model.dependencies);
 
         List<UseCase> result = new ArrayList<>();
         for (Entrypoint ep : model.entrypoints) {
@@ -59,7 +59,7 @@ public class UseCaseDetector {
             Map<ComponentId, Component> compById,
             boolean hasCallGraph,
             Map<String, List<CallEdge>> callAdj,
-            Map<String, List<String>> depAdj,
+            Map<ComponentId, List<ComponentId>> depAdj,
             UseCaseNamingConfig config) {
         UseCase uc = new UseCase();
         uc.id = UseCaseId.of(ep.id);
@@ -75,7 +75,7 @@ public class UseCaseDetector {
             CallChainWalk walk = new CallChainWalk(callAdj, compById, 5, visitedKeys, visitedComps, uc.methodChain);
             collectCallChain(walk, ep.componentId, ep.name, null, 0);
         } else {
-            collectDepChain(ep.componentId.serialize(), 0, 5, depAdj, compById, visitedComps);
+            collectDepChain(ep.componentId, 0, 5, depAdj, compById, visitedComps);
         }
 
         uc.componentIds = new ArrayList<>(visitedComps);
@@ -122,19 +122,18 @@ public class UseCaseDetector {
     }
 
     private void collectDepChain(
-            String compId,
+            ComponentId compId,
             int depth,
             int maxDepth,
-            Map<String, List<String>> adj,
+            Map<ComponentId, List<ComponentId>> adj,
             Map<ComponentId, Component> compById,
             Set<ComponentId> visitedComps) {
-        ComponentId cid = ComponentId.of(compId);
-        if (visitedComps.contains(cid) || depth > maxDepth) return;
-        Component comp = compById.get(cid);
+        if (visitedComps.contains(compId) || depth > maxDepth) return;
+        Component comp = compById.get(compId);
         if (traversalPolicy.isHumanVisible(comp)) {
-            visitedComps.add(cid);
+            visitedComps.add(compId);
         }
-        for (String nextId : adj.getOrDefault(compId, List.of())) {
+        for (ComponentId nextId : adj.getOrDefault(compId, List.of())) {
             collectDepChain(nextId, depth + 1, maxDepth, adj, compById, visitedComps);
         }
     }
@@ -197,10 +196,10 @@ public class UseCaseDetector {
         return adj;
     }
 
-    private Map<String, List<String>> buildDepAdj(List<Dependency> deps) {
-        Map<String, List<String>> adj = new HashMap<>();
+    private Map<ComponentId, List<ComponentId>> buildDepAdj(List<Dependency> deps) {
+        Map<ComponentId, List<ComponentId>> adj = new HashMap<>();
         for (Dependency d : deps) {
-            adj.computeIfAbsent(d.fromId.serialize(), k -> new ArrayList<>()).add(d.toId.serialize());
+            adj.computeIfAbsent(d.fromId, k -> new ArrayList<>()).add(d.toId);
         }
         return adj;
     }
