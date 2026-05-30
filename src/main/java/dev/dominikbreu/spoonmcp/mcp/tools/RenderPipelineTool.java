@@ -64,43 +64,49 @@ public class RenderPipelineTool {
                 return diagnostic(model);
             }
 
-            List<Chain> candidates = new ArrayList<>();
-            for (Chain c : chains) {
-                if (!includeLifecycle && isLifecycleChain(c)) continue;
-                if (epFilter != null && !rootMatches(c, epFilter)) continue;
-                if (channelFilter != null && !chainHasChannel(c, channelFilter)) continue;
-                candidates.add(c);
-            }
+            List<Chain> candidates = filterCandidates(chains, includeLifecycle, epFilter, channelFilter);
             List<Chain> filtered = selectDiverse(candidates, maxChains);
 
             if (filtered.isEmpty()) {
                 return "No pipeline chains matched the given filters.";
             }
-
-            StringBuilder out = new StringBuilder();
-            for (int i = 0; i < filtered.size(); i++) {
-                Chain c = filtered.get(i);
-                Segment root = c.segments.get(0);
-                String rootEpId;
-                if (root.entrypoint != null) {
-                    rootEpId = root.entrypoint.id.serialize();
-                } else {
-                    rootEpId = (root.path.entrypointId != null ? root.path.entrypointId.serialize() : "");
-                }
-                out.append("%% chain ")
-                        .append(i + 1)
-                        .append(": root=")
-                        .append(rootEpId)
-                        .append(" segments=")
-                        .append(c.segments.size())
-                        .append("\n");
-                out.append(renderer.render(c, model));
-                if (i < filtered.size() - 1) out.append("\n");
-            }
-            return out.toString();
+            return renderChains(filtered, model);
         } catch (Exception e) {
             return "Error rendering pipeline: " + e.getMessage();
         }
+    }
+
+    private List<Chain> filterCandidates(
+            List<Chain> chains, boolean includeLifecycle, String epFilter, String channelFilter) {
+        List<Chain> candidates = new ArrayList<>();
+        for (Chain c : chains) {
+            if (!includeLifecycle && isLifecycleChain(c)) continue;
+            if (epFilter != null && !rootMatches(c, epFilter)) continue;
+            if (channelFilter != null && !chainHasChannel(c, channelFilter)) continue;
+            candidates.add(c);
+        }
+        return candidates;
+    }
+
+    private String renderChains(List<Chain> filtered, ArchitectureModel model) {
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < filtered.size(); i++) {
+            Chain c = filtered.get(i);
+            Segment root = c.segments.get(0);
+            String rootEpId = root.entrypoint != null
+                    ? root.entrypoint.id.serialize()
+                    : (root.path.entrypointId != null ? root.path.entrypointId.serialize() : "");
+            out.append("%% chain ")
+                    .append(i + 1)
+                    .append(": root=")
+                    .append(rootEpId)
+                    .append(" segments=")
+                    .append(c.segments.size())
+                    .append("\n");
+            out.append(renderer.render(c, model));
+            if (i < filtered.size() - 1) out.append("\n");
+        }
+        return out.toString();
     }
 
     private boolean isLifecycleChain(Chain c) {
@@ -178,15 +184,31 @@ public class RenderPipelineTool {
         }
     }
 
-    private String diagnostic(ArchitectureModel model) {
-        int totalPaths = model.dataFlowPaths.size();
-        int linkedPaths = 0;
-        int messagingSinks = 0;
-        int unresolvedMessaging = 0;
-        int persistenceWrites = 0;
-        int persistenceReads = 0;
-        java.util.Set<String> consumerTopics = new java.util.LinkedHashSet<>();
+    private static final class PipelineStats {
+        int totalPaths;
+        int linkedPaths;
+        int messagingSinks;
+        int unresolvedMessaging;
+        int persistenceWrites;
+        int persistenceReads;
+    }
 
+    private String diagnostic(ArchitectureModel model) {
+        int consumerTopics = collectConsumerTopics(model).size();
+        PipelineStats stats = computePipelineStats(model);
+        return "No pipeline chains:\n"
+                + "- data-flow path(s): " + stats.totalPaths + "\n"
+                + "- path(s) with linked sinks: " + stats.linkedPaths + "\n"
+                + "- messaging sink(s): " + stats.messagingSinks + "\n"
+                + "- unresolved messaging destination(s): " + stats.unresolvedMessaging + "\n"
+                + "- consumer topic(s): " + consumerTopics + "\n"
+                + "- persistence write sink(s): " + stats.persistenceWrites + "\n"
+                + "- persistence read sink(s): " + stats.persistenceReads + "\n"
+                + "Re-index after improving topic/property resolution or repository handoff metadata.";
+    }
+
+    private java.util.Set<String> collectConsumerTopics(ArchitectureModel model) {
+        java.util.Set<String> consumerTopics = new java.util.LinkedHashSet<>();
         for (Entrypoint ep : model.entrypoints) {
             if ((ep.type == EntrypointType.MESSAGING_CONSUMER || ep.type == EntrypointType.JMS_CONSUMER)
                     && ep.channelName != null
@@ -195,47 +217,41 @@ public class RenderPipelineTool {
                 consumerTopics.add(ep.channelName);
             }
         }
+        return consumerTopics;
+    }
 
+    private PipelineStats computePipelineStats(ArchitectureModel model) {
+        PipelineStats stats = new PipelineStats();
+        stats.totalPaths = model.dataFlowPaths.size();
         for (DataFlowPath path : model.dataFlowPaths) {
             boolean pathLinked = false;
             for (DataFlowSink sink : path.sinks) {
-                if (sink.linkedPathIds != null && !sink.linkedPathIds.isEmpty()) {
-                    pathLinked = true;
-                }
-                if (sink.kind == DataFlowSink.Kind.MESSAGING || sink.kind == DataFlowSink.Kind.EVENT_BUS) {
-                    messagingSinks++;
-                    String destination;
-                    if (sink.topic != null) {
-                        destination = sink.topic;
-                    } else {
-                        destination = sink.channel;
-                    }
-                    if (destination == null
-                            || destination.isBlank()
-                            || destination.contains("${")
-                            || "(unresolved)".equals(destination)) {
-                        unresolvedMessaging++;
-                    }
-                }
-                if (sink.kind == DataFlowSink.Kind.PERSISTENCE && isWriteOperation(sink.repositoryOperation)) {
-                    persistenceWrites++;
-                }
-                if (sink.kind == DataFlowSink.Kind.PERSISTENCE && isReadOperation(sink.repositoryOperation)) {
-                    persistenceReads++;
-                }
+                pathLinked |= accumulateSink(stats, sink);
             }
-            if (pathLinked) linkedPaths++;
+            if (pathLinked) stats.linkedPaths++;
         }
+        return stats;
+    }
 
-        return "No pipeline chains:\n"
-                + "- data-flow path(s): " + totalPaths + "\n"
-                + "- path(s) with linked sinks: " + linkedPaths + "\n"
-                + "- messaging sink(s): " + messagingSinks + "\n"
-                + "- unresolved messaging destination(s): " + unresolvedMessaging + "\n"
-                + "- consumer topic(s): " + consumerTopics.size() + "\n"
-                + "- persistence write sink(s): " + persistenceWrites + "\n"
-                + "- persistence read sink(s): " + persistenceReads + "\n"
-                + "Re-index after improving topic/property resolution or repository handoff metadata.";
+    private boolean accumulateSink(PipelineStats stats, DataFlowSink sink) {
+        boolean linked = sink.linkedPathIds != null && !sink.linkedPathIds.isEmpty();
+        if (sink.kind == DataFlowSink.Kind.MESSAGING || sink.kind == DataFlowSink.Kind.EVENT_BUS) {
+            stats.messagingSinks++;
+            String destination = sink.topic != null ? sink.topic : sink.channel;
+            if (destination == null
+                    || destination.isBlank()
+                    || destination.contains("${")
+                    || "(unresolved)".equals(destination)) {
+                stats.unresolvedMessaging++;
+            }
+        }
+        if (sink.kind == DataFlowSink.Kind.PERSISTENCE && isWriteOperation(sink.repositoryOperation)) {
+            stats.persistenceWrites++;
+        }
+        if (sink.kind == DataFlowSink.Kind.PERSISTENCE && isReadOperation(sink.repositoryOperation)) {
+            stats.persistenceReads++;
+        }
+        return linked;
     }
 
     private boolean isWriteOperation(String method) {

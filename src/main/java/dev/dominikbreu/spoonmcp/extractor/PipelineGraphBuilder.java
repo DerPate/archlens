@@ -173,30 +173,31 @@ public class PipelineGraphBuilder {
         for (Chain c : chains) allIds.add(segmentPathIds(c));
 
         List<Chain> result = new ArrayList<>(n);
-        outer:
         for (int i = 0; i < n; i++) {
             List<String> idsI = allIds.get(i);
-            int prefixLen = idsI.size() - 1;
-            if (prefixLen == 0) {
+            if (idsI.size() == 1 || !isStrictPrefixOfAny(idsI, allIds, i)) {
                 result.add(chains.get(i));
-                continue;
             }
-            for (int j = 0; j < n; j++) {
-                if (j == i) continue;
-                List<String> idsJ = allIds.get(j);
-                if (idsJ.size() <= idsI.size()) continue;
-                boolean isPrefix = true;
-                for (int k = 0; k < prefixLen; k++) {
-                    if (!idsI.get(k).equals(idsJ.get(k))) {
-                        isPrefix = false;
-                        break;
-                    }
-                }
-                if (isPrefix) continue outer;
-            }
-            result.add(chains.get(i));
         }
         return result;
+    }
+
+    private static boolean isStrictPrefixOfAny(List<String> idsI, List<List<String>> allIds, int self) {
+        int prefixLen = idsI.size() - 1;
+        for (int j = 0; j < allIds.size(); j++) {
+            if (j == self) continue;
+            List<String> idsJ = allIds.get(j);
+            if (idsJ.size() <= idsI.size()) continue;
+            if (isPrefix(idsI, idsJ, prefixLen)) return true;
+        }
+        return false;
+    }
+
+    private static boolean isPrefix(List<String> idsI, List<String> idsJ, int prefixLen) {
+        for (int k = 0; k < prefixLen; k++) {
+            if (!idsI.get(k).equals(idsJ.get(k))) return false;
+        }
+        return true;
     }
 
     private List<Chain> removeDuplicateChains(List<Chain> chains) {
@@ -267,11 +268,24 @@ public class PipelineGraphBuilder {
             return;
         }
 
-        boolean fannedOut = false;
+        boolean fannedOut = fanOutFrom(current, epId, nextPrefix, workflowGraph, out, maxDepth, stack, epStack);
+        if (!fannedOut) emit(nextPrefix, out);
+    }
+
+    private boolean fanOutFrom(
+            DataFlowPath current,
+            String epId,
+            List<Segment> nextPrefix,
+            WorkflowGraph workflowGraph,
+            List<Chain> out,
+            int maxDepth,
+            LinkedHashSet<String> stack,
+            LinkedHashSet<String> epStack) {
         LinkedHashSet<String> nextStack = new LinkedHashSet<>(stack);
         nextStack.add(current.id);
         LinkedHashSet<String> nextEpStack = new LinkedHashSet<>(epStack);
         if (epId != null) nextEpStack.add(epId);
+        boolean fannedOut = false;
         for (WorkflowLink link : workflowGraph.linksFrom(current.id)) {
             DataFlowPath next = workflowGraph.pathById().get(link.toPathId());
             if (next == null) continue;
@@ -287,7 +301,7 @@ public class PipelineGraphBuilder {
                     nextStack,
                     nextEpStack);
         }
-        if (!fannedOut) emit(nextPrefix, out);
+        return fannedOut;
     }
 
     private DataFlowSink incomingSink(DataFlowPath current, WorkflowLink link) {

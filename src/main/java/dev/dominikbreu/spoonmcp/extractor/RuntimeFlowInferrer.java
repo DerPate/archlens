@@ -167,30 +167,44 @@ public class RuntimeFlowInferrer {
             visited.add(compIdStr);
 
             Component comp = index.components.get(ComponentId.of(compIdStr));
-
             boolean visible = traversalPolicy.isHumanVisible(comp);
             if (visible) {
-                String via = viaForNode.getOrDefault(compIdStr, "call");
-                flow.steps.add(new RuntimeFlowStep(
-                        flow.steps.size(), ComponentId.of(compIdStr), comp.name, comp.type.name(), via));
-                if (fromCompIdStr != null) {
-                    flow.edges.add(
-                            new RuntimeFlow.FlowEdge(ComponentId.of(fromCompIdStr), ComponentId.of(compIdStr), via));
-                }
+                addVisibleStep(flow, compIdStr, comp, fromCompIdStr, viaForNode);
             }
-
-            for (Map.Entry<ComponentId, String> next :
-                    index.depAdj.targets(ComponentId.of(compIdStr)).entrySet()) {
-                String nextId = next.getKey().serialize();
-                if (!visited.contains(nextId)) {
-                    depths.put(nextId, depth + 1);
-                    viaForNode.put(nextId, next.getValue());
-                    queue.add(new String[] {nextId, visible ? compIdStr : fromCompIdStr});
-                }
-            }
+            enqueueNeighbors(index, compIdStr, fromCompIdStr, visible, depth, visited, depths, viaForNode, queue);
         }
 
         return flow;
+    }
+
+    private void addVisibleStep(
+            RuntimeFlow flow, String compIdStr, Component comp, String fromCompIdStr, Map<String, String> viaForNode) {
+        String via = viaForNode.getOrDefault(compIdStr, "call");
+        flow.steps.add(new RuntimeFlowStep(
+                flow.steps.size(), ComponentId.of(compIdStr), comp.name, comp.type.name(), via));
+        if (fromCompIdStr != null) {
+            flow.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of(fromCompIdStr), ComponentId.of(compIdStr), via));
+        }
+    }
+
+    private void enqueueNeighbors(
+            ModelIndex index,
+            String compIdStr,
+            String fromCompIdStr,
+            boolean visible,
+            int depth,
+            Set<String> visited,
+            Map<String, Integer> depths,
+            Map<String, String> viaForNode,
+            Deque<String[]> queue) {
+        for (Map.Entry<ComponentId, String> next : index.depAdj.targets(ComponentId.of(compIdStr)).entrySet()) {
+            String nextId = next.getKey().serialize();
+            if (!visited.contains(nextId)) {
+                depths.put(nextId, depth + 1);
+                viaForNode.put(nextId, next.getValue());
+                queue.add(new String[] {nextId, visible ? compIdStr : fromCompIdStr});
+            }
+        }
     }
 
     private String entrypointVia(Entrypoint ep) {
