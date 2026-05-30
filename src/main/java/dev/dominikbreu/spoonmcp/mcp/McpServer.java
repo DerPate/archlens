@@ -87,7 +87,7 @@ public class McpServer {
 
     // ── tool registration ─────────────────────────────────────────────────────
 
-    private List<McpServerFeatures.SyncToolSpecification> buildToolSpecifications() {
+    List<McpServerFeatures.SyncToolSpecification> buildToolSpecifications() {
         List<McpServerFeatures.SyncToolSpecification> specs = new ArrayList<>();
 
         specs.add(toolSpec(
@@ -355,7 +355,7 @@ public class McpServer {
 
     // ── prompt registration ───────────────────────────────────────────────────
 
-    private List<McpServerFeatures.SyncPromptSpecification> buildPromptSpecifications() {
+    List<McpServerFeatures.SyncPromptSpecification> buildPromptSpecifications() {
         return List.of(
                 promptSpec(
                         "analyze_workspace",
@@ -489,7 +489,7 @@ public class McpServer {
         return new McpSchema.PromptArgument(name, description, required);
     }
 
-    private static String fillTemplate(String template, Map<String, Object> args) {
+    static String fillTemplate(String template, Map<String, Object> args) {
         String result = template.strip();
         for (Map.Entry<String, Object> entry : args.entrySet()) {
             String value;
