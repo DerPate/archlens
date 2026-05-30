@@ -33,7 +33,7 @@ public final class RenderArchitectureViewTool {
             AppEntry app = resolveApp(model, ToolArgs.getString(args, "app", ""));
             String scopeId;
             if (app != null) {
-                scopeId = app.id;
+                scopeId = app.id.serialize();
             } else {
                 scopeId = "";
             }
@@ -49,8 +49,8 @@ public final class RenderArchitectureViewTool {
         if (appParam == null || appParam.isBlank()) return model.applications.get(0);
         return model.applications.stream()
                 .filter(a -> appParam.equalsIgnoreCase(a.name)
-                        || appParam.equalsIgnoreCase(a.id)
-                        || a.id.contains(appParam)
+                        || appParam.equalsIgnoreCase(a.id.serialize())
+                        || a.id.serialize().contains(appParam)
                         || a.name.contains(appParam))
                 .findFirst()
                 .orElse(model.applications.get(0));

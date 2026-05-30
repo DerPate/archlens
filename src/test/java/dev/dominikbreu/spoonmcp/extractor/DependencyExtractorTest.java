@@ -3,6 +3,7 @@ package dev.dominikbreu.spoonmcp.extractor;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import spoon.reflect.CtModel;
@@ -18,14 +19,14 @@ class DependencyExtractorTest extends ExtractorTestBase {
         CtModel qModel = scan("quarkus-sample");
         quarkusModel = emptyModel(QUARKUS_APP_ID);
         QuarkusExtractor qExt = new QuarkusExtractor();
-        qExt.extract(qModel.getAllTypes(), quarkusModel, QUARKUS_APP_ID);
+        qExt.extract(qModel.getAllTypes(), quarkusModel, AppId.of(QUARKUS_APP_ID));
         new DependencyExtractor().extract(qModel, quarkusModel);
 
         // JavaEE: CustomerResource ->@EJB CustomerEjb
         CtModel jModel = scan("javaee-sample");
         javaeeModel = emptyModel(JAVAEE_APP_ID);
         JavaEEExtractor jExt = new JavaEEExtractor();
-        jExt.extract(jModel.getAllTypes(), javaeeModel, JAVAEE_APP_ID);
+        jExt.extract(jModel.getAllTypes(), javaeeModel, AppId.of(JAVAEE_APP_ID));
         new DependencyExtractor().extract(jModel, javaeeModel);
     }
 

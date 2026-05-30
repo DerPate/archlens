@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import spoon.reflect.CtModel;
@@ -17,7 +18,7 @@ class GenericJavaExtractorTest extends ExtractorTestBase {
     static void scanOnce() {
         CtModel ctModel = scan("plain-java-sample");
         model = emptyModel(APP_ID);
-        new GenericJavaExtractor().extract(ctModel.getAllTypes(), model, APP_ID);
+        new GenericJavaExtractor().extract(ctModel.getAllTypes(), model, AppId.of(APP_ID));
     }
 
     @Test

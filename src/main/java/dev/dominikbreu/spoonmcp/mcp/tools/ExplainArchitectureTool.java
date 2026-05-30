@@ -36,7 +36,8 @@ public class ExplainArchitectureTool {
             String appFilter = ToolArgs.getString(args, "appId");
 
             List<AppEntry> apps = model.applications.stream()
-                    .filter(a -> appFilter == null || a.id.contains(appFilter) || a.name.contains(appFilter))
+                    .filter(a ->
+                            appFilter == null || a.id.serialize().contains(appFilter) || a.name.contains(appFilter))
                     .collect(Collectors.toList());
 
             if (apps.isEmpty())

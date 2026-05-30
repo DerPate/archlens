@@ -6,6 +6,7 @@ import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Container;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -93,7 +94,7 @@ class ContainerInferrerTest {
         List<Container> apiContainers =
                 containers.stream().filter(c -> "api".equals(c.name)).toList();
         assertThat(apiContainers).hasSize(2);
-        assertThat(apiContainers.stream().map(c -> c.appId).collect(Collectors.toSet()))
+        assertThat(apiContainers.stream().map(c -> c.appId.serialize()).collect(Collectors.toSet()))
                 .containsExactlyInAnyOrder("app1", "app2");
     }
 
@@ -112,7 +113,7 @@ class ContainerInferrerTest {
     void containerHasCorrectAppId() {
         List<Component> comps = List.of(comp("X", ComponentType.SERVICE, "my-app"));
         List<Container> containers = inferrer.infer(comps);
-        assertThat(containers).allMatch(c -> "my-app".equals(c.appId));
+        assertThat(containers).allMatch(c -> "my-app".equals(c.appId.serialize()));
     }
 
     @Test
@@ -161,7 +162,7 @@ class ContainerInferrerTest {
         c.id = ComponentId.of(id);
         c.name = id;
         c.type = type;
-        c.module = module;
+        c.module = AppId.of(module);
         c.technology = "test";
         c.source = new SourceInfo("test.java", 1, "test", 1.0);
         return c;

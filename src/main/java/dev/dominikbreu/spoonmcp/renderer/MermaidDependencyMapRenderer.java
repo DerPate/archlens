@@ -110,8 +110,8 @@ public class MermaidDependencyMapRenderer {
     private String groupName(Component component, String rootPackage) {
         String qualifiedName = component.qualifiedName;
         if (qualifiedName == null || qualifiedName.isBlank()) {
-            if (component.module != null && !component.module.isBlank()) {
-                return component.module;
+            if (component.module != null && !component.module.serialize().isBlank()) {
+                return component.module.serialize();
             } else {
                 return "(default)";
             }

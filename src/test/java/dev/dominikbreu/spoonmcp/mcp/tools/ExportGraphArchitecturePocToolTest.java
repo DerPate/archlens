@@ -10,6 +10,7 @@ import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.FieldAccess;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import dev.dominikbreu.spoonmcp.model.ids.DependencyId;
 import dev.dominikbreu.spoonmcp.model.ids.FieldAccessId;
@@ -62,7 +63,7 @@ class ExportGraphArchitecturePocToolTest {
         ArchitectureModel model = new ArchitectureModel("test");
 
         AppEntry app = new AppEntry();
-        app.id = "app:orders";
+        app.id = AppId.of("app:orders");
         app.name = "orders";
         app.componentIds.add(ComponentId.of("OrderService"));
         app.componentIds.add(ComponentId.of("OrderRepository"));
@@ -73,7 +74,7 @@ class ExportGraphArchitecturePocToolTest {
         service.name = "OrderService";
         service.qualifiedName = "com.example.orders.OrderService";
         service.type = ComponentType.SERVICE;
-        service.module = "orders-service";
+        service.module = AppId.of("orders-service");
         service.source = new SourceInfo("src/OrderService.java", 21, "annotation", 0.92);
         model.components.add(service);
 
@@ -82,7 +83,7 @@ class ExportGraphArchitecturePocToolTest {
         repository.name = "OrderRepository";
         repository.qualifiedName = "com.example.shared.OrderRepository";
         repository.type = ComponentType.REPOSITORY;
-        repository.module = "shared-domain";
+        repository.module = AppId.of("shared-domain");
         model.components.add(repository);
 
         Dependency dependency = new Dependency();
@@ -103,7 +104,7 @@ class ExportGraphArchitecturePocToolTest {
         graph.name = "ArchitectureGraph";
         graph.qualifiedName = "com.example.internal.ArchitectureGraph";
         graph.type = ComponentType.UNKNOWN;
-        graph.module = "orders-service";
+        graph.module = AppId.of("orders-service");
         model.components.add(graph);
 
         for (int i = 0; i < 30; i++) {

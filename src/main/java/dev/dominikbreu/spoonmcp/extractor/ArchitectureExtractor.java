@@ -8,6 +8,7 @@ import dev.dominikbreu.spoonmcp.extractor.objectflow.ObjectFlowIndexBuilder;
 import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndex;
 import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndexBuilder;
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import dev.dominikbreu.spoonmcp.scanner.SpoonScanner;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
@@ -243,7 +244,7 @@ public class ArchitectureExtractor {
             if (sharedParent != null && modules.stream().allMatch(m -> sharedParent.equals(m.parentName()))) {
                 String rootPackaging = detectMavenPackagingType(project.root().getAbsolutePath());
                 if ("war".equals(rootPackaging)) {
-                    String parentId = "app:" + sharedParent;
+                    AppId parentId = AppId.of("app:" + sharedParent);
                     if (model.applications.stream().noneMatch(a -> a.id.equals(parentId))) {
                         AppEntry parent = new AppEntry();
                         parent.id = parentId;
@@ -280,7 +281,7 @@ public class ArchitectureExtractor {
 
     private AppEntry buildAppEntry(BuildModule module) {
         AppEntry app = new AppEntry();
-        app.id = "app:" + module.name();
+        app.id = AppId.of("app:" + module.name());
         app.name = module.name();
         app.rootPath = module.root().getAbsolutePath();
         app.packagingType = module.packagingType();
@@ -288,7 +289,7 @@ public class ArchitectureExtractor {
     }
 
     private void dispatchExtractors(
-            Collection<CtType<?>> types, ArchitectureModel model, String appId, BuildModule module, String tech) {
+            Collection<CtType<?>> types, ArchitectureModel model, AppId appId, BuildModule module, String tech) {
         switch (tech) {
             case "spring-boot", "spring" ->
                 new SpringExtractor(new SpringConfigResolver().resolve(module.root())).extract(types, model, appId);
@@ -300,7 +301,7 @@ public class ArchitectureExtractor {
     }
 
     private void applyMessagingBrokers(
-            ArchitectureModel model, String appId, Map<String, MessagingConfigResolver.ChannelConfig> resolved) {
+            ArchitectureModel model, AppId appId, Map<String, MessagingConfigResolver.ChannelConfig> resolved) {
         // Pass A: apply config-resolved broker + topic.
         for (Entrypoint ep : model.entrypoints) {
             if (!appId.equals(componentModule(model, ep.componentId))) continue;
@@ -352,8 +353,7 @@ public class ArchitectureExtractor {
         }
     }
 
-    private String componentModule(
-            ArchitectureModel model, dev.dominikbreu.spoonmcp.model.ids.ComponentId componentId) {
+    private AppId componentModule(ArchitectureModel model, dev.dominikbreu.spoonmcp.model.ids.ComponentId componentId) {
         if (componentId == null) return null;
         for (Component c : model.components) if (componentId.equals(c.id)) return c.module;
         return null;

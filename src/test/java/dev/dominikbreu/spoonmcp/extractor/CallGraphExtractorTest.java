@@ -8,6 +8,7 @@ import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndex;
 import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndexBuilder;
 import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
@@ -24,7 +25,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
     static void buildModel() {
         CtModel ctModel = scan("quarkus-sample");
         model = emptyModel(QUARKUS_APP_ID);
-        new QuarkusExtractor().extract(ctModel.getAllTypes(), model, QUARKUS_APP_ID);
+        new QuarkusExtractor().extract(ctModel.getAllTypes(), model, AppId.of(QUARKUS_APP_ID));
         new DependencyExtractor().extract(ctModel, model);
         new CallGraphExtractor().extract(ctModel, model);
     }
@@ -46,7 +47,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
     void sourceFactBackedCallGraphPreservesFieldInjectionEdges() {
         CtModel ctModel = scan("quarkus-sample");
         ArchitectureModel sourceModel = emptyModel(QUARKUS_APP_ID);
-        new QuarkusExtractor().extract(ctModel.getAllTypes(), sourceModel, QUARKUS_APP_ID);
+        new QuarkusExtractor().extract(ctModel.getAllTypes(), sourceModel, AppId.of(QUARKUS_APP_ID));
         new DependencyExtractor().extract(ctModel, sourceModel);
 
         SourceFactIndex sourceFacts = new SourceFactIndexBuilder().build(ctModel, "quarkus-sample", 1);
@@ -523,7 +524,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         component.id = ComponentId.of(qualifiedName);
         component.name = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1);
         component.qualifiedName = qualifiedName;
-        component.module = "app:constructor-injection-sample";
+        component.module = AppId.of("app:constructor-injection-sample");
         component.technology = "java";
         return component;
     }

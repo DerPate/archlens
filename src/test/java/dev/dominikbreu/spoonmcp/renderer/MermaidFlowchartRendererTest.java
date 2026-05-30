@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.extractor.ContainerInferrer;
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import dev.dominikbreu.spoonmcp.model.ids.DependencyId;
 import java.util.List;
@@ -20,7 +21,7 @@ class MermaidFlowchartRendererTest {
         model = new ArchitectureModel("test");
 
         AppEntry app = new AppEntry();
-        app.id = "app:orders";
+        app.id = AppId.of("app:orders");
         app.name = "orders";
         app.technology = "quarkus";
         app.packagingType = "jar";
@@ -118,7 +119,7 @@ class MermaidFlowchartRendererTest {
     @Test
     void systemLevelRespectsAppFilter() {
         AppEntry other = new AppEntry();
-        other.id = "app:other";
+        other.id = AppId.of("app:other");
         other.name = "other";
         other.technology = "quarkus";
         other.packagingType = "jar";
@@ -195,7 +196,7 @@ class MermaidFlowchartRendererTest {
     void appIdFilterOnlyShowsMatchingApp() {
         // Add second app that should be excluded
         AppEntry other = new AppEntry();
-        other.id = "app:other";
+        other.id = AppId.of("app:other");
         other.name = "other";
         other.technology = "javaee";
         other.packagingType = "war";
@@ -245,7 +246,7 @@ class MermaidFlowchartRendererTest {
         ArchitectureModel m = new ArchitectureModel("test");
 
         AppEntry war = new AppEntry();
-        war.id = "app:war-app";
+        war.id = AppId.of("app:war-app");
         war.name = "war-app";
         war.technology = "javaee";
         war.packagingType = "war";
@@ -253,21 +254,21 @@ class MermaidFlowchartRendererTest {
         m.applications.add(war);
 
         AppEntry core = new AppEntry();
-        core.id = "app:core";
+        core.id = AppId.of("app:core");
         core.name = "core";
         core.technology = "javaee";
         core.packagingType = "jar";
         core.role = "internal_module";
-        core.parentAppId = "app:war-app";
+        core.parentAppId = AppId.of("app:war-app");
         m.applications.add(core);
 
         AppEntry util = new AppEntry();
-        util.id = "app:util";
+        util.id = AppId.of("app:util");
         util.name = "util";
         util.technology = "javaee";
         util.packagingType = "jar";
         util.role = "technical_library";
-        util.parentAppId = "app:war-app";
+        util.parentAppId = AppId.of("app:war-app");
         m.applications.add(util);
 
         return m;
@@ -278,7 +279,7 @@ class MermaidFlowchartRendererTest {
         c.id = ComponentId.of(id);
         c.name = id.replace("", "");
         c.type = type;
-        c.module = module;
+        c.module = AppId.of(module);
         c.technology = tech;
         c.source = new SourceInfo("test.java", 1, "test", 1.0);
         return c;

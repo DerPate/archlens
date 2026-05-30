@@ -38,7 +38,8 @@ public class InferContainersTool {
             String appFilter = ToolArgs.getString(args, "appId");
 
             List<Container> containers = model.containers.stream()
-                    .filter(c -> appFilter == null || (c.appId != null && c.appId.contains(appFilter)))
+                    .filter(c -> appFilter == null
+                            || (c.appId != null && c.appId.serialize().contains(appFilter)))
                     .collect(Collectors.toList());
 
             if (containers.isEmpty()) return "No containers found. Re-run index_workspace to build containers.";
@@ -51,9 +52,10 @@ public class InferContainersTool {
 
             String currentApp = null;
             for (Container c : containers) {
-                if (!c.appId.equals(currentApp)) {
-                    sb.append("App: ").append(c.appId).append("\n");
-                    currentApp = c.appId;
+                String appId = c.appId == null ? null : c.appId.serialize();
+                if (!java.util.Objects.equals(appId, currentApp)) {
+                    sb.append("App: ").append(appId).append("\n");
+                    currentApp = appId;
                 }
                 sb.append("  [").append(c.name).append("] id=").append(c.id).append("\n");
                 sb.append("    Technology: ").append(c.technology).append("\n");

@@ -1,5 +1,6 @@
 package dev.dominikbreu.spoonmcp.model;
 
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,7 +17,7 @@ public class DeploymentEntry {
     /** File path that was parsed. */
     public String source;
     /** Application identifiers associated with this deployment element. */
-    public List<String> appIds = new ArrayList<>();
+    public List<AppId> appIds = new ArrayList<>();
     /** Published or exposed ports. */
     public List<String> ports = new ArrayList<>();
     /** Deployment-level service dependencies. */

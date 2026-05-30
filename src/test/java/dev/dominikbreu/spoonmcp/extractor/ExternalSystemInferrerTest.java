@@ -9,6 +9,7 @@ import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
 import dev.dominikbreu.spoonmcp.model.InterfaceEntry;
 import dev.dominikbreu.spoonmcp.model.MessagingBroker;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import org.junit.jupiter.api.Test;
@@ -138,7 +139,7 @@ class ExternalSystemInferrerTest {
         c.id = ComponentId.of(id);
         c.type = type;
         c.name = id.substring(id.lastIndexOf(':') + 1);
-        c.module = "app:test";
+        c.module = AppId.of("app:test");
         model.components.add(c);
     }
 
@@ -148,7 +149,7 @@ class ExternalSystemInferrerTest {
         i.type = "rest_client";
         i.name = serviceName == null ? "anon" : serviceName;
         i.componentId = ComponentId.of(componentId);
-        i.module = "app:test";
+        i.module = AppId.of("app:test");
         i.externalServiceName = serviceName;
         model.interfaces.add(i);
     }
@@ -161,7 +162,7 @@ class ExternalSystemInferrerTest {
         i.name = channel;
         i.path = channel;
         i.componentId = ComponentId.of(componentId);
-        i.module = "app:test";
+        i.module = AppId.of("app:test");
         i.broker = broker;
         model.interfaces.add(i);
     }

@@ -6,6 +6,7 @@ import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
 import dev.dominikbreu.spoonmcp.model.MessagingBroker;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import java.io.File;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -21,7 +22,8 @@ class SpringExtractorTest extends ExtractorTestBase {
         CtModel ctModel = scan("gradle-springboot-sample");
         model = emptyModel(APP_ID);
         File root = new File(projectPath("gradle-springboot-sample"));
-        new SpringExtractor(new SpringConfigResolver().resolve(root)).extract(ctModel.getAllTypes(), model, APP_ID);
+        new SpringExtractor(new SpringConfigResolver().resolve(root))
+                .extract(ctModel.getAllTypes(), model, AppId.of(APP_ID));
     }
 
     @Test

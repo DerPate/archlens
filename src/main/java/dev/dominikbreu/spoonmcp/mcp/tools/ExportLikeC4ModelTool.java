@@ -38,7 +38,7 @@ public final class ExportLikeC4ModelTool {
             }
             String scopeId;
             if (app != null) {
-                scopeId = app.id;
+                scopeId = app.id.serialize();
             } else {
                 scopeId = "";
             }

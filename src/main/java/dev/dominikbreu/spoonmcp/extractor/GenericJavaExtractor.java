@@ -6,6 +6,7 @@ import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -31,7 +32,7 @@ public class GenericJavaExtractor {
      * @param model architecture model to update
      * @param appId owning application identifier
      */
-    public void extract(Collection<CtType<?>> types, ArchitectureModel model, String appId) {
+    public void extract(Collection<CtType<?>> types, ArchitectureModel model, AppId appId) {
         Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> existingIds = new HashSet<>();
         for (Component component : model.components) {
             existingIds.add(component.id);
@@ -86,7 +87,7 @@ public class GenericJavaExtractor {
                 && !"package-info".equals(type.getSimpleName());
     }
 
-    private Component toComponent(CtType<?> type, String appId) {
+    private Component toComponent(CtType<?> type, AppId appId) {
         Component component = new Component();
         component.id = dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName());
         component.type = classify(type);

@@ -40,7 +40,8 @@ public class FindComponentsTool {
             String techFilter = ToolArgs.getString(args, "technology");
 
             List<Component> comps = model.components.stream()
-                    .filter(c -> appId == null || (c.module != null && c.module.contains(appId)))
+                    .filter(c -> appId == null
+                            || (c.module != null && c.module.serialize().contains(appId)))
                     .filter(c -> typeFilter == null || matchesType(c.type, typeFilter))
                     .filter(c -> techFilter == null || techFilter.equalsIgnoreCase(c.technology))
                     .collect(Collectors.toList());

@@ -1,5 +1,6 @@
 package dev.dominikbreu.spoonmcp.model;
 
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +18,7 @@ public class Component {
     /** Fully qualified Java type name when the component comes from source. */
     public String qualifiedName;
     /** Owning application or Maven module identifier. */
-    public String module;
+    public AppId module;
     /** Detected technology or framework associated with the component. */
     public String technology;
     /** Additional framework or architecture labels discovered during extraction. */

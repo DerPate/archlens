@@ -85,7 +85,9 @@ public class DetectUseCasesTool {
                     if (ep == null) return false;
                     return model.components.stream()
                             .filter(c -> c.id.equals(ep.componentId))
-                            .anyMatch(c -> module.equals(c.module) || (c.module != null && c.module.contains(module)));
+                            .anyMatch(c -> c.module != null
+                                    && (module.equals(c.module.serialize())
+                                            || c.module.serialize().contains(module)));
                 })
                 .collect(Collectors.toList());
     }

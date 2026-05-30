@@ -35,9 +35,9 @@ class LikeC4WorkspaceProjectorTest {
                 .filter(element -> "system".equals(element.kind()))
                 .findFirst()
                 .orElseThrow();
-        assertEquals(app.id, system.id());
+        assertEquals(app.id.serialize(), system.id());
         assertEquals(app.name, system.title());
-        assertEquals(app.id, system.sourceId());
+        assertEquals(app.id.serialize(), system.sourceId());
 
         List<LikeC4Element> components = document.elements().stream()
                 .filter(element -> "component".equals(element.kind()))
@@ -54,8 +54,10 @@ class LikeC4WorkspaceProjectorTest {
         LikeC4View container = view(document, "container");
         LikeC4View component = view(document, "component");
 
-        assertEquals(List.of(app.id), context.includes());
-        assertTrue(container.includes().contains(app.id), container.includes().toString());
+        assertEquals(List.of(app.id.serialize()), context.includes());
+        assertTrue(
+                container.includes().contains(app.id.serialize()),
+                container.includes().toString());
         assertTrue(
                 container.includes().containsAll(component.includes()),
                 container.includes().toString());

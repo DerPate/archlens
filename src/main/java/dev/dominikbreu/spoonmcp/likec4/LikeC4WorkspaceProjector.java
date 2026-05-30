@@ -27,7 +27,7 @@ public final class LikeC4WorkspaceProjector {
         LikeC4Element system = systemElement(model, app);
         String scopeId;
         if (app != null) {
-            scopeId = app.id;
+            scopeId = app.id.serialize();
         } else {
             scopeId = "";
         }
@@ -73,7 +73,12 @@ public final class LikeC4WorkspaceProjector {
 
     private static LikeC4Element systemElement(ArchitectureModel model, AppEntry app) {
         if (app != null) {
-            return new LikeC4Element(app.id, "system", title(app.name, app.id), app.id, appMetadata(app));
+            return new LikeC4Element(
+                    app.id.serialize(),
+                    "system",
+                    title(app.name, app.id.serialize()),
+                    app.id.serialize(),
+                    appMetadata(app));
         }
         String workspace;
         if (model != null) {

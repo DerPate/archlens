@@ -1,5 +1,6 @@
 package dev.dominikbreu.spoonmcp.model;
 
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,7 +14,7 @@ public class Container {
     /** Display name such as api, service, repository, model, or mcp-tools. */
     public String name;
     /** Owning application identifier. */
-    public String appId;
+    public AppId appId;
     /** Dominant technology represented by the container. */
     public String technology;
     /** Component identifiers assigned to this container. */

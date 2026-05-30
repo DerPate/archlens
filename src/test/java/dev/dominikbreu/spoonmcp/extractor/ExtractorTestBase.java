@@ -2,6 +2,7 @@ package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.AppEntry;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import dev.dominikbreu.spoonmcp.scanner.SpoonScanner;
 import java.nio.file.Paths;
 import java.util.List;
@@ -37,7 +38,7 @@ public abstract class ExtractorTestBase {
     protected static ArchitectureModel emptyModel(String appId) {
         ArchitectureModel model = new ArchitectureModel("test");
         AppEntry app = new AppEntry();
-        app.id = appId;
+        app.id = AppId.of(appId);
         app.name = appId.replace("app:", "");
         app.technology = "unknown";
         app.packagingType = "jar";

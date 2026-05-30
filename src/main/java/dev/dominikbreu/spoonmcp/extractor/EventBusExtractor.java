@@ -1,6 +1,7 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import java.util.*;
 import java.util.stream.Collectors;
 import spoon.reflect.code.CtExpression;
@@ -56,7 +57,7 @@ public class EventBusExtractor {
      * @param model architecture model to update
      * @param appId owning application identifier
      */
-    public void extract(Collection<CtType<?>> types, ArchitectureModel model, String appId) {
+    public void extract(Collection<CtType<?>> types, ArchitectureModel model, AppId appId) {
         Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> existingIds =
                 model.components.stream().map(c -> c.id).collect(Collectors.toSet());
 
@@ -79,7 +80,7 @@ public class EventBusExtractor {
     private void detectVertxEventBusConsumer(
             CtType<?> type,
             ArchitectureModel model,
-            String appId,
+            AppId appId,
             Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> existingIds) {
         for (CtMethod<?> method : type.getMethods()) {
             for (CtInvocation<?> inv : method.getElements(new TypeFilter<>(CtInvocation.class))) {
@@ -199,7 +200,7 @@ public class EventBusExtractor {
     private void detectProducer(
             CtType<?> type,
             ArchitectureModel model,
-            String appId,
+            AppId appId,
             Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> existingIds) {
         List<String> firedEventTypes = new ArrayList<>();
 
@@ -235,7 +236,7 @@ public class EventBusExtractor {
     private void detectConsumer(
             CtType<?> type,
             ArchitectureModel model,
-            String appId,
+            AppId appId,
             Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> existingIds) {
         for (CtMethod<?> method : type.getMethods()) {
             String eventType = detectObservesParameter(method);
@@ -317,7 +318,7 @@ public class EventBusExtractor {
     private Component findOrCreateComponent(
             dev.dominikbreu.spoonmcp.model.ids.ComponentId compId,
             CtType<?> type,
-            String appId,
+            AppId appId,
             ComponentType newType,
             String stereotype,
             ArchitectureModel model,
