@@ -48,23 +48,31 @@ public class DependencyExtractor {
             if (!componentsById.containsKey(fromId)) continue;
 
             for (CtField<?> field : type.getFields()) {
-                boolean isInjected = hasAnn(field, INJECT_ANNOTATIONS) || hasAnn(field, PERSISTENCE_CONTEXT);
-                String targetQN = field.getType().getQualifiedName();
-                dev.dominikbreu.spoonmcp.model.ids.ComponentId toId =
-                        dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(targetQN);
-                if (componentsById.containsKey(toId) && !fromId.equals(toId)) {
-                    double confidence =
-                            evidenceScorer.score(componentsById.get(fromId), componentsById.get(toId), isInjected);
-                    if (isInjected) {
-                        addDep(model, fromId, toId, "injection", "annotation", confidence);
-                    } else {
-                        addDep(model, fromId, toId, "field-reference", "type-relation", confidence);
-                    }
-                }
+                extractFieldDependency(model, componentsById, fromId, field);
             }
         }
 
         dedup(model);
+    }
+
+    private void extractFieldDependency(
+            ArchitectureModel model,
+            Map<dev.dominikbreu.spoonmcp.model.ids.ComponentId, dev.dominikbreu.spoonmcp.model.Component> componentsById,
+            dev.dominikbreu.spoonmcp.model.ids.ComponentId fromId,
+            CtField<?> field) {
+        boolean isInjected = hasAnn(field, INJECT_ANNOTATIONS) || hasAnn(field, PERSISTENCE_CONTEXT);
+        String targetQN = field.getType().getQualifiedName();
+        dev.dominikbreu.spoonmcp.model.ids.ComponentId toId =
+                dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(targetQN);
+        if (componentsById.containsKey(toId) && !fromId.equals(toId)) {
+            double confidence =
+                    evidenceScorer.score(componentsById.get(fromId), componentsById.get(toId), isInjected);
+            if (isInjected) {
+                addDep(model, fromId, toId, "injection", "annotation", confidence);
+            } else {
+                addDep(model, fromId, toId, "field-reference", "type-relation", confidence);
+            }
+        }
     }
 
     private void addDep(
