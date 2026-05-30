@@ -27,6 +27,11 @@ import spoon.reflect.declaration.CtType;
  */
 public class ArchitectureExtractor {
 
+    private static final String SPRING = "spring";
+    private static final String SPRING_BOOT = "spring-boot";
+    private static final String JAVAEE = "javaee";
+    private static final String QUARKUS = "quarkus";
+
     private final SpoonScanner scanner = new SpoonScanner();
     private final QuarkusExtractor quarkusExtractor = new QuarkusExtractor();
     private final JavaEEExtractor javaEEExtractor = new JavaEEExtractor();
@@ -291,10 +296,10 @@ public class ArchitectureExtractor {
     private void dispatchExtractors(
             Collection<CtType<?>> types, ArchitectureModel model, AppId appId, BuildModule module, String tech) {
         switch (tech) {
-            case "spring-boot", "spring" ->
+            case SPRING_BOOT, SPRING ->
                 new SpringExtractor(new SpringConfigResolver().resolve(module.root())).extract(types, model, appId);
-            case "javaee" -> javaEEExtractor.extract(types, model, appId);
-            case "quarkus" -> quarkusExtractor.extract(types, model, appId);
+            case JAVAEE -> javaEEExtractor.extract(types, model, appId);
+            case QUARKUS -> quarkusExtractor.extract(types, model, appId);
             default -> genericJavaExtractor.extract(types, model, appId);
         }
         eventBusExtractor.extract(types, model, appId);
@@ -361,19 +366,19 @@ public class ArchitectureExtractor {
 
     private String detectTechnology(Collection<CtType<?>> types, BuildModule module) {
         String pluginText = String.join(" ", module.plugins()).toLowerCase();
-        if (pluginText.contains("org.springframework.boot")) return "spring-boot";
+        if (pluginText.contains("org.springframework.boot")) return SPRING_BOOT;
 
         File pom = new File(module.root(), "pom.xml");
         if (pom.exists()) {
             try {
                 String content = Files.readString(pom.toPath()).toLowerCase();
-                if (content.contains("spring-boot")) return "spring-boot";
-                if (content.contains("springframework")) return "spring";
-                if (content.contains("quarkus")) return "quarkus";
+                if (content.contains(SPRING_BOOT)) return SPRING_BOOT;
+                if (content.contains("springframework")) return SPRING;
+                if (content.contains(QUARKUS)) return QUARKUS;
                 if (content.contains("wildfly")
                         || content.contains("jboss")
-                        || content.contains("javaee")
-                        || content.contains("java-ee")) return "javaee";
+                        || content.contains(JAVAEE)
+                        || content.contains("java-ee")) return JAVAEE;
             } catch (Exception ignored) {
             }
         }
@@ -407,10 +412,10 @@ public class ArchitectureExtractor {
     }
 
     private String technologyFromAnnotationName(String qualifiedName) {
-        if (qualifiedName.startsWith("org.springframework.boot")) return "spring-boot";
-        if (qualifiedName.startsWith("org.springframework")) return "spring";
-        if (qualifiedName.startsWith("io.quarkus")) return "quarkus";
-        if (qualifiedName.startsWith("javax.ejb") || qualifiedName.startsWith("jakarta.ejb")) return "javaee";
+        if (qualifiedName.startsWith("org.springframework.boot")) return SPRING_BOOT;
+        if (qualifiedName.startsWith("org.springframework")) return SPRING;
+        if (qualifiedName.startsWith("io.quarkus")) return QUARKUS;
+        if (qualifiedName.startsWith("javax.ejb") || qualifiedName.startsWith("jakarta.ejb")) return JAVAEE;
         return null;
     }
 

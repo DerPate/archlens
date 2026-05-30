@@ -51,6 +51,10 @@ import spoon.reflect.visitor.filter.TypeFilter;
  */
 public class CallGraphExtractor {
 
+    private static final String UNKNOWN = "unknown";
+    private static final String DIRECT = "direct";
+    private static final String MESSAGING = "messaging";
+
     private static final Set<String> EVENT_BUS_TYPES = Set.of("EventBus");
     private static final Set<String> EMITTER_TYPES = Set.of("Emitter", "MutinyEmitter");
 
@@ -366,7 +370,7 @@ public class CallGraphExtractor {
         if (pos != null && pos.isValidPosition()) {
             file = pos.getFile().getAbsolutePath();
         } else {
-            file = "unknown";
+            file = UNKNOWN;
         }
         int line;
         if (pos != null && pos.isValidPosition()) {
@@ -469,7 +473,7 @@ public class CallGraphExtractor {
         if (pos != null && pos.isValidPosition()) {
             file = pos.getFile().getAbsolutePath();
         } else {
-            file = "unknown";
+            file = UNKNOWN;
         }
         int line;
         if (pos != null && pos.isValidPosition()) {
@@ -677,7 +681,7 @@ public class CallGraphExtractor {
                 model,
                 ctx,
                 killedSnapshot,
-                "direct");
+                DIRECT);
     }
 
     private void emitCallEdge(
@@ -760,7 +764,7 @@ public class CallGraphExtractor {
             if (kind == null) {
                 String[] kindAndChannel = classifyMessagingFieldTarget(inv);
                 if (kindAndChannel != null) {
-                    kind = "messaging".equals(kindAndChannel[0])
+                    kind = MESSAGING.equals(kindAndChannel[0])
                             ? DataFlowSink.Kind.MESSAGING
                             : DataFlowSink.Kind.EVENT_BUS;
                     channel = kindAndChannel[1];
@@ -784,7 +788,7 @@ public class CallGraphExtractor {
             if (pos != null && pos.isValidPosition()) {
                 file = pos.getFile().getAbsolutePath();
             } else {
-                file = "unknown";
+                file = UNKNOWN;
             }
             int line;
             if (pos != null && pos.isValidPosition()) {
@@ -804,7 +808,7 @@ public class CallGraphExtractor {
         if (fieldType == null) return null;
         String simple = fieldType.getSimpleName();
         String kindStr;
-        if (EMITTER_TYPES.contains(simple)) kindStr = "messaging";
+        if (EMITTER_TYPES.contains(simple)) kindStr = MESSAGING;
         else if (EVENT_BUS_TYPES.contains(simple)) kindStr = "event-bus";
         else return null;
         String channel = extractChannelAnnotation(fr);
@@ -893,7 +897,7 @@ public class CallGraphExtractor {
             if (pos != null && pos.isValidPosition()) {
                 file = pos.getFile().getAbsolutePath();
             } else {
-                file = "unknown";
+                file = UNKNOWN;
             }
             int line;
             if (pos != null && pos.isValidPosition()) {
@@ -1050,11 +1054,11 @@ public class CallGraphExtractor {
     }
 
     private String resolveCallKind(CtFieldRead<?> fieldRead) {
-        if (fieldRead.getType() == null) return "direct";
+        if (fieldRead.getType() == null) return DIRECT;
         String simple = fieldRead.getType().getSimpleName();
         if (EVENT_BUS_TYPES.contains(simple)) return "event-bus";
-        if (EMITTER_TYPES.contains(simple)) return "messaging";
-        return "direct";
+        if (EMITTER_TYPES.contains(simple)) return MESSAGING;
+        return DIRECT;
     }
 
     private SourceInfo buildSource(CtInvocation<?> inv) {
@@ -1063,7 +1067,7 @@ public class CallGraphExtractor {
         if (pos.isValidPosition()) {
             file = pos.getFile().getAbsolutePath();
         } else {
-            file = "unknown";
+            file = UNKNOWN;
         }
         int line;
         if (pos.isValidPosition()) {

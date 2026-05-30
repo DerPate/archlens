@@ -12,6 +12,12 @@ import spoon.reflect.declaration.*;
  */
 public class QuarkusExtractor {
 
+    private static final String QUARKUS = "quarkus";
+    private static final String WEBSOCKET = "websocket";
+    private static final String ANNOTATION = "annotation";
+    private static final String MESSAGING_CONSUMER = "messaging_consumer";
+    private static final String MESSAGING_PRODUCER = "messaging_producer";
+
     private static final Set<String> CDI_SCOPE_ANNOTATIONS = Set.of(
             "javax.enterprise.context.ApplicationScoped",
             "jakarta.enterprise.context.ApplicationScoped",
@@ -139,22 +145,22 @@ public class QuarkusExtractor {
             if (type.isInterface()) stereotypes.add("interface");
         } else if (hasPath) {
             compType = ComponentType.REST_RESOURCE;
-            technology = "quarkus";
+            technology = QUARKUS;
             stereotypes.add("jax-rs");
         } else if (hasWsEndpoint) {
             compType = ComponentType.REST_RESOURCE;
-            technology = "websocket";
-            stereotypes.add("websocket");
+            technology = WEBSOCKET;
+            stereotypes.add(WEBSOCKET);
         } else if (isGrpcService) {
             compType = ComponentType.REST_RESOURCE;
             technology = "grpc";
             stereotypes.add("grpc");
         } else if (hasScheduled) {
             compType = ComponentType.SCHEDULER;
-            technology = "quarkus";
+            technology = QUARKUS;
             stereotypes.add("scheduled");
         } else if (hasCdiScope || hasMessaging) {
-            technology = "quarkus";
+            technology = QUARKUS;
             String lower = type.getSimpleName().toLowerCase();
             if (lower.endsWith("repository") || lower.endsWith("repo") || lower.endsWith("dao")) {
                 compType = ComponentType.REPOSITORY;
@@ -181,7 +187,7 @@ public class QuarkusExtractor {
         c.module = appId;
         c.technology = technology;
         c.stereotypes = stereotypes;
-        c.source = new SourceInfo(getFile(type), getLine(type), "annotation", 0.9);
+        c.source = new SourceInfo(getFile(type), getLine(type), ANNOTATION, 0.9);
         return c;
     }
 
@@ -200,12 +206,12 @@ public class QuarkusExtractor {
                 ep.id = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
                         dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
                         method.getSimpleName(),
-                        "websocket");
+                        WEBSOCKET);
                 ep.type = EntrypointType.WEBSOCKET_ENDPOINT;
                 ep.name = method.getSimpleName();
                 ep.path = wsClassPath;
                 ep.componentId = component.id;
-                ep.source = new SourceInfo(getFile(method), getLine(method), "annotation", 1.0);
+                ep.source = new SourceInfo(getFile(method), getLine(method), ANNOTATION, 1.0);
                 model.entrypoints.add(ep);
                 continue;
             }
@@ -224,7 +230,7 @@ public class QuarkusExtractor {
                 ep.httpMethod = httpMethod;
                 ep.path = fullPath;
                 ep.componentId = component.id;
-                ep.source = new SourceInfo(getFile(method), getLine(method), "annotation", 1.0);
+                ep.source = new SourceInfo(getFile(method), getLine(method), ANNOTATION, 1.0);
                 model.entrypoints.add(ep);
                 addInterface(
                         method,
@@ -245,7 +251,7 @@ public class QuarkusExtractor {
                 ep.type = EntrypointType.SCHEDULER;
                 ep.name = method.getSimpleName();
                 ep.componentId = component.id;
-                ep.source = new SourceInfo(getFile(method), getLine(method), "annotation", 1.0);
+                ep.source = new SourceInfo(getFile(method), getLine(method), ANNOTATION, 1.0);
                 model.entrypoints.add(ep);
             }
 
@@ -253,13 +259,13 @@ public class QuarkusExtractor {
             if (!incomingChannel.isEmpty()) {
                 addMessagingEntrypoint(
                         method, type, component, EntrypointType.MESSAGING_CONSUMER, incomingChannel, "in", model);
-                addMessagingInterface(method, component, "messaging_consumer", incomingChannel, model);
+                addMessagingInterface(method, component, MESSAGING_CONSUMER, incomingChannel, model);
             }
             String outgoingChannel = getAnnotationStringValue(method, OUTGOING_ANNOTATIONS);
             if (!outgoingChannel.isEmpty()) {
                 addMessagingEntrypoint(
                         method, type, component, EntrypointType.MESSAGING_PRODUCER, outgoingChannel, "out", model);
-                addMessagingInterface(method, component, "messaging_producer", outgoingChannel, model);
+                addMessagingInterface(method, component, MESSAGING_PRODUCER, outgoingChannel, model);
             }
         }
 
@@ -276,9 +282,9 @@ public class QuarkusExtractor {
             ep.channelName = channel;
             ep.broker = MessagingBroker.UNKNOWN;
             ep.componentId = component.id;
-            ep.source = new SourceInfo(getFile(field), getLine(field), "annotation", 1.0);
+            ep.source = new SourceInfo(getFile(field), getLine(field), ANNOTATION, 1.0);
             model.entrypoints.add(ep);
-            addMessagingInterface(field, component, "messaging_producer", channel, model);
+            addMessagingInterface(field, component, MESSAGING_PRODUCER, channel, model);
         }
 
         Map<String, MessagingCallSiteResolver.TrackedField> trackedFields = new LinkedHashMap<>();
@@ -315,16 +321,16 @@ public class QuarkusExtractor {
                             field,
                             kind.broker,
                             f.role() == MessagingCallSiteResolver.Role.PRODUCER
-                                    ? "messaging_producer"
-                                    : "messaging_consumer",
+                                    ? MESSAGING_PRODUCER
+                                    : MESSAGING_CONSUMER,
                             f.topic(),
                             "call-site");
                 }
             } else {
                 String ifaceType =
                         switch (kind.role) {
-                            case PRODUCER -> "messaging_producer";
-                            case CONSUMER -> "messaging_consumer";
+                            case PRODUCER -> MESSAGING_PRODUCER;
+                            case CONSUMER -> MESSAGING_CONSUMER;
                             case BIDIRECTIONAL -> "messaging_client";
                         };
                 addRawClientInterface(component, model, field, kind.broker, ifaceType, UNRESOLVED_TOPIC, "field-type");
@@ -367,7 +373,7 @@ public class QuarkusExtractor {
         ep.channelName = channel;
         ep.broker = MessagingBroker.UNKNOWN;
         ep.componentId = component.id;
-        ep.source = new SourceInfo(getFile(method), getLine(method), "annotation", 1.0);
+        ep.source = new SourceInfo(getFile(method), getLine(method), ANNOTATION, 1.0);
         model.entrypoints.add(ep);
     }
 
@@ -448,7 +454,7 @@ public class QuarkusExtractor {
         entry.componentId = component.id;
         entry.module = component.module;
         entry.technology = component.technology;
-        entry.source = new SourceInfo(getFile(element), getLine(element), "annotation", 0.95);
+        entry.source = new SourceInfo(getFile(element), getLine(element), ANNOTATION, 0.95);
         model.interfaces.add(entry);
         return entry;
     }
@@ -502,7 +508,7 @@ public class QuarkusExtractor {
             ep.name = method.getSimpleName();
             ep.path = type.getSimpleName() + "/" + method.getSimpleName();
             ep.componentId = component.id;
-            ep.source = new SourceInfo(getFile(method), getLine(method), "annotation", 0.95);
+            ep.source = new SourceInfo(getFile(method), getLine(method), ANNOTATION, 0.95);
             model.entrypoints.add(ep);
         }
     }

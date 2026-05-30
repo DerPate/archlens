@@ -10,6 +10,13 @@ import java.util.Objects;
  */
 final class ArchitectureRelevanceScorer {
 
+    private static final String CONFIGURATION = "configuration";
+    private static final String FORMATTER = "formatter";
+    private static final String LOGGING = "logging";
+    private static final String MAPPER = "mapper";
+    private static final String PARSER = "parser";
+    private static final String UTILITY = "utility";
+
     private ArchitectureRelevanceScorer() {}
 
     static Relevance score(Component component, Metrics metrics) {
@@ -45,7 +52,7 @@ final class ArchitectureRelevanceScorer {
         String name = lower(component.name);
         String qualifiedName = lower(component.qualifiedName);
         String packageName = packageName(qualifiedName);
-        if (containsAny(name, "formatter", "parser", "mapper", "logger", "logging", "config", "configuration")) {
+        if (containsAny(name, FORMATTER, PARSER, MAPPER, "logger", LOGGING, "config", CONFIGURATION)) {
             score += 2;
         }
         if (containsAny(name, "dto", "request", "response", "properties", "constants")) {
@@ -62,15 +69,15 @@ final class ArchitectureRelevanceScorer {
             return "unknown";
         }
         if (component.type == ComponentType.UTILITY) {
-            return "utility";
+            return UTILITY;
         }
         String name = lower(component.name);
-        if (containsAny(name, "formatter")) return "formatter";
-        if (containsAny(name, "parser")) return "parser";
-        if (containsAny(name, "mapper")) return "mapper";
-        if (containsAny(name, "logger", "logging")) return "logging";
-        if (containsAny(name, "config", "configuration", "properties")) return "configuration";
-        if (noiseScore >= 4) return "utility";
+        if (containsAny(name, FORMATTER)) return FORMATTER;
+        if (containsAny(name, PARSER)) return PARSER;
+        if (containsAny(name, MAPPER)) return MAPPER;
+        if (containsAny(name, "logger", LOGGING)) return LOGGING;
+        if (containsAny(name, "config", CONFIGURATION, "properties")) return CONFIGURATION;
+        if (noiseScore >= 4) return UTILITY;
 
         return switch (component.type) {
             case REST_RESOURCE -> "entrypoint";
@@ -81,7 +88,7 @@ final class ArchitectureRelevanceScorer {
             case SCHEDULER -> "scheduler";
             case HTTP_CLIENT, REMOTE_SERVICE -> "external-client";
             case CDI_EVENT_CONSUMER, CDI_EVENT_PRODUCER -> "event-bus";
-            case UTILITY -> "utility";
+            case UTILITY -> UTILITY;
             case UNKNOWN -> "unknown";
         };
     }

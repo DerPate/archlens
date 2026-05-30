@@ -14,6 +14,9 @@ import java.util.Set;
 
 public final class LikeC4ModelRenderer {
 
+    private static final String BLOCK_END = "}\n\n";
+    private static final String INDENT_BLOCK_END = "  }\n";
+
     public String render(LikeC4Document document) {
         StringBuilder sb = new StringBuilder();
         Map<String, String> aliases = elementAliases(document);
@@ -28,7 +31,7 @@ public final class LikeC4ModelRenderer {
         for (String elementKind : document.elementKinds()) {
             sb.append("  element ").append(identifier(elementKind)).append("\n");
         }
-        sb.append("}\n\n");
+        sb.append(BLOCK_END);
 
         sb.append("model {\n");
         for (LikeC4Element element : document.elements()) {
@@ -40,7 +43,7 @@ public final class LikeC4ModelRenderer {
                     .append(escape(element.title()))
                     .append("' {\n");
             renderMetadata(sb, elementMetadata(element), "    ");
-            sb.append("  }\n");
+            sb.append(INDENT_BLOCK_END);
         }
         for (LikeC4Relationship relationship : document.relationships()) {
             sb.append("  ")
@@ -56,10 +59,10 @@ public final class LikeC4ModelRenderer {
             } else {
                 sb.append(" {\n");
                 renderMetadata(sb, metadata, "    ");
-                sb.append("  }\n");
+                sb.append(INDENT_BLOCK_END);
             }
         }
-        sb.append("}\n\n");
+        sb.append(BLOCK_END);
 
         sb.append("views {\n");
         for (LikeC4View view : document.views()) {
@@ -75,7 +78,7 @@ public final class LikeC4ModelRenderer {
                     sb.append("    include ").append(aliasFor(include, aliases)).append("\n");
                 }
             }
-            sb.append("  }\n");
+            sb.append(INDENT_BLOCK_END);
         }
         sb.append("}\n");
 
@@ -94,7 +97,7 @@ public final class LikeC4ModelRenderer {
 
         sb.append("specification {\n");
         sb.append("  element component\n");
-        sb.append("}\n\n");
+        sb.append(BLOCK_END);
 
         sb.append("model {\n");
         for (ArchitectureViewProjection.Node node : projection.nodes()) {
@@ -104,7 +107,7 @@ public final class LikeC4ModelRenderer {
                     .append(escape(node.title()))
                     .append("' {\n");
             renderMetadata(sb, node.properties(), "    ");
-            sb.append("  }\n");
+            sb.append(INDENT_BLOCK_END);
         }
         for (ArchitectureViewProjection.Edge edge : projection.edges()) {
             sb.append("  ")
@@ -115,13 +118,13 @@ public final class LikeC4ModelRenderer {
                     .append(escape(edge.title()))
                     .append("'\n");
         }
-        sb.append("}\n\n");
+        sb.append(BLOCK_END);
 
         sb.append("views {\n");
         sb.append("  view index {\n");
         sb.append("    title '").append(escape(projection.title())).append("'\n");
         sb.append("    include *\n");
-        sb.append("  }\n");
+        sb.append(INDENT_BLOCK_END);
         sb.append("}\n");
 
         return sb.toString();

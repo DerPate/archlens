@@ -39,6 +39,17 @@ public class McpServer {
     private final RenderArchitectureViewTool renderArchitectureViewTool;
     private final ExportLikeC4ModelTool exportLikeC4ModelTool;
 
+    private static final String TYPE_STRING = "string";
+    private static final String TYPE_INTEGER = "integer";
+    private static final String APP_ID = "appId";
+    private static final String APP_ID_DESCRIPTION = "Filter by app ID (partial match)";
+    private static final String ENTRYPOINT_ID = "entrypointId";
+    private static final String ENTRYPOINT_NAME = "entrypointName";
+    private static final String MAX_DEPTH = "maxDepth";
+    private static final String FOCUS_COMPONENT = "focusComponent";
+    private static final String MAX_NODES = "maxNodes";
+    private static final String APP_NAME_OR_ID = "Application name or id";
+
     /** Creates the server with the default extractor, cache, and tool registry. */
     public McpServer() {
         ModelCache cache = new ModelCache();
@@ -93,7 +104,7 @@ public class McpServer {
         specs.add(toolSpec(
                 "index_workspace",
                 "Analyze one or more Java project roots and build the internal architecture model.",
-                schema().reqArray("paths", "string", "Project root directory paths to analyze"),
+                schema().reqArray("paths", TYPE_STRING, "Project root directory paths to analyze"),
                 indexTool::execute));
 
         specs.add(toolSpec(
@@ -105,30 +116,30 @@ public class McpServer {
         specs.add(toolSpec(
                 "find_entrypoints",
                 "Return architecturally relevant entry points: REST endpoints, JMS/messaging consumers, schedulers, EJB methods, CDI event observers, Vert.x EventBus consumers, WebSocket/SSE/gRPC endpoints, and more. All filters are combinable.",
-                schema().opt("appId", "string", "Filter by app ID (partial match)")
+                schema().opt(APP_ID, TYPE_STRING, APP_ID_DESCRIPTION)
                         .opt(
                                 "type",
-                                "string",
+                                TYPE_STRING,
                                 "REST_ENDPOINT | JMS_CONSUMER | MESSAGING_CONSUMER | MESSAGING_PRODUCER | CDI_EVENT_OBSERVER | SCHEDULER | EJB_BUSINESS_METHOD | RMI_ENDPOINT | MAIN_METHOD | EVENT_BUS_CONSUMER | WEBSOCKET_ENDPOINT | SSE_ENDPOINT | GRPC_METHOD | UNKNOWN")
                         .opt(
                                 "httpMethod",
-                                "string",
+                                TYPE_STRING,
                                 "Filter REST endpoints by HTTP verb: GET | POST | PUT | DELETE | PATCH | HEAD | OPTIONS")
                         .opt(
                                 "path",
-                                "string",
+                                TYPE_STRING,
                                 "Filter by path prefix — returns all endpoints at or below this path (e.g. '/customer' returns /customer, /customer/{id}, /customer/{id}/address/{aid}, ...)"),
                 entrypointsTool::execute));
 
         specs.add(toolSpec(
                 "find_components",
                 "Return architecture-relevant components (services, repositories, EJBs, entities, etc.).",
-                schema().opt("appId", "string", "Filter by app ID (partial match)")
+                schema().opt(APP_ID, TYPE_STRING, APP_ID_DESCRIPTION)
                         .opt(
                                 "type",
-                                "string",
+                                TYPE_STRING,
                                 "REST_RESOURCE | SERVICE | REPOSITORY | ENTITY | EJB_STATELESS | EJB_STATEFUL | EJB_SINGLETON | MESSAGE_DRIVEN_BEAN | SCHEDULER | HTTP_CLIENT | CDI_EVENT_CONSUMER | CDI_EVENT_PRODUCER | REMOTE_SERVICE | UTILITY | UNKNOWN")
-                        .opt("technology", "string", "quarkus | javaee | jpa"),
+                        .opt("technology", TYPE_STRING, "quarkus | javaee | jpa"),
                 componentsTool::execute));
 
         specs.add(toolSpec(
@@ -136,55 +147,55 @@ public class McpServer {
                 "Return relevant dependencies for a component, with optional depth limit and condensation of non-architectural intermediaries.",
                 schema().opt(
                                 "componentId",
-                                "string",
+                                TYPE_STRING,
                                 "Component ID — the fully-qualified class name, e.g. com.example.UserService")
-                        .opt("name", "string", "Component simple name (partial match)")
-                        .opt("depth", "integer", "Traversal depth (default 1, max 5)")
+                        .opt("name", TYPE_STRING, "Component simple name (partial match)")
+                        .opt("depth", TYPE_INTEGER, "Traversal depth (default 1, max 5)")
                         .opt("condensed", "boolean", "Remove UTILITY/UNKNOWN intermediaries (default true)"),
                 dependenciesTool::execute));
 
         specs.add(toolSpec(
                 "infer_containers",
                 "Group components into logical containers (api / service / repository / domain / messaging / scheduling).",
-                schema().opt("appId", "string", "Filter by app ID (partial match)"),
+                schema().opt(APP_ID, TYPE_STRING, APP_ID_DESCRIPTION),
                 containersTool::execute));
 
         specs.add(toolSpec(
                 "render_mermaid_flowchart",
                 "Render a Mermaid flowchart for static architecture views (system / container / component level).",
-                schema().opt("appId", "string", "Filter by app ID (partial match)")
+                schema().opt(APP_ID, TYPE_STRING, APP_ID_DESCRIPTION)
                         .opt(
                                 "level",
-                                "string",
+                                TYPE_STRING,
                                 "system | container | module | component (default: component) — module shows WAR deployment-unit with embedded JAR internal_modules"),
                 flowchartTool::execute));
 
         specs.add(toolSpec(
                 "get_runtime_flow",
                 "Return a reduced runtime path for a use case or entry point by following injection dependencies.",
-                schema().opt("entrypointId", "string", "Entrypoint ID (from find_entrypoints)")
+                schema().opt(ENTRYPOINT_ID, TYPE_STRING, "Entrypoint ID (from find_entrypoints)")
                         .opt(
-                                "entrypointName",
-                                "string",
+                                ENTRYPOINT_NAME,
+                                TYPE_STRING,
                                 "Entrypoint path, name, or 'METHOD /path' (e.g. 'GET /account') for HTTP-method disambiguation")
-                        .opt("maxDepth", "integer", "Max traversal depth (default 5)"),
+                        .opt(MAX_DEPTH, TYPE_INTEGER, "Max traversal depth (default 5)"),
                 runtimeFlowTool::execute));
 
         specs.add(toolSpec(
                 "render_call_flow",
                 "Render a Mermaid flowchart showing the execution path from an entry point through its call chain. Component shapes reflect architectural role (cylinder=repository, parallelogram=http-client, etc.). Edge labels show the actual called method name.",
-                schema().opt("entrypointId", "string", "Entrypoint ID (from find_entrypoints)")
+                schema().opt(ENTRYPOINT_ID, TYPE_STRING, "Entrypoint ID (from find_entrypoints)")
                         .opt(
-                                "entrypointName",
-                                "string",
+                                ENTRYPOINT_NAME,
+                                TYPE_STRING,
                                 "Entrypoint path, name, or 'METHOD /path' (e.g. 'GET /account') for HTTP-method disambiguation")
-                        .opt("maxDepth", "integer", "Max traversal depth (default 5)"),
+                        .opt(MAX_DEPTH, TYPE_INTEGER, "Max traversal depth (default 5)"),
                 callFlowTool::execute));
 
         specs.add(toolSpec(
                 "explain_architecture",
                 "Return an agent-friendly textual summary of the architecture model (apps, components, dependencies, deployments).",
-                schema().opt("appId", "string", "Filter by app ID (partial match)"),
+                schema().opt(APP_ID, TYPE_STRING, APP_ID_DESCRIPTION),
                 explainTool::execute));
 
         specs.add(toolSpec(
@@ -192,7 +203,7 @@ public class McpServer {
                 "Render a package-aware Mermaid source overview with components and dependency edges.",
                 schema().opt(
                                 "maxComponentsPerPackage",
-                                "integer",
+                                TYPE_INTEGER,
                                 "Maximum rendered component nodes per package (default 25)"),
                 sourceOverviewTool::execute));
 
@@ -205,25 +216,25 @@ public class McpServer {
         specs.add(toolSpec(
                 "render_component_dependency_diagram",
                 "Render a focused Mermaid dependency diagram for one component.",
-                schema().opt("componentId", "string", "Component ID")
-                        .opt("name", "string", "Component simple name or partial qualified name")
-                        .opt("depth", "integer", "Traversal depth (default 2)"),
+                schema().opt("componentId", TYPE_STRING, "Component ID")
+                        .opt("name", TYPE_STRING, "Component simple name or partial qualified name")
+                        .opt("depth", TYPE_INTEGER, "Traversal depth (default 2)"),
                 dependencyDiagramTool::execute));
 
         specs.add(toolSpec(
                 "export_architecture_docs",
                 "Write Markdown architecture documentation with MCP-generated Mermaid diagrams.",
-                schema().opt("outputPath", "string", "Output Markdown path (default docs/GENERATED_ARCHITECTURE.md)")
-                        .opt("focusComponent", "string", "Component used for the dependency slice (default McpServer)"),
+                schema().opt("outputPath", TYPE_STRING, "Output Markdown path (default docs/GENERATED_ARCHITECTURE.md)")
+                        .opt(FOCUS_COMPONENT, TYPE_STRING, "Component used for the dependency slice (default McpServer)"),
                 exportDocsTool::execute));
 
         specs.add(toolSpec(
                 "export_graph_architecture_poc",
                 "Write a graph-centric architecture POC document with graph metadata, property examples, and MCP query samples.",
-                schema().opt("outputPath", "string", "Output Markdown path (default docs/SOURCE_ARCHITECTURE_POC.md)")
+                schema().opt("outputPath", TYPE_STRING, "Output Markdown path (default docs/SOURCE_ARCHITECTURE_POC.md)")
                         .opt(
-                                "focusComponent",
-                                "string",
+                                FOCUS_COMPONENT,
+                                TYPE_STRING,
                                 "Component used for the graph focus slice (default McpServer)"),
                 exportGraphPocTool::execute));
 
@@ -232,91 +243,91 @@ public class McpServer {
                 "Query the architecture as a graph: summary, node search, neighborhoods, paths, or impact slices.",
                 schema().opt(
                                 "action",
-                                "string",
+                                TYPE_STRING,
                                 "summary | find_nodes | find_edges | neighborhood | paths | impacted_by")
                         .opt(
                                 "label",
-                                "string",
+                                TYPE_STRING,
                                 "Node label for find_nodes: Application | Component | Entrypoint | Interface | Container | Deployment | RuntimeFlow | DataFlowPath | DataFlowSink | PipelineChain")
-                        .opt("query", "string", "Free-text node search")
+                        .opt("query", TYPE_STRING, "Free-text node search")
                         .opt(
                                 "filters",
                                 "object",
                                 "Property filters, with numeric comparisons such as {\"confidence\":\"<=0.6\"}")
-                        .opt("nodeId", "string", "Node ID for neighborhood or impacted_by")
-                        .opt("fromId", "string", "Source node ID for paths")
-                        .opt("toId", "string", "Target node ID for paths")
-                        .opt("direction", "string", "in | out | both for neighborhood")
-                        .opt("maxDepth", "integer", "Traversal depth for paths or impacted_by")
-                        .opt("limit", "integer", "Maximum returned rows (default 256)")
-                        .opt("type", "string", "Shorthand filter: node or edge type property")
-                        .opt("technology", "string", "Shorthand filter: technology property (e.g. quarkus, jpa)")
-                        .opt("module", "string", "Shorthand filter: module/app ID property")
-                        .opt("packageName", "string", "Shorthand filter: packageName property (partial match)")
+                        .opt("nodeId", TYPE_STRING, "Node ID for neighborhood or impacted_by")
+                        .opt("fromId", TYPE_STRING, "Source node ID for paths")
+                        .opt("toId", TYPE_STRING, "Target node ID for paths")
+                        .opt("direction", TYPE_STRING, "in | out | both for neighborhood")
+                        .opt(MAX_DEPTH, TYPE_INTEGER, "Traversal depth for paths or impacted_by")
+                        .opt("limit", TYPE_INTEGER, "Maximum returned rows (default 256)")
+                        .opt("type", TYPE_STRING, "Shorthand filter: node or edge type property")
+                        .opt("technology", TYPE_STRING, "Shorthand filter: technology property (e.g. quarkus, jpa)")
+                        .opt("module", TYPE_STRING, "Shorthand filter: module/app ID property")
+                        .opt("packageName", TYPE_STRING, "Shorthand filter: packageName property (partial match)")
                         .opt(
                                 "entrypointReachable",
-                                "string",
+                                TYPE_STRING,
                                 "Shorthand filter: true | false — only nodes reachable from an entrypoint")
                         .opt(
                                 "workflowRelevant",
-                                "string",
+                                TYPE_STRING,
                                 "Shorthand filter: true | false — only workflow-relevant components")
                         .opt(
                                 "businessRelevant",
-                                "string",
+                                TYPE_STRING,
                                 "Shorthand filter: true | false — only business-relevant components")
                         .opt(
                                 "infrastructureRole",
-                                "string",
+                                TYPE_STRING,
                                 "Shorthand filter: component role such as scheduler, repository, utility")
-                        .opt("isCrossModule", "string", "Shorthand filter: true | false — only cross-module edges")
+                        .opt("isCrossModule", TYPE_STRING, "Shorthand filter: true | false — only cross-module edges")
                         .opt(
                                 "isRuntimeRelevant",
-                                "string",
+                                TYPE_STRING,
                                 "Shorthand filter: true | false — only runtime-relevant edges")
-                        .opt("isCondensable", "string", "Shorthand filter: true | false — only condensable edges"),
+                        .opt("isCondensable", TYPE_STRING, "Shorthand filter: true | false — only condensable edges"),
                 graphTool::execute));
 
         specs.add(toolSpec(
                 "trace_data_flow",
                 "Trace how entrypoint parameters flow through the call graph to sinks (persistence, messaging, http-outbound, event-bus, store, file-outbound, object-storage). Requires call-graph data from index_workspace.",
-                schema().opt("entrypointId", "string", "Filter by entrypoint ID (partial match)")
+                schema().opt(ENTRYPOINT_ID, TYPE_STRING, "Filter by entrypoint ID (partial match)")
                         .opt(
-                                "entrypointName",
-                                "string",
+                                ENTRYPOINT_NAME,
+                                TYPE_STRING,
                                 "Filter by path, name, or 'METHOD /path' (e.g. 'GET /account') for HTTP-method disambiguation")
-                        .opt("param", "string", "Filter by tracked parameter name")
+                        .opt("param", TYPE_STRING, "Filter by tracked parameter name")
                         .opt(
                                 "sinkKind",
-                                "string",
+                                TYPE_STRING,
                                 "Filter by sink kind: persistence | messaging | http-outbound | event-bus | store | file-outbound | object-storage | unknown"),
                 traceDataFlowTool::execute));
 
         specs.add(toolSpec(
                 "render_use_case_timeline",
                 "Render a Mermaid gantt chart showing sequential execution steps across use cases. Each use case is a section; each component hop is a task bar positioned by call depth. Useful for comparing execution depth and component involvement across entry points.",
-                schema().opt("entrypointId", "string", "Filter to a single use case by entrypoint ID")
+                schema().opt(ENTRYPOINT_ID, TYPE_STRING, "Filter to a single use case by entrypoint ID")
                         .opt(
-                                "entrypointName",
-                                "string",
+                                ENTRYPOINT_NAME,
+                                TYPE_STRING,
                                 "Filter by path, name, or 'METHOD /path' (e.g. 'GET /account') for HTTP-method disambiguation")
-                        .opt("maxUseCases", "integer", "Maximum sections to render (default 10)")
-                        .opt("maxDepth", "integer", "Maximum steps per section (default 5)"),
+                        .opt("maxUseCases", TYPE_INTEGER, "Maximum sections to render (default 10)")
+                        .opt(MAX_DEPTH, TYPE_INTEGER, "Maximum steps per section (default 5)"),
                 useCaseTimelineTool::execute));
 
         specs.add(toolSpec(
                 "render_pipeline",
                 "Render an end-to-end pipeline diagram by stitching data-flow paths across entrypoints via typed workflow links (state handoffs, messaging consumers, event-bus consumers). Produces a single connected Mermaid flowchart per chain rather than separate per-entrypoint diagrams.",
                 schema().opt(
-                                "entrypointName",
-                                "string",
+                                ENTRYPOINT_NAME,
+                                TYPE_STRING,
                                 "Filter chains by root entrypoint path, name, or 'METHOD /path' (e.g. 'POST /account') for HTTP-method disambiguation")
                         .opt(
                                 "channel",
-                                "string",
+                                TYPE_STRING,
                                 "Filter chains that pass through a messaging link whose channel name contains this substring")
-                        .opt("maxDepth", "integer", "Maximum number of pipeline segments per chain (default 8)")
-                        .opt("maxChains", "integer", "Maximum number of chains to render (default 5)")
+                        .opt(MAX_DEPTH, TYPE_INTEGER, "Maximum number of pipeline segments per chain (default 8)")
+                        .opt("maxChains", TYPE_INTEGER, "Maximum number of chains to render (default 5)")
                         .opt(
                                 "includeLifecycle",
                                 "boolean",
@@ -328,26 +339,26 @@ public class McpServer {
                 "Detect business use cases from indexed entrypoints and their call chains. Uses call-graph data when available; falls back to injection-dependency traversal.",
                 schema().opt(
                                 "configFile",
-                                "string",
+                                TYPE_STRING,
                                 "Path to a JSON naming config file ({ \"names\": { \"<entrypointId>\": \"Display Name\" } })")
-                        .opt("module", "string", "Filter results by app/module ID (partial match)")
-                        .opt("maxDepth", "integer", "Max call-chain depth shown per use case (default 5)"),
+                        .opt("module", TYPE_STRING, "Filter results by app/module ID (partial match)")
+                        .opt(MAX_DEPTH, TYPE_INTEGER, "Max call-chain depth shown per use case (default 5)"),
                 detectUseCasesTool::execute));
 
         specs.add(toolSpec(
                 "render_architecture_view",
                 "Render a projection-first architecture view from the indexed graph. Start with view=component for C4-style component views. Prioritizes workflow-relevant components over utility fan-in noise.",
-                schema().opt("app", "string", "Application name or id")
-                        .opt("view", "string", "View kind: component")
-                        .opt("maxNodes", "integer", "Maximum component nodes to include (default 18)"),
+                schema().opt("app", TYPE_STRING, APP_NAME_OR_ID)
+                        .opt("view", TYPE_STRING, "View kind: component")
+                        .opt(MAX_NODES, TYPE_INTEGER, "Maximum component nodes to include (default 18)"),
                 renderArchitectureViewTool::call));
 
         specs.add(toolSpec(
                 "export_likec4_model",
                 "Export the indexed architecture graph as LikeC4-style model text. Supports workspace (default) or component views for loading into LikeC4 tooling or providing structured LLM context.",
-                schema().opt("app", "string", "Application name or id")
-                        .opt("view", "string", "View kind: workspace or component (default workspace)")
-                        .opt("maxNodes", "integer", "Maximum component nodes to include (default 18)"),
+                schema().opt("app", TYPE_STRING, APP_NAME_OR_ID)
+                        .opt("view", TYPE_STRING, "View kind: workspace or component (default workspace)")
+                        .opt(MAX_NODES, TYPE_INTEGER, "Maximum component nodes to include (default 18)"),
                 exportLikeC4ModelTool::call));
 
         return specs;
@@ -376,7 +387,7 @@ public class McpServer {
                         "Generate checked-in architecture documentation for a Java workspace.",
                         List.of(
                                 arg("path", "Absolute project or workspace root to index.", true),
-                                arg("focusComponent", "Component name used for focused dependency slices.", false)),
+                                arg(FOCUS_COMPONENT, "Component name used for focused dependency slices.", false)),
                         """
                         Generate architecture documentation for `{path}`.
 
@@ -419,9 +430,9 @@ public class McpServer {
                         "architecture_view",
                         "Generate a projection-first architecture view from the indexed graph.",
                         List.of(
-                                arg("app", "Application name or id", true),
+                                arg("app", APP_NAME_OR_ID, true),
                                 arg("view", "View kind: component", false),
-                                arg("maxNodes", "Maximum nodes", false)),
+                                arg(MAX_NODES, "Maximum nodes", false)),
                         """
                         1. If no workspace has been indexed yet, call `index_workspace` first.
                         2. Call `render_architecture_view` with `app: "{app}"`, `view: "{view}"`, and `maxNodes: {maxNodes}` (default 18).

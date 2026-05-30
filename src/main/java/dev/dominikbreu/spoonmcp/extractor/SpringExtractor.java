@@ -27,6 +27,11 @@ import spoon.reflect.reference.CtTypeReference;
 
 public class SpringExtractor {
 
+    private static final String ANNOTATION = "annotation";
+    private static final String HTTP_DELETE = "DELETE";
+    private static final String HTTP_PATCH = "PATCH";
+    private static final String VALUE = "value";
+
     private static final Set<String> SPRING_BOOT_APP =
             Set.of("org.springframework.boot.autoconfigure.SpringBootApplication");
     private static final Set<String> REST_CONTROLLERS = Set.of(
@@ -138,7 +143,7 @@ public class SpringExtractor {
         component.module = appId;
         component.technology = technology;
         component.stereotypes = stereotypes;
-        component.source = new SourceInfo(getFile(type), getLine(type), "annotation", 0.95);
+        component.source = new SourceInfo(getFile(type), getLine(type), ANNOTATION, 0.95);
         return component;
     }
 
@@ -173,7 +178,7 @@ public class SpringExtractor {
                 ep.httpMethod = mapping.method();
                 ep.path = fullPath;
                 ep.componentId = component.id;
-                ep.source = new SourceInfo(getFile(method), getLine(method), "annotation", 1.0);
+                ep.source = new SourceInfo(getFile(method), getLine(method), ANNOTATION, 1.0);
                 model.entrypoints.add(ep);
                 addInterface(method, component, "rest_endpoint", mapping.method() + " " + fullPath, fullPath, model);
             }
@@ -255,7 +260,7 @@ public class SpringExtractor {
         ep.type = entrypointType;
         ep.name = method.getSimpleName();
         ep.componentId = component.id;
-        ep.source = new SourceInfo(getFile(method), getLine(method), "annotation", 0.95);
+        ep.source = new SourceInfo(getFile(method), getLine(method), ANNOTATION, 0.95);
         model.entrypoints.add(ep);
     }
 
@@ -283,7 +288,7 @@ public class SpringExtractor {
         ep.channelName = resolved;
         ep.broker = broker;
         ep.componentId = component.id;
-        ep.source = new SourceInfo(getFile(method), getLine(method), "annotation", 1.0);
+        ep.source = new SourceInfo(getFile(method), getLine(method), ANNOTATION, 1.0);
         model.entrypoints.add(ep);
         addMessagingInterface(
                 method,
@@ -339,8 +344,8 @@ public class SpringExtractor {
         if (hasAnnotation(method, GET_MAPPING)) return new Mapping("GET", firstMappingPath(method));
         if (hasAnnotation(method, POST_MAPPING)) return new Mapping("POST", firstMappingPath(method));
         if (hasAnnotation(method, PUT_MAPPING)) return new Mapping("PUT", firstMappingPath(method));
-        if (hasAnnotation(method, DELETE_MAPPING)) return new Mapping("DELETE", firstMappingPath(method));
-        if (hasAnnotation(method, PATCH_MAPPING)) return new Mapping("PATCH", firstMappingPath(method));
+        if (hasAnnotation(method, DELETE_MAPPING)) return new Mapping(HTTP_DELETE, firstMappingPath(method));
+        if (hasAnnotation(method, PATCH_MAPPING)) return new Mapping(HTTP_PATCH, firstMappingPath(method));
         if (hasAnnotation(method, REQUEST_MAPPING)) {
             String httpMethod = requestMappingMethod(method);
             return new Mapping(httpMethod == null ? "REQUEST" : httpMethod, firstMappingPath(method));
@@ -353,19 +358,19 @@ public class SpringExtractor {
         if (method.contains("GET")) return "GET";
         if (method.contains("POST")) return "POST";
         if (method.contains("PUT")) return "PUT";
-        if (method.contains("DELETE")) return "DELETE";
-        if (method.contains("PATCH")) return "PATCH";
+        if (method.contains(HTTP_DELETE)) return HTTP_DELETE;
+        if (method.contains(HTTP_PATCH)) return HTTP_PATCH;
         return null;
     }
 
     private String firstMappingPath(CtElement element) {
-        String path = annotationAttribute(element, REQUEST_MAPPING, "value");
+        String path = annotationAttribute(element, REQUEST_MAPPING, VALUE);
         if (path.isEmpty()) path = annotationAttribute(element, REQUEST_MAPPING, "path");
-        if (path.isEmpty()) path = annotationAttribute(element, GET_MAPPING, "value");
-        if (path.isEmpty()) path = annotationAttribute(element, POST_MAPPING, "value");
-        if (path.isEmpty()) path = annotationAttribute(element, PUT_MAPPING, "value");
-        if (path.isEmpty()) path = annotationAttribute(element, DELETE_MAPPING, "value");
-        if (path.isEmpty()) path = annotationAttribute(element, PATCH_MAPPING, "value");
+        if (path.isEmpty()) path = annotationAttribute(element, GET_MAPPING, VALUE);
+        if (path.isEmpty()) path = annotationAttribute(element, POST_MAPPING, VALUE);
+        if (path.isEmpty()) path = annotationAttribute(element, PUT_MAPPING, VALUE);
+        if (path.isEmpty()) path = annotationAttribute(element, DELETE_MAPPING, VALUE);
+        if (path.isEmpty()) path = annotationAttribute(element, PATCH_MAPPING, VALUE);
         return config.resolve(path);
     }
 
@@ -381,7 +386,7 @@ public class SpringExtractor {
         entry.componentId = component.id;
         entry.module = component.module;
         entry.technology = component.technology;
-        entry.source = new SourceInfo(getFile(element), getLine(element), "annotation", 0.95);
+        entry.source = new SourceInfo(getFile(element), getLine(element), ANNOTATION, 0.95);
         model.interfaces.add(entry);
         return entry;
     }
@@ -399,7 +404,7 @@ public class SpringExtractor {
             if (!annotationMatches(annotation, names)) continue;
             try {
                 CtExpression<?> value = annotation.getValue(attribute);
-                if (value == null && "value".equals(attribute)) value = annotation.getValue("path");
+                if (value == null && VALUE.equals(attribute)) value = annotation.getValue("path");
                 if (value == null) return "";
                 return stripArray(resolveAnnotationValue(value));
             } catch (Exception ignored) {
@@ -504,7 +509,7 @@ public class SpringExtractor {
 
     private void extractFeignInterfaces(CtType<?> type, Component component, ArchitectureModel model) {
         String name = annotationAttribute(type, FEIGN_CLIENT, "name");
-        if (name.isEmpty()) name = annotationAttribute(type, FEIGN_CLIENT, "value");
+        if (name.isEmpty()) name = annotationAttribute(type, FEIGN_CLIENT, VALUE);
         if (name.isEmpty()) name = type.getSimpleName();
         String url = config.resolve(annotationAttribute(type, FEIGN_CLIENT, "url"));
         InterfaceEntry client = addInterface(type, component, "rest_client", component.name, url, model);
