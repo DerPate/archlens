@@ -33,16 +33,16 @@ public final class WorkflowGraphBuilder {
             return new WorkflowGraph(List.of(), Map.of(), Map.of(), Map.of());
         }
 
-        Map<String, Entrypoint> entrypointById = new LinkedHashMap<>();
+        Map<dev.dominikbreu.spoonmcp.model.ids.EntrypointId, Entrypoint> entrypointById = new LinkedHashMap<>();
         for (Entrypoint entrypoint : model.entrypoints) {
-            entrypointById.put(entrypoint.id.serialize(), entrypoint);
+            entrypointById.put(entrypoint.id, entrypoint);
         }
 
         Map<String, DataFlowPath> pathById = new LinkedHashMap<>();
         for (DataFlowPath path : model.dataFlowPaths) {
             Entrypoint entrypoint;
             if (path.entrypointId != null) {
-                entrypoint = entrypointById.get(path.entrypointId.serialize());
+                entrypoint = entrypointById.get(path.entrypointId);
             } else {
                 entrypoint = null;
             }

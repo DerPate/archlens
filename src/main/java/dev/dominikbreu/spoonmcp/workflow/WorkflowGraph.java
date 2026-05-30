@@ -2,6 +2,7 @@ package dev.dominikbreu.spoonmcp.workflow;
 
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.List;
 import java.util.Map;
 
@@ -11,7 +12,7 @@ import java.util.Map;
 public record WorkflowGraph(
         List<DataFlowPath> rootPaths,
         Map<String, DataFlowPath> pathById,
-        Map<String, Entrypoint> entrypointById,
+        Map<EntrypointId, Entrypoint> entrypointById,
         Map<String, List<WorkflowLink>> linksBySourcePathId) {
 
     public WorkflowGraph {

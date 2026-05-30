@@ -4,6 +4,7 @@ import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import dev.dominikbreu.spoonmcp.model.ids.FieldRef;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -32,7 +33,7 @@ public final class WorkflowLinker {
             return List.of();
         }
 
-        Map<String, Entrypoint> entrypointById = indexEntrypointsById(model);
+        Map<EntrypointId, Entrypoint> entrypointById = indexEntrypointsById(model);
         LinkIndex index = new LinkIndex(
                 indexPathsById(model), entrypointById, collectDirectOwnerWrittenFields(model, entrypointById));
 
@@ -50,7 +51,7 @@ public final class WorkflowLinker {
     /** Lookup tables shared across the entire link pass. */
     private record LinkIndex(
             Map<String, DataFlowPath> pathById,
-            Map<String, Entrypoint> entrypointById,
+            Map<EntrypointId, Entrypoint> entrypointById,
             Set<FieldRef> directOwnerWrittenFields) {}
 
     private static Map<String, DataFlowPath> indexPathsById(ArchitectureModel model) {
@@ -61,16 +62,16 @@ public final class WorkflowLinker {
         return pathById;
     }
 
-    private static Map<String, Entrypoint> indexEntrypointsById(ArchitectureModel model) {
-        Map<String, Entrypoint> entrypointById = new HashMap<>();
+    private static Map<EntrypointId, Entrypoint> indexEntrypointsById(ArchitectureModel model) {
+        Map<EntrypointId, Entrypoint> entrypointById = new HashMap<>();
         for (Entrypoint entrypoint : model.entrypoints) {
-            entrypointById.put(entrypoint.id.serialize(), entrypoint);
+            entrypointById.put(entrypoint.id, entrypoint);
         }
         return entrypointById;
     }
 
-    private static Entrypoint entrypointFor(DataFlowPath path, Map<String, Entrypoint> entrypointById) {
-        return path.entrypointId != null ? entrypointById.get(path.entrypointId.serialize()) : null;
+    private static Entrypoint entrypointFor(DataFlowPath path, Map<EntrypointId, Entrypoint> entrypointById) {
+        return path.entrypointId != null ? entrypointById.get(path.entrypointId) : null;
     }
 
     /**
@@ -78,7 +79,7 @@ public final class WorkflowLinker {
      * Cross-component writes to these fields are shadowed side-effects, not pipeline triggers.
      */
     private static Set<FieldRef> collectDirectOwnerWrittenFields(
-            ArchitectureModel model, Map<String, Entrypoint> entrypointById) {
+            ArchitectureModel model, Map<EntrypointId, Entrypoint> entrypointById) {
         Set<FieldRef> directOwnerWrittenFields = new HashSet<>();
         for (DataFlowPath p : model.dataFlowPaths) {
             Entrypoint ep = entrypointFor(p, entrypointById);
