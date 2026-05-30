@@ -1,5 +1,6 @@
 package dev.dominikbreu.spoonmcp.model;
 
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.ArrayList;
 import java.util.List;
@@ -9,7 +10,7 @@ import java.util.List;
  */
 public class AppEntry {
     /** Stable application identifier used by components and deployments. */
-    public String id;
+    public AppId id;
     /** Human-readable application or module name. */
     public String name;
     /** Filesystem root from which the application was scanned. */
@@ -21,7 +22,7 @@ public class AppEntry {
     /** Role inside a deployment graph: deployment_unit, internal_module, or technical_library. */
     public String role;
     /** Identifier of the parent WAR deployment unit, set when role is internal_module. */
-    public String parentAppId;
+    public AppId parentAppId;
     /** Component identifiers owned by this application or module. */
     public List<ComponentId> componentIds = new ArrayList<>();
 

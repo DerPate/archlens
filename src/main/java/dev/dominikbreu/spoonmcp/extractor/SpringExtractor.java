@@ -1,6 +1,7 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
@@ -63,7 +64,7 @@ public class SpringExtractor {
         return GlobalOpenTelemetry.getTracer("dev.dominikbreu.spoonmcp");
     }
 
-    public void extract(Collection<CtType<?>> types, ArchitectureModel model, String appId) {
+    public void extract(Collection<CtType<?>> types, ArchitectureModel model, AppId appId) {
         Span span = tracer().spanBuilder("spring.extract").startSpan();
         try (Scope scope = span.makeCurrent()) {
             Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> existingIds = new HashSet<>();
@@ -89,7 +90,7 @@ public class SpringExtractor {
         }
     }
 
-    private Component tryExtractComponent(CtType<?> type, String appId) {
+    private Component tryExtractComponent(CtType<?> type, AppId appId) {
         ComponentType componentType = null;
         String technology = "spring";
         List<String> stereotypes = new ArrayList<>();

@@ -3,6 +3,7 @@ package dev.dominikbreu.spoonmcp.extractor;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -16,7 +17,7 @@ class QuarkusExtractorTest extends ExtractorTestBase {
     static void scanOnce() {
         CtModel ctModel = scan("quarkus-sample");
         model = emptyModel(QUARKUS_APP_ID);
-        new QuarkusExtractor().extract(ctModel.getAllTypes(), model, QUARKUS_APP_ID);
+        new QuarkusExtractor().extract(ctModel.getAllTypes(), model, AppId.of(QUARKUS_APP_ID));
     }
 
     // ── component detection ──────────────────────────────────────────────────
@@ -95,7 +96,7 @@ class QuarkusExtractorTest extends ExtractorTestBase {
     @Test
     void componentsBelongToApp() {
         model.components.forEach(
-                c -> assertThat(c.module).as("module of %s", c.name).isEqualTo(QUARKUS_APP_ID));
+                c -> assertThat(c.module.serialize()).as("module of %s", c.name).isEqualTo(QUARKUS_APP_ID));
     }
 
     // ── entrypoint detection ─────────────────────────────────────────────────

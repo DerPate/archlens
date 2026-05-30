@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.DeploymentEntry;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import java.io.File;
 import java.net.URL;
 import java.util.List;
@@ -58,7 +59,7 @@ class DockerComposeMergerTest {
     void linksAppIdWhenNameMatches() throws Exception {
         ArchitectureModel model = new ArchitectureModel("test");
         var app = new dev.dominikbreu.spoonmcp.model.AppEntry();
-        app.id = "app:orders";
+        app.id = AppId.of("app:orders");
         app.name = "orders";
         model.applications.add(app);
 
@@ -67,7 +68,7 @@ class DockerComposeMergerTest {
                 .filter(d -> "orders".equals(d.name))
                 .findFirst()
                 .orElseThrow();
-        assertThat(orders.appIds).contains("app:orders");
+        assertThat(orders.appIds).contains(AppId.of("app:orders"));
     }
 
     @Test

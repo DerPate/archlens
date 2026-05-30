@@ -30,7 +30,8 @@ public class MermaidFlowchartRenderer {
         }
 
         List<AppEntry> apps = model.applications.stream()
-                .filter(a -> appIdFilter == null || a.id.contains(appIdFilter) || a.name.contains(appIdFilter))
+                .filter(a ->
+                        appIdFilter == null || a.id.serialize().contains(appIdFilter) || a.name.contains(appIdFilter))
                 .collect(Collectors.toList());
 
         return switch (lvl) {
@@ -59,14 +60,14 @@ public class MermaidFlowchartRenderer {
                 String label =
                         app.name + "\\n" + app.packagingType + (app.technology != null ? " / " + app.technology : "");
                 sb.append("    ")
-                        .append(nid(app.id))
+                        .append(nid(app.id.serialize()))
                         .append("[\"")
                         .append(escape(label))
                         .append("\"]\n");
             } else {
                 // WAR with internal modules
                 sb.append("    subgraph ")
-                        .append(nid(app.id))
+                        .append(nid(app.id.serialize()))
                         .append("[\"")
                         .append(escape(app.name))
                         .append(" (")
@@ -88,7 +89,7 @@ public class MermaidFlowchartRenderer {
                     }
                     String label = child.name + "\\n" + child.role;
                     sb.append("        ")
-                            .append(nid(child.id))
+                            .append(nid(child.id.serialize()))
                             .append(shape)
                             .append("\"")
                             .append(escape(label))
@@ -123,7 +124,7 @@ public class MermaidFlowchartRenderer {
         Map<String, String> map = new HashMap<>();
         for (AppEntry app : model.applications) {
             for (dev.dominikbreu.spoonmcp.model.ids.ComponentId cid : app.componentIds)
-                map.put(cid.serialize(), app.id);
+                map.put(cid.serialize(), app.id.serialize());
         }
         return map;
     }
@@ -133,7 +134,7 @@ public class MermaidFlowchartRenderer {
     private String renderSystemLevel(List<AppEntry> apps, ArchitectureModel model) {
         StringBuilder sb = new StringBuilder("flowchart TD\n");
         for (AppEntry app : apps) {
-            String id = nid(app.id);
+            String id = nid(app.id.serialize());
             sb.append("    ")
                     .append(id)
                     .append("[\"**")
@@ -145,7 +146,7 @@ public class MermaidFlowchartRenderer {
                     .append("\"]\n");
         }
 
-        Set<String> visibleApps = apps.stream().map(a -> a.id).collect(Collectors.toSet());
+        Set<String> visibleApps = apps.stream().map(a -> a.id.serialize()).collect(Collectors.toSet());
         Map<String, String> compToApp = buildCompToAppMap(model);
         Set<String> referencedExternals = new LinkedHashSet<>();
         Set<String> drawnEdges = new LinkedHashSet<>();
@@ -216,7 +217,7 @@ public class MermaidFlowchartRenderer {
         Set<String> visibleContainers = new LinkedHashSet<>();
         for (AppEntry app : apps) {
             sb.append("    subgraph ")
-                    .append(nid(app.id))
+                    .append(nid(app.id.serialize()))
                     .append("[\"")
                     .append(escape(app.name))
                     .append(" (")
@@ -313,7 +314,7 @@ public class MermaidFlowchartRenderer {
 
         for (AppEntry app : apps) {
             sb.append("    subgraph ")
-                    .append(nid(app.id))
+                    .append(nid(app.id.serialize()))
                     .append("[\"")
                     .append(escape(app.name))
                     .append(" (")

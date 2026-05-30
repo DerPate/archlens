@@ -1,6 +1,7 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import java.util.*;
 import spoon.reflect.code.CtExpression;
 import spoon.reflect.code.CtLiteral;
@@ -91,7 +92,7 @@ public class QuarkusExtractor {
      * @param model architecture model to update
      * @param appId owning application identifier
      */
-    public void extract(Collection<CtType<?>> types, ArchitectureModel model, String appId) {
+    public void extract(Collection<CtType<?>> types, ArchitectureModel model, AppId appId) {
         Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> existingIds = new HashSet<>();
         for (Component c : model.components) existingIds.add(c.id);
 
@@ -110,7 +111,7 @@ public class QuarkusExtractor {
         }
     }
 
-    private Component tryExtractComponent(CtType<?> type, String appId) {
+    private Component tryExtractComponent(CtType<?> type, AppId appId) {
         boolean hasPath = hasAnnotation(type, JAX_RS_PATH);
         boolean hasCdiScope = hasAnnotation(type, CDI_SCOPE_ANNOTATIONS);
         boolean hasRestClient = hasAnnotation(type, REST_CLIENT_ANNOTATIONS);

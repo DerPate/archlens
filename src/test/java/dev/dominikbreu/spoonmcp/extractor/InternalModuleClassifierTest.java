@@ -3,6 +3,7 @@ package dev.dominikbreu.spoonmcp.extractor;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.model.AppEntry;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import java.io.File;
 import java.net.URL;
 import java.util.Collection;
@@ -54,7 +55,7 @@ class InternalModuleClassifierTest {
 
     private AppEntry appEntry(String name) {
         AppEntry app = new AppEntry();
-        app.id = "app:" + name;
+        app.id = AppId.of("app:" + name);
         app.name = name;
         return app;
     }

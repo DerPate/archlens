@@ -3,6 +3,7 @@ package dev.dominikbreu.spoonmcp.extractor;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -16,7 +17,7 @@ class JavaEEExtractorTest extends ExtractorTestBase {
     static void scanOnce() {
         CtModel ctModel = scan("javaee-sample");
         model = emptyModel(JAVAEE_APP_ID);
-        new JavaEEExtractor().extract(ctModel.getAllTypes(), model, JAVAEE_APP_ID);
+        new JavaEEExtractor().extract(ctModel.getAllTypes(), model, AppId.of(JAVAEE_APP_ID));
     }
 
     // ── component detection ──────────────────────────────────────────────────

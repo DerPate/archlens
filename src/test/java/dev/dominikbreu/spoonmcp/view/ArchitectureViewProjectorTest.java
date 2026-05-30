@@ -10,6 +10,7 @@ import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.FieldAccess;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import dev.dominikbreu.spoonmcp.model.ids.DependencyId;
 import dev.dominikbreu.spoonmcp.model.ids.FieldAccessId;
@@ -74,7 +75,7 @@ class ArchitectureViewProjectorTest {
         // REST endpoints, schedulers, messaging, and utility components, not filter them out.
         ArchitectureModel model = new ArchitectureModel("bridge-fixture");
         AppEntry app = new AppEntry();
-        app.id = "app:bridge";
+        app.id = AppId.of("app:bridge");
         app.name = "bridge";
 
         Component stateStore = component("CoreStateStore", ComponentType.SERVICE);
@@ -113,7 +114,7 @@ class ArchitectureViewProjectorTest {
     void dependsOnEdgesAppearForConstructorInjectionCodebases() {
         ArchitectureModel model = new ArchitectureModel("injection-fixture");
         AppEntry app = new AppEntry();
-        app.id = "app:injection";
+        app.id = AppId.of("app:injection");
         app.name = "injection";
 
         Component server = component("McpServer", ComponentType.SERVICE);
@@ -150,7 +151,7 @@ class ArchitectureViewProjectorTest {
         ArchitectureModel model = new ArchitectureModel("fixture");
 
         AppEntry app = new AppEntry();
-        app.id = "app:demo";
+        app.id = AppId.of("app:demo");
         app.name = "demo";
 
         Component kafka = component("KafkaConsumerService", ComponentType.MESSAGE_DRIVEN_BEAN);

@@ -6,6 +6,7 @@ import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.FieldAccess;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import dev.dominikbreu.spoonmcp.model.ids.FieldAccessId;
 import dev.dominikbreu.spoonmcp.model.ids.FieldBinding;
@@ -31,7 +32,7 @@ class ToolTestFixtures {
         ArchitectureModel model = new ArchitectureModel("state-handoff");
 
         AppEntry app = new AppEntry();
-        app.id = "app:state-handoff";
+        app.id = AppId.of("app:state-handoff");
         app.name = "state-handoff";
 
         Component consumer = component("KafkaConsumerService", ComponentType.MESSAGE_DRIVEN_BEAN);

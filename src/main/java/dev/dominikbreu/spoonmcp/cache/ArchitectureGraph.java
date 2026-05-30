@@ -80,8 +80,8 @@ public class ArchitectureGraph {
         sourceModel.externalSystems.forEach(this::addExternalSystem);
         sourceModel.runtimeFlows.forEach(this::addRuntimeFlow);
 
-        sourceModel.applications.forEach(app -> app.componentIds.forEach(componentId ->
-                addEdge(app.id, componentId.serialize(), "OWNS", Map.of("source", "application.componentIds"))));
+        sourceModel.applications.forEach(app -> app.componentIds.forEach(componentId -> addEdge(
+                app.id.serialize(), componentId.serialize(), "OWNS", Map.of("source", "application.componentIds"))));
         sourceModel.entrypoints.forEach(entrypoint -> addEdge(
                 entrypoint.id.serialize(),
                 entrypoint.componentId.serialize(),
@@ -95,7 +95,7 @@ public class ArchitectureGraph {
         sourceModel.containers.forEach(container -> container.componentIds.forEach(componentId -> addEdge(
                 container.id, componentId.serialize(), "CONTAINS", Map.of("source", "container.componentIds"))));
         sourceModel.deployments.forEach(deployment -> deployment.appIds.forEach(
-                appId -> addEdge(deployment.id, appId, "DEPLOYS", Map.of("source", "deployment.appIds"))));
+                appId -> addEdge(deployment.id, appId.serialize(), "DEPLOYS", Map.of("source", "deployment.appIds"))));
         sourceModel.dependencies.forEach(dependency -> addEdge(
                 dependency.fromId.serialize(),
                 dependency.toId.serialize(),
@@ -356,7 +356,7 @@ public class ArchitectureGraph {
     }
 
     private void addApplication(AppEntry app) {
-        Vertex vertex = addVertex(app.id, "Application", app.name);
+        Vertex vertex = addVertex(app.id.serialize(), "Application", app.name);
         set(vertex, "kind", "application");
         set(vertex, "rootPath", app.rootPath);
         set(vertex, "technology", app.technology);

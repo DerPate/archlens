@@ -1,5 +1,6 @@
 package dev.dominikbreu.spoonmcp.model;
 
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 
 /**
@@ -17,7 +18,7 @@ public class InterfaceEntry {
     /** Component that owns or consumes the interface. */
     public ComponentId componentId;
     /** Owning module or application identifier. */
-    public String module;
+    public AppId module;
     /** Technology or framework used by the interface. */
     public String technology;
     /** Logical name of the external counterpart (REST configKey, messaging broker label). */

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import spoon.reflect.CtModel;
@@ -16,8 +17,8 @@ class EventBusExtractorTest extends ExtractorTestBase {
     static void buildModel() {
         CtModel ctModel = scan("eventbus-sample");
         model = emptyModel("app:eventbus-sample");
-        new GenericJavaExtractor().extract(ctModel.getAllTypes(), model, "app:eventbus-sample");
-        new EventBusExtractor().extract(ctModel.getAllTypes(), model, "app:eventbus-sample");
+        new GenericJavaExtractor().extract(ctModel.getAllTypes(), model, AppId.of("app:eventbus-sample"));
+        new EventBusExtractor().extract(ctModel.getAllTypes(), model, AppId.of("app:eventbus-sample"));
     }
 
     @Test

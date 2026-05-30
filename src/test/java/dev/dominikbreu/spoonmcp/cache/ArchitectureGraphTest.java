@@ -17,6 +17,7 @@ import dev.dominikbreu.spoonmcp.model.FieldAccess;
 import dev.dominikbreu.spoonmcp.model.InterfaceEntry;
 import dev.dominikbreu.spoonmcp.model.MessagingBroker;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import dev.dominikbreu.spoonmcp.model.ids.DependencyId;
 import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
@@ -418,7 +419,7 @@ class ArchitectureGraphTest {
         entry.type = "messaging_producer";
         entry.path = "orders.created";
         entry.componentId = ComponentId.of("OrderService");
-        entry.module = "app:test";
+        entry.module = AppId.of("app:test");
         entry.technology = "spring";
         entry.broker = MessagingBroker.KAFKA;
         entry.topic = "orders.created";
@@ -443,7 +444,7 @@ class ArchitectureGraphTest {
         service.id = ComponentId.of("OrderService");
         service.name = "OrderService";
         service.type = ComponentType.SERVICE;
-        service.module = "app:test";
+        service.module = AppId.of("app:test");
         model.components.add(service);
 
         ExternalSystem kafka = new ExternalSystem();
@@ -563,7 +564,7 @@ class ArchitectureGraphTest {
         ArchitectureModel model = new ArchitectureModel("test");
 
         AppEntry app = new AppEntry();
-        app.id = "app:orders";
+        app.id = AppId.of("app:orders");
         app.name = "orders";
         app.componentIds.add(ComponentId.of("OrderService"));
         app.componentIds.add(ComponentId.of("OrderRepository"));
@@ -574,7 +575,7 @@ class ArchitectureGraphTest {
         service.name = "OrderService";
         service.qualifiedName = "com.example.OrderService";
         service.type = ComponentType.SERVICE;
-        service.module = "orders";
+        service.module = AppId.of("orders");
         service.source = new SourceInfo("src/OrderService.java", 12, "annotation", 0.95);
         model.components.add(service);
 
@@ -583,7 +584,7 @@ class ArchitectureGraphTest {
         repository.name = "OrderRepository";
         repository.qualifiedName = "com.example.OrderRepository";
         repository.type = ComponentType.REPOSITORY;
-        repository.module = "orders";
+        repository.module = AppId.of("orders");
         model.components.add(repository);
 
         Entrypoint entrypoint = new Entrypoint();
