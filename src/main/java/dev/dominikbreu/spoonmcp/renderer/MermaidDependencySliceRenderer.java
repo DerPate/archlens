@@ -43,13 +43,25 @@ public class MermaidDependencySliceRenderer {
                     .add(dependency);
         }
 
-        int maxDepth = Math.max(1, depth);
         Set<String> visibleComponents = new LinkedHashSet<>();
         Set<Dependency> visibleDependencies = new LinkedHashSet<>();
+        traverseSlice(root, outgoing, Math.max(1, depth), visibleComponents, visibleDependencies);
+
+        StringBuilder sb = new StringBuilder("flowchart LR\n");
+        appendSliceNodes(sb, visibleComponents, byId);
+        appendSliceEdges(sb, visibleDependencies);
+        return sb.toString();
+    }
+
+    private void traverseSlice(
+            Component root,
+            Map<String, List<Dependency>> outgoing,
+            int maxDepth,
+            Set<String> visibleComponents,
+            Set<Dependency> visibleDependencies) {
         Set<String> visited = new HashSet<>();
         ArrayDeque<String> queue = new ArrayDeque<>();
         Map<String, Integer> depths = new HashMap<>();
-
         queue.add(root.id.serialize());
         depths.put(root.id.serialize(), 0);
 
@@ -70,22 +82,21 @@ public class MermaidDependencySliceRenderer {
                 }
             }
         }
+    }
 
-        StringBuilder sb = new StringBuilder("flowchart LR\n");
+    private void appendSliceNodes(StringBuilder sb, Set<String> visibleComponents, Map<String, Component> byId) {
         for (String componentId : visibleComponents) {
             Component component = byId.get(componentId);
-            String label;
-            if (component != null) {
-                label = component.name + "\\n" + component.type;
-            } else {
-                label = componentId;
-            }
+            String label = component != null ? component.name + "\\n" + component.type : componentId;
             sb.append("    ")
                     .append(nodeId(componentId))
                     .append("[\"")
                     .append(escape(label))
                     .append("\"]\n");
         }
+    }
+
+    private void appendSliceEdges(StringBuilder sb, Set<Dependency> visibleDependencies) {
         for (Dependency dependency : visibleDependencies) {
             sb.append("    ")
                     .append(nodeId(dependency.fromId.serialize()))
@@ -95,7 +106,6 @@ public class MermaidDependencySliceRenderer {
                     .append(nodeId(dependency.toId.serialize()))
                     .append("\n");
         }
-        return sb.toString();
     }
 
     private Component findComponent(ArchitectureModel model, String ref) {

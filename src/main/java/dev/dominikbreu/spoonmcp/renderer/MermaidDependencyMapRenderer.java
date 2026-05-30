@@ -112,63 +112,45 @@ public class MermaidDependencyMapRenderer {
     private String groupName(Component component, String rootPackage) {
         String qualifiedName = component.qualifiedName;
         if (qualifiedName == null || qualifiedName.isBlank()) {
-            if (component.module != null && !component.module.serialize().isBlank()) {
-                return component.module.serialize();
-            } else {
-                return DEFAULT_LABEL;
-            }
+            return groupFromModule(component);
         }
-
         int lastDot = qualifiedName.lastIndexOf('.');
-        String packageName;
-        if (lastDot > 0) {
-            packageName = qualifiedName.substring(0, lastDot);
-        } else {
-            packageName = "";
-        }
+        String packageName = lastDot > 0 ? qualifiedName.substring(0, lastDot) : "";
 
         // Component is IN the root package itself — use the leaf segment of the package
         if (rootPackage.isEmpty() || packageName.equals(rootPackage)) {
-            int dot = packageName.lastIndexOf('.');
-            if (dot >= 0) {
-                return packageName.substring(dot + 1);
-            } else {
-                return (packageName.isEmpty() ? DEFAULT_LABEL : packageName);
-            }
+            return leafSegment(packageName);
         }
-        String afterRoot;
+        String afterRoot = packageName.startsWith(rootPackage + ".")
+                ? packageName.substring(rootPackage.length() + 1)
+                : packageName;
+        return firstSegmentGroup(afterRoot);
+    }
 
-        if (packageName.startsWith(rootPackage + ".")) {
-            afterRoot = packageName.substring(rootPackage.length() + 1);
-        } else {
-            afterRoot = packageName;
+    private String groupFromModule(Component component) {
+        if (component.module != null && !component.module.serialize().isBlank()) {
+            return component.module.serialize();
         }
+        return DEFAULT_LABEL;
+    }
 
+    private String leafSegment(String packageName) {
+        int dot = packageName.lastIndexOf('.');
+        if (dot >= 0) return packageName.substring(dot + 1);
+        return packageName.isEmpty() ? DEFAULT_LABEL : packageName;
+    }
+
+    private String firstSegmentGroup(String afterRoot) {
         int dot = afterRoot.indexOf('.');
-        String first;
-        if (dot < 0) {
-            first = afterRoot;
-        } else {
-            first = afterRoot.substring(0, dot);
-        }
-
+        String first = dot < 0 ? afterRoot : afterRoot.substring(0, dot);
         // Collapse known two-segment groups (e.g. mcp.tools)
         if (dot >= 0) {
             int dot2 = afterRoot.indexOf('.', dot + 1);
-            String second;
-            if (dot2 < 0) {
-                second = afterRoot.substring(dot + 1);
-            } else {
-                second = afterRoot.substring(dot + 1, dot2);
-            }
+            String second = dot2 < 0 ? afterRoot.substring(dot + 1) : afterRoot.substring(dot + 1, dot2);
             String twoSeg = first + "." + second;
             if (isKnownGroup(twoSeg)) return twoSeg;
         }
-        if (first.isEmpty()) {
-            return DEFAULT_LABEL;
-        } else {
-            return first;
-        }
+        return first.isEmpty() ? DEFAULT_LABEL : first;
     }
 
     private boolean isKnownGroup(String seg) {

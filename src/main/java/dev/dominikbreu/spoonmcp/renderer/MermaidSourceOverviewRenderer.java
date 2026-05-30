@@ -26,12 +26,7 @@ public class MermaidSourceOverviewRenderer {
      * @return Mermaid flowchart text
      */
     public String render(ArchitectureModel model, int maxComponentsPerPackage) {
-        int maxPerPackage;
-        if (maxComponentsPerPackage <= 0) {
-            maxPerPackage = 25;
-        } else {
-            maxPerPackage = maxComponentsPerPackage;
-        }
+        int maxPerPackage = maxComponentsPerPackage <= 0 ? 25 : maxComponentsPerPackage;
         Map<String, List<Component>> byPackage = model.components.stream()
                 .collect(Collectors.groupingBy(this::packageName, LinkedHashMap::new, Collectors.toList()));
 
@@ -39,40 +34,53 @@ public class MermaidSourceOverviewRenderer {
         StringBuilder sb = new StringBuilder("flowchart TD\n");
 
         for (Map.Entry<String, List<Component>> entry : byPackage.entrySet()) {
-            String pkg = entry.getKey();
-            String packageNode = nodeId("pkg:" + pkg);
-            sb.append("    subgraph ")
-                    .append(packageNode)
+            appendPackageSubgraph(sb, entry.getKey(), entry.getValue(), maxPerPackage, componentToPackageNode);
+        }
+        appendPackageEdges(sb, model, componentToPackageNode);
+
+        return sb.toString();
+    }
+
+    private void appendPackageSubgraph(
+            StringBuilder sb,
+            String pkg,
+            List<Component> components,
+            int maxPerPackage,
+            Map<String, String> componentToPackageNode) {
+        sb.append("    subgraph ")
+                .append(nodeId("pkg:" + pkg))
+                .append("[\"")
+                .append(escape(pkg))
+                .append("\"]\n");
+
+        int rendered = 0;
+        for (Component component : components) {
+            if (rendered >= maxPerPackage) break;
+            String compNode = nodeId(component.id.serialize());
+            componentToPackageNode.put(component.id.serialize(), compNode);
+            sb.append("        ")
+                    .append(compNode)
                     .append("[\"")
-                    .append(escape(pkg))
+                    .append(escape(component.name))
+                    .append("\\n")
+                    .append(escape(String.valueOf(component.type)))
                     .append("\"]\n");
-
-            int rendered = 0;
-            for (Component component : entry.getValue()) {
-                if (rendered >= maxPerPackage) break;
-                String compNode = nodeId(component.id.serialize());
-                componentToPackageNode.put(component.id.serialize(), compNode);
-                sb.append("        ")
-                        .append(compNode)
-                        .append("[\"")
-                        .append(escape(component.name))
-                        .append("\\n")
-                        .append(escape(String.valueOf(component.type)))
-                        .append("\"]\n");
-                rendered++;
-            }
-
-            int omitted = entry.getValue().size() - rendered;
-            if (omitted > 0) {
-                sb.append("        ")
-                        .append(nodeId("omitted:" + pkg))
-                        .append("[\"... ")
-                        .append(omitted)
-                        .append(" more\"]\n");
-            }
-            sb.append("    end\n");
+            rendered++;
         }
 
+        int omitted = components.size() - rendered;
+        if (omitted > 0) {
+            sb.append("        ")
+                    .append(nodeId("omitted:" + pkg))
+                    .append("[\"... ")
+                    .append(omitted)
+                    .append(" more\"]\n");
+        }
+        sb.append("    end\n");
+    }
+
+    private void appendPackageEdges(
+            StringBuilder sb, ArchitectureModel model, Map<String, String> componentToPackageNode) {
         Set<String> drawn = new LinkedHashSet<>();
         for (Dependency dependency : model.dependencies) {
             String from = componentToPackageNode.get(dependency.fromId.serialize());
@@ -83,8 +91,6 @@ public class MermaidSourceOverviewRenderer {
                 sb.append("    ").append(from).append(" --> ").append(to).append("\n");
             }
         }
-
-        return sb.toString();
     }
 
     private String packageName(Component component) {

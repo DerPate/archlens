@@ -119,6 +119,34 @@ public class ExportGraphArchitecturePocTool {
         sb.append("- `kind`, `dependencyKind`, `derivedFrom`, `confidence`\n");
         sb.append("- `isRuntimeRelevant`, `isCondensable`, `isCrossModule`, `fromModule`, `toModule`, `weight`\n\n");
 
+        appendHighSignalComponents(sb, graph);
+        appendCrossModuleDependencies(sb, graph);
+        appendEntrypointReachability(sb, graph);
+
+        appendRuntimeFlowSamples(sb, model);
+        appendFocusSlice(sb, graph, focusComponent);
+
+        sb.append("## MCP Graph Query Examples\n\n");
+        sb.append(JSON_FENCE_OPEN);
+        sb.append("{\"action\":\"summary\"}\n");
+        sb.append(JSON_FENCE_CLOSE);
+        sb.append(JSON_FENCE_OPEN);
+        sb.append(
+                "{\"action\":\"find_nodes\",\"label\":\"Component\",\"filters\":{\"packageName\":\"dev.dominikbreu.spoonmcp.cache\"}}\n");
+        sb.append(JSON_FENCE_CLOSE);
+        sb.append(JSON_FENCE_OPEN);
+        sb.append(
+                "{\"action\":\"find_edges\",\"label\":\"DEPENDS_ON\",\"filters\":{\"confidence\":\">=0.65\",\"isCrossModule\":\"true\"}}\n");
+        sb.append(JSON_FENCE_CLOSE);
+        sb.append(JSON_FENCE_OPEN);
+        sb.append(
+                "{\"action\":\"impacted_by\",\"nodeId\":\"dev.dominikbreu.spoonmcp.cache.ArchitectureGraph\",\"maxDepth\":4}\n");
+        sb.append("```\n");
+
+        return sb.toString();
+    }
+
+    private void appendHighSignalComponents(StringBuilder sb, ArchitectureGraph graph) {
         sb.append("## High Signal Components\n\n");
         Comparator<ArchitectureGraph.GraphNode> signalOrder = Comparator.comparingInt(
                         (ArchitectureGraph.GraphNode node) ->
@@ -161,7 +189,9 @@ public class ExportGraphArchitecturePocTool {
                     sb.append("\n");
                 });
         sb.append("\n");
+    }
 
+    private void appendCrossModuleDependencies(StringBuilder sb, ArchitectureGraph graph) {
         sb.append("## Cross-Module Dependencies\n\n");
         graph.findEdges("DEPENDS_ON", Map.of("isCrossModule", "true"), 100).stream()
                 .sorted(Comparator.comparingDouble(
@@ -178,7 +208,9 @@ public class ExportGraphArchitecturePocTool {
                     sb.append("\n");
                 });
         sb.append("\n");
+    }
 
+    private void appendEntrypointReachability(StringBuilder sb, ArchitectureGraph graph) {
         sb.append("## Entrypoint Reachability\n\n");
         graph.findNodes(COMPONENT_LABEL, null, Map.of("entrypointReachable", "true"), 100).stream()
                 .limit(20)
@@ -196,33 +228,37 @@ public class ExportGraphArchitecturePocTool {
                     sb.append("\n");
                 });
         sb.append("\n");
+    }
 
+    private void appendRuntimeFlowSamples(StringBuilder sb, ArchitectureModel model) {
         sb.append("## Runtime Flow Samples\n\n");
         if (model.runtimeFlows.isEmpty()) {
             sb.append("- No runtime flows were persisted in the indexed model.\n\n");
-        } else {
-            for (RuntimeFlow flow : model.runtimeFlows) {
-                sb.append("### ").append(flow.id).append("\n\n");
-                sb.append("- Entrypoint: `").append(flow.entrypointId).append("`\n");
-                sb.append("- Steps: ").append(flow.steps.size()).append("\n");
-                for (RuntimeFlowStep step : flow.steps) {
-                    sb.append("- ")
-                            .append(step.order)
-                            .append(". `")
-                            .append(step.componentId)
-                            .append("`");
-                    if (step.componentName != null && !step.componentName.isBlank()) {
-                        sb.append(" ").append(step.componentName);
-                    }
-                    if (step.via != null && !step.via.isBlank()) {
-                        sb.append(" via `").append(step.via).append("`");
-                    }
-                    sb.append("\n");
-                }
-                sb.append("\n");
-            }
+            return;
         }
+        for (RuntimeFlow flow : model.runtimeFlows) {
+            sb.append("### ").append(flow.id).append("\n\n");
+            sb.append("- Entrypoint: `").append(flow.entrypointId).append("`\n");
+            sb.append("- Steps: ").append(flow.steps.size()).append("\n");
+            for (RuntimeFlowStep step : flow.steps) {
+                appendFlowStep(sb, step);
+            }
+            sb.append("\n");
+        }
+    }
 
+    private void appendFlowStep(StringBuilder sb, RuntimeFlowStep step) {
+        sb.append("- ").append(step.order).append(". `").append(step.componentId).append("`");
+        if (step.componentName != null && !step.componentName.isBlank()) {
+            sb.append(" ").append(step.componentName);
+        }
+        if (step.via != null && !step.via.isBlank()) {
+            sb.append(" via `").append(step.via).append("`");
+        }
+        sb.append("\n");
+    }
+
+    private void appendFocusSlice(StringBuilder sb, ArchitectureGraph graph, String focusComponent) {
         sb.append("## Focus Slice\n\n");
         sb.append("Focus component: `").append(focusComponent).append("`\n\n");
         graph.findNodes(COMPONENT_LABEL, focusComponent, Map.of(), 5).stream()
@@ -254,25 +290,6 @@ public class ExportGraphArchitecturePocTool {
                     });
                     sb.append("\n");
                 });
-
-        sb.append("## MCP Graph Query Examples\n\n");
-        sb.append(JSON_FENCE_OPEN);
-        sb.append("{\"action\":\"summary\"}\n");
-        sb.append(JSON_FENCE_CLOSE);
-        sb.append(JSON_FENCE_OPEN);
-        sb.append(
-                "{\"action\":\"find_nodes\",\"label\":\"Component\",\"filters\":{\"packageName\":\"dev.dominikbreu.spoonmcp.cache\"}}\n");
-        sb.append(JSON_FENCE_CLOSE);
-        sb.append(JSON_FENCE_OPEN);
-        sb.append(
-                "{\"action\":\"find_edges\",\"label\":\"DEPENDS_ON\",\"filters\":{\"confidence\":\">=0.65\",\"isCrossModule\":\"true\"}}\n");
-        sb.append(JSON_FENCE_CLOSE);
-        sb.append(JSON_FENCE_OPEN);
-        sb.append(
-                "{\"action\":\"impacted_by\",\"nodeId\":\"dev.dominikbreu.spoonmcp.cache.ArchitectureGraph\",\"maxDepth\":4}\n");
-        sb.append("```\n");
-
-        return sb.toString();
     }
 
     private void renderCounts(StringBuilder sb, String title, Map<String, Integer> counts) {
