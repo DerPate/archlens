@@ -59,7 +59,119 @@ class TraceDataFlowToolTest {
         assertThat(result).doesNotContain("budgetControl");
     }
 
+    // ── characterization: filters + format branches ───────────────────────────
+
+    @Test
+    void emptyCallEdges_reportsNoCallGraph() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        String result = tool(model).execute(Map.of());
+        assertThat(result).contains("No call-graph data available");
+    }
+
+    @Test
+    void noModel_reportsNoWorkspace() {
+        ModelCache empty = new ModelCache(null, ModelCache.CacheBackend.JSON) {
+            @Override
+            public ArchitectureModel load() {
+                return null;
+            }
+        };
+        assertThat(new TraceDataFlowTool(empty).execute(Map.of())).contains("No workspace indexed");
+    }
+
+    @Test
+    void entrypointIdFilter_matchesBySerializedId() {
+        ArchitectureModel model = richModel();
+        String result = tool(model).execute(Map.of("entrypointId", "CustomerController#get"));
+        assertThat(result).contains("GET /customer/{id}");
+    }
+
+    @Test
+    void paramFilter_selectsMatchingParam() {
+        ArchitectureModel model = richModel();
+        String result = tool(model).execute(Map.of("param", "id"));
+        assertThat(result).contains("param: id");
+    }
+
+    @Test
+    void sinkKindFilter_selectsPathsWithMatchingSink() {
+        ArchitectureModel model = richModel();
+        String result = tool(model).execute(Map.of("sinkKind", "store"));
+        assertThat(result).contains("[store]");
+    }
+
+    @Test
+    void filtersExcludingAll_reportNoPaths() {
+        ArchitectureModel model = richModel();
+        String result = tool(model).execute(Map.of("param", "doesNotExist"));
+        assertThat(result).isEqualTo("No data-flow paths found for the given filters.");
+    }
+
+    @Test
+    void format_rendersStepsSinksStoreFieldAndSourceLocation() {
+        ArchitectureModel model = richModel();
+        String result = tool(model).execute(Map.of("entrypointId", "CustomerController#get"));
+
+        assertThat(result).contains("1 data-flow path(s):");
+        assertThat(result).contains("→ param: id");
+        assertThat(result).contains("flow:");
+        assertThat(result).contains("1. CustomerController.get (as 'id')");
+        assertThat(result).contains("sinks:");
+        assertThat(result).contains("[store] StateStore.put");
+        assertThat(result).contains("field=cache");
+        assertThat(result).contains("(StateStore.java:42)");
+    }
+
+    @Test
+    void format_entrypointMissing_fallsBackToSerializedId() {
+        ArchitectureModel model = richModel();
+        // path referencing an entrypoint id not present in model.entrypoints
+        DataFlowPath orphan = dataFlowPath("df:ep:Ghost#run#x", EntrypointId.deserialize("Ghost#run"), "x");
+        model.dataFlowPaths.add(orphan);
+        String result = tool(model).execute(Map.of("param", "x"));
+        assertThat(result).contains("Ghost#run");
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
+
+    private static TraceDataFlowTool tool(ArchitectureModel model) {
+        ModelCache cache = new ModelCache(null, ModelCache.CacheBackend.JSON) {
+            @Override
+            public ArchitectureModel load() {
+                return model;
+            }
+        };
+        return new TraceDataFlowTool(cache);
+    }
+
+    private static ArchitectureModel richModel() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        Component ctrl = component("CustomerController", ComponentType.REST_RESOURCE);
+        Component store = component("StateStore", ComponentType.SERVICE);
+        model.components.addAll(List.of(ctrl, store));
+
+        Entrypoint ep = ep("CustomerController#get", "get", "/customer/{id}", "GET", ctrl.id);
+        model.entrypoints.add(ep);
+
+        CallEdge edge = new CallEdge();
+        edge.id = "call:ctrl#get->store#put";
+        edge.fromComponentId = ctrl.id;
+        edge.fromMethod = "get";
+        edge.toComponentId = store.id;
+        edge.toMethod = "put";
+        edge.callKind = "direct";
+        model.callEdges.add(edge);
+
+        DataFlowPath path = dataFlowPath("df:ep:CustomerController#get:GET#id", ep.id, "id");
+        path.steps.add(new DataFlowStep(0, ctrl.id, "CustomerController", "get", "id"));
+        DataFlowSink sink =
+                new DataFlowSink(DataFlowSink.Kind.STORE, store.id, "StateStore", "put", new SourceInfo("path/StateStore.java", 42, "field-write", 0.9));
+        sink.fieldName = "cache";
+        path.sinks.add(sink);
+        model.dataFlowPaths.add(path);
+        return model;
+    }
+
 
     private static Component component(String name, ComponentType type) {
         Component c = new Component();
