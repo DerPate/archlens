@@ -288,8 +288,8 @@ public class DataFlowTracer {
         while (!stack.isEmpty() && budget-- > 0) {
             dev.dominikbreu.spoonmcp.model.ids.MethodRef current = stack.pop();
             for (FieldAccess r : index.fieldAccess.reads(current.component(), current.method())) {
-                if (r.fieldBinding instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent cc) {
-                    keys.add(cc.ref());
+                if (r.fieldBinding instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent(var ref)) {
+                    keys.add(ref);
                 }
             }
             for (CallEdge edge : index.callAdj.edges(current.component(), current.method())) {

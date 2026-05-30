@@ -294,7 +294,7 @@ public class ArchitectureGraph {
         if (!verticesById.containsKey(fromId) || !verticesById.containsKey(toId)) {
             return List.of();
         }
-        int depthLimit = Math.max(1, Math.min(maxDepth <= 0 ? 5 : maxDepth, 8));
+        int depthLimit = Math.clamp(maxDepth <= 0 ? 5 : maxDepth, 1, 8);
         int resultLimit = normalizeLimit(limit);
         List<GraphPath> paths = new ArrayList<>();
         ArrayDeque<PathState> queue = new ArrayDeque<>();
@@ -340,7 +340,7 @@ public class ArchitectureGraph {
         if (!verticesById.containsKey(targetId)) {
             return List.of();
         }
-        int depthLimit = Math.max(1, Math.min(maxDepth <= 0 ? 3 : maxDepth, 8));
+        int depthLimit = Math.clamp(maxDepth <= 0 ? 3 : maxDepth, 1, 8);
         int resultLimit = normalizeLimit(limit);
         Set<GraphNodeId> seen = new LinkedHashSet<>();
         ArrayDeque<NodeDepth> queue = new ArrayDeque<>();
@@ -810,8 +810,8 @@ public class ArchitectureGraph {
             fieldName = "";
         }
         dev.dominikbreu.spoonmcp.model.ids.ComponentId fieldOwner;
-        if (access.fieldBinding instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent cc) {
-            fieldOwner = cc.ref().owner();
+        if (access.fieldBinding instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent(var ref)) {
+            fieldOwner = ref.owner();
         } else {
             fieldOwner = (access.componentId != null ? access.componentId : null);
         }
@@ -837,8 +837,8 @@ public class ArchitectureGraph {
             writeFieldName = "";
         }
         dev.dominikbreu.spoonmcp.model.ids.ComponentId writeFieldOwner;
-        if (write.fieldBinding instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent cc) {
-            writeFieldOwner = cc.ref().owner();
+        if (write.fieldBinding instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent(var ref)) {
+            writeFieldOwner = ref.owner();
         } else {
             writeFieldOwner = (write.componentId != null ? write.componentId : null);
         }
@@ -1198,7 +1198,7 @@ public class ArchitectureGraph {
     }
 
     private int normalizeLimit(int limit) {
-        return Math.max(1, Math.min(limit <= 0 ? 25 : limit, 100));
+        return Math.clamp(limit <= 0 ? 25 : limit, 1, 100);
     }
 
     /**
