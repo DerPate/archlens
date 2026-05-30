@@ -3,6 +3,7 @@ package dev.dominikbreu.spoonmcp.renderer;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.Dependency;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,12 +28,9 @@ public class MermaidDependencyMapRenderer {
      * @return Mermaid flowchart text
      */
     public String render(ArchitectureModel model) {
-        Map<String, Component> componentsById = model.components.stream()
+        Map<ComponentId, Component> componentsById = model.components.stream()
                 .collect(Collectors.toMap(
-                        component -> component.id.serialize(),
-                        component -> component,
-                        (left, right) -> left,
-                        LinkedHashMap::new));
+                        component -> component.id, component -> component, (left, right) -> left, LinkedHashMap::new));
 
         String commonPrefix = commonPackagePrefix(model.components);
 
@@ -45,8 +43,8 @@ public class MermaidDependencyMapRenderer {
         }
 
         for (Dependency dependency : model.dependencies) {
-            Component from = componentsById.get(dependency.fromId.serialize());
-            Component to = componentsById.get(dependency.toId.serialize());
+            Component from = componentsById.get(dependency.fromId);
+            Component to = componentsById.get(dependency.toId);
             if (from == null || to == null) continue;
 
             String fromGroup = groupName(from, commonPrefix);
