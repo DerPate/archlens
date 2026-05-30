@@ -36,44 +36,52 @@ public class DockerComposeMerger {
             if (!(servicesObj instanceof Map<?, ?> services)) return;
 
             for (Map.Entry<?, ?> entry : services.entrySet()) {
-                String serviceName = String.valueOf(entry.getKey());
-                DeploymentEntry de = new DeploymentEntry();
-                de.id = "deploy:" + serviceName;
-                de.name = serviceName;
-                de.type = "docker-compose";
-                de.source = composeFile.getAbsolutePath();
-
-                if (entry.getValue() instanceof Map<?, ?> service) {
-                    // ports
-                    Object portsObj = service.get("ports");
-                    if (portsObj instanceof List<?> ports) {
-                        for (Object p : ports) {
-                            de.ports.add(String.valueOf(p));
-                        }
-                    }
-
-                    // depends_on
-                    Object depsObj = service.get("depends_on");
-                    switch (depsObj) {
-                        case List<?> deps -> deps.stream().map(String::valueOf).forEach(de.dependsOn::add);
-                        case Map<?, ?> deps ->
-                            deps.keySet().stream().map(String::valueOf).forEach(de.dependsOn::add);
-                        case null, default -> {}
-                    }
-
-                    // link appIds by matching service name to known app names
-                    for (var app : model.applications) {
-                        if (app.name.equalsIgnoreCase(serviceName)
-                                || serviceName.contains(app.name)
-                                || app.name.contains(serviceName)) {
-                            de.appIds.add(app.id);
-                        }
-                    }
-                }
-
-                model.deployments.add(de);
+                model.deployments.add(
+                        buildDeploymentEntry(String.valueOf(entry.getKey()), entry.getValue(), composeFile, model));
             }
         } catch (Exception ignored) {
+        }
+    }
+
+    private DeploymentEntry buildDeploymentEntry(
+            String serviceName, Object serviceObj, File composeFile, ArchitectureModel model) {
+        DeploymentEntry de = new DeploymentEntry();
+        de.id = "deploy:" + serviceName;
+        de.name = serviceName;
+        de.type = "docker-compose";
+        de.source = composeFile.getAbsolutePath();
+        if (serviceObj instanceof Map<?, ?> service) {
+            addPorts(de, service.get("ports"));
+            addDependsOn(de, service.get("depends_on"));
+            linkAppIds(de, serviceName, model);
+        }
+        return de;
+    }
+
+    private void addPorts(DeploymentEntry de, Object portsObj) {
+        if (portsObj instanceof List<?> ports) {
+            for (Object p : ports) {
+                de.ports.add(String.valueOf(p));
+            }
+        }
+    }
+
+    private void addDependsOn(DeploymentEntry de, Object depsObj) {
+        switch (depsObj) {
+            case List<?> deps -> deps.stream().map(String::valueOf).forEach(de.dependsOn::add);
+            case Map<?, ?> deps -> deps.keySet().stream().map(String::valueOf).forEach(de.dependsOn::add);
+            case null, default -> {}
+        }
+    }
+
+    private void linkAppIds(DeploymentEntry de, String serviceName, ArchitectureModel model) {
+        // link appIds by matching service name to known app names
+        for (var app : model.applications) {
+            if (app.name.equalsIgnoreCase(serviceName)
+                    || serviceName.contains(app.name)
+                    || app.name.contains(serviceName)) {
+                de.appIds.add(app.id);
+            }
         }
     }
 
