@@ -3,6 +3,7 @@ package dev.dominikbreu.spoonmcp.extractor;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Dependency;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.*;
 
 /**
@@ -28,14 +29,14 @@ public class DependencyCondenser {
      * @return condensed dependency list
      */
     public List<Dependency> condense(List<Dependency> dependencies, List<Component> components) {
-        Set<String> nonArch = collectNonArchitectural(components);
+        Set<ComponentId> nonArch = collectNonArchitectural(components);
         if (nonArch.isEmpty()) return new ArrayList<>(dependencies);
 
-        Map<String, Set<String>> out = new LinkedHashMap<>();
-        Map<String, Set<String>> in = new LinkedHashMap<>();
+        Map<ComponentId, Set<ComponentId>> out = new LinkedHashMap<>();
+        Map<ComponentId, Set<ComponentId>> in = new LinkedHashMap<>();
         buildAdjacency(dependencies, out, in);
 
-        for (String mid : nonArch) {
+        for (ComponentId mid : nonArch) {
             bypassNode(mid, in, out);
         }
 
@@ -44,29 +45,31 @@ public class DependencyCondenser {
         return result;
     }
 
-    private Set<String> collectNonArchitectural(List<Component> components) {
-        Set<String> nonArch = new HashSet<>();
+    private Set<ComponentId> collectNonArchitectural(List<Component> components) {
+        Set<ComponentId> nonArch = new HashSet<>();
         for (Component c : components) {
-            if (NON_ARCHITECTURAL.contains(c.type)) nonArch.add(c.id.serialize());
+            if (NON_ARCHITECTURAL.contains(c.type)) nonArch.add(c.id);
         }
         return nonArch;
     }
 
     private void buildAdjacency(
-            List<Dependency> dependencies, Map<String, Set<String>> out, Map<String, Set<String>> in) {
+            List<Dependency> dependencies,
+            Map<ComponentId, Set<ComponentId>> out,
+            Map<ComponentId, Set<ComponentId>> in) {
         for (Dependency dep : dependencies) {
-            out.computeIfAbsent(dep.fromId.serialize(), k -> new LinkedHashSet<>())
-                    .add(dep.toId.serialize());
-            in.computeIfAbsent(dep.toId.serialize(), k -> new LinkedHashSet<>()).add(dep.fromId.serialize());
+            out.computeIfAbsent(dep.fromId, k -> new LinkedHashSet<>()).add(dep.toId);
+            in.computeIfAbsent(dep.toId, k -> new LinkedHashSet<>()).add(dep.fromId);
         }
     }
 
     /** Re-routes edges around a non-architectural node, then removes it from both adjacency maps. */
-    private void bypassNode(String mid, Map<String, Set<String>> in, Map<String, Set<String>> out) {
-        Set<String> preds = in.getOrDefault(mid, Set.of());
-        Set<String> succs = out.getOrDefault(mid, Set.of());
-        for (String pred : preds) {
-            for (String succ : succs) {
+    private void bypassNode(
+            ComponentId mid, Map<ComponentId, Set<ComponentId>> in, Map<ComponentId, Set<ComponentId>> out) {
+        Set<ComponentId> preds = in.getOrDefault(mid, Set.of());
+        Set<ComponentId> succs = out.getOrDefault(mid, Set.of());
+        for (ComponentId pred : preds) {
+            for (ComponentId succ : succs) {
                 if (!pred.equals(succ)) {
                     out.computeIfAbsent(pred, k -> new LinkedHashSet<>()).add(succ);
                     in.computeIfAbsent(succ, k -> new LinkedHashSet<>()).add(pred);
@@ -74,21 +77,21 @@ public class DependencyCondenser {
             }
             out.getOrDefault(pred, new LinkedHashSet<>()).remove(mid);
         }
-        for (String succ : succs) {
+        for (ComponentId succ : succs) {
             in.getOrDefault(succ, new LinkedHashSet<>()).remove(mid);
         }
         out.remove(mid);
         in.remove(mid);
     }
 
-    private List<Dependency> rebuildCondensed(Map<String, Set<String>> out) {
+    private List<Dependency> rebuildCondensed(Map<ComponentId, Set<ComponentId>> out) {
         List<Dependency> result = new ArrayList<>();
-        for (Map.Entry<String, Set<String>> entry : out.entrySet()) {
-            String from = entry.getKey();
-            for (String to : entry.getValue()) {
+        for (Map.Entry<ComponentId, Set<ComponentId>> entry : out.entrySet()) {
+            ComponentId from = entry.getKey();
+            for (ComponentId to : entry.getValue()) {
                 Dependency dep = new Dependency();
-                dep.fromId = dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(from);
-                dep.toId = dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(to);
+                dep.fromId = from;
+                dep.toId = to;
                 dep.id = dev.dominikbreu.spoonmcp.model.ids.DependencyId.of(dep.fromId, dep.toId, CONDENSED);
                 dep.kind = CONDENSED;
                 dep.derivedFrom = "condensation";
@@ -99,9 +102,10 @@ public class DependencyCondenser {
         return result;
     }
 
-    private void appendArchitecturalDeps(List<Dependency> dependencies, Set<String> nonArch, List<Dependency> result) {
+    private void appendArchitecturalDeps(
+            List<Dependency> dependencies, Set<ComponentId> nonArch, List<Dependency> result) {
         for (Dependency orig : dependencies) {
-            boolean bothArch = !nonArch.contains(orig.fromId.serialize()) && !nonArch.contains(orig.toId.serialize());
+            boolean bothArch = !nonArch.contains(orig.fromId) && !nonArch.contains(orig.toId);
             if (bothArch) {
                 dev.dominikbreu.spoonmcp.model.ids.DependencyId condensedId =
                         dev.dominikbreu.spoonmcp.model.ids.DependencyId.of(orig.fromId, orig.toId, CONDENSED);
