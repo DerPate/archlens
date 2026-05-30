@@ -3,6 +3,7 @@ package dev.dominikbreu.spoonmcp.renderer;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.Dependency;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -32,18 +33,18 @@ public class MermaidDependencySliceRenderer {
         Component root = findComponent(model, ref);
         if (root == null) return "flowchart LR\n    missing[\"Component not found: " + escape(ref) + "\"]\n";
 
-        Map<String, Component> byId = new HashMap<>();
+        Map<ComponentId, Component> byId = new HashMap<>();
         for (Component component : model.components) {
-            byId.put(component.id.serialize(), component);
+            byId.put(component.id, component);
         }
 
-        Map<String, List<Dependency>> outgoing = new HashMap<>();
+        Map<ComponentId, List<Dependency>> outgoing = new HashMap<>();
         for (Dependency dependency : model.dependencies) {
-            outgoing.computeIfAbsent(dependency.fromId.serialize(), ignored -> new ArrayList<>())
+            outgoing.computeIfAbsent(dependency.fromId, ignored -> new ArrayList<>())
                     .add(dependency);
         }
 
-        Set<String> visibleComponents = new LinkedHashSet<>();
+        Set<ComponentId> visibleComponents = new LinkedHashSet<>();
         Set<Dependency> visibleDependencies = new LinkedHashSet<>();
         traverseSlice(root, outgoing, Math.max(1, depth), visibleComponents, visibleDependencies);
 
@@ -55,18 +56,18 @@ public class MermaidDependencySliceRenderer {
 
     private void traverseSlice(
             Component root,
-            Map<String, List<Dependency>> outgoing,
+            Map<ComponentId, List<Dependency>> outgoing,
             int maxDepth,
-            Set<String> visibleComponents,
+            Set<ComponentId> visibleComponents,
             Set<Dependency> visibleDependencies) {
-        Set<String> visited = new HashSet<>();
-        ArrayDeque<String> queue = new ArrayDeque<>();
-        Map<String, Integer> depths = new HashMap<>();
-        queue.add(root.id.serialize());
-        depths.put(root.id.serialize(), 0);
+        Set<ComponentId> visited = new HashSet<>();
+        ArrayDeque<ComponentId> queue = new ArrayDeque<>();
+        Map<ComponentId, Integer> depths = new HashMap<>();
+        queue.add(root.id);
+        depths.put(root.id, 0);
 
         while (!queue.isEmpty()) {
-            String current = queue.poll();
+            ComponentId current = queue.poll();
             if (!visited.add(current)) continue;
             visibleComponents.add(current);
 
@@ -75,21 +76,22 @@ public class MermaidDependencySliceRenderer {
 
             for (Dependency dependency : outgoing.getOrDefault(current, List.of())) {
                 visibleDependencies.add(dependency);
-                visibleComponents.add(dependency.toId.serialize());
-                if (!visited.contains(dependency.toId.serialize())) {
-                    depths.put(dependency.toId.serialize(), currentDepth + 1);
-                    queue.add(dependency.toId.serialize());
+                visibleComponents.add(dependency.toId);
+                if (!visited.contains(dependency.toId)) {
+                    depths.put(dependency.toId, currentDepth + 1);
+                    queue.add(dependency.toId);
                 }
             }
         }
     }
 
-    private void appendSliceNodes(StringBuilder sb, Set<String> visibleComponents, Map<String, Component> byId) {
-        for (String componentId : visibleComponents) {
+    private void appendSliceNodes(
+            StringBuilder sb, Set<ComponentId> visibleComponents, Map<ComponentId, Component> byId) {
+        for (ComponentId componentId : visibleComponents) {
             Component component = byId.get(componentId);
-            String label = component != null ? component.name + "\\n" + component.type : componentId;
+            String label = component != null ? component.name + "\\n" + component.type : componentId.serialize();
             sb.append("    ")
-                    .append(nodeId(componentId))
+                    .append(nodeId(componentId.serialize()))
                     .append("[\"")
                     .append(escape(label))
                     .append("\"]\n");
