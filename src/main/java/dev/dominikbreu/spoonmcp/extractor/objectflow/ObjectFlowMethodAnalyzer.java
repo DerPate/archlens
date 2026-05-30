@@ -2,6 +2,7 @@ package dev.dominikbreu.spoonmcp.extractor.objectflow;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import spoon.reflect.code.CtConstructorCall;
 import spoon.reflect.code.CtExpression;
 import spoon.reflect.code.CtForEach;
@@ -25,29 +26,29 @@ final class ObjectFlowMethodAnalyzer {
             if (!(variable instanceof CtLocalVariable<?> local) || !variableName.equals(local.getSimpleName())) {
                 continue;
             }
-            List<ReceiverTarget> decided = targetsForLocal(local, methodName);
-            if (decided != null) {
-                return decided;
+            Optional<List<ReceiverTarget>> decided = targetsForLocal(local, methodName);
+            if (decided.isPresent()) {
+                return decided.get();
             }
         }
         return List.of();
     }
 
     /**
-     * Resolves receiver targets for a single matching local variable, or {@code null} if this local
-     * yields no decision and scanning should continue.
+     * Resolves receiver targets for a single matching local variable, or {@link Optional#empty()} if
+     * this local yields no decision and scanning should continue.
      */
-    private static List<ReceiverTarget> targetsForLocal(CtLocalVariable<?> local, String methodName) {
+    private static Optional<List<ReceiverTarget>> targetsForLocal(CtLocalVariable<?> local, String methodName) {
         // Case 1: Direct constructor call → LOCAL_ASSIGNMENT
         String allocatedType = allocatedType(local.getDefaultExpression());
         if (allocatedType != null) {
-            return targetFor(allocatedType, methodName, ObjectFlowEvidence.LOCAL_ASSIGNMENT);
+            return Optional.of(targetFor(allocatedType, methodName, ObjectFlowEvidence.LOCAL_ASSIGNMENT));
         }
         // Case 2: Collection factory call (e.g. List.of(new X(), new Y())) → COLLECTION_ELEMENT_ALLOCATION
         if (local.getDefaultExpression() instanceof CtInvocation<?> inv) {
             List<ReceiverTarget> targets = collectionElementTargets(inv.getArguments(), methodName);
             if (!targets.isEmpty()) {
-                return targets;
+                return Optional.of(targets);
             }
         }
         // Case 3: For-each iteration variable — look at the iterable's constructor elements
@@ -57,11 +58,11 @@ final class ObjectFlowMethodAnalyzer {
             if (iterableVar != null && iterableVar.getDefaultExpression() instanceof CtInvocation<?> inv) {
                 List<ReceiverTarget> targets = collectionElementTargets(inv.getArguments(), methodName);
                 if (!targets.isEmpty()) {
-                    return targets;
+                    return Optional.of(targets);
                 }
             }
         }
-        return null;
+        return Optional.empty();
     }
 
     private static List<ReceiverTarget> collectionElementTargets(List<CtExpression<?>> arguments, String methodName) {

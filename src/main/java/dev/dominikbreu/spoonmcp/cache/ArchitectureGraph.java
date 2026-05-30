@@ -754,8 +754,8 @@ public class ArchitectureGraph {
             return;
         }
         dev.dominikbreu.spoonmcp.model.ids.ComponentId fieldOwner =
-                access.fieldBinding instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent cc
-                        ? cc.ref().owner()
+                access.fieldBinding instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent(var ref)
+                        ? ref.owner()
                         : access.componentId;
         String fieldName = access.fieldBinding.fieldName();
         String edgeLabel = access.kind == FieldAccess.Kind.WRITE ? REL_WRITES_STATE : REL_READS_STATE;

@@ -53,7 +53,7 @@ public class ObjectFlowIndexBuilder {
         Span span = tracer().spanBuilder("objectflow.build").startSpan();
         try (Scope scope = span.makeCurrent()) {
             Map<String, Component> componentByQualifiedName = componentByQualifiedName(architecture);
-            span.setAttribute("components", (long) componentByQualifiedName.size());
+            span.setAttribute("components", componentByQualifiedName.size());
 
             Map<String, ObjectFlowIndex.TypeFact> types = new LinkedHashMap<>();
             Map<String, List<ObjectFlowIndex.TypeFact>> implementations = new LinkedHashMap<>();
@@ -65,12 +65,12 @@ public class ObjectFlowIndexBuilder {
             for (CtType<?> type : modelTypes) {
                 projectTypeByQualifiedName.put(type.getQualifiedName(), type);
             }
-            span.setAttribute("model-types", (long) modelTypes.size());
+            span.setAttribute("model-types", modelTypes.size());
 
             List<CtType<?>> projectTypes = modelTypes.stream()
                     .filter(type -> componentByQualifiedName.containsKey(type.getQualifiedName()))
                     .toList();
-            span.setAttribute(PROJECT_TYPES, (long) projectTypes.size());
+            span.setAttribute(PROJECT_TYPES, projectTypes.size());
 
             if (sourceFacts == null) {
                 indexTypes(projectTypes, componentByQualifiedName, types);
@@ -83,8 +83,8 @@ public class ObjectFlowIndexBuilder {
             Map<CtInvocation<?>, List<ReceiverTarget>> receiverTargets =
                     receiverTargets(ctModel, projectTypes, types, implementations);
             ObjectFlowIndex index = new ObjectFlowIndex(types, implementations, receiverTargets);
-            span.setAttribute(IMPLEMENTATION_GROUPS, (long) implementations.size());
-            span.setAttribute("receiver-target-map-size", (long) receiverTargets.size());
+            span.setAttribute(IMPLEMENTATION_GROUPS, implementations.size());
+            span.setAttribute("receiver-target-map-size", receiverTargets.size());
             return index;
         } catch (RuntimeException e) {
             span.recordException(e);
@@ -116,7 +116,7 @@ public class ObjectFlowIndexBuilder {
                 types.put(typeFact.qualifiedName(), typeFact);
             }
             span.setAttribute(PROJECT_TYPES, projectTypes);
-            span.setAttribute("indexed-types", (long) types.size());
+            span.setAttribute("indexed-types", types.size());
             span.setAttribute("abstract-or-interface-types", abstractOrInterfaceCount);
         } catch (RuntimeException e) {
             span.recordException(e);
@@ -144,8 +144,8 @@ public class ObjectFlowIndexBuilder {
                         type.getQualifiedName(), component.id.serialize(), abstractOrInterface);
                 types.put(typeFact.qualifiedName(), typeFact);
             }
-            span.setAttribute(PROJECT_TYPES, (long) projectTypes.size());
-            span.setAttribute("indexed-types", (long) types.size());
+            span.setAttribute(PROJECT_TYPES, projectTypes.size());
+            span.setAttribute("indexed-types", types.size());
             span.setAttribute("abstract-or-interface-types", abstractOrInterfaceCount);
         } catch (RuntimeException e) {
             span.recordException(e);
@@ -184,7 +184,7 @@ public class ObjectFlowIndexBuilder {
             }
             span.setAttribute("concrete-types", concreteTypes);
             span.setAttribute("supertype-edges", supertypeEdges);
-            span.setAttribute(IMPLEMENTATION_GROUPS, (long) implementations.size());
+            span.setAttribute(IMPLEMENTATION_GROUPS, implementations.size());
             span.setAttribute("implementation-links", implementationLinks);
             span.setAttribute("duplicate-implementation-links", duplicateImplementationLinks);
         } catch (RuntimeException e) {
@@ -223,7 +223,7 @@ public class ObjectFlowIndexBuilder {
                             .filter(t -> !t.abstractOrInterface())
                             .count());
             span.setAttribute("supertype-edges", supertypeEdges);
-            span.setAttribute(IMPLEMENTATION_GROUPS, (long) implementations.size());
+            span.setAttribute(IMPLEMENTATION_GROUPS, implementations.size());
             span.setAttribute("implementation-links", implementationLinks);
             span.setAttribute("duplicate-implementation-links", duplicateImplementationLinks);
         } catch (RuntimeException e) {
@@ -248,7 +248,7 @@ public class ObjectFlowIndexBuilder {
             List<CtInvocation<?>> invocations = ctModel.getElements(new TypeFilter<>(CtInvocation.class));
             span.setAttribute("executable-bodies", (long)
                     ctModel.getElements(new TypeFilter<>(CtExecutable.class)).size());
-            span.setAttribute("invocations", (long) invocations.size());
+            span.setAttribute("invocations", invocations.size());
             for (CtInvocation<?> invocation : invocations) {
                 ReceiverResolution resolved = resolveInvocation(invocation, projectTypes, typeIndex);
                 stats.record(resolved);
@@ -257,7 +257,7 @@ public class ObjectFlowIndexBuilder {
                 }
             }
             stats.apply(span);
-            span.setAttribute("receiver-target-map-size", (long) targets.size());
+            span.setAttribute("receiver-target-map-size", targets.size());
             return targets;
         } catch (RuntimeException e) {
             span.recordException(e);
@@ -576,8 +576,8 @@ public class ObjectFlowIndexBuilder {
                     components.putIfAbsent(component.qualifiedName, component);
                 }
             }
-            span.setAttribute("architecture-components", (long) architecture.components.size());
-            span.setAttribute("qualified-components", (long) components.size());
+            span.setAttribute("architecture-components", architecture.components.size());
+            span.setAttribute("qualified-components", components.size());
             return components;
         } catch (RuntimeException e) {
             span.recordException(e);

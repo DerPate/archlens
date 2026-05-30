@@ -112,14 +112,15 @@ class TraceDataFlowToolTest {
         ArchitectureModel model = richModel();
         String result = tool(model).execute(Map.of("entrypointId", "CustomerController#get"));
 
-        assertThat(result).contains("1 data-flow path(s):");
-        assertThat(result).contains("→ param: id");
-        assertThat(result).contains("flow:");
-        assertThat(result).contains("1. CustomerController.get (as 'id')");
-        assertThat(result).contains("sinks:");
-        assertThat(result).contains("[store] StateStore.put");
-        assertThat(result).contains("field=cache");
-        assertThat(result).contains("(StateStore.java:42)");
+        assertThat(result)
+                .contains("1 data-flow path(s):")
+                .contains("→ param: id")
+                .contains("flow:")
+                .contains("1. CustomerController.get (as 'id')")
+                .contains("sinks:")
+                .contains("[store] StateStore.put")
+                .contains("field=cache")
+                .contains("(StateStore.java:42)");
     }
 
     @Test

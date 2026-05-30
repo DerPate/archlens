@@ -144,38 +144,40 @@ public class RuntimeFlowInferrer {
         flow.id = "flow:" + ep.id.serialize();
         flow.entrypointId = ep.id;
 
-        Set<String> visited = new LinkedHashSet<>();
-        Deque<String[]> queue = new ArrayDeque<>(); // [compId serialized, fromCompId serialized]
-        Map<String, Integer> depths = new HashMap<>();
-        Map<String, String> viaForNode = new HashMap<>();
+        DependencyWalk walk =
+                new DependencyWalk(new LinkedHashSet<>(), new ArrayDeque<>(), new HashMap<>(), new HashMap<>());
 
         String epCompId = ep.componentId.serialize();
-        queue.add(new String[] {epCompId, null});
-        depths.put(epCompId, 0);
-        viaForNode.put(epCompId, entrypointVia(ep));
+        walk.queue().add(new String[] {epCompId, null});
+        walk.depths().put(epCompId, 0);
+        walk.viaForNode().put(epCompId, entrypointVia(ep));
 
-        while (!queue.isEmpty()) {
-            String[] entry = queue.poll();
+        while (!walk.queue().isEmpty()) {
+            String[] entry = walk.queue().poll();
             String compIdStr = entry[0];
             String fromCompIdStr = entry[1];
 
-            if (visited.contains(compIdStr)) continue;
+            if (walk.visited().contains(compIdStr)) continue;
 
-            int depth = depths.getOrDefault(compIdStr, 0);
+            int depth = walk.depths().getOrDefault(compIdStr, 0);
             if (depth > maxDepth) continue;
 
-            visited.add(compIdStr);
+            walk.visited().add(compIdStr);
 
             Component comp = index.components.get(ComponentId.of(compIdStr));
             boolean visible = traversalPolicy.isHumanVisible(comp);
             if (visible) {
-                addVisibleStep(flow, compIdStr, comp, fromCompIdStr, viaForNode);
+                addVisibleStep(flow, compIdStr, comp, fromCompIdStr, walk.viaForNode());
             }
-            enqueueNeighbors(index, compIdStr, fromCompIdStr, visible, depth, visited, depths, viaForNode, queue);
+            enqueueNeighbors(index, compIdStr, fromCompIdStr, visible, depth, walk);
         }
 
         return flow;
     }
+
+    /** Invariant BFS state: {@code [compId, fromCompId]} entries threaded through the walk. */
+    private record DependencyWalk(
+            Set<String> visited, Deque<String[]> queue, Map<String, Integer> depths, Map<String, String> viaForNode) {}
 
     private void addVisibleStep(
             RuntimeFlow flow, String compIdStr, Component comp, String fromCompIdStr, Map<String, String> viaForNode) {
@@ -188,22 +190,14 @@ public class RuntimeFlowInferrer {
     }
 
     private void enqueueNeighbors(
-            ModelIndex index,
-            String compIdStr,
-            String fromCompIdStr,
-            boolean visible,
-            int depth,
-            Set<String> visited,
-            Map<String, Integer> depths,
-            Map<String, String> viaForNode,
-            Deque<String[]> queue) {
+            ModelIndex index, String compIdStr, String fromCompIdStr, boolean visible, int depth, DependencyWalk walk) {
         for (Map.Entry<ComponentId, String> next :
                 index.depAdj.targets(ComponentId.of(compIdStr)).entrySet()) {
             String nextId = next.getKey().serialize();
-            if (!visited.contains(nextId)) {
-                depths.put(nextId, depth + 1);
-                viaForNode.put(nextId, next.getValue());
-                queue.add(new String[] {nextId, visible ? compIdStr : fromCompIdStr});
+            if (!walk.visited().contains(nextId)) {
+                walk.depths().put(nextId, depth + 1);
+                walk.viaForNode().put(nextId, next.getValue());
+                walk.queue().add(new String[] {nextId, visible ? compIdStr : fromCompIdStr});
             }
         }
     }

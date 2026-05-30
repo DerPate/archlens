@@ -252,7 +252,9 @@ public class DataFlowTracer {
         // broker is unresolved (null) — covers Emitter-field sites whose broker cannot
         // be determined statically (e.g. SmallRye IN_MEMORY vs null mismatch).
         List<String> candidates = consumerPathsByDestination.getOrDefault(key, List.of());
-        if (candidates.isEmpty() && sink.broker == null && dest != null) {
+        // dest is guaranteed non-null here: destinationKey() returns null (→ early return above)
+        // for a null/blank destination.
+        if (candidates.isEmpty() && sink.broker == null) {
             candidates = consumerPathsByChannel.getOrDefault(dest.trim(), List.of());
         }
         for (String targetPathId : candidates) {
@@ -379,10 +381,10 @@ public class DataFlowTracer {
         for (FieldAccess fw : ctx.index().fieldAccess.writes(compId, method)) {
             for (Map.Entry<String, String> e : currentToOriginal.entrySet()) {
                 if (!emitsStoreSink(fw, e.getKey(), depth)) continue;
-                dev.dominikbreu.spoonmcp.model.ids.ComponentId fieldOwner =
-                        fw.fieldBinding instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent cc
-                                ? cc.ref().owner()
-                                : fw.componentId;
+                dev.dominikbreu.spoonmcp.model.ids.ComponentId fieldOwner = fw.fieldBinding
+                                instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent(var ref)
+                        ? ref.owner()
+                        : fw.componentId;
                 String fieldName = fw.fieldBinding.fieldName();
                 ctx.pathsByOriginal()
                         .get(e.getValue())

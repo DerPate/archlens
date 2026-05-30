@@ -72,8 +72,8 @@ public class UseCaseDetector {
         Set<ComponentId> visitedComps = new LinkedHashSet<>();
 
         if (hasCallGraph) {
-            collectCallChain(
-                    ep.componentId, ep.name, null, 0, 5, callAdj, compById, visitedKeys, visitedComps, uc.methodChain);
+            CallChainWalk walk = new CallChainWalk(callAdj, compById, 5, visitedKeys, visitedComps, uc.methodChain);
+            collectCallChain(walk, ep.componentId, ep.name, null, 0);
         } else {
             collectDepChain(ep.componentId.serialize(), 0, 5, depAdj, compById, visitedComps);
         }
@@ -82,63 +82,43 @@ public class UseCaseDetector {
         return uc;
     }
 
-    private void collectCallChain(
-            ComponentId compId,
-            String method,
-            String visibleSourceName,
-            int depth,
-            int maxDepth,
+    /** Invariant state for a single use-case call-chain walk. */
+    private record CallChainWalk(
             Map<String, List<CallEdge>> adj,
             Map<ComponentId, Component> compById,
+            int maxDepth,
             Set<String> visitedKeys,
             Set<ComponentId> visitedComps,
-            List<String> chain) {
-        String key = compId.serialize() + "#" + method;
-        if (visitedKeys.contains(key) || depth > maxDepth) return;
-        visitedKeys.add(key);
+            List<String> chain) {}
 
-        Component fromComp = compById.get(compId);
+    private void collectCallChain(
+            CallChainWalk walk, ComponentId compId, String method, String visibleSourceName, int depth) {
+        String key = compId.serialize() + "#" + method;
+        if (walk.visitedKeys().contains(key) || depth > walk.maxDepth()) return;
+        walk.visitedKeys().add(key);
+
+        Component fromComp = walk.compById().get(compId);
         boolean visible = traversalPolicy.isHumanVisible(fromComp);
         if (visible) {
-            visitedComps.add(compId);
+            walk.visitedComps().add(compId);
         }
         String fromName = fromComp != null ? fromComp.name : compId.serialize();
         String currentVisibleSource = visible ? fromName : visibleSourceName;
 
-        for (CallEdge edge : adj.getOrDefault(key, List.of())) {
-            traverseCallChainEdge(
-                    edge, currentVisibleSource, depth, maxDepth, adj, compById, visitedKeys, visitedComps, chain);
+        for (CallEdge edge : walk.adj().getOrDefault(key, List.of())) {
+            traverseCallChainEdge(walk, edge, currentVisibleSource, depth);
         }
     }
 
-    private void traverseCallChainEdge(
-            CallEdge edge,
-            String currentVisibleSource,
-            int depth,
-            int maxDepth,
-            Map<String, List<CallEdge>> adj,
-            Map<ComponentId, Component> compById,
-            Set<String> visitedKeys,
-            Set<ComponentId> visitedComps,
-            List<String> chain) {
+    private void traverseCallChainEdge(CallChainWalk walk, CallEdge edge, String currentVisibleSource, int depth) {
         if (!traversalPolicy.canTraverseInline(edge)) return;
-        Component toComp = compById.get(edge.toComponentId);
+        Component toComp = walk.compById().get(edge.toComponentId);
         boolean targetVisible = traversalPolicy.isHumanVisible(toComp);
         String toName = toComp != null ? toComp.name : edge.toComponentId.serialize();
         if (targetVisible && currentVisibleSource != null) {
-            chain.add(currentVisibleSource + "." + edge.fromMethod + " → " + toName + "." + edge.toMethod);
+            walk.chain().add(currentVisibleSource + "." + edge.fromMethod + " → " + toName + "." + edge.toMethod);
         }
-        collectCallChain(
-                edge.toComponentId,
-                edge.toMethod,
-                currentVisibleSource,
-                depth + 1,
-                maxDepth,
-                adj,
-                compById,
-                visitedKeys,
-                visitedComps,
-                chain);
+        collectCallChain(walk, edge.toComponentId, edge.toMethod, currentVisibleSource, depth + 1);
     }
 
     private void collectDepChain(
