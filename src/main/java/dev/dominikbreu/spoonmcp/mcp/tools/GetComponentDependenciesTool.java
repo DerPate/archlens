@@ -3,6 +3,7 @@ package dev.dominikbreu.spoonmcp.mcp.tools;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.extractor.DependencyCondenser;
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.*;
 import java.util.Map;
 
@@ -54,8 +55,8 @@ public class GetComponentDependenciesTool {
             List<Dependency> deps =
                     condensed ? condenser.condense(model.dependencies, model.components) : model.dependencies;
 
-            Map<String, Component> byId = new HashMap<>();
-            for (Component c : model.components) byId.put(c.id.serialize(), c);
+            Map<ComponentId, Component> byId = new HashMap<>();
+            for (Component c : model.components) byId.put(c.id, c);
 
             List<Dependency> result = bfsDependencies(root, deps, depth);
             if (result.isEmpty()) {
@@ -69,29 +70,28 @@ public class GetComponentDependenciesTool {
     }
 
     private List<Dependency> bfsDependencies(Component root, List<Dependency> deps, int depth) {
-        Map<String, List<Dependency>> outgoing = new HashMap<>();
+        Map<ComponentId, List<Dependency>> outgoing = new HashMap<>();
         for (Dependency d : deps) {
-            outgoing.computeIfAbsent(d.fromId.serialize(), k -> new ArrayList<>())
-                    .add(d);
+            outgoing.computeIfAbsent(d.fromId, k -> new ArrayList<>()).add(d);
         }
         List<Dependency> result = new ArrayList<>();
-        Set<String> visited = new HashSet<>();
-        Deque<String> queue = new ArrayDeque<>();
-        Map<String, Integer> depthMap = new HashMap<>();
-        queue.add(root.id.serialize());
-        depthMap.put(root.id.serialize(), 0);
+        Set<ComponentId> visited = new HashSet<>();
+        Deque<ComponentId> queue = new ArrayDeque<>();
+        Map<ComponentId, Integer> depthMap = new HashMap<>();
+        queue.add(root.id);
+        depthMap.put(root.id, 0);
 
         while (!queue.isEmpty()) {
-            String cur = queue.poll();
+            ComponentId cur = queue.poll();
             if (visited.contains(cur)) continue;
             visited.add(cur);
             int d = depthMap.getOrDefault(cur, 0);
             if (d >= depth) continue;
             for (Dependency dep : outgoing.getOrDefault(cur, List.of())) {
                 result.add(dep);
-                if (!visited.contains(dep.toId.serialize())) {
-                    depthMap.put(dep.toId.serialize(), d + 1);
-                    queue.add(dep.toId.serialize());
+                if (!visited.contains(dep.toId)) {
+                    depthMap.put(dep.toId, d + 1);
+                    queue.add(dep.toId);
                 }
             }
         }
@@ -99,7 +99,7 @@ public class GetComponentDependenciesTool {
     }
 
     private String formatDependencies(
-            List<Dependency> result, Component root, Map<String, Component> byId, int depth, boolean condensed) {
+            List<Dependency> result, Component root, Map<ComponentId, Component> byId, int depth, boolean condensed) {
         StringBuilder sb = new StringBuilder();
         sb.append("Dependencies for [")
                 .append(root.type)
@@ -111,7 +111,7 @@ public class GetComponentDependenciesTool {
                 .append(condensed)
                 .append("):\n\n");
         for (Dependency dep : result) {
-            Component to = byId.get(dep.toId.serialize());
+            Component to = byId.get(dep.toId);
             String toLabel = to != null ? "[" + to.type + "] " + to.name : dep.toId.serialize();
             sb.append("  -> ")
                     .append(toLabel)

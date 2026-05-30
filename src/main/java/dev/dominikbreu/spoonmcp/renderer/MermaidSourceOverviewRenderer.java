@@ -3,6 +3,7 @@ package dev.dominikbreu.spoonmcp.renderer;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.Dependency;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -30,7 +31,7 @@ public class MermaidSourceOverviewRenderer {
         Map<String, List<Component>> byPackage = model.components.stream()
                 .collect(Collectors.groupingBy(this::packageName, LinkedHashMap::new, Collectors.toList()));
 
-        Map<String, String> componentToPackageNode = new LinkedHashMap<>();
+        Map<ComponentId, String> componentToPackageNode = new LinkedHashMap<>();
         StringBuilder sb = new StringBuilder("flowchart TD\n");
 
         for (Map.Entry<String, List<Component>> entry : byPackage.entrySet()) {
@@ -46,7 +47,7 @@ public class MermaidSourceOverviewRenderer {
             String pkg,
             List<Component> components,
             int maxPerPackage,
-            Map<String, String> componentToPackageNode) {
+            Map<ComponentId, String> componentToPackageNode) {
         sb.append("    subgraph ")
                 .append(nodeId("pkg:" + pkg))
                 .append("[\"")
@@ -57,7 +58,7 @@ public class MermaidSourceOverviewRenderer {
         for (Component component : components) {
             if (rendered >= maxPerPackage) break;
             String compNode = nodeId(component.id.serialize());
-            componentToPackageNode.put(component.id.serialize(), compNode);
+            componentToPackageNode.put(component.id, compNode);
             sb.append("        ")
                     .append(compNode)
                     .append("[\"")
@@ -80,11 +81,11 @@ public class MermaidSourceOverviewRenderer {
     }
 
     private void appendPackageEdges(
-            StringBuilder sb, ArchitectureModel model, Map<String, String> componentToPackageNode) {
+            StringBuilder sb, ArchitectureModel model, Map<ComponentId, String> componentToPackageNode) {
         Set<String> drawn = new LinkedHashSet<>();
         for (Dependency dependency : model.dependencies) {
-            String from = componentToPackageNode.get(dependency.fromId.serialize());
-            String to = componentToPackageNode.get(dependency.toId.serialize());
+            String from = componentToPackageNode.get(dependency.fromId);
+            String to = componentToPackageNode.get(dependency.toId);
             if (from == null || to == null || from.equals(to)) continue;
             String key = from + "-->" + to;
             if (drawn.add(key)) {

@@ -204,9 +204,9 @@ public class DataFlowTracer {
         // broker is null (Emitter-field sites where the broker cannot be determined at
         // extraction time, e.g. SmallRye in-memory channels via @Channel-injected Emitter).
         Map<String, List<String>> consumerPathsByChannel = new HashMap<>();
-        Map<String, Entrypoint> entrypointById = new HashMap<>();
+        Map<dev.dominikbreu.spoonmcp.model.ids.EntrypointId, Entrypoint> entrypointById = new HashMap<>();
         for (Entrypoint ep : model.entrypoints) {
-            entrypointById.put(ep.id.serialize(), ep);
+            entrypointById.put(ep.id, ep);
         }
         for (DataFlowPath path : paths) {
             indexConsumerPath(path, entrypointById, consumerPathsByDestination, consumerPathsByChannel);
@@ -221,10 +221,10 @@ public class DataFlowTracer {
 
     private void indexConsumerPath(
             DataFlowPath path,
-            Map<String, Entrypoint> entrypointById,
+            Map<dev.dominikbreu.spoonmcp.model.ids.EntrypointId, Entrypoint> entrypointById,
             Map<String, List<String>> consumerPathsByDestination,
             Map<String, List<String>> consumerPathsByChannel) {
-        Entrypoint ep = entrypointById.get(path.entrypointId != null ? path.entrypointId.serialize() : null);
+        Entrypoint ep = entrypointById.get(path.entrypointId);
         if (ep == null) return;
         if (ep.type != EntrypointType.MESSAGING_CONSUMER && ep.type != EntrypointType.JMS_CONSUMER) return;
         String key = destinationKey(ep.broker, ep.channelName);
@@ -553,9 +553,9 @@ public class DataFlowTracer {
             EntrypointType.UNKNOWN);
 
     private void linkPersistenceWritesToReaders(List<DataFlowPath> paths, ArchitectureModel model) {
-        Map<String, Entrypoint> entrypointById = new HashMap<>();
+        Map<dev.dominikbreu.spoonmcp.model.ids.EntrypointId, Entrypoint> entrypointById = new HashMap<>();
         for (Entrypoint ep : model.entrypoints) {
-            entrypointById.put(ep.id.serialize(), ep);
+            entrypointById.put(ep.id, ep);
         }
 
         Map<String, List<String>> readPathsByEntity = indexPersistenceReadPaths(paths, entrypointById);
@@ -567,10 +567,10 @@ public class DataFlowTracer {
     }
 
     private Map<String, List<String>> indexPersistenceReadPaths(
-            List<DataFlowPath> paths, Map<String, Entrypoint> entrypointById) {
+            List<DataFlowPath> paths, Map<dev.dominikbreu.spoonmcp.model.ids.EntrypointId, Entrypoint> entrypointById) {
         Map<String, List<String>> readPathsByEntity = new HashMap<>();
         for (DataFlowPath path : paths) {
-            Entrypoint ep = entrypointById.get(path.entrypointId != null ? path.entrypointId.serialize() : null);
+            Entrypoint ep = entrypointById.get(path.entrypointId);
             if (ep != null && PERSISTENCE_HANDOFF_EXCLUDED_TARGETS.contains(ep.type)) continue;
             indexReadPathSinks(path, readPathsByEntity);
         }

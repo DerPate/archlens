@@ -107,8 +107,8 @@ public class DependencyExtractor {
     }
 
     private void dedup(ArchitectureModel model) {
-        Map<String, Dependency> byId = new LinkedHashMap<>();
-        for (Dependency d : model.dependencies) byId.put(d.id.serialize(), d);
+        Map<dev.dominikbreu.spoonmcp.model.ids.DependencyId, Dependency> byId = new LinkedHashMap<>();
+        for (Dependency d : model.dependencies) byId.put(d.id, d);
         model.dependencies.clear();
         model.dependencies.addAll(byId.values());
     }
