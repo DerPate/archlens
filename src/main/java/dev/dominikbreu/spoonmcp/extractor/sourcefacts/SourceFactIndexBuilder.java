@@ -209,34 +209,9 @@ public class SourceFactIndexBuilder {
             CtModel ctModel, List<SourceAnnotation> annotations, List<SourceInjectionPoint> injectionPoints) {
         Span span = tracer().spanBuilder("sourcefacts.injection").startSpan();
         try (Scope scope = span.makeCurrent()) {
-            Map<SourceFactId, List<SourceAnnotation>> annotationsByOwner = new LinkedHashMap<>();
-            for (SourceAnnotation annotation : annotations) {
-                annotationsByOwner
-                        .computeIfAbsent(annotation.ownerId(), ignored -> new ArrayList<>())
-                        .add(annotation);
-            }
+            Map<SourceFactId, List<SourceAnnotation>> annotationsByOwner = indexAnnotationsByOwner(annotations);
             for (CtType<?> type : ctModel.getAllTypes()) {
-                SourceFactId typeId = typeId(type.getQualifiedName());
-                for (CtField<?> field : type.getFields()) {
-                    SourceFactId fieldId = fieldId(type.getQualifiedName(), field.getSimpleName());
-                    if (annotationsByOwner.getOrDefault(fieldId, List.of()).stream()
-                            .anyMatch(this::isInjectionAnnotation)) {
-                        String fieldType;
-                        if (field.getType() == null) {
-                            fieldType = null;
-                        } else {
-                            fieldType = field.getType().getQualifiedName();
-                        }
-                        injectionPoints.add(new SourceInjectionPoint(
-                                typeId,
-                                fieldType,
-                                field.getSimpleName(),
-                                null,
-                                SourceEvidence.FIELD_INJECTION,
-                                FactConfidence.KNOWN,
-                                location(field)));
-                    }
-                }
+                collectFieldInjectionPoints(type, annotationsByOwner, injectionPoints);
                 for (CtTypeMember member : type.getTypeMembers()) {
                     if (member instanceof CtConstructor<?> constructor) {
                         addConstructorInjectionFacts(type, constructor, injectionPoints);
@@ -246,6 +221,38 @@ public class SourceFactIndexBuilder {
             span.setAttribute("injection-point-count", (long) injectionPoints.size());
         } finally {
             span.end();
+        }
+    }
+
+    private Map<SourceFactId, List<SourceAnnotation>> indexAnnotationsByOwner(List<SourceAnnotation> annotations) {
+        Map<SourceFactId, List<SourceAnnotation>> annotationsByOwner = new LinkedHashMap<>();
+        for (SourceAnnotation annotation : annotations) {
+            annotationsByOwner
+                    .computeIfAbsent(annotation.ownerId(), ignored -> new ArrayList<>())
+                    .add(annotation);
+        }
+        return annotationsByOwner;
+    }
+
+    private void collectFieldInjectionPoints(
+            CtType<?> type,
+            Map<SourceFactId, List<SourceAnnotation>> annotationsByOwner,
+            List<SourceInjectionPoint> injectionPoints) {
+        SourceFactId typeId = typeId(type.getQualifiedName());
+        for (CtField<?> field : type.getFields()) {
+            SourceFactId fieldId = fieldId(type.getQualifiedName(), field.getSimpleName());
+            if (annotationsByOwner.getOrDefault(fieldId, List.of()).stream()
+                    .anyMatch(this::isInjectionAnnotation)) {
+                String fieldType = field.getType() == null ? null : field.getType().getQualifiedName();
+                injectionPoints.add(new SourceInjectionPoint(
+                        typeId,
+                        fieldType,
+                        field.getSimpleName(),
+                        null,
+                        SourceEvidence.FIELD_INJECTION,
+                        FactConfidence.KNOWN,
+                        location(field)));
+            }
         }
     }
 

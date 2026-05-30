@@ -241,47 +241,51 @@ public class ArchitectureExtractor {
 
     private void collectProjectModules(BuildProject project, ArchitectureModel model, List<ModuleWork> result) {
         List<BuildModule> modules = project.modules();
-
-        // Pre-register WAR parent when all modules share the same parent name and the
-        // project root has WAR packaging — this mirrors the old Maven parent-pom handling.
-        if (!modules.isEmpty()) {
-            String sharedParent = modules.get(0).parentName();
-            if (sharedParent != null && modules.stream().allMatch(m -> sharedParent.equals(m.parentName()))) {
-                String rootPackaging = detectMavenPackagingType(project.root().getAbsolutePath());
-                if ("war".equals(rootPackaging)) {
-                    AppId parentId = AppId.of("app:" + sharedParent);
-                    if (model.applications.stream().noneMatch(a -> a.id.equals(parentId))) {
-                        AppEntry parent = new AppEntry();
-                        parent.id = parentId;
-                        parent.name = sharedParent;
-                        parent.rootPath = project.root().getAbsolutePath();
-                        parent.packagingType = rootPackaging;
-                        parent.role = "deployment_unit";
-                        model.applications.add(parent);
-                    }
-                }
-            }
-        }
-
+        registerWarParent(project, modules, model);
         for (BuildModule module : modules) {
-            AppEntry app = buildAppEntry(module);
-            if (model.applications.stream().anyMatch(a -> a.id.equals(app.id))) continue;
-            app.role = "deployment_unit";
-
-            // Assign internal_module role when parent is a WAR deployment unit
-            if (module.parentName() != null) {
-                model.applications.stream()
-                        .filter(a -> a.name.equals(module.parentName()) && "war".equals(a.packagingType))
-                        .findFirst()
-                        .ifPresent(parent -> {
-                            app.role = "internal_module";
-                            app.parentAppId = parent.id;
-                        });
-            }
-
-            model.applications.add(app);
-            result.add(new ModuleWork(app, module));
+            registerModule(module, model, result);
         }
+    }
+
+    /**
+     * Pre-registers a WAR parent when all modules share the same parent name and the project root
+     * has WAR packaging — mirrors the old Maven parent-pom handling.
+     */
+    private void registerWarParent(BuildProject project, List<BuildModule> modules, ArchitectureModel model) {
+        if (modules.isEmpty()) return;
+        String sharedParent = modules.get(0).parentName();
+        if (sharedParent == null || !modules.stream().allMatch(m -> sharedParent.equals(m.parentName()))) return;
+        String rootPackaging = detectMavenPackagingType(project.root().getAbsolutePath());
+        if (!"war".equals(rootPackaging)) return;
+        AppId parentId = AppId.of("app:" + sharedParent);
+        if (model.applications.stream().anyMatch(a -> a.id.equals(parentId))) return;
+        AppEntry parent = new AppEntry();
+        parent.id = parentId;
+        parent.name = sharedParent;
+        parent.rootPath = project.root().getAbsolutePath();
+        parent.packagingType = rootPackaging;
+        parent.role = "deployment_unit";
+        model.applications.add(parent);
+    }
+
+    private void registerModule(BuildModule module, ArchitectureModel model, List<ModuleWork> result) {
+        AppEntry app = buildAppEntry(module);
+        if (model.applications.stream().anyMatch(a -> a.id.equals(app.id))) return;
+        app.role = "deployment_unit";
+
+        // Assign internal_module role when parent is a WAR deployment unit
+        if (module.parentName() != null) {
+            model.applications.stream()
+                    .filter(a -> a.name.equals(module.parentName()) && "war".equals(a.packagingType))
+                    .findFirst()
+                    .ifPresent(parent -> {
+                        app.role = "internal_module";
+                        app.parentAppId = parent.id;
+                    });
+        }
+
+        model.applications.add(app);
+        result.add(new ModuleWork(app, module));
     }
 
     private AppEntry buildAppEntry(BuildModule module) {
@@ -307,7 +311,15 @@ public class ArchitectureExtractor {
 
     private void applyMessagingBrokers(
             ArchitectureModel model, AppId appId, Map<String, MessagingConfigResolver.ChannelConfig> resolved) {
-        // Pass A: apply config-resolved broker + topic.
+        applyResolvedBrokers(model, appId, resolved);
+        Set<String> inMemory = detectInMemoryChannels(model, appId, resolved);
+        if (inMemory.isEmpty()) return;
+        applyInMemoryBroker(model, appId, inMemory);
+    }
+
+    /** Pass A: apply config-resolved broker + topic to entrypoints and interfaces. */
+    private void applyResolvedBrokers(
+            ArchitectureModel model, AppId appId, Map<String, MessagingConfigResolver.ChannelConfig> resolved) {
         for (Entrypoint ep : model.entrypoints) {
             if (!appId.equals(componentModule(model, ep.componentId))) continue;
             if (ep.channelName == null) continue;
@@ -324,9 +336,14 @@ public class ArchitectureExtractor {
             iface.broker = cfg.broker;
             if (cfg.topic != null) iface.topic = cfg.topic;
         }
+    }
 
-        // Pass B: tag in-memory channels — channel referenced by both an @Incoming consumer
-        // and an @Outgoing producer in this app, with no connector property.
+    /**
+     * Pass B: a channel referenced by both an {@code @Incoming} consumer and an {@code @Outgoing}
+     * producer in this app, with no resolved connector, is an in-memory channel.
+     */
+    private Set<String> detectInMemoryChannels(
+            ArchitectureModel model, AppId appId, Map<String, MessagingConfigResolver.ChannelConfig> resolved) {
         Set<String> producerChannels = new HashSet<>();
         Set<String> consumerChannels = new HashSet<>();
         for (Entrypoint ep : model.entrypoints) {
@@ -337,13 +354,14 @@ public class ArchitectureExtractor {
         }
         Set<String> inMemory = new HashSet<>(producerChannels);
         inMemory.retainAll(consumerChannels);
-        // Only re-tag channels with no resolved connector.
         inMemory.removeIf(ch -> {
             MessagingConfigResolver.ChannelConfig cfg = resolved.get(ch);
             return cfg != null && cfg.broker != MessagingBroker.UNKNOWN;
         });
-        if (inMemory.isEmpty()) return;
+        return inMemory;
+    }
 
+    private void applyInMemoryBroker(ArchitectureModel model, AppId appId, Set<String> inMemory) {
         for (Entrypoint ep : model.entrypoints) {
             if (!appId.equals(componentModule(model, ep.componentId))) continue;
             if (ep.channelName != null && inMemory.contains(ep.channelName)) {
@@ -388,27 +406,28 @@ public class ArchitectureExtractor {
 
     private String detectTechnologyFromAnnotations(Collection<CtType<?>> types) {
         for (CtType<?> type : types) {
-            for (var annotation : type.getAnnotations()) {
-                String technology = technologyFromAnnotationName(
-                        annotation.getAnnotationType().getQualifiedName());
-                if (technology != null) return technology;
-            }
+            String tech = technologyFromAnnotations(type.getAnnotations());
+            if (tech != null) return tech;
             for (var method : type.getMethods()) {
-                for (var annotation : method.getAnnotations()) {
-                    String technology = technologyFromAnnotationName(
-                            annotation.getAnnotationType().getQualifiedName());
-                    if (technology != null) return technology;
-                }
+                tech = technologyFromAnnotations(method.getAnnotations());
+                if (tech != null) return tech;
             }
             for (var field : type.getFields()) {
-                for (var annotation : field.getAnnotations()) {
-                    String technology = technologyFromAnnotationName(
-                            annotation.getAnnotationType().getQualifiedName());
-                    if (technology != null) return technology;
-                }
+                tech = technologyFromAnnotations(field.getAnnotations());
+                if (tech != null) return tech;
             }
         }
         return "unknown";
+    }
+
+    private String technologyFromAnnotations(
+            Iterable<? extends spoon.reflect.declaration.CtAnnotation<?>> annotations) {
+        for (var annotation : annotations) {
+            String technology =
+                    technologyFromAnnotationName(annotation.getAnnotationType().getQualifiedName());
+            if (technology != null) return technology;
+        }
+        return null;
     }
 
     private String technologyFromAnnotationName(String qualifiedName) {

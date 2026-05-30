@@ -182,27 +182,27 @@ public class JavaEEExtractor {
     private String getAnnotationStringValue(CtElement element, Set<String> names) {
         for (var ann : element.getAnnotations()) {
             if (!annMatches(ann, names)) continue;
-            try {
-                CtExpression<?> val = ann.getValue("value");
-                if (val == null) return "";
-                if (val instanceof CtLiteral<?> lit) {
-                    Object v = lit.getValue();
-                    if (v != null) {
-                        return v.toString();
-                    } else {
-                        return "";
-                    }
-                }
-                String str = val.toString();
-                if (str.startsWith("\"") && str.endsWith("\"")) {
-                    return str.substring(1, str.length() - 1);
-                }
-                return str;
-            } catch (Exception e) {
-                return "";
-            }
+            return annotationValueString(ann);
         }
         return "";
+    }
+
+    private String annotationValueString(spoon.reflect.declaration.CtAnnotation<?> ann) {
+        try {
+            CtExpression<?> val = ann.getValue("value");
+            if (val == null) return "";
+            if (val instanceof CtLiteral<?> lit) {
+                Object v = lit.getValue();
+                return v != null ? v.toString() : "";
+            }
+            String str = val.toString();
+            if (str.startsWith("\"") && str.endsWith("\"")) {
+                return str.substring(1, str.length() - 1);
+            }
+            return str;
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     private String normalizePath(String path) {

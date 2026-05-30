@@ -35,6 +35,16 @@ public class ExternalSystemInferrer {
         Set<dev.dominikbreu.spoonmcp.model.ids.DependencyId> existingDeps = new LinkedHashSet<>();
         for (Dependency d : model.dependencies) existingDeps.add(d.id);
 
+        inferRestClientSystems(model, systemsById, existingDeps);
+        inferMessagingInterfaceSystems(model, systemsById, existingDeps);
+        inferMessagingEntrypointSystems(model, systemsById, existingDeps);
+        registerSystems(model, systemsById);
+    }
+
+    private void inferRestClientSystems(
+            ArchitectureModel model,
+            Map<String, ExternalSystem> systemsById,
+            Set<dev.dominikbreu.spoonmcp.model.ids.DependencyId> existingDeps) {
         for (InterfaceEntry iface : model.interfaces) {
             if (!"rest_client".equals(iface.type)) continue;
             String name = iface.externalServiceName;
@@ -50,33 +60,35 @@ public class ExternalSystemInferrer {
             });
             addDependency(model, existingDeps, iface.componentId.serialize(), system.id, "rest-client");
         }
+    }
 
+    private void inferMessagingInterfaceSystems(
+            ArchitectureModel model,
+            Map<String, ExternalSystem> systemsById,
+            Set<dev.dominikbreu.spoonmcp.model.ids.DependencyId> existingDeps) {
         for (InterfaceEntry iface : model.interfaces) {
             if (!isMessagingInterface(iface.type)) continue;
-            MessagingBroker broker;
-            if (iface.broker != null) {
-                broker = iface.broker;
-            } else {
-                broker = MessagingBroker.UNKNOWN;
-            }
+            MessagingBroker broker = iface.broker != null ? iface.broker : MessagingBroker.UNKNOWN;
             if (broker == MessagingBroker.IN_MEMORY) continue;
             ExternalSystem system = systemForBroker(systemsById, broker);
             addDependency(model, existingDeps, iface.componentId.serialize(), system.id, "messaging");
         }
+    }
 
+    private void inferMessagingEntrypointSystems(
+            ArchitectureModel model,
+            Map<String, ExternalSystem> systemsById,
+            Set<dev.dominikbreu.spoonmcp.model.ids.DependencyId> existingDeps) {
         for (Entrypoint ep : model.entrypoints) {
             if (ep.type != EntrypointType.MESSAGING_CONSUMER && ep.type != EntrypointType.MESSAGING_PRODUCER) continue;
-            MessagingBroker broker;
-            if (ep.broker != null) {
-                broker = ep.broker;
-            } else {
-                broker = MessagingBroker.UNKNOWN;
-            }
+            MessagingBroker broker = ep.broker != null ? ep.broker : MessagingBroker.UNKNOWN;
             if (broker == MessagingBroker.IN_MEMORY) continue;
             ExternalSystem system = systemForBroker(systemsById, broker);
             addDependency(model, existingDeps, ep.componentId.serialize(), system.id, "messaging");
         }
+    }
 
+    private void registerSystems(ArchitectureModel model, Map<String, ExternalSystem> systemsById) {
         for (ExternalSystem s : systemsById.values()) {
             if (model.externalSystems.stream().noneMatch(e -> e.id.equals(s.id))) {
                 model.externalSystems.add(s);
