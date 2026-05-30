@@ -212,7 +212,7 @@ public final class LikeC4ModelRenderer {
 
     private static String identifier(String raw) {
         String clean = raw.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_]+", "_");
-        clean = clean.replaceAll("^_+|_+$", "");
+        clean = clean.replaceAll("^_+", "").replaceAll("_+$", "");
         if (clean.isBlank() || Character.isDigit(clean.charAt(0))) {
             return "n_" + clean;
         }

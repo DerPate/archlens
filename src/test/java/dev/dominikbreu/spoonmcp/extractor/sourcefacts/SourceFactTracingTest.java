@@ -24,8 +24,8 @@ class SourceFactTracingTest extends ExtractorTestBase {
     void emitsSourceFactPhaseSpansAndCounts() {
         PrintStream originalOut = System.out;
         ByteArrayOutputStream captured = new ByteArrayOutputStream();
-        System.setOut(new PrintStream(captured));
-        try {
+        try (PrintStream redirected = new PrintStream(captured)) {
+            System.setOut(redirected);
             GlobalOpenTelemetry.resetForTest();
             SdkTracerProvider provider = SdkTracerProvider.builder()
                     .addSpanProcessor(SimpleSpanProcessor.create(new StdoutSpanExporter()))

@@ -819,7 +819,7 @@ public class CallGraphExtractor {
             if (annType == null) continue;
             if (!"Channel".equals(annType.getSimpleName())) continue;
             var val = ann.getValues().get("value");
-            if (val != null) return val.toString().replaceAll("^\"|\"$", "");
+            if (val != null) return val.toString().replaceAll("^\"", "").replaceAll("\"$", "");
         }
         return null;
     }

@@ -199,7 +199,7 @@ class DataFlowTracerTest {
 
         List<DataFlowPath> paths = tracer.trace(model);
 
-        assertThat(paths).anySatisfy(p -> p.sinks.stream().anyMatch(s -> s.kind == DataFlowSink.Kind.MESSAGING));
+        assertThat(paths).anyMatch(p -> p.sinks.stream().anyMatch(s -> s.kind == DataFlowSink.Kind.MESSAGING));
     }
 
     @Test
@@ -211,7 +211,7 @@ class DataFlowTracerTest {
 
         List<DataFlowPath> paths = tracer.trace(model);
 
-        assertThat(paths).anySatisfy(p -> p.sinks.stream().anyMatch(s -> s.kind == DataFlowSink.Kind.EVENT_BUS));
+        assertThat(paths).anyMatch(p -> p.sinks.stream().anyMatch(s -> s.kind == DataFlowSink.Kind.EVENT_BUS));
     }
 
     @Test
@@ -680,7 +680,7 @@ class DataFlowTracerTest {
         model.outboundSinkSites.add(site);
 
         List<DataFlowPath> paths = tracer.trace(model);
-        assertThat(paths).anySatisfy(p -> p.sinks.stream().anyMatch(s -> s.kind == DataFlowSink.Kind.FILE_OUTBOUND));
+        assertThat(paths).anyMatch(p -> p.sinks.stream().anyMatch(s -> s.kind == DataFlowSink.Kind.FILE_OUTBOUND));
     }
 
     @Test
@@ -737,7 +737,7 @@ class DataFlowTracerTest {
 
         List<DataFlowPath> paths = tracer.trace(model);
 
-        assertThat(paths).anySatisfy(p -> p.sinks.stream().anyMatch(s -> s.kind == DataFlowSink.Kind.OBJECT_STORAGE));
+        assertThat(paths).anyMatch(p -> p.sinks.stream().anyMatch(s -> s.kind == DataFlowSink.Kind.OBJECT_STORAGE));
     }
 
     // ── integration: real quarkus-sample ────────────────────────────────────────

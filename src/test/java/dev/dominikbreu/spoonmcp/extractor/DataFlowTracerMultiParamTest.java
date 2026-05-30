@@ -64,7 +64,7 @@ class DataFlowTracerMultiParamTest {
                 .filter(p -> "orderId".equals(p.trackedParam))
                 .flatMap(p -> p.sinks.stream())
                 .toList();
-        assertThat(userSinks).doesNotContainAnyElementsOf(orderSinks);
+        assertThat(userSinks).isNotEmpty().doesNotContainAnyElementsOf(orderSinks);
     }
 
     @Test
