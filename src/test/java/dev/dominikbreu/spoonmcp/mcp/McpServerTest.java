@@ -17,8 +17,7 @@ class McpServerTest {
     void buildToolSpecifications_registersEveryTool() {
         List<McpServerFeatures.SyncToolSpecification> specs = new McpServer().buildToolSpecifications();
 
-        assertThat(specs).hasSizeGreaterThanOrEqualTo(20);
-        assertThat(specs).allSatisfy(spec -> {
+        assertThat(specs).hasSizeGreaterThanOrEqualTo(20).allSatisfy(spec -> {
             assertThat(spec.tool().name()).isNotBlank();
             assertThat(spec.tool().description()).isNotBlank();
             assertThat(spec.tool().inputSchema()).isNotNull();
@@ -31,8 +30,9 @@ class McpServerTest {
     void buildPromptSpecifications_registersPrompts() {
         List<McpServerFeatures.SyncPromptSpecification> prompts = new McpServer().buildPromptSpecifications();
 
-        assertThat(prompts).isNotEmpty();
-        assertThat(prompts).allSatisfy(p -> assertThat(p.prompt().name()).isNotBlank());
+        assertThat(prompts)
+                .isNotEmpty()
+                .allSatisfy(p -> assertThat(p.prompt().name()).isNotBlank());
     }
 
     @Test
@@ -53,9 +53,7 @@ class McpServerTest {
     @Test
     void fillTemplate_substitutesArgs_andStripsUnknownPlaceholders() {
         String filled = McpServer.fillTemplate("Hello {name}, see {missing} and {leftover}", Map.of("name", "World"));
-        assertThat(filled).contains("Hello World");
-        assertThat(filled).doesNotContain("{name}");
-        assertThat(filled).doesNotContain("{leftover}");
+        assertThat(filled).contains("Hello World").doesNotContain("{name}").doesNotContain("{leftover}");
     }
 
     @Test

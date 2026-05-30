@@ -32,20 +32,26 @@ public final class WorkflowLinker {
             return List.of();
         }
 
-        Map<String, DataFlowPath> pathById = indexPathsById(model);
         Map<String, Entrypoint> entrypointById = indexEntrypointsById(model);
-        Set<FieldRef> directOwnerWrittenFields = collectDirectOwnerWrittenFields(model, entrypointById);
+        LinkIndex index = new LinkIndex(
+                indexPathsById(model), entrypointById, collectDirectOwnerWrittenFields(model, entrypointById));
 
         List<WorkflowLink> links = new ArrayList<>();
         for (DataFlowPath fromPath : model.dataFlowPaths) {
-            Entrypoint fromEntrypoint = entrypointFor(fromPath, entrypointById);
+            Entrypoint fromEntrypoint = entrypointFor(fromPath, index.entrypointById());
             if (!policy.isWorkflowRoot(fromEntrypoint)) {
                 continue;
             }
-            linkFromPath(fromPath, fromEntrypoint, pathById, entrypointById, directOwnerWrittenFields, links);
+            linkFromPath(fromPath, fromEntrypoint, index, links);
         }
         return links;
     }
+
+    /** Lookup tables shared across the entire link pass. */
+    private record LinkIndex(
+            Map<String, DataFlowPath> pathById,
+            Map<String, Entrypoint> entrypointById,
+            Set<FieldRef> directOwnerWrittenFields) {}
 
     private static Map<String, DataFlowPath> indexPathsById(ArchitectureModel model) {
         Map<String, DataFlowPath> pathById = new HashMap<>();
@@ -89,12 +95,7 @@ public final class WorkflowLinker {
     }
 
     private void linkFromPath(
-            DataFlowPath fromPath,
-            Entrypoint fromEntrypoint,
-            Map<String, DataFlowPath> pathById,
-            Map<String, Entrypoint> entrypointById,
-            Set<FieldRef> directOwnerWrittenFields,
-            List<WorkflowLink> links) {
+            DataFlowPath fromPath, Entrypoint fromEntrypoint, LinkIndex index, List<WorkflowLink> links) {
         for (DataFlowSink sink : fromPath.sinks) {
             if (sink.linkedPathIds == null || sink.linkedPathIds.isEmpty()) {
                 continue;
@@ -104,15 +105,7 @@ public final class WorkflowLinker {
                 continue;
             }
             for (String targetPathId : sink.linkedPathIds) {
-                WorkflowLink link = tryBuildLink(
-                        fromPath,
-                        fromEntrypoint,
-                        sink,
-                        kind,
-                        targetPathId,
-                        pathById,
-                        entrypointById,
-                        directOwnerWrittenFields);
+                WorkflowLink link = tryBuildLink(fromPath, fromEntrypoint, sink, kind, targetPathId, index);
                 if (link != null) {
                     links.add(link);
                 }
@@ -126,20 +119,18 @@ public final class WorkflowLinker {
             DataFlowSink sink,
             WorkflowLink.Kind kind,
             String targetPathId,
-            Map<String, DataFlowPath> pathById,
-            Map<String, Entrypoint> entrypointById,
-            Set<FieldRef> directOwnerWrittenFields) {
-        DataFlowPath toPath = pathById.get(targetPathId);
+            LinkIndex index) {
+        DataFlowPath toPath = index.pathById().get(targetPathId);
         if (toPath == null) {
             return null;
         }
-        Entrypoint toEntrypoint = entrypointFor(toPath, entrypointById);
+        Entrypoint toEntrypoint = entrypointFor(toPath, index.entrypointById());
         if (!policy.isWorkflowRoot(toEntrypoint)) {
             return null;
         }
         // A cross-component write to a field that also has a direct same-component writer is a
         // shadowed side-effect, not a pipeline trigger.
-        if (policy.isShadowedCrossComponentStoreWrite(sink, fromEntrypoint, directOwnerWrittenFields)) {
+        if (policy.isShadowedCrossComponentStoreWrite(sink, fromEntrypoint, index.directOwnerWrittenFields())) {
             return null;
         }
         // A scheduler pre-loading reference data into a store that a primary consumer reads is a

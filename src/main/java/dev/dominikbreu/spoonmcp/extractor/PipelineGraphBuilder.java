@@ -109,17 +109,9 @@ public class PipelineGraphBuilder {
             List<Chain> chains = new ArrayList<>();
             Span dfsSpan = t.spanBuilder("pipeline.dfs").startSpan();
             try (Scope scopeDfs = dfsSpan.makeCurrent()) {
+                PipelineWalk walk = new PipelineWalk(workflowGraph, chains, maxDepth);
                 for (DataFlowPath p : workflowGraph.rootPaths()) {
-                    extend(
-                            new ArrayList<>(),
-                            p,
-                            null,
-                            null,
-                            workflowGraph,
-                            chains,
-                            maxDepth,
-                            new LinkedHashSet<>(),
-                            new LinkedHashSet<>());
+                    extend(new ArrayList<>(), p, null, null, walk, new LinkedHashSet<>(), new LinkedHashSet<>());
                 }
                 dfsSpan.setAttribute("raw-chains", (long) chains.size());
             } catch (RuntimeException e) {
@@ -187,8 +179,7 @@ public class PipelineGraphBuilder {
         for (int j = 0; j < allIds.size(); j++) {
             if (j == self) continue;
             List<String> idsJ = allIds.get(j);
-            if (idsJ.size() <= idsI.size()) continue;
-            if (isPrefix(idsI, idsJ, prefixLen)) return true;
+            if (idsJ.size() > idsI.size() && isPrefix(idsI, idsJ, prefixLen)) return true;
         }
         return false;
     }
@@ -232,53 +223,52 @@ public class PipelineGraphBuilder {
         return ids;
     }
 
+    /** Invariant state for a single pipeline DFS expansion. */
+    private record PipelineWalk(WorkflowGraph workflowGraph, List<Chain> out, int maxDepth) {}
+
     private void extend(
             List<Segment> prefix,
             DataFlowPath current,
             DataFlowSink incomingSink,
             WorkflowLink incomingLink,
-            WorkflowGraph workflowGraph,
-            List<Chain> out,
-            int maxDepth,
+            PipelineWalk walk,
             LinkedHashSet<String> stack,
             LinkedHashSet<String> epStack) {
         if (current == null) return;
         if (stack.contains(current.id)) {
             // path-level cycle — emit chain up to here
-            emit(prefix, out);
+            emit(prefix, walk.out());
             return;
         }
         // Entrypoint-level cycle: same entrypoint appearing twice means a STORE loop
         // (e.g. defaultStateCalculation → stateCache → defaultStateCalculation).
         String epId = current.entrypointId != null ? current.entrypointId.serialize() : null;
         if (epId != null && !prefix.isEmpty() && epStack.contains(epId)) {
-            emit(prefix, out);
+            emit(prefix, walk.out());
             return;
         }
         Segment seg = new Segment(
                 current,
                 incomingSink,
                 incomingLink,
-                workflowGraph.entrypointById().get(epId));
+                walk.workflowGraph().entrypointById().get(epId));
         List<Segment> nextPrefix = new ArrayList<>(prefix);
         nextPrefix.add(seg);
 
-        if (nextPrefix.size() >= maxDepth) {
-            emit(nextPrefix, out);
+        if (nextPrefix.size() >= walk.maxDepth()) {
+            emit(nextPrefix, walk.out());
             return;
         }
 
-        boolean fannedOut = fanOutFrom(current, epId, nextPrefix, workflowGraph, out, maxDepth, stack, epStack);
-        if (!fannedOut) emit(nextPrefix, out);
+        boolean fannedOut = fanOutFrom(current, epId, nextPrefix, walk, stack, epStack);
+        if (!fannedOut) emit(nextPrefix, walk.out());
     }
 
     private boolean fanOutFrom(
             DataFlowPath current,
             String epId,
             List<Segment> nextPrefix,
-            WorkflowGraph workflowGraph,
-            List<Chain> out,
-            int maxDepth,
+            PipelineWalk walk,
             LinkedHashSet<String> stack,
             LinkedHashSet<String> epStack) {
         LinkedHashSet<String> nextStack = new LinkedHashSet<>(stack);
@@ -286,20 +276,11 @@ public class PipelineGraphBuilder {
         LinkedHashSet<String> nextEpStack = new LinkedHashSet<>(epStack);
         if (epId != null) nextEpStack.add(epId);
         boolean fannedOut = false;
-        for (WorkflowLink link : workflowGraph.linksFrom(current.id)) {
-            DataFlowPath next = workflowGraph.pathById().get(link.toPathId());
+        for (WorkflowLink link : walk.workflowGraph().linksFrom(current.id)) {
+            DataFlowPath next = walk.workflowGraph().pathById().get(link.toPathId());
             if (next == null) continue;
             fannedOut = true;
-            extend(
-                    nextPrefix,
-                    next,
-                    incomingSink(current, link),
-                    link,
-                    workflowGraph,
-                    out,
-                    maxDepth,
-                    nextStack,
-                    nextEpStack);
+            extend(nextPrefix, next, incomingSink(current, link), link, walk, nextStack, nextEpStack);
         }
         return fannedOut;
     }

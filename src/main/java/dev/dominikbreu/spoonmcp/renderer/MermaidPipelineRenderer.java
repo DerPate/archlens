@@ -118,9 +118,14 @@ public class MermaidPipelineRenderer {
             RenderState st, Segment seg, Entrypoint ep, int segIdx, Map<String, Component> compById) {
         String headerNodeId = "S" + segIdx + "_0";
         Component headerComp = (ep != null && ep.componentId != null) ? compById.get(ep.componentId.serialize()) : null;
-        String headerComponentName = headerComp != null
-                ? headerComp.name
-                : (seg.path.steps.isEmpty() ? "?" : seg.path.steps.get(0).componentName);
+        String headerComponentName;
+        if (headerComp != null) {
+            headerComponentName = headerComp.name;
+        } else if (seg.path.steps.isEmpty()) {
+            headerComponentName = "?";
+        } else {
+            headerComponentName = seg.path.steps.get(0).componentName;
+        }
         ComponentType headerType = headerComp != null ? headerComp.type : null;
         String headerLabel = headerComponentName + (ep != null && ep.name != null ? "." + ep.name : "");
         st.nodes

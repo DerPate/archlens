@@ -223,7 +223,7 @@ class RenderPipelineToolTest {
     }
 
     @Test
-    void execute_channelFilterMatchingNothing_reportsNoMatch() throws Exception {
+    void execute_channelFilterMatchingNothing_reportsNoMatch() {
         ArchitectureModel model = buildTwoChainModel(
                 "alpha", EntrypointType.MESSAGING_CONSUMER, "beta", EntrypointType.MESSAGING_CONSUMER);
         String out = new RenderPipelineTool(stubbedCache(model))
@@ -261,9 +261,10 @@ class RenderPipelineToolTest {
         };
 
         String out = new RenderPipelineTool(cache).execute(Map.of());
-        assertThat(out).contains("consumer topic(s): 1");
-        assertThat(out).contains("persistence write sink(s): 1");
-        assertThat(out).contains("persistence read sink(s): 1");
+        assertThat(out)
+                .contains("consumer topic(s): 1")
+                .contains("persistence write sink(s): 1")
+                .contains("persistence read sink(s): 1");
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
