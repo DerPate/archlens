@@ -51,6 +51,8 @@ import spoon.reflect.visitor.filter.TypeFilter;
  */
 public class CallGraphExtractor {
 
+    private static final String FIELD_PREFIX = "field:";
+
     private static final String UNKNOWN = "unknown";
     private static final String DIRECT = "direct";
     private static final String MESSAGING = "messaging";
@@ -364,7 +366,7 @@ public class CallGraphExtractor {
         fa.sourceVarName = sourceVar;
         fa.sourceFieldName = sourceField;
         fa.keyVarName = keyVar;
-        fa.id = FieldAccessId.of("field:" + owner.id.serialize() + "#" + method + "@" + fieldName + ":"
+        fa.id = FieldAccessId.of(FIELD_PREFIX + owner.id.serialize() + "#" + method + "@" + fieldName + ":"
                 + kind.name().toLowerCase());
         String file;
         if (pos != null && pos.isValidPosition()) {
@@ -466,7 +468,7 @@ public class CallGraphExtractor {
                 new dev.dominikbreu.spoonmcp.model.ids.FieldRef(fieldOwner.id, fieldName));
         access.method = methodName;
         access.id =
-                FieldAccessId.of("field:" + fromComp.id.serialize() + "#" + methodName + "@" + fieldOwner.id.serialize()
+                FieldAccessId.of(FIELD_PREFIX + fromComp.id.serialize() + "#" + methodName + "@" + fieldOwner.id.serialize()
                         + "#" + fieldName + ":" + kind.name().toLowerCase() + ":object-flow");
         var pos = invocation.getPosition();
         String file;
@@ -890,7 +892,7 @@ public class CallGraphExtractor {
             fa.fieldBinding = new dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent(
                     new dev.dominikbreu.spoonmcp.model.ids.FieldRef(toComp.id, fieldName));
             fa.method = fromMethod;
-            fa.id = FieldAccessId.of("field:" + fromComp.id.serialize() + "#" + fromMethod + "@" + toComp.id.serialize()
+            fa.id = FieldAccessId.of(FIELD_PREFIX + fromComp.id.serialize() + "#" + fromMethod + "@" + toComp.id.serialize()
                     + "#" + calleeMethod.getSimpleName() + ":" + fieldName + ":read:xcomp");
             var pos = inv.getPosition();
             String file;

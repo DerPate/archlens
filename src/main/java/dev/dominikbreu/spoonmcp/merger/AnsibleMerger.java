@@ -13,6 +13,8 @@ import org.yaml.snakeyaml.Yaml;
  */
 public class AnsibleMerger {
 
+    private static final String HOSTS = "hosts";
+
     private final Yaml yaml = new Yaml();
 
     /** Creates an Ansible merger using the default YAML parser. */
@@ -33,7 +35,7 @@ public class AnsibleMerger {
     // ── inventory ────────────────────────────────────────────────────────────
 
     private void mergeInventory(File dir, ArchitectureModel model) {
-        for (String name : List.of("inventory", "hosts", "inventory.ini", "hosts.ini")) {
+        for (String name : List.of("inventory", HOSTS, "inventory.ini", "hosts.ini")) {
             File f = new File(dir, name);
             if (f.exists()) {
                 parseIniInventory(f, model);
@@ -46,7 +48,7 @@ public class AnsibleMerger {
             File[] files = inventoryDir.listFiles();
             if (files != null) {
                 for (File f : files) {
-                    if (f.getName().endsWith(".ini") || "hosts".equals(f.getName())) {
+                    if (f.getName().endsWith(".ini") || HOSTS.equals(f.getName())) {
                         parseIniInventory(f, model);
                     }
                 }
@@ -105,7 +107,7 @@ public class AnsibleMerger {
             for (Object playObj : plays) {
                 if (!(playObj instanceof Map<?, ?> play)) continue;
 
-                Object hostsObj = play.get("hosts");
+                Object hostsObj = play.get(HOSTS);
                 String hosts = String.valueOf(hostsObj != null ? hostsObj : "");
                 Object rolesObj = play.get("roles");
                 if (rolesObj == null) continue;

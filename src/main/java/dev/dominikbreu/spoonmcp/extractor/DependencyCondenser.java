@@ -13,6 +13,8 @@ import java.util.*;
  */
 public class DependencyCondenser {
 
+    private static final String CONDENSED = "condensed";
+
     private static final Set<ComponentType> NON_ARCHITECTURAL = Set.of(ComponentType.UTILITY, ComponentType.UNKNOWN);
 
     /** Creates a dependency condenser using the built-in non-architectural component rules. */
@@ -70,8 +72,8 @@ public class DependencyCondenser {
                 Dependency dep = new Dependency();
                 dep.fromId = dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(from);
                 dep.toId = dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(to);
-                dep.id = dev.dominikbreu.spoonmcp.model.ids.DependencyId.of(dep.fromId, dep.toId, "condensed");
-                dep.kind = "condensed";
+                dep.id = dev.dominikbreu.spoonmcp.model.ids.DependencyId.of(dep.fromId, dep.toId, CONDENSED);
+                dep.kind = CONDENSED;
                 dep.derivedFrom = "condensation";
                 dep.confidence = 0.75;
                 result.add(dep);
@@ -83,7 +85,7 @@ public class DependencyCondenser {
             boolean bothArch = !nonArch.contains(orig.fromId.serialize()) && !nonArch.contains(orig.toId.serialize());
             if (bothArch) {
                 dev.dominikbreu.spoonmcp.model.ids.DependencyId condensedId =
-                        dev.dominikbreu.spoonmcp.model.ids.DependencyId.of(orig.fromId, orig.toId, "condensed");
+                        dev.dominikbreu.spoonmcp.model.ids.DependencyId.of(orig.fromId, orig.toId, CONDENSED);
                 boolean alreadyPresent = result.stream().anyMatch(d -> condensedId.equals(d.id));
                 if (!alreadyPresent) {
                     result.add(orig);
