@@ -278,29 +278,36 @@ public class CallGraphExtractor {
         extractAccessorChainFieldAccesses(scan, method, fromComp, model, ctx);
         if (sharedStateFields.isEmpty()) return;
         String methodName = method.getSimpleName();
+        extractAssignmentFieldWrites(scan, methodName, fromComp, sharedStateFields, model);
+        extractInvocationFieldAccesses(scan, methodName, fromComp, sharedStateFields, model);
+        extractFieldReadAccesses(scan, methodName, fromComp, sharedStateFields, model);
+    }
 
+    private void extractAssignmentFieldWrites(
+            MethodScan scan,
+            String methodName,
+            Component fromComp,
+            Set<String> sharedStateFields,
+            ArchitectureModel model) {
         for (CtAssignment<?, ?> assign : scan.assignments()) {
             CtExpression<?> assigned = assign.getAssigned();
             if (!(assigned instanceof CtFieldWrite<?> fw)) continue;
             String fieldName = fw.getVariable().getSimpleName();
             if (!sharedStateFields.contains(fieldName)) continue;
             CtExpression<?> rhs = assign.getAssignment();
-            String srcVar;
-            if (rhs instanceof CtVariableRead<?> vr) {
-                srcVar = vr.getVariable().getSimpleName();
-            } else {
-                srcVar = null;
-            }
-            String srcField;
-            if (rhs instanceof CtFieldRead<?> fr) {
-                srcField = fr.getVariable().getSimpleName();
-            } else {
-                srcField = null;
-            }
+            String srcVar = rhs instanceof CtVariableRead<?> vr ? vr.getVariable().getSimpleName() : null;
+            String srcField = rhs instanceof CtFieldRead<?> fr ? fr.getVariable().getSimpleName() : null;
             model.fieldAccesses.add(buildAccess(
                     FieldAccess.Kind.WRITE, fromComp, methodName, fieldName, srcVar, srcField, assign.getPosition()));
         }
+    }
 
+    private void extractInvocationFieldAccesses(
+            MethodScan scan,
+            String methodName,
+            Component fromComp,
+            Set<String> sharedStateFields,
+            ArchitectureModel model) {
         for (CtInvocation<?> inv : scan.invocations()) {
             if (!(inv.getTarget() instanceof CtFieldAccess<?> fa)) continue;
             String fieldName = fa.getVariable().getSimpleName();
@@ -327,7 +334,14 @@ public class CallGraphExtractor {
                         FieldAccess.Kind.READ, fromComp, methodName, fieldName, null, null, inv.getPosition()));
             }
         }
+    }
 
+    private void extractFieldReadAccesses(
+            MethodScan scan,
+            String methodName,
+            Component fromComp,
+            Set<String> sharedStateFields,
+            ArchitectureModel model) {
         for (CtFieldRead<?> read : scan.fieldReads()) {
             String fieldName = read.getVariable().getSimpleName();
             if (!sharedStateFields.contains(fieldName)) continue;
@@ -424,32 +438,36 @@ public class CallGraphExtractor {
             MethodScan scan, CtMethod<?> method, Component fromComp, ArchitectureModel model, ExtractionContext ctx) {
         String methodName = method.getSimpleName();
         for (CtInvocation<?> inv : scan.invocations()) {
-            String terminalMethod = inv.getExecutable().getSimpleName();
-            FieldAccess.Kind kind;
-            if (WRITE_METHODS.contains(terminalMethod)) {
-                kind = FieldAccess.Kind.WRITE;
-            } else if (READ_METHODS.contains(terminalMethod)) {
-                kind = FieldAccess.Kind.READ;
-            } else {
-                continue;
-            }
-            if (!(inv.getTarget() instanceof CtInvocation<?> accessor)) {
-                continue;
-            }
+            FieldAccess.Kind kind = accessKind(inv.getExecutable().getSimpleName());
+            if (kind == null) continue;
+            if (!(inv.getTarget() instanceof CtInvocation<?> accessor)) continue;
             String fieldName = accessorReturnedSharedFieldName(accessor, ctx);
-            if (fieldName == null) {
-                continue;
-            }
-            for (ReceiverTarget target : objectFlowIndex.resolveReceiver(inv)) {
-                Component owner = ctx.components.get(
-                        dev.dominikbreu.spoonmcp.model.ids.ComponentId.deserialize(target.componentId()));
-                if (owner == null) {
-                    continue;
-                }
-                FieldAccess access = buildAccessorAccess(kind, fromComp, methodName, owner, fieldName, inv);
-                if (ctx.addSeenId(access.id.serialize())) {
-                    model.fieldAccesses.add(access);
-                }
+            if (fieldName == null) continue;
+            recordAccessorAccesses(inv, kind, fromComp, methodName, fieldName, model, ctx);
+        }
+    }
+
+    private static FieldAccess.Kind accessKind(String terminalMethod) {
+        if (WRITE_METHODS.contains(terminalMethod)) return FieldAccess.Kind.WRITE;
+        if (READ_METHODS.contains(terminalMethod)) return FieldAccess.Kind.READ;
+        return null;
+    }
+
+    private void recordAccessorAccesses(
+            CtInvocation<?> inv,
+            FieldAccess.Kind kind,
+            Component fromComp,
+            String methodName,
+            String fieldName,
+            ArchitectureModel model,
+            ExtractionContext ctx) {
+        for (ReceiverTarget target : objectFlowIndex.resolveReceiver(inv)) {
+            Component owner = ctx.components.get(
+                    dev.dominikbreu.spoonmcp.model.ids.ComponentId.deserialize(target.componentId()));
+            if (owner == null) continue;
+            FieldAccess access = buildAccessorAccess(kind, fromComp, methodName, owner, fieldName, inv);
+            if (ctx.addSeenId(access.id.serialize())) {
+                model.fieldAccesses.add(access);
             }
         }
     }
@@ -471,19 +489,7 @@ public class CallGraphExtractor {
                 FieldAccessId.of(FIELD_PREFIX + fromComp.id.serialize() + "#" + methodName + "@" + fieldOwner.id.serialize()
                         + "#" + fieldName + ":" + kind.name().toLowerCase() + ":object-flow");
         var pos = invocation.getPosition();
-        String file;
-        if (pos != null && pos.isValidPosition()) {
-            file = pos.getFile().getAbsolutePath();
-        } else {
-            file = UNKNOWN;
-        }
-        int line;
-        if (pos != null && pos.isValidPosition()) {
-            line = pos.getLine();
-        } else {
-            line = 0;
-        }
-        access.source = new SourceInfo(file, line, "field-access-via-object-flow", 0.82);
+        access.source = new SourceInfo(sourceFileOf(pos), sourceLineOf(pos), "field-access-via-object-flow", 0.82);
         return access;
     }
 
@@ -545,30 +551,41 @@ public class CallGraphExtractor {
     private Map<String, Component> buildFieldMap(
             CtType<?> type, dev.dominikbreu.spoonmcp.model.ids.ComponentId ownId, ExtractionContext ctx) {
         Map<String, Component> map = new HashMap<>();
-        if (sourceFacts != null) {
-            for (SourceInjectionPoint injection :
-                    sourceFacts.injectionPoints(SourceFactIndexBuilder.typeId(type.getQualifiedName()))) {
-                if (injection.fieldName() == null || injection.targetType() == null) continue;
-                Component target = resolveSourceFactType(injection.targetType(), ownId, ctx);
-                if (target != null && !target.id.equals(ownId)) {
-                    map.put(injection.fieldName(), target);
-                }
+        addInjectionFieldTargets(map, type, ownId, ctx);
+        addDeclaredFieldTargets(map, type, ownId, ctx);
+        return map;
+    }
+
+    private void addInjectionFieldTargets(
+            Map<String, Component> map,
+            CtType<?> type,
+            dev.dominikbreu.spoonmcp.model.ids.ComponentId ownId,
+            ExtractionContext ctx) {
+        if (sourceFacts == null) return;
+        for (SourceInjectionPoint injection :
+                sourceFacts.injectionPoints(SourceFactIndexBuilder.typeId(type.getQualifiedName()))) {
+            if (injection.fieldName() == null || injection.targetType() == null) continue;
+            Component target = resolveSourceFactType(injection.targetType(), ownId, ctx);
+            if (target != null && !target.id.equals(ownId)) {
+                map.put(injection.fieldName(), target);
             }
         }
+    }
+
+    private void addDeclaredFieldTargets(
+            Map<String, Component> map,
+            CtType<?> type,
+            dev.dominikbreu.spoonmcp.model.ids.ComponentId ownId,
+            ExtractionContext ctx) {
         for (CtField<?> field : type.getFields()) {
             if (field.getType() == null) continue;
-            Component target;
-            if (sourceFacts == null) {
-                target = ctx.components.find(
-                        field.getType().getQualifiedName(), field.getType().getSimpleName());
-            } else {
-                target = resolveSourceFactType(field.getType().getQualifiedName(), ownId, ctx);
-            }
+            Component target = sourceFacts == null
+                    ? ctx.components.find(field.getType().getQualifiedName(), field.getType().getSimpleName())
+                    : resolveSourceFactType(field.getType().getQualifiedName(), ownId, ctx);
             if (target != null && !target.id.equals(ownId)) {
                 map.put(field.getSimpleName(), target);
             }
         }
-        return map;
     }
 
     private Component resolveSourceFactType(
@@ -761,46 +778,54 @@ public class CallGraphExtractor {
             String qn = declaringType.getQualifiedName();
             if (qn == null || qn.isEmpty()) continue;
 
-            DataFlowSink.Kind kind = classifyOutboundCallee(qn);
-            String channel = null;
-            if (kind == null) {
-                String[] kindAndChannel = classifyMessagingFieldTarget(inv);
-                if (kindAndChannel != null) {
-                    kind = MESSAGING.equals(kindAndChannel[0])
-                            ? DataFlowSink.Kind.MESSAGING
-                            : DataFlowSink.Kind.EVENT_BUS;
-                    channel = kindAndChannel[1];
-                }
-            }
-            if (kind == null) continue;
+            OutboundClassification classification = classifyOutbound(inv, qn);
+            if (classification == null) continue;
 
             String id = "outbound:" + fromComp.id.serialize() + "#" + methodName + ":" + (index++);
             if (!ctx.addSeenId(id)) continue;
 
-            OutboundSinkSite site = new OutboundSinkSite();
-            site.id = id;
-            site.kind = kind;
-            site.channel = channel;
-            site.componentId = fromComp.id;
-            site.method = methodName;
-            site.calleeQualifiedName = qn;
-            site.calleeMethod = inv.getExecutable().getSimpleName();
-            var pos = inv.getPosition();
-            String file;
-            if (pos != null && pos.isValidPosition()) {
-                file = pos.getFile().getAbsolutePath();
-            } else {
-                file = UNKNOWN;
-            }
-            int line;
-            if (pos != null && pos.isValidPosition()) {
-                line = pos.getLine();
-            } else {
-                line = 0;
-            }
-            site.source = new SourceInfo(file, line, "invocation", 0.85);
-            model.outboundSinkSites.add(site);
+            model.outboundSinkSites.add(buildOutboundSite(id, classification, fromComp, methodName, qn, inv));
         }
+    }
+
+    private record OutboundClassification(DataFlowSink.Kind kind, String channel) {}
+
+    private OutboundClassification classifyOutbound(CtInvocation<?> inv, String qn) {
+        DataFlowSink.Kind kind = classifyOutboundCallee(qn);
+        if (kind != null) return new OutboundClassification(kind, null);
+        String[] kindAndChannel = classifyMessagingFieldTarget(inv);
+        if (kindAndChannel == null) return null;
+        DataFlowSink.Kind resolved =
+                MESSAGING.equals(kindAndChannel[0]) ? DataFlowSink.Kind.MESSAGING : DataFlowSink.Kind.EVENT_BUS;
+        return new OutboundClassification(resolved, kindAndChannel[1]);
+    }
+
+    private OutboundSinkSite buildOutboundSite(
+            String id,
+            OutboundClassification classification,
+            Component fromComp,
+            String methodName,
+            String qn,
+            CtInvocation<?> inv) {
+        OutboundSinkSite site = new OutboundSinkSite();
+        site.id = id;
+        site.kind = classification.kind();
+        site.channel = classification.channel();
+        site.componentId = fromComp.id;
+        site.method = methodName;
+        site.calleeQualifiedName = qn;
+        site.calleeMethod = inv.getExecutable().getSimpleName();
+        var pos = inv.getPosition();
+        site.source = new SourceInfo(sourceFileOf(pos), sourceLineOf(pos), "invocation", 0.85);
+        return site;
+    }
+
+    private static String sourceFileOf(spoon.reflect.cu.SourcePosition pos) {
+        return pos != null && pos.isValidPosition() ? pos.getFile().getAbsolutePath() : UNKNOWN;
+    }
+
+    private static int sourceLineOf(spoon.reflect.cu.SourcePosition pos) {
+        return pos != null && pos.isValidPosition() ? pos.getLine() : 0;
     }
 
     /** Returns [kindString, channelOrNull] when the invocation target is an Emitter/EventBus field, else null. */
@@ -963,39 +988,40 @@ public class CallGraphExtractor {
         }
     }
 
+    private static String literalValue(CtLiteral<?> lit) {
+        return lit.getValue() == null ? "" : lit.getValue().toString();
+    }
+
     private static String resolveArgToLiteral(CtExpression<?> arg) {
         if (arg instanceof CtLiteral<?> lit) {
-            if (lit.getValue() == null) {
-                return "";
-            } else {
-                return lit.getValue().toString();
-            }
-        }
-        if (arg instanceof CtVariableRead<?> read && read.getVariable() instanceof CtFieldReference<?> ref) {
-            try {
-                CtField<?> decl = ref.getDeclaration();
-                if (decl != null && decl.getDefaultExpression() instanceof CtLiteral<?> lit) {
-                    if (lit.getValue() == null) {
-                        return "";
-                    } else {
-                        return lit.getValue().toString();
-                    }
-                }
-            } catch (Exception ignored) {
-            }
+            return literalValue(lit);
         }
         if (arg instanceof CtVariableRead<?> read) {
-            try {
-                if (read.getVariable().getDeclaration() instanceof CtLocalVariable<?> local
-                        && local.getDefaultExpression() instanceof CtLiteral<?> lit) {
-                    if (lit.getValue() == null) {
-                        return "";
-                    } else {
-                        return lit.getValue().toString();
-                    }
-                }
-            } catch (Exception ignored) {
+            String fromField = fieldReferenceLiteral(read);
+            return fromField != null ? fromField : localVariableLiteral(read);
+        }
+        return null;
+    }
+
+    private static String fieldReferenceLiteral(CtVariableRead<?> read) {
+        if (!(read.getVariable() instanceof CtFieldReference<?> ref)) return null;
+        try {
+            CtField<?> decl = ref.getDeclaration();
+            if (decl != null && decl.getDefaultExpression() instanceof CtLiteral<?> lit) {
+                return literalValue(lit);
             }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    private static String localVariableLiteral(CtVariableRead<?> read) {
+        try {
+            if (read.getVariable().getDeclaration() instanceof CtLocalVariable<?> local
+                    && local.getDefaultExpression() instanceof CtLiteral<?> lit) {
+                return literalValue(lit);
+            }
+        } catch (Exception ignored) {
         }
         return null;
     }
@@ -1005,29 +1031,22 @@ public class CallGraphExtractor {
         if (expr instanceof CtVariableRead<?> vr) return vr.getVariable().getSimpleName();
         if (expr instanceof CtConditional<?> cond) {
             String t = findFirstVarRead(cond.getThenExpression());
-            if (t != null) {
-                return t;
-            } else {
-                return findFirstVarRead(cond.getElseExpression());
-            }
+            return t != null ? t : findFirstVarRead(cond.getElseExpression());
         }
         if (expr instanceof CtConstructorCall<?> ctor) {
-            for (CtExpression<?> a : ctor.getArguments()) {
-                String r = findFirstVarRead(a);
-                if (r != null) return r;
-            }
-            return null;
+            return firstVarReadInArgs(ctor.getArguments());
         }
         if (expr instanceof CtInvocation<?> inv) {
-            CtExpression<?> target = inv.getTarget();
-            if (target != null) {
-                String r = findFirstVarRead(target);
-                if (r != null) return r;
-            }
-            for (CtExpression<?> a : inv.getArguments()) {
-                String r = findFirstVarRead(a);
-                if (r != null) return r;
-            }
+            String fromTarget = inv.getTarget() != null ? findFirstVarRead(inv.getTarget()) : null;
+            return fromTarget != null ? fromTarget : firstVarReadInArgs(inv.getArguments());
+        }
+        return null;
+    }
+
+    private static String firstVarReadInArgs(List<? extends CtExpression<?>> args) {
+        for (CtExpression<?> a : args) {
+            String r = findFirstVarRead(a);
+            if (r != null) return r;
         }
         return null;
     }
