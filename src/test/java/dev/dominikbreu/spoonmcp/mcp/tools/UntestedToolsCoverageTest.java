@@ -3,6 +3,7 @@ package dev.dominikbreu.spoonmcp.mcp.tools;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import java.nio.file.Files;
@@ -11,7 +12,6 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import dev.dominikbreu.spoonmcp.extractor.ArchitectureExtractor;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -32,12 +32,13 @@ class UntestedToolsCoverageTest {
     static void extractOnce() {
         model = new ArchitectureExtractor().extract(List.of(projectPath("quarkus-sample")));
         cache = cacheReturning(model);
-        entrypointId = model.entrypoints.isEmpty()
-                ? null
-                : model.entrypoints.get(0).id.serialize();
+        entrypointId =
+                model.entrypoints.isEmpty() ? null : model.entrypoints.get(0).id.serialize();
         componentId =
                 model.components.isEmpty() ? null : model.components.get(0).id.serialize();
-        appId = model.applications.isEmpty() ? null : model.applications.get(0).id.serialize();
+        appId = model.applications.isEmpty()
+                ? null
+                : model.applications.get(0).id.serialize();
     }
 
     // ── happy paths ───────────────────────────────────────────────────────────
@@ -113,8 +114,7 @@ class UntestedToolsCoverageTest {
     @Test
     void renderComponentDependencyDiagram_byId_runs() {
         assertThat(componentId).isNotNull();
-        String result =
-                new RenderComponentDependencyDiagramTool(cache).execute(Map.of("componentId", componentId));
+        String result = new RenderComponentDependencyDiagramTool(cache).execute(Map.of("componentId", componentId));
         assertThat(result).doesNotStartWith("Error");
     }
 

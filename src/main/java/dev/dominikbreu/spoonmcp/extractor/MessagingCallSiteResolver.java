@@ -71,8 +71,7 @@ public class MessagingCallSiteResolver {
         return findings;
     }
 
-    private void collectFindings(
-            CtInvocation<?> inv, Map<String, TrackedField> trackedFields, List<Finding> findings) {
+    private void collectFindings(CtInvocation<?> inv, Map<String, TrackedField> trackedFields, List<Finding> findings) {
         String name = inv.getExecutable() != null ? inv.getExecutable().getSimpleName() : null;
         if (name == null) return;
 

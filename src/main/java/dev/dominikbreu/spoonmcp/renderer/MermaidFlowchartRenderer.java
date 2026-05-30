@@ -250,9 +250,8 @@ public class MermaidFlowchartRenderer {
                 .append(app.technology)
                 .append(NODE_CLOSE_PAREN);
 
-        List<Container> appContainers = model.containers.stream()
-                .filter(c -> app.id.equals(c.appId))
-                .toList();
+        List<Container> appContainers =
+                model.containers.stream().filter(c -> app.id.equals(c.appId)).toList();
 
         for (Container container : appContainers) {
             visibleContainers.add(container.id);
@@ -261,7 +260,11 @@ public class MermaidFlowchartRenderer {
                     + container.componentIds.size() + " component"
                     + (container.componentIds.size() != 1 ? "s" : "")
                     + (epCount > 0 ? " / " + epCount + " EP" : "");
-            sb.append(INDENT8).append(nid(container.id)).append("[\"").append(label).append(NODE_CLOSE);
+            sb.append(INDENT8)
+                    .append(nid(container.id))
+                    .append("[\"")
+                    .append(label)
+                    .append(NODE_CLOSE);
         }
         sb.append(SUBGRAPH_CLOSE);
     }
@@ -356,9 +359,8 @@ public class MermaidFlowchartRenderer {
                 .append(app.technology)
                 .append(NODE_CLOSE_PAREN);
 
-        List<Container> appContainers = model.containers.stream()
-                .filter(c -> app.id.equals(c.appId))
-                .toList();
+        List<Container> appContainers =
+                model.containers.stream().filter(c -> app.id.equals(c.appId)).toList();
 
         if (appContainers.isEmpty()) {
             // No containers — flat list of components

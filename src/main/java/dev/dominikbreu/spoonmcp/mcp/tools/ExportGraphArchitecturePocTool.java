@@ -248,7 +248,11 @@ public class ExportGraphArchitecturePocTool {
     }
 
     private void appendFlowStep(StringBuilder sb, RuntimeFlowStep step) {
-        sb.append("- ").append(step.order).append(". `").append(step.componentId).append("`");
+        sb.append("- ")
+                .append(step.order)
+                .append(". `")
+                .append(step.componentId)
+                .append("`");
         if (step.componentName != null && !step.componentName.isBlank()) {
             sb.append(" ").append(step.componentName);
         }

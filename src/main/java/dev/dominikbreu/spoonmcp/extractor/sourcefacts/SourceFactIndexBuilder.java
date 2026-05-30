@@ -241,9 +241,9 @@ public class SourceFactIndexBuilder {
         SourceFactId typeId = typeId(type.getQualifiedName());
         for (CtField<?> field : type.getFields()) {
             SourceFactId fieldId = fieldId(type.getQualifiedName(), field.getSimpleName());
-            if (annotationsByOwner.getOrDefault(fieldId, List.of()).stream()
-                    .anyMatch(this::isInjectionAnnotation)) {
-                String fieldType = field.getType() == null ? null : field.getType().getQualifiedName();
+            if (annotationsByOwner.getOrDefault(fieldId, List.of()).stream().anyMatch(this::isInjectionAnnotation)) {
+                String fieldType =
+                        field.getType() == null ? null : field.getType().getQualifiedName();
                 injectionPoints.add(new SourceInjectionPoint(
                         typeId,
                         fieldType,

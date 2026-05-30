@@ -57,7 +57,8 @@ public class DependencyExtractor {
 
     private void extractFieldDependency(
             ArchitectureModel model,
-            Map<dev.dominikbreu.spoonmcp.model.ids.ComponentId, dev.dominikbreu.spoonmcp.model.Component> componentsById,
+            Map<dev.dominikbreu.spoonmcp.model.ids.ComponentId, dev.dominikbreu.spoonmcp.model.Component>
+                    componentsById,
             dev.dominikbreu.spoonmcp.model.ids.ComponentId fromId,
             CtField<?> field) {
         boolean isInjected = hasAnn(field, INJECT_ANNOTATIONS) || hasAnn(field, PERSISTENCE_CONTEXT);
@@ -65,8 +66,7 @@ public class DependencyExtractor {
         dev.dominikbreu.spoonmcp.model.ids.ComponentId toId =
                 dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(targetQN);
         if (componentsById.containsKey(toId) && !fromId.equals(toId)) {
-            double confidence =
-                    evidenceScorer.score(componentsById.get(fromId), componentsById.get(toId), isInjected);
+            double confidence = evidenceScorer.score(componentsById.get(fromId), componentsById.get(toId), isInjected);
             if (isInjected) {
                 addDep(model, fromId, toId, "injection", "annotation", confidence);
             } else {

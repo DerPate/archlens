@@ -180,8 +180,8 @@ public class RuntimeFlowInferrer {
     private void addVisibleStep(
             RuntimeFlow flow, String compIdStr, Component comp, String fromCompIdStr, Map<String, String> viaForNode) {
         String via = viaForNode.getOrDefault(compIdStr, "call");
-        flow.steps.add(new RuntimeFlowStep(
-                flow.steps.size(), ComponentId.of(compIdStr), comp.name, comp.type.name(), via));
+        flow.steps.add(
+                new RuntimeFlowStep(flow.steps.size(), ComponentId.of(compIdStr), comp.name, comp.type.name(), via));
         if (fromCompIdStr != null) {
             flow.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of(fromCompIdStr), ComponentId.of(compIdStr), via));
         }
@@ -197,7 +197,8 @@ public class RuntimeFlowInferrer {
             Map<String, Integer> depths,
             Map<String, String> viaForNode,
             Deque<String[]> queue) {
-        for (Map.Entry<ComponentId, String> next : index.depAdj.targets(ComponentId.of(compIdStr)).entrySet()) {
+        for (Map.Entry<ComponentId, String> next :
+                index.depAdj.targets(ComponentId.of(compIdStr)).entrySet()) {
             String nextId = next.getKey().serialize();
             if (!visited.contains(nextId)) {
                 depths.put(nextId, depth + 1);

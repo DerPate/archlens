@@ -229,7 +229,9 @@ public class DataFlowTracer {
         if (ep.type != EntrypointType.MESSAGING_CONSUMER && ep.type != EntrypointType.JMS_CONSUMER) return;
         String key = destinationKey(ep.broker, ep.channelName);
         if (key == null) return;
-        consumerPathsByDestination.computeIfAbsent(key, ignored -> new ArrayList<>()).add(path.id);
+        consumerPathsByDestination
+                .computeIfAbsent(key, ignored -> new ArrayList<>())
+                .add(path.id);
         if (ep.channelName != null && !ep.channelName.isBlank()) {
             consumerPathsByChannel
                     .computeIfAbsent(ep.channelName.trim(), ignored -> new ArrayList<>())
@@ -351,8 +353,7 @@ public class DataFlowTracer {
             Map<String, String> resolvedCallerArgs) {
         for (OutboundSinkSite site : ctx.index().outboundSinks.sites(compId, method)) {
             String topic = site.topic != null ? resolvedCallerArgs.getOrDefault(site.topic, site.topic) : null;
-            String channel =
-                    site.channel != null ? resolvedCallerArgs.getOrDefault(site.channel, site.channel) : null;
+            String channel = site.channel != null ? resolvedCallerArgs.getOrDefault(site.channel, site.channel) : null;
             for (String origName : currentToOriginal.values()) {
                 DataFlowSink sink =
                         new DataFlowSink(site.kind, site.componentId, compName, site.calleeMethod, site.source);
@@ -387,7 +388,12 @@ public class DataFlowTracer {
                         .get(e.getValue())
                         .sinks
                         .add(new DataFlowSink(
-                                DataFlowSink.Kind.STORE, fieldOwner, compName, fieldName, fw.source, fieldName,
+                                DataFlowSink.Kind.STORE,
+                                fieldOwner,
+                                compName,
+                                fieldName,
+                                fw.source,
+                                fieldName,
                                 fieldOwner));
             }
         }
@@ -455,9 +461,7 @@ public class DataFlowTracer {
         for (Map.Entry<String, String> e : currentToOriginal.entrySet()) {
             String currentName = e.getKey();
             if (dropsTrackedName(edge, currentName, mapsAnyTrackedName)) continue;
-            String nextName = "*".equals(currentName)
-                    ? "*"
-                    : edge.paramMapping.getOrDefault(currentName, currentName);
+            String nextName = "*".equals(currentName) ? "*" : edge.paramMapping.getOrDefault(currentName, currentName);
             nextMapping.put(nextName, e.getValue());
         }
         return nextMapping;
@@ -576,7 +580,9 @@ public class DataFlowTracer {
             if (sink.kind != DataFlowSink.Kind.PERSISTENCE) continue;
             if (!isReadOperation(sink.repositoryOperation)) continue;
             if (sink.entityType == null) continue;
-            readPathsByEntity.computeIfAbsent(sink.entityType, ignored -> new ArrayList<>()).add(path.id);
+            readPathsByEntity
+                    .computeIfAbsent(sink.entityType, ignored -> new ArrayList<>())
+                    .add(path.id);
         }
     }
 

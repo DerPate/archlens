@@ -83,7 +83,8 @@ public class RenderUseCaseTimelineTool {
                 .findFirst()
                 .orElse(null);
         if (ep == null) {
-            return f.entrypointId != null && f.entrypointId.serialize().toLowerCase().contains(lower);
+            return f.entrypointId != null
+                    && f.entrypointId.serialize().toLowerCase().contains(lower);
         }
         if (methodFilter != null && !methodFilter.equalsIgnoreCase(ep.httpMethod)) return false;
         return (ep.name != null && ep.name.toLowerCase().contains(lower))

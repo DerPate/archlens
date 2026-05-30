@@ -97,7 +97,8 @@ public class EventBusExtractor {
             AppId appId,
             Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> existingIds) {
         if (!"consumer".equals(inv.getExecutable().getSimpleName())) return;
-        CtTypeReference<?> targetType = inv.getTarget() != null ? inv.getTarget().getType() : null;
+        CtTypeReference<?> targetType =
+                inv.getTarget() != null ? inv.getTarget().getType() : null;
         if (targetType == null) return;
         if (!"EventBus".equals(targetType.getSimpleName())) return;
         if (inv.getArguments().isEmpty()) return;
@@ -114,11 +115,10 @@ public class EventBusExtractor {
         Component comp = findOrCreateComponent(
                 compId, type, appId, ComponentType.CDI_EVENT_CONSUMER, "event-bus-consumer", model, existingIds);
 
-        dev.dominikbreu.spoonmcp.model.ids.EntrypointId epId =
-                new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
-                        dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
-                        method.getSimpleName(),
-                        "eventbus:" + address);
+        dev.dominikbreu.spoonmcp.model.ids.EntrypointId epId = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
+                dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
+                method.getSimpleName(),
+                "eventbus:" + address);
         if (model.entrypoints.stream().anyMatch(e -> epId.equals(e.id))) return;
 
         Entrypoint ep = new Entrypoint();

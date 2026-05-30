@@ -225,13 +225,19 @@ public class McpServer {
                 "export_architecture_docs",
                 "Write Markdown architecture documentation with MCP-generated Mermaid diagrams.",
                 schema().opt("outputPath", TYPE_STRING, "Output Markdown path (default docs/GENERATED_ARCHITECTURE.md)")
-                        .opt(FOCUS_COMPONENT, TYPE_STRING, "Component used for the dependency slice (default McpServer)"),
+                        .opt(
+                                FOCUS_COMPONENT,
+                                TYPE_STRING,
+                                "Component used for the dependency slice (default McpServer)"),
                 exportDocsTool::execute));
 
         specs.add(toolSpec(
                 "export_graph_architecture_poc",
                 "Write a graph-centric architecture POC document with graph metadata, property examples, and MCP query samples.",
-                schema().opt("outputPath", TYPE_STRING, "Output Markdown path (default docs/SOURCE_ARCHITECTURE_POC.md)")
+                schema().opt(
+                                "outputPath",
+                                TYPE_STRING,
+                                "Output Markdown path (default docs/SOURCE_ARCHITECTURE_POC.md)")
                         .opt(
                                 FOCUS_COMPONENT,
                                 TYPE_STRING,

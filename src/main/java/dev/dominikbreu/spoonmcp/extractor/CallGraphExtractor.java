@@ -295,8 +295,10 @@ public class CallGraphExtractor {
             String fieldName = fw.getVariable().getSimpleName();
             if (!sharedStateFields.contains(fieldName)) continue;
             CtExpression<?> rhs = assign.getAssignment();
-            String srcVar = rhs instanceof CtVariableRead<?> vr ? vr.getVariable().getSimpleName() : null;
-            String srcField = rhs instanceof CtFieldRead<?> fr ? fr.getVariable().getSimpleName() : null;
+            String srcVar =
+                    rhs instanceof CtVariableRead<?> vr ? vr.getVariable().getSimpleName() : null;
+            String srcField =
+                    rhs instanceof CtFieldRead<?> fr ? fr.getVariable().getSimpleName() : null;
             model.fieldAccesses.add(buildAccess(
                     FieldAccess.Kind.WRITE, fromComp, methodName, fieldName, srcVar, srcField, assign.getPosition()));
         }
@@ -485,9 +487,9 @@ public class CallGraphExtractor {
         access.fieldBinding = new dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent(
                 new dev.dominikbreu.spoonmcp.model.ids.FieldRef(fieldOwner.id, fieldName));
         access.method = methodName;
-        access.id =
-                FieldAccessId.of(FIELD_PREFIX + fromComp.id.serialize() + "#" + methodName + "@" + fieldOwner.id.serialize()
-                        + "#" + fieldName + ":" + kind.name().toLowerCase() + ":object-flow");
+        access.id = FieldAccessId.of(
+                FIELD_PREFIX + fromComp.id.serialize() + "#" + methodName + "@" + fieldOwner.id.serialize() + "#"
+                        + fieldName + ":" + kind.name().toLowerCase() + ":object-flow");
         var pos = invocation.getPosition();
         access.source = new SourceInfo(sourceFileOf(pos), sourceLineOf(pos), "field-access-via-object-flow", 0.82);
         return access;
@@ -580,7 +582,8 @@ public class CallGraphExtractor {
         for (CtField<?> field : type.getFields()) {
             if (field.getType() == null) continue;
             Component target = sourceFacts == null
-                    ? ctx.components.find(field.getType().getQualifiedName(), field.getType().getSimpleName())
+                    ? ctx.components.find(
+                            field.getType().getQualifiedName(), field.getType().getSimpleName())
                     : resolveSourceFactType(field.getType().getQualifiedName(), ownId, ctx);
             if (target != null && !target.id.equals(ownId)) {
                 map.put(field.getSimpleName(), target);
@@ -917,8 +920,8 @@ public class CallGraphExtractor {
             fa.fieldBinding = new dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent(
                     new dev.dominikbreu.spoonmcp.model.ids.FieldRef(toComp.id, fieldName));
             fa.method = fromMethod;
-            fa.id = FieldAccessId.of(FIELD_PREFIX + fromComp.id.serialize() + "#" + fromMethod + "@" + toComp.id.serialize()
-                    + "#" + calleeMethod.getSimpleName() + ":" + fieldName + ":read:xcomp");
+            fa.id = FieldAccessId.of(FIELD_PREFIX + fromComp.id.serialize() + "#" + fromMethod + "@"
+                    + toComp.id.serialize() + "#" + calleeMethod.getSimpleName() + ":" + fieldName + ":read:xcomp");
             var pos = inv.getPosition();
             String file;
             if (pos != null && pos.isValidPosition()) {

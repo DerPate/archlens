@@ -539,8 +539,9 @@ public class SpringExtractor {
 
     private void processOutboundInvocation(CtInvocation<?> invocation, Component component, ArchitectureModel model) {
         addKafkaOutboundSinkSite(invocation, component, model);
-        String executable =
-                invocation.getExecutable() == null ? "" : invocation.getExecutable().getSimpleName();
+        String executable = invocation.getExecutable() == null
+                ? ""
+                : invocation.getExecutable().getSimpleName();
         List<String> args = invocation.getArguments().stream()
                 .map(arg -> config.resolve(stripQuotes(arg.toString())))
                 .toList();
@@ -559,8 +560,7 @@ public class SpringExtractor {
             addProducerInterface(invocation, component, MessagingBroker.KAFKA, args.getFirst(), model);
         }
         if ("convertAndSend".equals(executable)) {
-            MessagingBroker broker =
-                    args.getFirst().contains("jms") ? MessagingBroker.JMS : MessagingBroker.RABBITMQ;
+            MessagingBroker broker = args.getFirst().contains("jms") ? MessagingBroker.JMS : MessagingBroker.RABBITMQ;
             addProducerInterface(invocation, component, broker, args.getFirst(), model);
         }
     }
