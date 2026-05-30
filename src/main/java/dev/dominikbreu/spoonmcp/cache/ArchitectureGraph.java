@@ -533,54 +533,55 @@ public class ArchitectureGraph {
     }
 
     private void addDataFlowEdges(DataFlowPath path) {
-        String epVertexId;
-        if (path.entrypointId != null) {
-            epVertexId = path.entrypointId.serialize();
-        } else {
-            epVertexId = "";
-        }
+        String epVertexId = path.entrypointId != null ? path.entrypointId.serialize() : "";
         addEdge(epVertexId, path.id, "ORIGINATES", Map.of("trackedParam", Objects.toString(path.trackedParam, "")));
 
         for (int i = 0; i < path.sinks.size(); i++) {
             DataFlowSink sink = path.sinks.get(i);
             String sinkId = path.id + SINK_MARKER + i;
-            Vertex sinkVertex = addVertex(sinkId, "DataFlowSink", sink.componentName);
-            set(sinkVertex, "kind", "dataFlowSink");
-            set(sinkVertex, "sinkKind", sink.kind != null ? sink.kind.value() : null);
-            set(sinkVertex, "pathId", path.id);
-            set(sinkVertex, COMPONENT_ID, sink.componentId != null ? sink.componentId.serialize() : null);
-            set(sinkVertex, METHOD, sink.method);
-            set(sinkVertex, FIELD_NAME, sink.fieldName);
-            set(
-                    sinkVertex,
-                    FIELD_OWNER_COMPONENT_ID,
-                    sink.fieldOwnerComponentId != null ? sink.fieldOwnerComponentId.serialize() : null);
-            set(sinkVertex, "channel", sink.channel);
-            set(sinkVertex, BROKER, sink.broker != null ? sink.broker.name() : null);
-            set(sinkVertex, TOPIC, sink.topic);
-            set(sinkVertex, "topicPropertyKey", sink.topicPropertyKey);
-            set(sinkVertex, "payloadType", sink.payloadType);
-            set(sinkVertex, "entityType", sink.entityType);
-            set(sinkVertex, "repositoryOperation", sink.repositoryOperation);
-            set(sinkVertex, "linkEvidence", sink.linkEvidence);
-            set(sinkVertex, "calleeQualifiedName", sink.calleeQualifiedName);
-            setSource(sinkVertex, sink.source);
-
+            addSinkVertex(sinkId, path, sink);
             addEdge(path.id, sinkId, "REACHES", Map.of("sinkKind", sink.kind != null ? sink.kind.value() : ""));
+            addSinkTargetEdge(sinkId, sink);
+        }
+    }
 
-            if (sink.kind == DataFlowSink.Kind.STORE && sink.fieldOwnerComponentId != null) {
-                addEdge(
-                        sinkId,
-                        sink.fieldOwnerComponentId.serialize(),
-                        "ON_FIELD",
-                        Map.of(FIELD_NAME, Objects.toString(sink.fieldName, "")));
-            } else if (sink.componentId != null) {
-                addEdge(
-                        sinkId,
-                        sink.componentId.serialize(),
-                        "AT_COMPONENT",
-                        Map.of(METHOD, Objects.toString(sink.method, "")));
-            }
+    private void addSinkVertex(String sinkId, DataFlowPath path, DataFlowSink sink) {
+        Vertex sinkVertex = addVertex(sinkId, "DataFlowSink", sink.componentName);
+        set(sinkVertex, "kind", "dataFlowSink");
+        set(sinkVertex, "sinkKind", sink.kind != null ? sink.kind.value() : null);
+        set(sinkVertex, "pathId", path.id);
+        set(sinkVertex, COMPONENT_ID, sink.componentId != null ? sink.componentId.serialize() : null);
+        set(sinkVertex, METHOD, sink.method);
+        set(sinkVertex, FIELD_NAME, sink.fieldName);
+        set(
+                sinkVertex,
+                FIELD_OWNER_COMPONENT_ID,
+                sink.fieldOwnerComponentId != null ? sink.fieldOwnerComponentId.serialize() : null);
+        set(sinkVertex, "channel", sink.channel);
+        set(sinkVertex, BROKER, sink.broker != null ? sink.broker.name() : null);
+        set(sinkVertex, TOPIC, sink.topic);
+        set(sinkVertex, "topicPropertyKey", sink.topicPropertyKey);
+        set(sinkVertex, "payloadType", sink.payloadType);
+        set(sinkVertex, "entityType", sink.entityType);
+        set(sinkVertex, "repositoryOperation", sink.repositoryOperation);
+        set(sinkVertex, "linkEvidence", sink.linkEvidence);
+        set(sinkVertex, "calleeQualifiedName", sink.calleeQualifiedName);
+        setSource(sinkVertex, sink.source);
+    }
+
+    private void addSinkTargetEdge(String sinkId, DataFlowSink sink) {
+        if (sink.kind == DataFlowSink.Kind.STORE && sink.fieldOwnerComponentId != null) {
+            addEdge(
+                    sinkId,
+                    sink.fieldOwnerComponentId.serialize(),
+                    "ON_FIELD",
+                    Map.of(FIELD_NAME, Objects.toString(sink.fieldName, "")));
+        } else if (sink.componentId != null) {
+            addEdge(
+                    sinkId,
+                    sink.componentId.serialize(),
+                    "AT_COMPONENT",
+                    Map.of(METHOD, Objects.toString(sink.method, "")));
         }
     }
 
@@ -596,26 +597,29 @@ public class ArchitectureGraph {
     private void linkDataFlowSinkReaders(ArchitectureModel sourceModel) {
         for (DataFlowPath path : sourceModel.dataFlowPaths) {
             for (int i = 0; i < path.sinks.size(); i++) {
-                DataFlowSink sink = path.sinks.get(i);
-                if (sink.linkedPathIds == null || sink.linkedPathIds.isEmpty()) continue;
-                if (sink.kind != DataFlowSink.Kind.STORE
-                        && sink.kind != DataFlowSink.Kind.MESSAGING
-                        && sink.kind != DataFlowSink.Kind.EVENT_BUS) continue;
-                String sinkId = path.id + SINK_MARKER + i;
-                Map<String, Object> props = new HashMap<>();
-                props.put("linkKind", sink.kind.value());
-                if (sink.kind == DataFlowSink.Kind.STORE) {
-                    props.put(VIA_FIELD, Objects.toString(sink.fieldName, ""));
-                    props.put(
-                            FIELD_OWNER_COMPONENT_ID,
-                            sink.fieldOwnerComponentId != null ? sink.fieldOwnerComponentId.serialize() : "");
-                } else {
-                    props.put(VIA_CHANNEL, Objects.toString(sink.channel, ""));
-                }
-                for (String downstreamPathId : sink.linkedPathIds) {
-                    addEdge(sinkId, downstreamPathId, "LINKS_TO", props);
-                }
+                linkSinkReaders(path, i, path.sinks.get(i));
             }
+        }
+    }
+
+    private void linkSinkReaders(DataFlowPath path, int sinkIndex, DataFlowSink sink) {
+        if (sink.linkedPathIds == null || sink.linkedPathIds.isEmpty()) return;
+        if (sink.kind != DataFlowSink.Kind.STORE
+                && sink.kind != DataFlowSink.Kind.MESSAGING
+                && sink.kind != DataFlowSink.Kind.EVENT_BUS) return;
+        String sinkId = path.id + SINK_MARKER + sinkIndex;
+        Map<String, Object> props = new HashMap<>();
+        props.put("linkKind", sink.kind.value());
+        if (sink.kind == DataFlowSink.Kind.STORE) {
+            props.put(VIA_FIELD, Objects.toString(sink.fieldName, ""));
+            props.put(
+                    FIELD_OWNER_COMPONENT_ID,
+                    sink.fieldOwnerComponentId != null ? sink.fieldOwnerComponentId.serialize() : "");
+        } else {
+            props.put(VIA_CHANNEL, Objects.toString(sink.channel, ""));
+        }
+        for (String downstreamPathId : sink.linkedPathIds) {
+            addEdge(sinkId, downstreamPathId, "LINKS_TO", props);
         }
     }
 
@@ -661,44 +665,47 @@ public class ArchitectureGraph {
         for (Chain chain : chains) {
             chainIdx++;
             String chainId = "chain:" + chainIdx;
-            Segment root = chain.segments.get(0);
-            String rootEpId;
-            if (root.path != null && root.path.entrypointId != null) {
-                rootEpId = root.path.entrypointId.serialize();
-            } else {
-                rootEpId = "";
-            }
-            Vertex vertex = addVertex(chainId, "PipelineChain", chainId);
-            set(vertex, "kind", "pipelineChain");
-            set(vertex, "segmentCount", chain.segments.size());
-            set(vertex, "rootEntrypointId", rootEpId);
-            StringBuilder linkKinds = new StringBuilder();
-            for (int i = 1; i < chain.segments.size(); i++) {
-                DataFlowSink in = chain.segments.get(i).incomingSink;
-                if (linkKinds.length() > 0) linkKinds.append(',');
-                linkKinds.append(in != null && in.kind != null ? in.kind.value() : "");
-            }
-            set(vertex, "linkKinds", linkKinds.toString());
+            addChainVertex(chainId, chain);
+            addChainSegmentEdges(chainId, chain, sourceModel);
+        }
+    }
 
-            for (int i = 0; i < chain.segments.size(); i++) {
-                Segment seg = chain.segments.get(i);
-                Map<String, Object> edgeProps = new HashMap<>();
-                edgeProps.put("segmentIndex", i);
-                DataFlowSink in = seg.incomingSink;
-                if (in != null) {
-                    edgeProps.put("linkKind", in.kind != null ? in.kind.value() : "");
-                    edgeProps.put("incomingSinkId", incomingSinkId(chain, i, sourceModel));
-                    if (in.kind == DataFlowSink.Kind.STORE) {
-                        edgeProps.put(VIA_FIELD, Objects.toString(in.fieldName, ""));
-                        edgeProps.put(
-                                FIELD_OWNER_COMPONENT_ID,
-                                in.fieldOwnerComponentId != null ? in.fieldOwnerComponentId.serialize() : "");
-                    } else {
-                        edgeProps.put(VIA_CHANNEL, Objects.toString(in.channel, ""));
-                    }
+    private void addChainVertex(String chainId, Chain chain) {
+        Segment root = chain.segments.get(0);
+        String rootEpId =
+                (root.path != null && root.path.entrypointId != null) ? root.path.entrypointId.serialize() : "";
+        Vertex vertex = addVertex(chainId, "PipelineChain", chainId);
+        set(vertex, "kind", "pipelineChain");
+        set(vertex, "segmentCount", chain.segments.size());
+        set(vertex, "rootEntrypointId", rootEpId);
+        StringBuilder linkKinds = new StringBuilder();
+        for (int i = 1; i < chain.segments.size(); i++) {
+            DataFlowSink in = chain.segments.get(i).incomingSink;
+            if (linkKinds.length() > 0) linkKinds.append(',');
+            linkKinds.append(in != null && in.kind != null ? in.kind.value() : "");
+        }
+        set(vertex, "linkKinds", linkKinds.toString());
+    }
+
+    private void addChainSegmentEdges(String chainId, Chain chain, ArchitectureModel sourceModel) {
+        for (int i = 0; i < chain.segments.size(); i++) {
+            Segment seg = chain.segments.get(i);
+            Map<String, Object> edgeProps = new HashMap<>();
+            edgeProps.put("segmentIndex", i);
+            DataFlowSink in = seg.incomingSink;
+            if (in != null) {
+                edgeProps.put("linkKind", in.kind != null ? in.kind.value() : "");
+                edgeProps.put("incomingSinkId", incomingSinkId(chain, i, sourceModel));
+                if (in.kind == DataFlowSink.Kind.STORE) {
+                    edgeProps.put(VIA_FIELD, Objects.toString(in.fieldName, ""));
+                    edgeProps.put(
+                            FIELD_OWNER_COMPONENT_ID,
+                            in.fieldOwnerComponentId != null ? in.fieldOwnerComponentId.serialize() : "");
+                } else {
+                    edgeProps.put(VIA_CHANNEL, Objects.toString(in.channel, ""));
                 }
-                addEdge(chainId, seg.path.id, "HAS_SEGMENT", edgeProps);
             }
+            addEdge(chainId, seg.path.id, "HAS_SEGMENT", edgeProps);
         }
     }
 
@@ -734,32 +741,38 @@ public class ArchitectureGraph {
         Map<dev.dominikbreu.spoonmcp.model.ids.FieldRef, List<FieldAccess>> readsByState = new LinkedHashMap<>();
         Map<dev.dominikbreu.spoonmcp.model.ids.FieldRef, List<FieldAccess>> writesByState = new LinkedHashMap<>();
         for (FieldAccess access : sourceModel.fieldAccesses) {
-            if (access.kind == null || access.componentId == null || access.fieldBinding == null) {
-                continue;
-            }
-            dev.dominikbreu.spoonmcp.model.ids.ComponentId fieldOwner;
-            if (access.fieldBinding instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent cc) {
-                fieldOwner = cc.ref().owner();
-            } else {
-                fieldOwner = access.componentId;
-            }
-            String fieldName = access.fieldBinding.fieldName();
-            String edgeLabel;
-            if (access.kind == FieldAccess.Kind.WRITE) {
-                edgeLabel = REL_WRITES_STATE;
-            } else {
-                edgeLabel = REL_READS_STATE;
-            }
-            addEdge(access.componentId.serialize(), fieldOwner.serialize(), edgeLabel, fieldAccessProperties(access));
-            dev.dominikbreu.spoonmcp.model.ids.FieldRef key =
-                    new dev.dominikbreu.spoonmcp.model.ids.FieldRef(fieldOwner, fieldName);
-            if (access.kind == FieldAccess.Kind.WRITE) {
-                writesByState.computeIfAbsent(key, ignored -> new ArrayList<>()).add(access);
-            } else if (access.kind == FieldAccess.Kind.READ) {
-                readsByState.computeIfAbsent(key, ignored -> new ArrayList<>()).add(access);
-            }
+            indexFieldAccess(access, readsByState, writesByState);
         }
+        linkStateHandoffs(sourceModel, writesByState, readsByState);
+    }
 
+    private void indexFieldAccess(
+            FieldAccess access,
+            Map<dev.dominikbreu.spoonmcp.model.ids.FieldRef, List<FieldAccess>> readsByState,
+            Map<dev.dominikbreu.spoonmcp.model.ids.FieldRef, List<FieldAccess>> writesByState) {
+        if (access.kind == null || access.componentId == null || access.fieldBinding == null) {
+            return;
+        }
+        dev.dominikbreu.spoonmcp.model.ids.ComponentId fieldOwner =
+                access.fieldBinding instanceof dev.dominikbreu.spoonmcp.model.ids.FieldBinding.CrossComponent cc
+                        ? cc.ref().owner()
+                        : access.componentId;
+        String fieldName = access.fieldBinding.fieldName();
+        String edgeLabel = access.kind == FieldAccess.Kind.WRITE ? REL_WRITES_STATE : REL_READS_STATE;
+        addEdge(access.componentId.serialize(), fieldOwner.serialize(), edgeLabel, fieldAccessProperties(access));
+        dev.dominikbreu.spoonmcp.model.ids.FieldRef key =
+                new dev.dominikbreu.spoonmcp.model.ids.FieldRef(fieldOwner, fieldName);
+        if (access.kind == FieldAccess.Kind.WRITE) {
+            writesByState.computeIfAbsent(key, ignored -> new ArrayList<>()).add(access);
+        } else if (access.kind == FieldAccess.Kind.READ) {
+            readsByState.computeIfAbsent(key, ignored -> new ArrayList<>()).add(access);
+        }
+    }
+
+    private void linkStateHandoffs(
+            ArchitectureModel sourceModel,
+            Map<dev.dominikbreu.spoonmcp.model.ids.FieldRef, List<FieldAccess>> writesByState,
+            Map<dev.dominikbreu.spoonmcp.model.ids.FieldRef, List<FieldAccess>> readsByState) {
         for (Map.Entry<dev.dominikbreu.spoonmcp.model.ids.FieldRef, List<FieldAccess>> entry :
                 writesByState.entrySet()) {
             List<FieldAccess> reads = readsByState.get(entry.getKey());
@@ -768,19 +781,23 @@ public class ArchitectureGraph {
             }
             for (FieldAccess write : entry.getValue()) {
                 for (FieldAccess read : reads) {
-                    if (Objects.equals(write.componentId, read.componentId)) {
-                        if (!Objects.equals(write.method, read.method)) {
-                            propagateStateHandoffThroughCallers(write, read, sourceModel);
-                        }
-                    } else {
-                        addEdge(
-                                write.componentId.serialize(),
-                                read.componentId.serialize(),
-                                REL_STATE_HANDOFF,
-                                stateHandoffProperties(write, read));
-                    }
+                    linkWriteToRead(write, read, sourceModel);
                 }
             }
+        }
+    }
+
+    private void linkWriteToRead(FieldAccess write, FieldAccess read, ArchitectureModel sourceModel) {
+        if (Objects.equals(write.componentId, read.componentId)) {
+            if (!Objects.equals(write.method, read.method)) {
+                propagateStateHandoffThroughCallers(write, read, sourceModel);
+            }
+        } else {
+            addEdge(
+                    write.componentId.serialize(),
+                    read.componentId.serialize(),
+                    REL_STATE_HANDOFF,
+                    stateHandoffProperties(write, read));
         }
     }
 
@@ -836,19 +853,10 @@ public class ArchitectureGraph {
 
     private void propagateStateHandoffThroughCallers(
             FieldAccess write, FieldAccess read, ArchitectureModel sourceModel) {
-        Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> writerCallers = new HashSet<>();
-        Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> readerCallers = new HashSet<>();
-        for (CallEdge e : sourceModel.callEdges) {
-            if (e.fromComponentId == null || e.toComponentId == null || e.toMethod == null) {
-                continue;
-            }
-            if (write.componentId.equals(e.toComponentId) && write.method.equals(e.toMethod)) {
-                writerCallers.add(e.fromComponentId);
-            }
-            if (read.componentId.equals(e.toComponentId) && read.method.equals(e.toMethod)) {
-                readerCallers.add(e.fromComponentId);
-            }
-        }
+        Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> writerCallers =
+                collectCallers(sourceModel, write.componentId, write.method);
+        Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> readerCallers =
+                collectCallers(sourceModel, read.componentId, read.method);
         for (dev.dominikbreu.spoonmcp.model.ids.ComponentId caller1 : writerCallers) {
             for (dev.dominikbreu.spoonmcp.model.ids.ComponentId caller2 : readerCallers) {
                 if (!caller1.equals(caller2)) {
@@ -860,6 +868,22 @@ public class ArchitectureGraph {
                 }
             }
         }
+    }
+
+    private Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> collectCallers(
+            ArchitectureModel sourceModel,
+            dev.dominikbreu.spoonmcp.model.ids.ComponentId targetComponent,
+            String targetMethod) {
+        Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> callers = new HashSet<>();
+        for (CallEdge e : sourceModel.callEdges) {
+            if (e.fromComponentId == null || e.toComponentId == null || e.toMethod == null) {
+                continue;
+            }
+            if (targetComponent.equals(e.toComponentId) && targetMethod.equals(e.toMethod)) {
+                callers.add(e.fromComponentId);
+            }
+        }
+        return callers;
     }
 
     private void computeDerivedProperties() {
