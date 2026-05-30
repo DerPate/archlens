@@ -8,6 +8,7 @@ import dev.dominikbreu.spoonmcp.view.ArchitectureViewProjection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -20,12 +21,7 @@ public final class LikeC4ModelRenderer {
     public String render(LikeC4Document document) {
         StringBuilder sb = new StringBuilder();
         Map<String, String> aliases = elementAliases(document);
-        for (String warning : document.warnings()) {
-            appendCommentLines(sb, "", "Warning: ", warning);
-        }
-        if (!document.warnings().isEmpty()) {
-            sb.append("\n");
-        }
+        appendWarnings(sb, document.warnings());
 
         sb.append("specification {\n");
         for (String elementKind : document.elementKinds()) {
@@ -33,6 +29,21 @@ public final class LikeC4ModelRenderer {
         }
         sb.append(BLOCK_END);
 
+        appendDocumentModel(sb, document, aliases);
+        appendDocumentViews(sb, document, aliases);
+        return sb.toString();
+    }
+
+    private void appendWarnings(StringBuilder sb, List<String> warnings) {
+        for (String warning : warnings) {
+            appendCommentLines(sb, "", "Warning: ", warning);
+        }
+        if (!warnings.isEmpty()) {
+            sb.append("\n");
+        }
+    }
+
+    private void appendDocumentModel(StringBuilder sb, LikeC4Document document, Map<String, String> aliases) {
         sb.append("model {\n");
         for (LikeC4Element element : document.elements()) {
             sb.append("  ")
@@ -46,43 +57,51 @@ public final class LikeC4ModelRenderer {
             sb.append(INDENT_BLOCK_END);
         }
         for (LikeC4Relationship relationship : document.relationships()) {
-            sb.append("  ")
-                    .append(aliasFor(relationship.sourceId(), aliases))
-                    .append(" -> ")
-                    .append(aliasFor(relationship.targetId(), aliases))
-                    .append(" '")
-                    .append(escape(relationship.title()))
-                    .append("'");
-            Map<String, Object> metadata = relationshipMetadata(relationship);
-            if (metadata.isEmpty()) {
-                sb.append("\n");
-            } else {
-                sb.append(" {\n");
-                renderMetadata(sb, metadata, "    ");
-                sb.append(INDENT_BLOCK_END);
-            }
+            appendRelationship(sb, relationship, aliases);
         }
         sb.append(BLOCK_END);
+    }
 
-        sb.append("views {\n");
-        for (LikeC4View view : document.views()) {
-            sb.append("  view ").append(identifier(view.id())).append(" {\n");
-            sb.append("    title '").append(escape(view.title())).append("'\n");
-            for (String note : view.notes()) {
-                appendCommentLines(sb, "    ", "", note);
-            }
-            if (view.includes().isEmpty()) {
-                sb.append("    include *\n");
-            } else {
-                for (String include : view.includes()) {
-                    sb.append("    include ").append(aliasFor(include, aliases)).append("\n");
-                }
-            }
+    private void appendRelationship(StringBuilder sb, LikeC4Relationship relationship, Map<String, String> aliases) {
+        sb.append("  ")
+                .append(aliasFor(relationship.sourceId(), aliases))
+                .append(" -> ")
+                .append(aliasFor(relationship.targetId(), aliases))
+                .append(" '")
+                .append(escape(relationship.title()))
+                .append("'");
+        Map<String, Object> metadata = relationshipMetadata(relationship);
+        if (metadata.isEmpty()) {
+            sb.append("\n");
+        } else {
+            sb.append(" {\n");
+            renderMetadata(sb, metadata, "    ");
             sb.append(INDENT_BLOCK_END);
         }
-        sb.append("}\n");
+    }
 
-        return sb.toString();
+    private void appendDocumentViews(StringBuilder sb, LikeC4Document document, Map<String, String> aliases) {
+        sb.append("views {\n");
+        for (LikeC4View view : document.views()) {
+            appendView(sb, view, aliases);
+        }
+        sb.append("}\n");
+    }
+
+    private void appendView(StringBuilder sb, LikeC4View view, Map<String, String> aliases) {
+        sb.append("  view ").append(identifier(view.id())).append(" {\n");
+        sb.append("    title '").append(escape(view.title())).append("'\n");
+        for (String note : view.notes()) {
+            appendCommentLines(sb, "    ", "", note);
+        }
+        if (view.includes().isEmpty()) {
+            sb.append("    include *\n");
+        } else {
+            for (String include : view.includes()) {
+                sb.append("    include ").append(aliasFor(include, aliases)).append("\n");
+            }
+        }
+        sb.append(INDENT_BLOCK_END);
     }
 
     public String render(ArchitectureViewProjection projection) {

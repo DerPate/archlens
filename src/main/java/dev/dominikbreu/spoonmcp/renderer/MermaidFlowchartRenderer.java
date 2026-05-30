@@ -55,61 +55,61 @@ public class MermaidFlowchartRenderer {
 
     private String renderModuleLevel(List<AppEntry> apps, ArchitectureModel model) {
         StringBuilder sb = new StringBuilder(FLOWCHART_HEADER);
-
         for (AppEntry app : apps) {
-            if ("internal_module".equals(app.role) || TECHNICAL_LIBRARY.equals(app.role)) continue;
-
-            // deployment_unit or standalone
-            List<AppEntry> children = model.applications.stream()
-                    .filter(a -> app.id.equals(a.parentAppId))
-                    .toList();
-
-            if (children.isEmpty()) {
-                // No sub-modules — render as single box
-                String label =
-                        app.name + "\\n" + app.packagingType + (app.technology != null ? " / " + app.technology : "");
-                sb.append("    ")
-                        .append(nid(app.id.serialize()))
-                        .append("[\"")
-                        .append(escape(label))
-                        .append(NODE_CLOSE);
-            } else {
-                // WAR with internal modules
-                sb.append(SUBGRAPH_OPEN)
-                        .append(nid(app.id.serialize()))
-                        .append("[\"")
-                        .append(escape(app.name))
-                        .append(" (")
-                        .append(app.packagingType)
-                        .append(NODE_CLOSE_PAREN);
-
-                for (AppEntry child : children) {
-                    String shape;
-                    if (TECHNICAL_LIBRARY.equals(child.role)) {
-                        shape = "([";
-                    } else {
-                        shape = "[";
-                    }
-                    String closeShape;
-                    if (TECHNICAL_LIBRARY.equals(child.role)) {
-                        closeShape = "])";
-                    } else {
-                        closeShape = "]";
-                    }
-                    String label = child.name + "\\n" + child.role;
-                    sb.append(INDENT8)
-                            .append(nid(child.id.serialize()))
-                            .append(shape)
-                            .append("\"")
-                            .append(escape(label))
-                            .append("\"")
-                            .append(closeShape)
-                            .append("\n");
-                }
-                sb.append(SUBGRAPH_CLOSE);
-            }
+            appendModuleApp(sb, app, model);
         }
+        appendCrossModuleDeps(sb, model);
+        return sb.toString();
+    }
 
+    private void appendModuleApp(StringBuilder sb, AppEntry app, ArchitectureModel model) {
+        if ("internal_module".equals(app.role) || TECHNICAL_LIBRARY.equals(app.role)) return;
+
+        // deployment_unit or standalone
+        List<AppEntry> children = model.applications.stream()
+                .filter(a -> app.id.equals(a.parentAppId))
+                .toList();
+
+        if (children.isEmpty()) {
+            // No sub-modules — render as single box
+            String label =
+                    app.name + "\\n" + app.packagingType + (app.technology != null ? " / " + app.technology : "");
+            sb.append("    ")
+                    .append(nid(app.id.serialize()))
+                    .append("[\"")
+                    .append(escape(label))
+                    .append(NODE_CLOSE);
+        } else {
+            // WAR with internal modules
+            sb.append(SUBGRAPH_OPEN)
+                    .append(nid(app.id.serialize()))
+                    .append("[\"")
+                    .append(escape(app.name))
+                    .append(" (")
+                    .append(app.packagingType)
+                    .append(NODE_CLOSE_PAREN);
+            for (AppEntry child : children) {
+                appendModuleChild(sb, child);
+            }
+            sb.append(SUBGRAPH_CLOSE);
+        }
+    }
+
+    private void appendModuleChild(StringBuilder sb, AppEntry child) {
+        String shape = TECHNICAL_LIBRARY.equals(child.role) ? "([" : "[";
+        String closeShape = TECHNICAL_LIBRARY.equals(child.role) ? "])" : "]";
+        String label = child.name + "\\n" + child.role;
+        sb.append(INDENT8)
+                .append(nid(child.id.serialize()))
+                .append(shape)
+                .append("\"")
+                .append(escape(label))
+                .append("\"")
+                .append(closeShape)
+                .append("\n");
+    }
+
+    private void appendCrossModuleDeps(StringBuilder sb, ArchitectureModel model) {
         // Cross-module dependency edges (component-level deps projected to module level)
         Set<String> drawn = new HashSet<>();
         Map<String, String> compToApp = buildCompToAppMap(model);
@@ -126,7 +126,6 @@ public class MermaidFlowchartRenderer {
                         .append("\n");
             }
         }
-        return sb.toString();
     }
 
     private Map<String, String> buildCompToAppMap(ArchitectureModel model) {
@@ -225,38 +224,55 @@ public class MermaidFlowchartRenderer {
 
         Set<String> visibleContainers = new LinkedHashSet<>();
         for (AppEntry app : apps) {
-            sb.append(SUBGRAPH_OPEN)
-                    .append(nid(app.id.serialize()))
-                    .append("[\"")
-                    .append(escape(app.name))
-                    .append(" (")
-                    .append(app.technology)
-                    .append(NODE_CLOSE_PAREN);
-
-            List<Container> appContainers = model.containers.stream()
-                    .filter(c -> app.id.equals(c.appId))
-                    .toList();
-
-            for (Container container : appContainers) {
-                visibleContainers.add(container.id);
-                long epCount = epByContainer.getOrDefault(container.id, 0L);
-                String label = escape(container.name) + "\\n"
-                        + container.componentIds.size() + " component"
-                        + (container.componentIds.size() != 1 ? "s" : "")
-                        + (epCount > 0 ? " / " + epCount + " EP" : "");
-                sb.append(INDENT8)
-                        .append(nid(container.id))
-                        .append("[\"")
-                        .append(label)
-                        .append(NODE_CLOSE);
-            }
-            sb.append(SUBGRAPH_CLOSE);
+            appendContainerSubgraph(sb, app, model, epByContainer, visibleContainers);
         }
 
+        Set<String> referencedExternals = new LinkedHashSet<>();
+        Map<String, Set<String>> edgeKinds =
+                aggregateContainerEdges(model, compToContainer, visibleContainers, referencedExternals);
+        appendExternalNodes(sb, model, referencedExternals);
+        appendLabelledEdges(sb, edgeKinds);
+
+        return sb.toString();
+    }
+
+    private void appendContainerSubgraph(
+            StringBuilder sb,
+            AppEntry app,
+            ArchitectureModel model,
+            Map<String, Long> epByContainer,
+            Set<String> visibleContainers) {
+        sb.append(SUBGRAPH_OPEN)
+                .append(nid(app.id.serialize()))
+                .append("[\"")
+                .append(escape(app.name))
+                .append(" (")
+                .append(app.technology)
+                .append(NODE_CLOSE_PAREN);
+
+        List<Container> appContainers = model.containers.stream()
+                .filter(c -> app.id.equals(c.appId))
+                .toList();
+
+        for (Container container : appContainers) {
+            visibleContainers.add(container.id);
+            long epCount = epByContainer.getOrDefault(container.id, 0L);
+            String label = escape(container.name) + "\\n"
+                    + container.componentIds.size() + " component"
+                    + (container.componentIds.size() != 1 ? "s" : "")
+                    + (epCount > 0 ? " / " + epCount + " EP" : "");
+            sb.append(INDENT8).append(nid(container.id)).append("[\"").append(label).append(NODE_CLOSE);
+        }
+        sb.append(SUBGRAPH_CLOSE);
+    }
+
+    private Map<String, Set<String>> aggregateContainerEdges(
+            ArchitectureModel model,
+            Map<String, String> compToContainer,
+            Set<String> visibleContainers,
+            Set<String> referencedExternals) {
         // Aggregate cross-container edge kinds by (from, to) pair
         Map<String, Set<String>> edgeKinds = new LinkedHashMap<>();
-        Set<String> referencedExternals = new LinkedHashSet<>();
-
         for (Dependency dep : model.dependencies) {
             String fromC = compToContainer.get(dep.fromId.serialize());
 
@@ -275,7 +291,10 @@ public class MermaidFlowchartRenderer {
                     .computeIfAbsent(fromC + "\0" + toC, k -> new LinkedHashSet<>())
                     .add(nullToEmpty(dep.kind));
         }
+        return edgeKinds;
+    }
 
+    private void appendExternalNodes(StringBuilder sb, ArchitectureModel model, Set<String> referencedExternals) {
         // External system nodes (outside subgraphs)
         for (ExternalSystem ext : model.externalSystems) {
             if (!referencedExternals.contains(ext.id)) continue;
@@ -291,7 +310,9 @@ public class MermaidFlowchartRenderer {
                     .append(shape[1])
                     .append("\n");
         }
+    }
 
+    private void appendLabelledEdges(StringBuilder sb, Map<String, Set<String>> edgeKinds) {
         // Labelled edges
         for (Map.Entry<String, Set<String>> entry : edgeKinds.entrySet()) {
             String[] parts = entry.getKey().split("\0", 2);
@@ -304,8 +325,6 @@ public class MermaidFlowchartRenderer {
                     .append(nid(parts[1]))
                     .append("\n");
         }
-
-        return sb.toString();
     }
 
     private String nullToEmpty(String s) {
@@ -322,39 +341,47 @@ public class MermaidFlowchartRenderer {
         StringBuilder sb = new StringBuilder(FLOWCHART_HEADER);
 
         for (AppEntry app : apps) {
-            sb.append(SUBGRAPH_OPEN)
-                    .append(nid(app.id.serialize()))
-                    .append("[\"")
-                    .append(escape(app.name))
-                    .append(" (")
-                    .append(app.technology)
-                    .append(NODE_CLOSE_PAREN);
-
-            List<Container> appContainers = model.containers.stream()
-                    .filter(c -> app.id.equals(c.appId))
-                    .toList();
-
-            if (appContainers.isEmpty()) {
-                // No containers — flat list of components
-                for (dev.dominikbreu.spoonmcp.model.ids.ComponentId cid : app.componentIds) {
-                    renderComponentNode(sb, cid.serialize(), model, INDENT8);
-                }
-            } else {
-                for (Container container : appContainers) {
-                    sb.append("        subgraph ")
-                            .append(nid(container.id))
-                            .append("[\"")
-                            .append(escape(container.name))
-                            .append(NODE_CLOSE);
-                    for (dev.dominikbreu.spoonmcp.model.ids.ComponentId cid : container.componentIds) {
-                        renderComponentNode(sb, cid.serialize(), model, "            ");
-                    }
-                    sb.append("        end\n");
-                }
-            }
-            sb.append(SUBGRAPH_CLOSE);
+            appendComponentSubgraph(sb, app, model);
         }
+        appendComponentEdges(sb, apps, model);
+        return sb.toString();
+    }
 
+    private void appendComponentSubgraph(StringBuilder sb, AppEntry app, ArchitectureModel model) {
+        sb.append(SUBGRAPH_OPEN)
+                .append(nid(app.id.serialize()))
+                .append("[\"")
+                .append(escape(app.name))
+                .append(" (")
+                .append(app.technology)
+                .append(NODE_CLOSE_PAREN);
+
+        List<Container> appContainers = model.containers.stream()
+                .filter(c -> app.id.equals(c.appId))
+                .toList();
+
+        if (appContainers.isEmpty()) {
+            // No containers — flat list of components
+            for (dev.dominikbreu.spoonmcp.model.ids.ComponentId cid : app.componentIds) {
+                renderComponentNode(sb, cid.serialize(), model, INDENT8);
+            }
+        } else {
+            for (Container container : appContainers) {
+                sb.append("        subgraph ")
+                        .append(nid(container.id))
+                        .append("[\"")
+                        .append(escape(container.name))
+                        .append(NODE_CLOSE);
+                for (dev.dominikbreu.spoonmcp.model.ids.ComponentId cid : container.componentIds) {
+                    renderComponentNode(sb, cid.serialize(), model, "            ");
+                }
+                sb.append("        end\n");
+            }
+        }
+        sb.append(SUBGRAPH_CLOSE);
+    }
+
+    private void appendComponentEdges(StringBuilder sb, List<AppEntry> apps, ArchitectureModel model) {
         // Draw edges only between components belonging to the filtered apps
         Set<String> visibleComps = apps.stream()
                 .flatMap(a -> a.componentIds.stream())
@@ -372,7 +399,6 @@ public class MermaidFlowchartRenderer {
                         .append("\n");
             }
         }
-        return sb.toString();
     }
 
     private void renderComponentNode(StringBuilder sb, String compId, ArchitectureModel model, String indent) {

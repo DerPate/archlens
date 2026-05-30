@@ -47,52 +47,44 @@ public class MermaidCallFlowRenderer {
         // Client node
         sb.append("    Client([Client])\n");
 
+        appendComponentNodes(sb, steps, compById, pidMap);
+        sb.append("\n");
+        appendClientEdge(sb, steps, ep, pidMap);
+        appendForwardEdges(sb, flow, pidMap);
+
+        return sb.toString();
+    }
+
+    private void appendComponentNodes(
+            StringBuilder sb, List<RuntimeFlowStep> steps, Map<String, Component> compById, Map<String, String> pidMap) {
         // Component nodes with type-appropriate shapes
         for (RuntimeFlowStep step : steps) {
-            String compKey;
-            if (step.componentId != null) {
-                compKey = step.componentId.serialize();
-            } else {
-                compKey = step.componentName;
-            }
+            String compKey = step.componentId != null ? step.componentId.serialize() : step.componentName;
             String pid = pidMap.get(compKey);
-            ComponentType type;
-            if (compById.containsKey(compKey)) {
-                type = compById.get(compKey).type;
-            } else {
-                type = null;
-            }
-            sb.append("    ")
-                    .append(pid)
-                    .append(nodeShape(step.componentName, type))
-                    .append("\n");
+            ComponentType type = compById.containsKey(compKey) ? compById.get(compKey).type : null;
+            sb.append("    ").append(pid).append(nodeShape(step.componentName, type)).append("\n");
         }
-        sb.append("\n");
+    }
 
-        // Client → first step
-        if (!steps.isEmpty()) {
-            String label = entrypointLabel(ep);
-            sb.append("    Client -->|")
-                    .append(escape(label))
-                    .append("| ")
-                    .append(pidMap.get(
-                            steps.get(0).componentId != null
-                                    ? steps.get(0).componentId.serialize()
-                                    : steps.get(0).componentName))
-                    .append("\n");
-        }
+    private void appendClientEdge(
+            StringBuilder sb, List<RuntimeFlowStep> steps, Entrypoint ep, Map<String, String> pidMap) {
+        if (steps.isEmpty()) return;
+        RuntimeFlowStep first = steps.get(0);
+        String firstKey = first.componentId != null ? first.componentId.serialize() : first.componentName;
+        sb.append("    Client -->|")
+                .append(escape(entrypointLabel(ep)))
+                .append("| ")
+                .append(pidMap.get(firstKey))
+                .append("\n");
+    }
 
+    private void appendForwardEdges(StringBuilder sb, RuntimeFlow flow, Map<String, String> pidMap) {
         // Forward edges — derived from the recorded call-graph topology
         for (RuntimeFlow.FlowEdge edge : flow.edges) {
             String fromPid = pidMap.get(edge.fromId.serialize());
             String toPid = pidMap.get(edge.toId.serialize());
             if (fromPid == null || toPid == null) continue;
-            String label;
-            if (edge.label != null && !edge.label.isBlank()) {
-                label = edge.label;
-            } else {
-                label = "call";
-            }
+            String label = edge.label != null && !edge.label.isBlank() ? edge.label : "call";
             sb.append("    ")
                     .append(fromPid)
                     .append(" -->|")
@@ -101,8 +93,6 @@ public class MermaidCallFlowRenderer {
                     .append(toPid)
                     .append("\n");
         }
-
-        return sb.toString();
     }
 
     private String nodeShape(String name, ComponentType type) {

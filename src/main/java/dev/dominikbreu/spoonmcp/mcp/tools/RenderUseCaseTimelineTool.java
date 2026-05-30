@@ -45,49 +45,49 @@ public class RenderUseCaseTimelineTool {
             int maxUseCases = ToolArgs.getInt(args, "maxUseCases", 10);
             int maxDepth = ToolArgs.getInt(args, "maxDepth", 5);
 
-            List<RuntimeFlow> flows = model.runtimeFlows;
-
-            if (epIdFilter != null) {
-                final String filter = epIdFilter;
-                flows = flows.stream()
-                        .filter(f -> f.entrypointId != null
-                                && (f.entrypointId.serialize().equals(filter)
-                                        || f.entrypointId.serialize().contains(filter)))
-                        .toList();
-            } else if (epNameFilter != null) {
-                String methodFilter = RuntimeFlowInferrer.extractMethodFromRef(epNameFilter);
-                String pathFilter = RuntimeFlowInferrer.extractPathFromRef(epNameFilter);
-                final String lower = pathFilter.toLowerCase();
-                flows = flows.stream()
-                        .filter(f -> {
-                            Entrypoint ep = model.entrypoints.stream()
-                                    .filter(e -> f.entrypointId != null && f.entrypointId.equals(e.id))
-                                    .findFirst()
-                                    .orElse(null);
-                            if (ep == null)
-                                return f.entrypointId != null
-                                        && f.entrypointId
-                                                .serialize()
-                                                .toLowerCase()
-                                                .contains(lower);
-                            if (methodFilter != null && !methodFilter.equalsIgnoreCase(ep.httpMethod)) return false;
-                            return (ep.name != null && ep.name.toLowerCase().contains(lower))
-                                    || RuntimeFlowInferrer.pathPrefixMatches(ep.path, pathFilter)
-                                    || (ep.channelName != null
-                                            && ep.channelName.toLowerCase().contains(lower));
-                        })
-                        .toList();
-            }
-
+            List<RuntimeFlow> flows = filterFlows(model.runtimeFlows, epIdFilter, epNameFilter, model);
             if (flows.isEmpty()) return "No matching use cases found.";
-
             if (flows.size() > maxUseCases) {
                 flows = flows.subList(0, maxUseCases);
             }
-
             return renderer.render(flows, model, maxDepth);
         } catch (Exception e) {
             return "Error rendering use case timeline: " + e.getMessage();
         }
+    }
+
+    private List<RuntimeFlow> filterFlows(
+            List<RuntimeFlow> flows, String epIdFilter, String epNameFilter, ArchitectureModel model) {
+        if (epIdFilter != null) {
+            return flows.stream()
+                    .filter(f -> f.entrypointId != null
+                            && (f.entrypointId.serialize().equals(epIdFilter)
+                                    || f.entrypointId.serialize().contains(epIdFilter)))
+                    .toList();
+        }
+        if (epNameFilter != null) {
+            String methodFilter = RuntimeFlowInferrer.extractMethodFromRef(epNameFilter);
+            String pathFilter = RuntimeFlowInferrer.extractPathFromRef(epNameFilter);
+            String lower = pathFilter.toLowerCase();
+            return flows.stream()
+                    .filter(f -> flowMatchesName(f, model, methodFilter, pathFilter, lower))
+                    .toList();
+        }
+        return flows;
+    }
+
+    private boolean flowMatchesName(
+            RuntimeFlow f, ArchitectureModel model, String methodFilter, String pathFilter, String lower) {
+        Entrypoint ep = model.entrypoints.stream()
+                .filter(e -> f.entrypointId != null && f.entrypointId.equals(e.id))
+                .findFirst()
+                .orElse(null);
+        if (ep == null) {
+            return f.entrypointId != null && f.entrypointId.serialize().toLowerCase().contains(lower);
+        }
+        if (methodFilter != null && !methodFilter.equalsIgnoreCase(ep.httpMethod)) return false;
+        return (ep.name != null && ep.name.toLowerCase().contains(lower))
+                || RuntimeFlowInferrer.pathPrefixMatches(ep.path, pathFilter)
+                || (ep.channelName != null && ep.channelName.toLowerCase().contains(lower));
     }
 }

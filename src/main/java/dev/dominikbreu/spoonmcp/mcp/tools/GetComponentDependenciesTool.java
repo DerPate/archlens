@@ -50,82 +50,78 @@ public class GetComponentDependenciesTool {
                     .orElse(null);
 
             if (root == null) return "Component not found: " + ref;
-            List<Dependency> deps;
 
-            if (condensed) {
-                deps = condenser.condense(model.dependencies, model.components);
-            } else {
-                deps = model.dependencies;
-            }
+            List<Dependency> deps =
+                    condensed ? condenser.condense(model.dependencies, model.components) : model.dependencies;
 
-            // BFS up to depth
             Map<String, Component> byId = new HashMap<>();
             for (Component c : model.components) byId.put(c.id.serialize(), c);
 
-            Map<String, List<Dependency>> outgoing = new HashMap<>();
-            for (Dependency d : deps) {
-                outgoing.computeIfAbsent(d.fromId.serialize(), k -> new ArrayList<>())
-                        .add(d);
-            }
-
-            List<Dependency> result = new ArrayList<>();
-            Set<String> visited = new HashSet<>();
-            Deque<String> queue = new ArrayDeque<>();
-            Map<String, Integer> depthMap = new HashMap<>();
-            queue.add(root.id.serialize());
-            depthMap.put(root.id.serialize(), 0);
-
-            while (!queue.isEmpty()) {
-                String cur = queue.poll();
-                if (visited.contains(cur)) continue;
-                visited.add(cur);
-                int d = depthMap.getOrDefault(cur, 0);
-                if (d >= depth) continue;
-                for (Dependency dep : outgoing.getOrDefault(cur, List.of())) {
-                    result.add(dep);
-                    if (!visited.contains(dep.toId.serialize())) {
-                        depthMap.put(dep.toId.serialize(), d + 1);
-                        queue.add(dep.toId.serialize());
-                    }
-                }
-            }
-
+            List<Dependency> result = bfsDependencies(root, deps, depth);
             if (result.isEmpty()) {
                 return "No dependencies found for component: " + root.name + " (depth=" + depth + ", condensed="
                         + condensed + ")";
             }
-
-            StringBuilder sb = new StringBuilder();
-            sb.append("Dependencies for [")
-                    .append(root.type)
-                    .append("] ")
-                    .append(root.name)
-                    .append(" (depth=")
-                    .append(depth)
-                    .append(", condensed=")
-                    .append(condensed)
-                    .append("):\n\n");
-            for (Dependency dep : result) {
-                Component to = byId.get(dep.toId.serialize());
-                String toLabel;
-                if (to != null) {
-                    toLabel = "[" + to.type + "] " + to.name;
-                } else {
-                    toLabel = dep.toId.serialize();
-                }
-                sb.append("  -> ")
-                        .append(toLabel)
-                        .append(" [")
-                        .append(dep.kind)
-                        .append(", ")
-                        .append(dep.derivedFrom)
-                        .append(", evidence-score=")
-                        .append(dep.confidence)
-                        .append("]\n");
-            }
-            return sb.toString();
+            return formatDependencies(result, root, byId, depth, condensed);
         } catch (Exception e) {
             return "Error getting dependencies: " + e.getMessage();
         }
+    }
+
+    private List<Dependency> bfsDependencies(Component root, List<Dependency> deps, int depth) {
+        Map<String, List<Dependency>> outgoing = new HashMap<>();
+        for (Dependency d : deps) {
+            outgoing.computeIfAbsent(d.fromId.serialize(), k -> new ArrayList<>()).add(d);
+        }
+        List<Dependency> result = new ArrayList<>();
+        Set<String> visited = new HashSet<>();
+        Deque<String> queue = new ArrayDeque<>();
+        Map<String, Integer> depthMap = new HashMap<>();
+        queue.add(root.id.serialize());
+        depthMap.put(root.id.serialize(), 0);
+
+        while (!queue.isEmpty()) {
+            String cur = queue.poll();
+            if (visited.contains(cur)) continue;
+            visited.add(cur);
+            int d = depthMap.getOrDefault(cur, 0);
+            if (d >= depth) continue;
+            for (Dependency dep : outgoing.getOrDefault(cur, List.of())) {
+                result.add(dep);
+                if (!visited.contains(dep.toId.serialize())) {
+                    depthMap.put(dep.toId.serialize(), d + 1);
+                    queue.add(dep.toId.serialize());
+                }
+            }
+        }
+        return result;
+    }
+
+    private String formatDependencies(
+            List<Dependency> result, Component root, Map<String, Component> byId, int depth, boolean condensed) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Dependencies for [")
+                .append(root.type)
+                .append("] ")
+                .append(root.name)
+                .append(" (depth=")
+                .append(depth)
+                .append(", condensed=")
+                .append(condensed)
+                .append("):\n\n");
+        for (Dependency dep : result) {
+            Component to = byId.get(dep.toId.serialize());
+            String toLabel = to != null ? "[" + to.type + "] " + to.name : dep.toId.serialize();
+            sb.append("  -> ")
+                    .append(toLabel)
+                    .append(" [")
+                    .append(dep.kind)
+                    .append(", ")
+                    .append(dep.derivedFrom)
+                    .append(", evidence-score=")
+                    .append(dep.confidence)
+                    .append("]\n");
+        }
+        return sb.toString();
     }
 }
