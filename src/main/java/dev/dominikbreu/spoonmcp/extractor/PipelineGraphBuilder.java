@@ -251,7 +251,7 @@ public class PipelineGraphBuilder {
                 current,
                 incomingSink,
                 incomingLink,
-                walk.workflowGraph().entrypointById().get(epId));
+                walk.workflowGraph().entrypointById().get(current.entrypointId));
         List<Segment> nextPrefix = new ArrayList<>(prefix);
         nextPrefix.add(seg);
 
