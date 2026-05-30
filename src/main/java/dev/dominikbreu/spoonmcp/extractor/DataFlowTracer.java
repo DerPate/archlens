@@ -209,25 +209,31 @@ public class DataFlowTracer {
             entrypointById.put(ep.id.serialize(), ep);
         }
         for (DataFlowPath path : paths) {
-            Entrypoint ep = entrypointById.get(path.entrypointId != null ? path.entrypointId.serialize() : null);
-            if (ep == null) continue;
-            if (ep.type != EntrypointType.MESSAGING_CONSUMER && ep.type != EntrypointType.JMS_CONSUMER) continue;
-            String key = destinationKey(ep.broker, ep.channelName);
-            if (key == null) continue;
-            consumerPathsByDestination
-                    .computeIfAbsent(key, ignored -> new ArrayList<>())
-                    .add(path.id);
-            if (ep.channelName != null && !ep.channelName.isBlank()) {
-                consumerPathsByChannel
-                        .computeIfAbsent(ep.channelName.trim(), ignored -> new ArrayList<>())
-                        .add(path.id);
-            }
+            indexConsumerPath(path, entrypointById, consumerPathsByDestination, consumerPathsByChannel);
         }
 
         for (DataFlowPath path : paths) {
             for (DataFlowSink sink : path.sinks) {
                 linkMessagingSink(sink, path, consumerPathsByDestination, consumerPathsByChannel);
             }
+        }
+    }
+
+    private void indexConsumerPath(
+            DataFlowPath path,
+            Map<String, Entrypoint> entrypointById,
+            Map<String, List<String>> consumerPathsByDestination,
+            Map<String, List<String>> consumerPathsByChannel) {
+        Entrypoint ep = entrypointById.get(path.entrypointId != null ? path.entrypointId.serialize() : null);
+        if (ep == null) return;
+        if (ep.type != EntrypointType.MESSAGING_CONSUMER && ep.type != EntrypointType.JMS_CONSUMER) return;
+        String key = destinationKey(ep.broker, ep.channelName);
+        if (key == null) return;
+        consumerPathsByDestination.computeIfAbsent(key, ignored -> new ArrayList<>()).add(path.id);
+        if (ep.channelName != null && !ep.channelName.isBlank()) {
+            consumerPathsByChannel
+                    .computeIfAbsent(ep.channelName.trim(), ignored -> new ArrayList<>())
+                    .add(path.id);
         }
     }
 
@@ -560,16 +566,18 @@ public class DataFlowTracer {
         for (DataFlowPath path : paths) {
             Entrypoint ep = entrypointById.get(path.entrypointId != null ? path.entrypointId.serialize() : null);
             if (ep != null && PERSISTENCE_HANDOFF_EXCLUDED_TARGETS.contains(ep.type)) continue;
-            for (DataFlowSink sink : path.sinks) {
-                if (sink.kind != DataFlowSink.Kind.PERSISTENCE) continue;
-                if (!isReadOperation(sink.repositoryOperation)) continue;
-                if (sink.entityType == null) continue;
-                readPathsByEntity
-                        .computeIfAbsent(sink.entityType, ignored -> new ArrayList<>())
-                        .add(path.id);
-            }
+            indexReadPathSinks(path, readPathsByEntity);
         }
         return readPathsByEntity;
+    }
+
+    private void indexReadPathSinks(DataFlowPath path, Map<String, List<String>> readPathsByEntity) {
+        for (DataFlowSink sink : path.sinks) {
+            if (sink.kind != DataFlowSink.Kind.PERSISTENCE) continue;
+            if (!isReadOperation(sink.repositoryOperation)) continue;
+            if (sink.entityType == null) continue;
+            readPathsByEntity.computeIfAbsent(sink.entityType, ignored -> new ArrayList<>()).add(path.id);
+        }
     }
 
     private void linkPersistenceWriteSink(

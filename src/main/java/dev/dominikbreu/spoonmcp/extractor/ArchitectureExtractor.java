@@ -322,20 +322,30 @@ public class ArchitectureExtractor {
             ArchitectureModel model, AppId appId, Map<String, MessagingConfigResolver.ChannelConfig> resolved) {
         for (Entrypoint ep : model.entrypoints) {
             if (!appId.equals(componentModule(model, ep.componentId))) continue;
-            if (ep.channelName == null) continue;
-            MessagingConfigResolver.ChannelConfig cfg = resolved.get(ep.channelName);
-            if (cfg == null) continue;
-            ep.broker = cfg.broker;
-            if (cfg.topic != null) ep.topic = cfg.topic;
+            applyResolvedToEntrypoint(ep, resolved);
         }
         for (InterfaceEntry iface : model.interfaces) {
             if (!appId.equals(iface.module)) continue;
-            if (iface.path == null) continue;
-            MessagingConfigResolver.ChannelConfig cfg = resolved.get(iface.path);
-            if (cfg == null) continue;
-            iface.broker = cfg.broker;
-            if (cfg.topic != null) iface.topic = cfg.topic;
+            applyResolvedToInterface(iface, resolved);
         }
+    }
+
+    private void applyResolvedToEntrypoint(
+            Entrypoint ep, Map<String, MessagingConfigResolver.ChannelConfig> resolved) {
+        if (ep.channelName == null) return;
+        MessagingConfigResolver.ChannelConfig cfg = resolved.get(ep.channelName);
+        if (cfg == null) return;
+        ep.broker = cfg.broker;
+        if (cfg.topic != null) ep.topic = cfg.topic;
+    }
+
+    private void applyResolvedToInterface(
+            InterfaceEntry iface, Map<String, MessagingConfigResolver.ChannelConfig> resolved) {
+        if (iface.path == null) return;
+        MessagingConfigResolver.ChannelConfig cfg = resolved.get(iface.path);
+        if (cfg == null) return;
+        iface.broker = cfg.broker;
+        if (cfg.topic != null) iface.topic = cfg.topic;
     }
 
     /**
