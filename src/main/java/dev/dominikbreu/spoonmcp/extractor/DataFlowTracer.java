@@ -70,46 +70,7 @@ public class DataFlowTracer {
 
             for (Entrypoint ep : model.entrypoints) {
                 if (!traversalPolicy.isWorkflowRoot(ep)) continue;
-
-                LinkedHashSet<String> trackedNames = new LinkedHashSet<>();
-                if (ep.parameters.isEmpty()) {
-                    trackedNames.add("*");
-                } else {
-                    trackedNames.addAll(ep.parameters);
-                }
-
-                if (ep.parameters.isEmpty()
-                        || ep.type == EntrypointType.MESSAGING_PRODUCER
-                        || ep.type == EntrypointType.SCHEDULER) {
-                    trackedNames.addAll(collectReachableReadFields(ep, index));
-                }
-
-                for (CallEdge e : index.callAdj.edges(ep.componentId, ep.name)) {
-                    if (e.returnsTracked && e.assignedToVar != null) {
-                        trackedNames.add(e.assignedToVar);
-                    }
-                }
-
-                Map<String, DataFlowPath> pathsByOriginal = new LinkedHashMap<>();
-                Map<String, String> currentToOriginal = new LinkedHashMap<>();
-                for (String tracked : trackedNames) {
-                    DataFlowPath path = new DataFlowPath();
-                    path.id = "df:" + ep.id.serialize() + "#" + tracked;
-                    path.entrypointId = ep.id;
-                    path.trackedParam = tracked;
-                    pathsByOriginal.put(tracked, path);
-                    currentToOriginal.put(tracked, tracked);
-                }
-
-                Set<dev.dominikbreu.spoonmcp.model.ids.MethodRef> onCurrentPath = new HashSet<>();
-                DfsContext ctx = new DfsContext(pathsByOriginal, index, onCurrentPath);
-                dfs(ctx, ep.componentId, ep.name, currentToOriginal, 0, Map.of());
-
-                for (DataFlowPath path : pathsByOriginal.values()) {
-                    boolean hasSinks = !path.sinks.isEmpty();
-                    boolean isConsumerWithSteps = ep.type == EntrypointType.MESSAGING_CONSUMER && !path.steps.isEmpty();
-                    if (hasSinks || isConsumerWithSteps) result.add(path);
-                }
+                traceEntrypoint(ep, index, result);
             }
 
             linkStoreSinksToFieldReaders(result, model, index);
@@ -132,6 +93,50 @@ public class DataFlowTracer {
      * record the reader path id on the sink. Lets agents stitch consumer → cache → producer
      * pipelines that span entrypoints.
      */
+    private void traceEntrypoint(Entrypoint ep, ModelIndex index, List<DataFlowPath> result) {
+        LinkedHashSet<String> trackedNames = collectTrackedNames(ep, index);
+
+        Map<String, DataFlowPath> pathsByOriginal = new LinkedHashMap<>();
+        Map<String, String> currentToOriginal = new LinkedHashMap<>();
+        for (String tracked : trackedNames) {
+            DataFlowPath path = new DataFlowPath();
+            path.id = "df:" + ep.id.serialize() + "#" + tracked;
+            path.entrypointId = ep.id;
+            path.trackedParam = tracked;
+            pathsByOriginal.put(tracked, path);
+            currentToOriginal.put(tracked, tracked);
+        }
+
+        DfsContext ctx = new DfsContext(pathsByOriginal, index, new HashSet<>());
+        dfs(ctx, ep.componentId, ep.name, currentToOriginal, 0, Map.of());
+
+        for (DataFlowPath path : pathsByOriginal.values()) {
+            boolean hasSinks = !path.sinks.isEmpty();
+            boolean isConsumerWithSteps = ep.type == EntrypointType.MESSAGING_CONSUMER && !path.steps.isEmpty();
+            if (hasSinks || isConsumerWithSteps) result.add(path);
+        }
+    }
+
+    private LinkedHashSet<String> collectTrackedNames(Entrypoint ep, ModelIndex index) {
+        LinkedHashSet<String> trackedNames = new LinkedHashSet<>();
+        if (ep.parameters.isEmpty()) {
+            trackedNames.add("*");
+        } else {
+            trackedNames.addAll(ep.parameters);
+        }
+        if (ep.parameters.isEmpty()
+                || ep.type == EntrypointType.MESSAGING_PRODUCER
+                || ep.type == EntrypointType.SCHEDULER) {
+            trackedNames.addAll(collectReachableReadFields(ep, index));
+        }
+        for (CallEdge e : index.callAdj.edges(ep.componentId, ep.name)) {
+            if (e.returnsTracked && e.assignedToVar != null) {
+                trackedNames.add(e.assignedToVar);
+            }
+        }
+        return trackedNames;
+    }
+
     private void linkStoreSinksToFieldReaders(List<DataFlowPath> paths, ArchitectureModel model, ModelIndex index) {
         // Build entrypointId → set of (fieldOwnerComponentId, fieldName) pairs read transitively.
         Map<dev.dominikbreu.spoonmcp.model.ids.EntrypointId, Set<dev.dominikbreu.spoonmcp.model.ids.FieldRef>>
@@ -159,27 +164,31 @@ public class DataFlowTracer {
         }
 
         for (DataFlowPath p : paths) {
-            String pEpIdStr;
-            if (p.entrypointId != null) {
-                pEpIdStr = p.entrypointId.serialize();
-            } else {
-                pEpIdStr = null;
-            }
+            String pEpIdStr = p.entrypointId != null ? p.entrypointId.serialize() : null;
             for (DataFlowSink s : p.sinks) {
-                if (s.kind != DataFlowSink.Kind.STORE) continue;
-                if (s.fieldOwnerComponentId == null || s.fieldName == null) continue;
-                dev.dominikbreu.spoonmcp.model.ids.FieldRef key =
-                        new dev.dominikbreu.spoonmcp.model.ids.FieldRef(s.fieldOwnerComponentId, s.fieldName);
-                List<String> readerIds = readerPathsByKey.get(key);
-                if (readerIds == null) continue;
-                for (String rid : readerIds) {
-                    String readerEpId = pathIdToEpId.get(rid);
-                    if (!rid.equals(p.id)
-                            && (readerEpId == null || !readerEpId.equals(pEpIdStr))
-                            && !s.linkedPathIds.contains(rid)) {
-                        s.linkedPathIds.add(rid);
-                    }
-                }
+                linkStoreSink(s, p, pEpIdStr, readerPathsByKey, pathIdToEpId);
+            }
+        }
+    }
+
+    private void linkStoreSink(
+            DataFlowSink s,
+            DataFlowPath p,
+            String pEpIdStr,
+            Map<dev.dominikbreu.spoonmcp.model.ids.FieldRef, List<String>> readerPathsByKey,
+            Map<String, String> pathIdToEpId) {
+        if (s.kind != DataFlowSink.Kind.STORE) return;
+        if (s.fieldOwnerComponentId == null || s.fieldName == null) return;
+        dev.dominikbreu.spoonmcp.model.ids.FieldRef key =
+                new dev.dominikbreu.spoonmcp.model.ids.FieldRef(s.fieldOwnerComponentId, s.fieldName);
+        List<String> readerIds = readerPathsByKey.get(key);
+        if (readerIds == null) return;
+        for (String rid : readerIds) {
+            String readerEpId = pathIdToEpId.get(rid);
+            if (!rid.equals(p.id)
+                    && (readerEpId == null || !readerEpId.equals(pEpIdStr))
+                    && !s.linkedPathIds.contains(rid)) {
+                s.linkedPathIds.add(rid);
             }
         }
     }
@@ -217,22 +226,30 @@ public class DataFlowTracer {
 
         for (DataFlowPath path : paths) {
             for (DataFlowSink sink : path.sinks) {
-                if (sink.kind != DataFlowSink.Kind.MESSAGING && sink.kind != DataFlowSink.Kind.EVENT_BUS) continue;
-                String dest = firstNonBlank(sink.topic, sink.channel);
-                String key = destinationKey(sink.broker, dest);
-                if (key == null) continue;
-                // Exact broker:channel match first; fall back to channel-only when the sink's
-                // broker is unresolved (null) — covers Emitter-field sites whose broker cannot
-                // be determined statically (e.g. SmallRye IN_MEMORY vs null mismatch).
-                List<String> candidates = consumerPathsByDestination.getOrDefault(key, List.of());
-                if (candidates.isEmpty() && sink.broker == null && dest != null) {
-                    candidates = consumerPathsByChannel.getOrDefault(dest.trim(), List.of());
-                }
-                for (String targetPathId : candidates) {
-                    if (!targetPathId.equals(path.id) && !sink.linkedPathIds.contains(targetPathId)) {
-                        sink.linkedPathIds.add(targetPathId);
-                    }
-                }
+                linkMessagingSink(sink, path, consumerPathsByDestination, consumerPathsByChannel);
+            }
+        }
+    }
+
+    private void linkMessagingSink(
+            DataFlowSink sink,
+            DataFlowPath path,
+            Map<String, List<String>> consumerPathsByDestination,
+            Map<String, List<String>> consumerPathsByChannel) {
+        if (sink.kind != DataFlowSink.Kind.MESSAGING && sink.kind != DataFlowSink.Kind.EVENT_BUS) return;
+        String dest = firstNonBlank(sink.topic, sink.channel);
+        String key = destinationKey(sink.broker, dest);
+        if (key == null) return;
+        // Exact broker:channel match first; fall back to channel-only when the sink's
+        // broker is unresolved (null) — covers Emitter-field sites whose broker cannot
+        // be determined statically (e.g. SmallRye IN_MEMORY vs null mismatch).
+        List<String> candidates = consumerPathsByDestination.getOrDefault(key, List.of());
+        if (candidates.isEmpty() && sink.broker == null && dest != null) {
+            candidates = consumerPathsByChannel.getOrDefault(dest.trim(), List.of());
+        }
+        for (String targetPathId : candidates) {
+            if (!targetPathId.equals(path.id) && !sink.linkedPathIds.contains(targetPathId)) {
+                sink.linkedPathIds.add(targetPathId);
             }
         }
     }
@@ -529,6 +546,16 @@ public class DataFlowTracer {
             entrypointById.put(ep.id.serialize(), ep);
         }
 
+        Map<String, List<String>> readPathsByEntity = indexPersistenceReadPaths(paths, entrypointById);
+        for (DataFlowPath path : paths) {
+            for (DataFlowSink sink : path.sinks) {
+                linkPersistenceWriteSink(sink, path, readPathsByEntity);
+            }
+        }
+    }
+
+    private Map<String, List<String>> indexPersistenceReadPaths(
+            List<DataFlowPath> paths, Map<String, Entrypoint> entrypointById) {
         Map<String, List<String>> readPathsByEntity = new HashMap<>();
         for (DataFlowPath path : paths) {
             Entrypoint ep = entrypointById.get(path.entrypointId != null ? path.entrypointId.serialize() : null);
@@ -542,17 +569,18 @@ public class DataFlowTracer {
                         .add(path.id);
             }
         }
-        for (DataFlowPath path : paths) {
-            for (DataFlowSink sink : path.sinks) {
-                if (sink.kind != DataFlowSink.Kind.PERSISTENCE) continue;
-                if (!isWriteOperation(sink.repositoryOperation)) continue;
-                if (sink.entityType == null) continue;
-                for (String targetPathId : readPathsByEntity.getOrDefault(sink.entityType, List.of())) {
-                    if (!targetPathId.equals(path.id) && !sink.linkedPathIds.contains(targetPathId)) {
-                        sink.linkedPathIds.add(targetPathId);
-                        sink.linkEvidence = "repository-entity-match";
-                    }
-                }
+        return readPathsByEntity;
+    }
+
+    private void linkPersistenceWriteSink(
+            DataFlowSink sink, DataFlowPath path, Map<String, List<String>> readPathsByEntity) {
+        if (sink.kind != DataFlowSink.Kind.PERSISTENCE) return;
+        if (!isWriteOperation(sink.repositoryOperation)) return;
+        if (sink.entityType == null) return;
+        for (String targetPathId : readPathsByEntity.getOrDefault(sink.entityType, List.of())) {
+            if (!targetPathId.equals(path.id) && !sink.linkedPathIds.contains(targetPathId)) {
+                sink.linkedPathIds.add(targetPathId);
+                sink.linkEvidence = "repository-entity-match";
             }
         }
     }
