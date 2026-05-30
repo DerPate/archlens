@@ -211,6 +211,61 @@ class RenderPipelineToolTest {
         assertThat(out).contains("persistence read sink(s): 0");
     }
 
+    @Test
+    void execute_noModel_reportsNoWorkspace() {
+        assertThat(new RenderPipelineTool(stubbedCache(null)).execute(Map.of())).contains("No workspace indexed");
+    }
+
+    @Test
+    void execute_noCallEdges_reportsNoCallGraph() {
+        assertThat(new RenderPipelineTool(stubbedCache(new ArchitectureModel("empty"))).execute(Map.of()))
+                .contains("No call-graph data available");
+    }
+
+    @Test
+    void execute_channelFilterMatchingNothing_reportsNoMatch() throws Exception {
+        ArchitectureModel model = buildTwoChainModel(
+                "alpha", EntrypointType.MESSAGING_CONSUMER, "beta", EntrypointType.MESSAGING_CONSUMER);
+        String out = new RenderPipelineTool(stubbedCache(model))
+                .execute(Map.of("maxChains", 10, "channel", "no-such-channel"));
+        assertThat(out).isEqualTo("No pipeline chains matched the given filters.");
+    }
+
+    @Test
+    void diagnostic_countsPersistenceSinksAndConsumerTopics() {
+        ModelCache cache = new ModelCache(null, ModelCache.CacheBackend.JSON) {
+            @Override
+            public ArchitectureModel load() {
+                ArchitectureModel model = new ArchitectureModel("diag2");
+                Entrypoint consumer = new Entrypoint();
+                consumer.id = EntrypointId.deserialize("consume");
+                consumer.type = EntrypointType.MESSAGING_CONSUMER;
+                consumer.channelName = "orders";
+                model.entrypoints.add(consumer);
+
+                DataFlowPath path = new DataFlowPath();
+                path.id = "df:write";
+                path.entrypointId = EntrypointId.deserialize("write");
+                DataFlowSink write = new DataFlowSink();
+                write.kind = DataFlowSink.Kind.PERSISTENCE;
+                write.repositoryOperation = "save";
+                DataFlowSink read = new DataFlowSink();
+                read.kind = DataFlowSink.Kind.PERSISTENCE;
+                read.repositoryOperation = "findById";
+                path.sinks.add(write);
+                path.sinks.add(read);
+                model.dataFlowPaths.add(path);
+                model.callEdges.add(new CallEdge());
+                return model;
+            }
+        };
+
+        String out = new RenderPipelineTool(cache).execute(Map.of());
+        assertThat(out).contains("consumer topic(s): 1");
+        assertThat(out).contains("persistence write sink(s): 1");
+        assertThat(out).contains("persistence read sink(s): 1");
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     /** Builds a two-segment chain (root → terminal) rooted at the given entrypoint ID. */

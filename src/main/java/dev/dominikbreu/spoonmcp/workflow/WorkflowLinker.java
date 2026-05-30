@@ -32,23 +32,50 @@ public final class WorkflowLinker {
             return List.of();
         }
 
+        Map<String, DataFlowPath> pathById = indexPathsById(model);
+        Map<String, Entrypoint> entrypointById = indexEntrypointsById(model);
+        Set<FieldRef> directOwnerWrittenFields = collectDirectOwnerWrittenFields(model, entrypointById);
+
+        List<WorkflowLink> links = new ArrayList<>();
+        for (DataFlowPath fromPath : model.dataFlowPaths) {
+            Entrypoint fromEntrypoint = entrypointFor(fromPath, entrypointById);
+            if (!policy.isWorkflowRoot(fromEntrypoint)) {
+                continue;
+            }
+            linkFromPath(fromPath, fromEntrypoint, pathById, entrypointById, directOwnerWrittenFields, links);
+        }
+        return links;
+    }
+
+    private static Map<String, DataFlowPath> indexPathsById(ArchitectureModel model) {
         Map<String, DataFlowPath> pathById = new HashMap<>();
         for (DataFlowPath path : model.dataFlowPaths) {
             pathById.put(path.id, path);
         }
+        return pathById;
+    }
 
+    private static Map<String, Entrypoint> indexEntrypointsById(ArchitectureModel model) {
         Map<String, Entrypoint> entrypointById = new HashMap<>();
         for (Entrypoint entrypoint : model.entrypoints) {
             entrypointById.put(entrypoint.id.serialize(), entrypoint);
         }
+        return entrypointById;
+    }
 
-        List<WorkflowLink> links = new ArrayList<>();
+    private static Entrypoint entrypointFor(DataFlowPath path, Map<String, Entrypoint> entrypointById) {
+        return path.entrypointId != null ? entrypointById.get(path.entrypointId.serialize()) : null;
+    }
 
-        // Pre-compute store fields that have at least one same-component (direct-owner) writer.
-        // Cross-component writes to these fields are shadowed side-effects, not pipeline triggers.
+    /**
+     * Pre-computes store fields that have at least one same-component (direct-owner) writer.
+     * Cross-component writes to these fields are shadowed side-effects, not pipeline triggers.
+     */
+    private static Set<FieldRef> collectDirectOwnerWrittenFields(
+            ArchitectureModel model, Map<String, Entrypoint> entrypointById) {
         Set<FieldRef> directOwnerWrittenFields = new HashSet<>();
         for (DataFlowPath p : model.dataFlowPaths) {
-            Entrypoint ep = p.entrypointId != null ? entrypointById.get(p.entrypointId.serialize()) : null;
+            Entrypoint ep = entrypointFor(p, entrypointById);
             if (ep == null || ep.componentId == null) continue;
             for (DataFlowSink s : p.sinks) {
                 if (s.kind == DataFlowSink.Kind.STORE
@@ -58,67 +85,76 @@ public final class WorkflowLinker {
                 }
             }
         }
+        return directOwnerWrittenFields;
+    }
 
-        for (DataFlowPath fromPath : model.dataFlowPaths) {
-            Entrypoint fromEntrypoint;
-            if (fromPath.entrypointId != null) {
-                fromEntrypoint = entrypointById.get(fromPath.entrypointId.serialize());
-            } else {
-                fromEntrypoint = null;
-            }
-            if (!policy.isWorkflowRoot(fromEntrypoint)) {
+    private void linkFromPath(
+            DataFlowPath fromPath,
+            Entrypoint fromEntrypoint,
+            Map<String, DataFlowPath> pathById,
+            Map<String, Entrypoint> entrypointById,
+            Set<FieldRef> directOwnerWrittenFields,
+            List<WorkflowLink> links) {
+        for (DataFlowSink sink : fromPath.sinks) {
+            if (sink.linkedPathIds == null || sink.linkedPathIds.isEmpty()) {
                 continue;
             }
-            for (DataFlowSink sink : fromPath.sinks) {
-                if (sink.linkedPathIds == null || sink.linkedPathIds.isEmpty()) {
-                    continue;
-                }
-                WorkflowLink.Kind kind = kindFor(sink);
-                if (kind == null) {
-                    continue;
-                }
-                for (String targetPathId : sink.linkedPathIds) {
-                    DataFlowPath toPath = pathById.get(targetPathId);
-                    if (toPath == null) {
-                        continue;
-                    }
-                    Entrypoint toEntrypoint;
-                    if (toPath.entrypointId != null) {
-                        toEntrypoint = entrypointById.get(toPath.entrypointId.serialize());
-                    } else {
-                        toEntrypoint = null;
-                    }
-                    if (!policy.isWorkflowRoot(toEntrypoint)) {
-                        continue;
-                    }
-                    // A cross-component write to a field that also has a direct same-component
-                    // writer is a shadowed side-effect, not a pipeline trigger.
-                    if (policy.isShadowedCrossComponentStoreWrite(sink, fromEntrypoint, directOwnerWrittenFields)) {
-                        continue;
-                    }
-                    // A scheduler pre-loading reference data into a store that a primary consumer
-                    // reads is a background data-feed, not a pipeline trigger. Skip the link so
-                    // the consumer remains an independent pipeline root.
-                    if (policy.isBackgroundDataFeedLink(fromEntrypoint, toEntrypoint, kind)) {
-                        continue;
-                    }
-                    links.add(new WorkflowLink(
-                            kind,
-                            fromPath.id,
-                            toPath.id,
-                            fromPath.entrypointId != null ? fromPath.entrypointId.serialize() : null,
-                            toPath.entrypointId != null ? toPath.entrypointId.serialize() : null,
-                            sink.channel,
-                            sink.fieldOwnerComponentId != null ? sink.fieldOwnerComponentId.serialize() : null,
-                            sink.fieldName,
-                            sink.entityType,
-                            sink.repositoryOperation,
-                            sink.linkEvidence,
-                            confidenceFor(kind)));
+            WorkflowLink.Kind kind = kindFor(sink);
+            if (kind == null) {
+                continue;
+            }
+            for (String targetPathId : sink.linkedPathIds) {
+                WorkflowLink link = tryBuildLink(
+                        fromPath, fromEntrypoint, sink, kind, targetPathId, pathById, entrypointById,
+                        directOwnerWrittenFields);
+                if (link != null) {
+                    links.add(link);
                 }
             }
         }
-        return links;
+    }
+
+    private WorkflowLink tryBuildLink(
+            DataFlowPath fromPath,
+            Entrypoint fromEntrypoint,
+            DataFlowSink sink,
+            WorkflowLink.Kind kind,
+            String targetPathId,
+            Map<String, DataFlowPath> pathById,
+            Map<String, Entrypoint> entrypointById,
+            Set<FieldRef> directOwnerWrittenFields) {
+        DataFlowPath toPath = pathById.get(targetPathId);
+        if (toPath == null) {
+            return null;
+        }
+        Entrypoint toEntrypoint = entrypointFor(toPath, entrypointById);
+        if (!policy.isWorkflowRoot(toEntrypoint)) {
+            return null;
+        }
+        // A cross-component write to a field that also has a direct same-component writer is a
+        // shadowed side-effect, not a pipeline trigger.
+        if (policy.isShadowedCrossComponentStoreWrite(sink, fromEntrypoint, directOwnerWrittenFields)) {
+            return null;
+        }
+        // A scheduler pre-loading reference data into a store that a primary consumer reads is a
+        // background data-feed, not a pipeline trigger. Skip the link so the consumer remains an
+        // independent pipeline root.
+        if (policy.isBackgroundDataFeedLink(fromEntrypoint, toEntrypoint, kind)) {
+            return null;
+        }
+        return new WorkflowLink(
+                kind,
+                fromPath.id,
+                toPath.id,
+                fromPath.entrypointId != null ? fromPath.entrypointId.serialize() : null,
+                toPath.entrypointId != null ? toPath.entrypointId.serialize() : null,
+                sink.channel,
+                sink.fieldOwnerComponentId != null ? sink.fieldOwnerComponentId.serialize() : null,
+                sink.fieldName,
+                sink.entityType,
+                sink.repositoryOperation,
+                sink.linkEvidence,
+                confidenceFor(kind));
     }
 
     private static WorkflowLink.Kind kindFor(DataFlowSink sink) {

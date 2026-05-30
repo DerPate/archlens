@@ -34,6 +34,16 @@ public class MermaidPipelineRenderer {
      * @param model architecture model used to resolve component shapes
      * @return Mermaid flowchart text
      */
+    /** Mutable accumulator threaded through per-segment rendering. */
+    private static final class RenderState {
+        final StringBuilder nodes = new StringBuilder("flowchart TD\n");
+        final StringBuilder edges = new StringBuilder();
+        final StringBuilder styles = new StringBuilder();
+        int boundaryCounter;
+        String previousLastNode;
+        String previousSinkLabel;
+    }
+
     public String render(Chain chain, ArchitectureModel model) {
         if (chain == null || chain.segments.isEmpty()) {
             return "flowchart TD\n    note[no pipeline chain]\n";
@@ -41,145 +51,141 @@ public class MermaidPipelineRenderer {
         Map<String, Component> compById = new HashMap<>();
         for (Component c : model.components) compById.put(c.id.serialize(), c);
 
-        StringBuilder sb = new StringBuilder("flowchart TD\n");
-        StringBuilder edges = new StringBuilder();
-        StringBuilder styles = new StringBuilder();
-
-        int boundaryCounter = 0;
-        String previousLastNode = null;
-        String previousSinkLabel = null;
-
+        RenderState st = new RenderState();
         for (int segIdx = 0; segIdx < chain.segments.size(); segIdx++) {
-            Segment seg = chain.segments.get(segIdx);
-            Entrypoint ep = seg.entrypoint;
-
-            // Boundary node from previous segment (skip for first segment).
-            if (seg.incomingSink != null) {
-                boundaryCounter++;
-                String boundaryId = "B" + boundaryCounter;
-                String boundaryLabel = boundaryLabel(seg.incomingSink, compById);
-                sb.append("    ")
-                        .append(boundaryId)
-                        .append(boundaryShape(seg.incomingSink, boundaryLabel))
-                        .append("\n");
-                String cls = boundaryClass(seg.incomingSink.kind);
-                styles.append("    class ")
-                        .append(boundaryId)
-                        .append(' ')
-                        .append(cls)
-                        .append("\n");
-                if (previousLastNode != null) {
-                    edges.append("    ")
-                            .append(previousLastNode)
-                            .append(EDGE_LABEL_OPEN)
-                            .append(escape(previousSinkLabel == null ? "" : previousSinkLabel))
-                            .append("| ")
-                            .append(boundaryId)
-                            .append("\n");
-                }
-                String consumeLabel;
-                if (ep != null && ep.name != null) {
-                    consumeLabel = ep.name;
-                } else {
-                    consumeLabel = "";
-                }
-                String firstStepNode = "S" + segIdx + "_0";
-                edges.append("    ")
-                        .append(boundaryId)
-                        .append(EDGE_LABEL_OPEN)
-                        .append(escape(consumeLabel))
-                        .append("| ")
-                        .append(firstStepNode)
-                        .append("\n");
-            }
-
-            // Entrypoint header step (segment header) — represents the entrypoint method itself.
-            String headerNodeId = "S" + segIdx + "_0";
-            String headerComponentName;
-            if (ep != null && ep.componentId != null && compById.get(ep.componentId.serialize()) != null) {
-                headerComponentName = compById.get(ep.componentId.serialize()).name;
-            } else {
-                headerComponentName = (seg.path.steps.isEmpty() ? "?" : seg.path.steps.get(0).componentName);
-            }
-            ComponentType headerType;
-            if (ep != null && ep.componentId != null && compById.get(ep.componentId.serialize()) != null) {
-                headerType = compById.get(ep.componentId.serialize()).type;
-            } else {
-                headerType = null;
-            }
-            String headerLabel = headerComponentName + (ep != null && ep.name != null ? "." + ep.name : "");
-            sb.append("    ")
-                    .append(headerNodeId)
-                    .append(nodeShape(headerLabel, headerType))
-                    .append("\n");
-
-            String previousNodeInSeg = headerNodeId;
-            for (int i = 1; i < seg.path.steps.size(); i++) {
-                DataFlowStep step = seg.path.steps.get(i);
-                String nodeId = "S" + segIdx + "_" + i;
-                ComponentType type;
-                if (step.componentId != null && compById.containsKey(step.componentId.serialize())) {
-                    type = compById.get(step.componentId.serialize()).type;
-                } else {
-                    type = null;
-                }
-                String label = step.componentName + "." + step.method;
-                sb.append("    ").append(nodeId).append(nodeShape(label, type)).append("\n");
-                edges.append("    ")
-                        .append(previousNodeInSeg)
-                        .append(EDGE_LABEL_OPEN)
-                        .append(escape(step.method))
-                        .append("| ")
-                        .append(nodeId)
-                        .append("\n");
-                previousNodeInSeg = nodeId;
-            }
-
-            // Emit terminal sinks of this segment that aren't the linking sink, as leaf nodes.
-            int terminalCounter = 0;
-            for (DataFlowSink s : seg.path.sinks) {
-                boolean isLink =
-                        (segIdx + 1 < chain.segments.size()) && chain.segments.get(segIdx + 1).incomingSink == s;
-                if (isLink) continue;
-                terminalCounter++;
-                String termId = "T" + segIdx + "_" + terminalCounter;
-                String termLabel =
-                        (s.componentName != null ? s.componentName : "?") + (s.method != null ? "." + s.method : "");
-                sb.append("    ")
-                        .append(termId)
-                        .append(terminalShape(s, termLabel))
-                        .append("\n");
-                styles.append("    class ")
-                        .append(termId)
-                        .append(' ')
-                        .append(terminalClass(s.kind))
-                        .append("\n");
-                edges.append("    ")
-                        .append(previousNodeInSeg)
-                        .append(EDGE_LABEL_OPEN)
-                        .append(escape(s.method == null ? "" : s.method))
-                        .append("| ")
-                        .append(termId)
-                        .append("\n");
-            }
-            // Determine which sink (if any) links to the next segment.
-            DataFlowSink linkOut =
-                    (segIdx + 1 < chain.segments.size()) ? chain.segments.get(segIdx + 1).incomingSink : null;
-            previousLastNode = previousNodeInSeg;
-            previousSinkLabel = linkOut != null && linkOut.method != null ? linkOut.method : "";
+            renderSegment(st, chain, segIdx, compById);
         }
+        return assemble(st);
+    }
 
-        sb.append("\n").append(edges);
-        sb.append("\n");
-        sb.append("    classDef store fill:#1b5e20,stroke:#0b3d12,color:#ffffff\n");
-        sb.append("    classDef messaging fill:#0d47a1,stroke:#062f6c,color:#ffffff\n");
-        sb.append("    classDef eventbus fill:#4a148c,stroke:#2c0a55,color:#ffffff\n");
-        sb.append("    classDef persistence fill:#1b5e20,stroke:#0b3d12,color:#ffffff\n");
-        sb.append("    classDef http fill:#b71c1c,stroke:#7a1313,color:#ffffff\n");
-        sb.append("    classDef object fill:#4e342e,stroke:#2d1c19,color:#ffffff\n");
-        sb.append("    classDef file fill:#37474f,stroke:#1f2a30,color:#ffffff\n");
-        sb.append(styles);
-        return sb.toString();
+    private void renderSegment(RenderState st, Chain chain, int segIdx, Map<String, Component> compById) {
+        Segment seg = chain.segments.get(segIdx);
+        Entrypoint ep = seg.entrypoint;
+
+        // Boundary node from previous segment (skip for first segment).
+        if (seg.incomingSink != null) {
+            renderBoundary(st, seg, ep, segIdx, compById);
+        }
+        String headerNodeId = renderHeader(st, seg, ep, segIdx, compById);
+        String previousNodeInSeg = renderSteps(st, seg, segIdx, headerNodeId, compById);
+        renderTerminalSinks(st, chain, seg, segIdx, previousNodeInSeg);
+
+        // Determine which sink (if any) links to the next segment.
+        DataFlowSink linkOut =
+                (segIdx + 1 < chain.segments.size()) ? chain.segments.get(segIdx + 1).incomingSink : null;
+        st.previousLastNode = previousNodeInSeg;
+        st.previousSinkLabel = linkOut != null && linkOut.method != null ? linkOut.method : "";
+    }
+
+    private void renderBoundary(
+            RenderState st, Segment seg, Entrypoint ep, int segIdx, Map<String, Component> compById) {
+        st.boundaryCounter++;
+        String boundaryId = "B" + st.boundaryCounter;
+        String boundaryLabel = boundaryLabel(seg.incomingSink, compById);
+        st.nodes.append("    ")
+                .append(boundaryId)
+                .append(boundaryShape(seg.incomingSink, boundaryLabel))
+                .append("\n");
+        st.styles.append("    class ")
+                .append(boundaryId)
+                .append(' ')
+                .append(boundaryClass(seg.incomingSink.kind))
+                .append("\n");
+        if (st.previousLastNode != null) {
+            st.edges.append("    ")
+                    .append(st.previousLastNode)
+                    .append(EDGE_LABEL_OPEN)
+                    .append(escape(st.previousSinkLabel == null ? "" : st.previousSinkLabel))
+                    .append("| ")
+                    .append(boundaryId)
+                    .append("\n");
+        }
+        String consumeLabel = (ep != null && ep.name != null) ? ep.name : "";
+        st.edges.append("    ")
+                .append(boundaryId)
+                .append(EDGE_LABEL_OPEN)
+                .append(escape(consumeLabel))
+                .append("| ")
+                .append("S" + segIdx + "_0")
+                .append("\n");
+    }
+
+    private String renderHeader(
+            RenderState st, Segment seg, Entrypoint ep, int segIdx, Map<String, Component> compById) {
+        String headerNodeId = "S" + segIdx + "_0";
+        Component headerComp =
+                (ep != null && ep.componentId != null) ? compById.get(ep.componentId.serialize()) : null;
+        String headerComponentName = headerComp != null
+                ? headerComp.name
+                : (seg.path.steps.isEmpty() ? "?" : seg.path.steps.get(0).componentName);
+        ComponentType headerType = headerComp != null ? headerComp.type : null;
+        String headerLabel = headerComponentName + (ep != null && ep.name != null ? "." + ep.name : "");
+        st.nodes.append("    ").append(headerNodeId).append(nodeShape(headerLabel, headerType)).append("\n");
+        return headerNodeId;
+    }
+
+    private String renderSteps(
+            RenderState st, Segment seg, int segIdx, String headerNodeId, Map<String, Component> compById) {
+        String previousNodeInSeg = headerNodeId;
+        for (int i = 1; i < seg.path.steps.size(); i++) {
+            DataFlowStep step = seg.path.steps.get(i);
+            String nodeId = "S" + segIdx + "_" + i;
+            ComponentType type = (step.componentId != null && compById.containsKey(step.componentId.serialize()))
+                    ? compById.get(step.componentId.serialize()).type
+                    : null;
+            String label = step.componentName + "." + step.method;
+            st.nodes.append("    ").append(nodeId).append(nodeShape(label, type)).append("\n");
+            st.edges.append("    ")
+                    .append(previousNodeInSeg)
+                    .append(EDGE_LABEL_OPEN)
+                    .append(escape(step.method))
+                    .append("| ")
+                    .append(nodeId)
+                    .append("\n");
+            previousNodeInSeg = nodeId;
+        }
+        return previousNodeInSeg;
+    }
+
+    private void renderTerminalSinks(
+            RenderState st, Chain chain, Segment seg, int segIdx, String previousNodeInSeg) {
+        // Emit terminal sinks of this segment that aren't the linking sink, as leaf nodes.
+        int terminalCounter = 0;
+        for (DataFlowSink s : seg.path.sinks) {
+            boolean isLink = (segIdx + 1 < chain.segments.size()) && chain.segments.get(segIdx + 1).incomingSink == s;
+            if (isLink) continue;
+            terminalCounter++;
+            String termId = "T" + segIdx + "_" + terminalCounter;
+            String termLabel =
+                    (s.componentName != null ? s.componentName : "?") + (s.method != null ? "." + s.method : "");
+            st.nodes.append("    ").append(termId).append(terminalShape(s, termLabel)).append("\n");
+            st.styles.append("    class ")
+                    .append(termId)
+                    .append(' ')
+                    .append(terminalClass(s.kind))
+                    .append("\n");
+            st.edges.append("    ")
+                    .append(previousNodeInSeg)
+                    .append(EDGE_LABEL_OPEN)
+                    .append(escape(s.method == null ? "" : s.method))
+                    .append("| ")
+                    .append(termId)
+                    .append("\n");
+        }
+    }
+
+    private String assemble(RenderState st) {
+        st.nodes.append("\n").append(st.edges);
+        st.nodes.append("\n");
+        st.nodes.append("    classDef store fill:#1b5e20,stroke:#0b3d12,color:#ffffff\n");
+        st.nodes.append("    classDef messaging fill:#0d47a1,stroke:#062f6c,color:#ffffff\n");
+        st.nodes.append("    classDef eventbus fill:#4a148c,stroke:#2c0a55,color:#ffffff\n");
+        st.nodes.append("    classDef persistence fill:#1b5e20,stroke:#0b3d12,color:#ffffff\n");
+        st.nodes.append("    classDef http fill:#b71c1c,stroke:#7a1313,color:#ffffff\n");
+        st.nodes.append("    classDef object fill:#4e342e,stroke:#2d1c19,color:#ffffff\n");
+        st.nodes.append("    classDef file fill:#37474f,stroke:#1f2a30,color:#ffffff\n");
+        st.nodes.append(st.styles);
+        return st.nodes.toString();
     }
 
     private String nodeShape(String label, ComponentType type) {
@@ -205,34 +211,24 @@ public class MermaidPipelineRenderer {
     }
 
     private String boundaryLabel(DataFlowSink sink, Map<String, Component> compById) {
-        if (sink.kind == DataFlowSink.Kind.STORE) {
-            String owner;
-            if (sink.fieldOwnerComponentId != null && compById.get(sink.fieldOwnerComponentId.serialize()) != null) {
-                owner = compById.get(sink.fieldOwnerComponentId.serialize()).name;
-            } else {
-                owner = (sink.componentName != null ? sink.componentName : "?");
-            }
-            return owner + "." + (sink.fieldName != null ? sink.fieldName : "?");
-        }
-        if (sink.kind == DataFlowSink.Kind.MESSAGING || sink.kind == DataFlowSink.Kind.EVENT_BUS) {
-            if (sink.channel != null) {
-                return sink.channel;
-            } else {
-                return "channel";
-            }
-        }
-        if (sink.kind == DataFlowSink.Kind.PERSISTENCE) {
-            if (sink.entityType != null) {
-                return sink.entityType;
-            } else {
-                return (sink.componentName != null ? sink.componentName : "?");
-            }
-        }
-        if (sink.componentName != null) {
-            return sink.componentName;
-        } else {
-            return sink.kind.value();
-        }
+        return switch (sink.kind) {
+            case STORE -> storeBoundaryLabel(sink, compById);
+            case MESSAGING, EVENT_BUS -> sink.channel != null ? sink.channel : "channel";
+            case PERSISTENCE -> sink.entityType != null ? sink.entityType : nonNullComponentName(sink);
+            default -> sink.componentName != null ? sink.componentName : sink.kind.value();
+        };
+    }
+
+    private String storeBoundaryLabel(DataFlowSink sink, Map<String, Component> compById) {
+        String owner =
+                (sink.fieldOwnerComponentId != null && compById.get(sink.fieldOwnerComponentId.serialize()) != null)
+                        ? compById.get(sink.fieldOwnerComponentId.serialize()).name
+                        : nonNullComponentName(sink);
+        return owner + "." + (sink.fieldName != null ? sink.fieldName : "?");
+    }
+
+    private static String nonNullComponentName(DataFlowSink sink) {
+        return sink.componentName != null ? sink.componentName : "?";
     }
 
     private String boundaryClass(DataFlowSink.Kind kind) {
