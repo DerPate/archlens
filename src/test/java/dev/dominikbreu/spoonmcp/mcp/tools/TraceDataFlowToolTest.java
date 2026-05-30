@@ -164,14 +164,17 @@ class TraceDataFlowToolTest {
 
         DataFlowPath path = dataFlowPath("df:ep:CustomerController#get:GET#id", ep.id, "id");
         path.steps.add(new DataFlowStep(0, ctrl.id, "CustomerController", "get", "id"));
-        DataFlowSink sink =
-                new DataFlowSink(DataFlowSink.Kind.STORE, store.id, "StateStore", "put", new SourceInfo("path/StateStore.java", 42, "field-write", 0.9));
+        DataFlowSink sink = new DataFlowSink(
+                DataFlowSink.Kind.STORE,
+                store.id,
+                "StateStore",
+                "put",
+                new SourceInfo("path/StateStore.java", 42, "field-write", 0.9));
         sink.fieldName = "cache";
         path.sinks.add(sink);
         model.dataFlowPaths.add(path);
         return model;
     }
-
 
     private static Component component(String name, ComponentType type) {
         Component c = new Component();

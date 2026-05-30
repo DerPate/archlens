@@ -56,13 +56,19 @@ public class MermaidCallFlowRenderer {
     }
 
     private void appendComponentNodes(
-            StringBuilder sb, List<RuntimeFlowStep> steps, Map<String, Component> compById, Map<String, String> pidMap) {
+            StringBuilder sb,
+            List<RuntimeFlowStep> steps,
+            Map<String, Component> compById,
+            Map<String, String> pidMap) {
         // Component nodes with type-appropriate shapes
         for (RuntimeFlowStep step : steps) {
             String compKey = step.componentId != null ? step.componentId.serialize() : step.componentName;
             String pid = pidMap.get(compKey);
             ComponentType type = compById.containsKey(compKey) ? compById.get(compKey).type : null;
-            sb.append("    ").append(pid).append(nodeShape(step.componentName, type)).append("\n");
+            sb.append("    ")
+                    .append(pid)
+                    .append(nodeShape(step.componentName, type))
+                    .append("\n");
         }
     }
 

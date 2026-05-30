@@ -85,9 +85,8 @@ public class ExplainArchitectureTool {
                 .toList();
         appendAppEntrypoints(sb, eps);
 
-        List<Container> containers = model.containers.stream()
-                .filter(c -> app.id.equals(c.appId))
-                .toList();
+        List<Container> containers =
+                model.containers.stream().filter(c -> app.id.equals(c.appId)).toList();
         if (!containers.isEmpty()) {
             sb.append("- Layers: ")
                     .append(containers.stream().map(c -> c.name).collect(Collectors.joining(", ")))
@@ -113,10 +112,10 @@ public class ExplainArchitectureTool {
     private void appendDependencies(StringBuilder sb, List<AppEntry> apps, ArchitectureModel model) {
         List<Dependency> deps = model.dependencies.stream()
                 .filter(d -> {
-                    boolean fromVisible = apps.stream()
-                            .anyMatch(a -> a.componentIds.stream().anyMatch(id -> id.equals(d.fromId)));
-                    boolean toVisible = apps.stream()
-                            .anyMatch(a -> a.componentIds.stream().anyMatch(id -> id.equals(d.toId)));
+                    boolean fromVisible =
+                            apps.stream().anyMatch(a -> a.componentIds.stream().anyMatch(id -> id.equals(d.fromId)));
+                    boolean toVisible =
+                            apps.stream().anyMatch(a -> a.componentIds.stream().anyMatch(id -> id.equals(d.toId)));
                     return fromVisible && toVisible;
                 })
                 .toList();

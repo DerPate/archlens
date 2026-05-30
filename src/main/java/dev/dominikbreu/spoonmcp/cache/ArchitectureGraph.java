@@ -113,8 +113,8 @@ public class ArchitectureGraph {
                 interfaceEntry.componentId.serialize(),
                 "EXPOSES",
                 Map.of(SOURCE, "interface.componentId")));
-        sourceModel.containers.forEach(container -> container.componentIds.forEach(componentId -> addEdge(
-                container.id, componentId.serialize(), "CONTAINS", Map.of(SOURCE, "container.componentIds"))));
+        sourceModel.containers.forEach(container -> container.componentIds.forEach(componentId ->
+                addEdge(container.id, componentId.serialize(), "CONTAINS", Map.of(SOURCE, "container.componentIds"))));
         sourceModel.deployments.forEach(deployment -> deployment.appIds.forEach(
                 appId -> addEdge(deployment.id, appId.serialize(), "DEPLOYS", Map.of(SOURCE, "deployment.appIds"))));
         sourceModel.dependencies.forEach(dependency -> addEdge(

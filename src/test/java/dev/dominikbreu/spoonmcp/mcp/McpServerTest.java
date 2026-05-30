@@ -37,10 +37,11 @@ class McpServerTest {
 
     @Test
     void toolHandler_returnsTextResult_forUnindexedWorkspace() {
-        McpServerFeatures.SyncToolSpecification listApps = new McpServer().buildToolSpecifications().stream()
-                .filter(s -> "list_apps".equals(s.tool().name()))
-                .findFirst()
-                .orElseThrow();
+        McpServerFeatures.SyncToolSpecification listApps = new McpServer()
+                .buildToolSpecifications().stream()
+                        .filter(s -> "list_apps".equals(s.tool().name()))
+                        .findFirst()
+                        .orElseThrow();
 
         var result = listApps.callHandler()
                 .apply(null, new io.modelcontextprotocol.spec.McpSchema.CallToolRequest("list_apps", Map.of()));

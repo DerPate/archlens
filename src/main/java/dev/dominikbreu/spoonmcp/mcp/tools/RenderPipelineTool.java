@@ -93,9 +93,14 @@ public class RenderPipelineTool {
         for (int i = 0; i < filtered.size(); i++) {
             Chain c = filtered.get(i);
             Segment root = c.segments.get(0);
-            String rootEpId = root.entrypoint != null
-                    ? root.entrypoint.id.serialize()
-                    : (root.path.entrypointId != null ? root.path.entrypointId.serialize() : "");
+            String rootEpId;
+            if (root.entrypoint != null) {
+                rootEpId = root.entrypoint.id.serialize();
+            } else if (root.path.entrypointId != null) {
+                rootEpId = root.path.entrypointId.serialize();
+            } else {
+                rootEpId = "";
+            }
             out.append("%% chain ")
                     .append(i + 1)
                     .append(": root=")

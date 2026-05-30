@@ -330,8 +330,7 @@ public class ArchitectureExtractor {
         }
     }
 
-    private void applyResolvedToEntrypoint(
-            Entrypoint ep, Map<String, MessagingConfigResolver.ChannelConfig> resolved) {
+    private void applyResolvedToEntrypoint(Entrypoint ep, Map<String, MessagingConfigResolver.ChannelConfig> resolved) {
         if (ep.channelName == null) return;
         MessagingConfigResolver.ChannelConfig cfg = resolved.get(ep.channelName);
         if (cfg == null) return;

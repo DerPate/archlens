@@ -71,7 +71,8 @@ public class GetComponentDependenciesTool {
     private List<Dependency> bfsDependencies(Component root, List<Dependency> deps, int depth) {
         Map<String, List<Dependency>> outgoing = new HashMap<>();
         for (Dependency d : deps) {
-            outgoing.computeIfAbsent(d.fromId.serialize(), k -> new ArrayList<>()).add(d);
+            outgoing.computeIfAbsent(d.fromId.serialize(), k -> new ArrayList<>())
+                    .add(d);
         }
         List<Dependency> result = new ArrayList<>();
         Set<String> visited = new HashSet<>();

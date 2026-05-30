@@ -34,16 +34,6 @@ public class MermaidPipelineRenderer {
      * @param model architecture model used to resolve component shapes
      * @return Mermaid flowchart text
      */
-    /** Mutable accumulator threaded through per-segment rendering. */
-    private static final class RenderState {
-        final StringBuilder nodes = new StringBuilder("flowchart TD\n");
-        final StringBuilder edges = new StringBuilder();
-        final StringBuilder styles = new StringBuilder();
-        int boundaryCounter;
-        String previousLastNode;
-        String previousSinkLabel;
-    }
-
     public String render(Chain chain, ArchitectureModel model) {
         if (chain == null || chain.segments.isEmpty()) {
             return "flowchart TD\n    note[no pipeline chain]\n";
@@ -56,6 +46,16 @@ public class MermaidPipelineRenderer {
             renderSegment(st, chain, segIdx, compById);
         }
         return assemble(st);
+    }
+
+    /** Mutable accumulator threaded through per-segment rendering. */
+    private static final class RenderState {
+        final StringBuilder nodes = new StringBuilder("flowchart TD\n");
+        final StringBuilder edges = new StringBuilder();
+        final StringBuilder styles = new StringBuilder();
+        int boundaryCounter;
+        String previousLastNode;
+        String previousSinkLabel;
     }
 
     private void renderSegment(RenderState st, Chain chain, int segIdx, Map<String, Component> compById) {
@@ -82,17 +82,20 @@ public class MermaidPipelineRenderer {
         st.boundaryCounter++;
         String boundaryId = "B" + st.boundaryCounter;
         String boundaryLabel = boundaryLabel(seg.incomingSink, compById);
-        st.nodes.append("    ")
+        st.nodes
+                .append("    ")
                 .append(boundaryId)
                 .append(boundaryShape(seg.incomingSink, boundaryLabel))
                 .append("\n");
-        st.styles.append("    class ")
+        st.styles
+                .append("    class ")
                 .append(boundaryId)
                 .append(' ')
                 .append(boundaryClass(seg.incomingSink.kind))
                 .append("\n");
         if (st.previousLastNode != null) {
-            st.edges.append("    ")
+            st.edges
+                    .append("    ")
                     .append(st.previousLastNode)
                     .append(EDGE_LABEL_OPEN)
                     .append(escape(st.previousSinkLabel == null ? "" : st.previousSinkLabel))
@@ -101,7 +104,8 @@ public class MermaidPipelineRenderer {
                     .append("\n");
         }
         String consumeLabel = (ep != null && ep.name != null) ? ep.name : "";
-        st.edges.append("    ")
+        st.edges
+                .append("    ")
                 .append(boundaryId)
                 .append(EDGE_LABEL_OPEN)
                 .append(escape(consumeLabel))
@@ -113,14 +117,17 @@ public class MermaidPipelineRenderer {
     private String renderHeader(
             RenderState st, Segment seg, Entrypoint ep, int segIdx, Map<String, Component> compById) {
         String headerNodeId = "S" + segIdx + "_0";
-        Component headerComp =
-                (ep != null && ep.componentId != null) ? compById.get(ep.componentId.serialize()) : null;
+        Component headerComp = (ep != null && ep.componentId != null) ? compById.get(ep.componentId.serialize()) : null;
         String headerComponentName = headerComp != null
                 ? headerComp.name
                 : (seg.path.steps.isEmpty() ? "?" : seg.path.steps.get(0).componentName);
         ComponentType headerType = headerComp != null ? headerComp.type : null;
         String headerLabel = headerComponentName + (ep != null && ep.name != null ? "." + ep.name : "");
-        st.nodes.append("    ").append(headerNodeId).append(nodeShape(headerLabel, headerType)).append("\n");
+        st.nodes
+                .append("    ")
+                .append(headerNodeId)
+                .append(nodeShape(headerLabel, headerType))
+                .append("\n");
         return headerNodeId;
     }
 
@@ -134,8 +141,13 @@ public class MermaidPipelineRenderer {
                     ? compById.get(step.componentId.serialize()).type
                     : null;
             String label = step.componentName + "." + step.method;
-            st.nodes.append("    ").append(nodeId).append(nodeShape(label, type)).append("\n");
-            st.edges.append("    ")
+            st.nodes
+                    .append("    ")
+                    .append(nodeId)
+                    .append(nodeShape(label, type))
+                    .append("\n");
+            st.edges
+                    .append("    ")
                     .append(previousNodeInSeg)
                     .append(EDGE_LABEL_OPEN)
                     .append(escape(step.method))
@@ -147,8 +159,7 @@ public class MermaidPipelineRenderer {
         return previousNodeInSeg;
     }
 
-    private void renderTerminalSinks(
-            RenderState st, Chain chain, Segment seg, int segIdx, String previousNodeInSeg) {
+    private void renderTerminalSinks(RenderState st, Chain chain, Segment seg, int segIdx, String previousNodeInSeg) {
         // Emit terminal sinks of this segment that aren't the linking sink, as leaf nodes.
         int terminalCounter = 0;
         for (DataFlowSink s : seg.path.sinks) {
@@ -158,13 +169,19 @@ public class MermaidPipelineRenderer {
             String termId = "T" + segIdx + "_" + terminalCounter;
             String termLabel =
                     (s.componentName != null ? s.componentName : "?") + (s.method != null ? "." + s.method : "");
-            st.nodes.append("    ").append(termId).append(terminalShape(s, termLabel)).append("\n");
-            st.styles.append("    class ")
+            st.nodes
+                    .append("    ")
+                    .append(termId)
+                    .append(terminalShape(s, termLabel))
+                    .append("\n");
+            st.styles
+                    .append("    class ")
                     .append(termId)
                     .append(' ')
                     .append(terminalClass(s.kind))
                     .append("\n");
-            st.edges.append("    ")
+            st.edges
+                    .append("    ")
                     .append(previousNodeInSeg)
                     .append(EDGE_LABEL_OPEN)
                     .append(escape(s.method == null ? "" : s.method))

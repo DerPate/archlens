@@ -294,7 +294,8 @@ public class QuarkusExtractor {
         model.entrypoints.add(ep);
     }
 
-    private void addChannelEntrypoints(CtMethod<?> method, CtType<?> type, Component component, ArchitectureModel model) {
+    private void addChannelEntrypoints(
+            CtMethod<?> method, CtType<?> type, Component component, ArchitectureModel model) {
         String incomingChannel = getAnnotationStringValue(method, INCOMING_ANNOTATIONS);
         if (!incomingChannel.isEmpty()) {
             addMessagingEntrypoint(
@@ -392,7 +393,8 @@ public class QuarkusExtractor {
         if (component.type != ComponentType.HTTP_CLIENT) return;
         String clientBasePath = normalizePath(classBasePath);
         String serviceName = restClientServiceName(type);
-        InterfaceEntry clientIface = addInterface(type, component, "rest_client", component.name, clientBasePath, model);
+        InterfaceEntry clientIface =
+                addInterface(type, component, "rest_client", component.name, clientBasePath, model);
         if (clientIface != null) clientIface.externalServiceName = serviceName;
         for (CtMethod<?> method : type.getMethods()) {
             String httpMethod = getHttpMethod(method);

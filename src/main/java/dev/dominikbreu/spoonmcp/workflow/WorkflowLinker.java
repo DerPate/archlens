@@ -105,7 +105,13 @@ public final class WorkflowLinker {
             }
             for (String targetPathId : sink.linkedPathIds) {
                 WorkflowLink link = tryBuildLink(
-                        fromPath, fromEntrypoint, sink, kind, targetPathId, pathById, entrypointById,
+                        fromPath,
+                        fromEntrypoint,
+                        sink,
+                        kind,
+                        targetPathId,
+                        pathById,
+                        entrypointById,
                         directOwnerWrittenFields);
                 if (link != null) {
                     links.add(link);

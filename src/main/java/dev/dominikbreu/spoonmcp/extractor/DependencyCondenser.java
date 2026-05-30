@@ -99,8 +99,7 @@ public class DependencyCondenser {
         return result;
     }
 
-    private void appendArchitecturalDeps(
-            List<Dependency> dependencies, Set<String> nonArch, List<Dependency> result) {
+    private void appendArchitecturalDeps(List<Dependency> dependencies, Set<String> nonArch, List<Dependency> result) {
         for (Dependency orig : dependencies) {
             boolean bothArch = !nonArch.contains(orig.fromId.serialize()) && !nonArch.contains(orig.toId.serialize());
             if (bothArch) {
