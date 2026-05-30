@@ -15,6 +15,8 @@ import java.util.stream.Collectors;
  */
 public class MermaidDependencyMapRenderer {
 
+    private static final String DEFAULT_LABEL = "(default)";
+
     /** Creates a renderer using the built-in dependency grouping rules. */
     public MermaidDependencyMapRenderer() {}
 
@@ -113,7 +115,7 @@ public class MermaidDependencyMapRenderer {
             if (component.module != null && !component.module.serialize().isBlank()) {
                 return component.module.serialize();
             } else {
-                return "(default)";
+                return DEFAULT_LABEL;
             }
         }
 
@@ -131,7 +133,7 @@ public class MermaidDependencyMapRenderer {
             if (dot >= 0) {
                 return packageName.substring(dot + 1);
             } else {
-                return (packageName.isEmpty() ? "(default)" : packageName);
+                return (packageName.isEmpty() ? DEFAULT_LABEL : packageName);
             }
         }
         String afterRoot;
@@ -163,7 +165,7 @@ public class MermaidDependencyMapRenderer {
             if (isKnownGroup(twoSeg)) return twoSeg;
         }
         if (first.isEmpty()) {
-            return "(default)";
+            return DEFAULT_LABEL;
         } else {
             return first;
         }

@@ -20,6 +20,8 @@ import java.util.stream.Collectors;
  */
 public class ExportArchitectureDocsTool {
 
+    private static final String FENCE_CLOSE = "```\n\n";
+
     private static final Path DEFAULT_OUTPUT = Path.of("docs", "GENERATED_ARCHITECTURE.md");
 
     private final ModelCache cache;
@@ -78,19 +80,19 @@ public class ExportArchitectureDocsTool {
 
         sb.append("## Source Overview\n\n```mermaid\n");
         sb.append(sourceOverviewRenderer.render(model, 40));
-        sb.append("```\n\n");
+        sb.append(FENCE_CLOSE);
 
         sb.append("## Component Architecture\n\n```mermaid\n");
         sb.append(flowchartRenderer.render(model, null, "component"));
-        sb.append("```\n\n");
+        sb.append(FENCE_CLOSE);
 
         sb.append("## Container Architecture\n\n```mermaid\n");
         sb.append(flowchartRenderer.render(model, null, "container"));
-        sb.append("```\n\n");
+        sb.append(FENCE_CLOSE);
 
         sb.append("## Dependency Slice: ").append(focusComponent).append("\n\n```mermaid\n");
         sb.append(dependencySliceRenderer.render(model, focusComponent, 2));
-        sb.append("```\n\n");
+        sb.append(FENCE_CLOSE);
 
         sb.append("## Components By Type\n\n");
         Map<String, List<Component>> byType = model.components.stream()
@@ -109,7 +111,7 @@ public class ExportArchitectureDocsTool {
 
         sb.append("## Dependency Map\n\n```mermaid\n");
         sb.append(dependencyMapRenderer.render(model));
-        sb.append("```\n\n");
+        sb.append(FENCE_CLOSE);
 
         sb.append("## Dependency Details\n\n");
         for (Dependency dependency : model.dependencies) {

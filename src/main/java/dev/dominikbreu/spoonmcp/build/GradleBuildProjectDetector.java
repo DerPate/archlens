@@ -12,6 +12,8 @@ import java.util.regex.Pattern;
 
 public class GradleBuildProjectDetector implements BuildProjectDetector {
 
+    private static final String JAVA_LIBRARY = "java-library";
+
     private static final Pattern INCLUDE_QUOTED = Pattern.compile("[\"']:?([^\"']+)[\"']");
     private static final Pattern GROOVY_PLUGIN = Pattern.compile("id\\s+[\"']([^\"']+)[\"']");
     private static final Pattern KOTLIN_PLUGIN = Pattern.compile("id\\([\"']([^\"']+)[\"']\\)");
@@ -61,7 +63,7 @@ public class GradleBuildProjectDetector implements BuildProjectDetector {
         while (groovyMatcher.find()) plugins.add(groovyMatcher.group(1));
         Matcher kotlinMatcher = KOTLIN_PLUGIN.matcher(build);
         while (kotlinMatcher.find()) plugins.add(kotlinMatcher.group(1));
-        if (build.contains("java-library")) plugins.add("java-library");
+        if (build.contains(JAVA_LIBRARY)) plugins.add(JAVA_LIBRARY);
 
         // Kotlin DSL bare plugin shorthand: just "java" on its own line
         for (String line : build.lines().toList()) {
@@ -86,7 +88,7 @@ public class GradleBuildProjectDetector implements BuildProjectDetector {
     private String classifyPackaging(Set<String> plugins) {
         if (plugins.contains("war")) return "war";
         if (plugins.contains("org.springframework.boot")) return "boot-jar";
-        if (plugins.contains("java") || plugins.contains("java-library")) return "jar";
+        if (plugins.contains("java") || plugins.contains(JAVA_LIBRARY)) return "jar";
         return "unknown";
     }
 

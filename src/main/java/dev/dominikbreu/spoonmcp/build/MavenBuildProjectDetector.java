@@ -16,6 +16,8 @@ import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 
 public class MavenBuildProjectDetector implements BuildProjectDetector {
 
+    private static final String POM_XML = "pom.xml";
+
     @Override
     public Optional<BuildProject> detect(File root) {
         Model model = readModel(root).orElse(null);
@@ -26,7 +28,7 @@ public class MavenBuildProjectDetector implements BuildProjectDetector {
         if (modules.isEmpty()) {
             modules.add(toModule(root, null, model));
         }
-        return Optional.of(new BuildProject(BuildSystem.MAVEN, root, modules, "pom.xml", 0.95));
+        return Optional.of(new BuildProject(BuildSystem.MAVEN, root, modules, POM_XML, 0.95));
     }
 
     public List<String> readModules(File root) {
@@ -74,11 +76,11 @@ public class MavenBuildProjectDetector implements BuildProjectDetector {
                 List.copyOf(plugins),
                 sourceRoot.isDirectory() ? List.of(sourceRoot) : List.of(),
                 resourceRoot.isDirectory() ? List.of(resourceRoot) : List.of(),
-                "pom.xml");
+                POM_XML);
     }
 
     private Optional<Model> readModel(File root) {
-        File pom = new File(root, "pom.xml");
+        File pom = new File(root, POM_XML);
         if (!pom.isFile()) return Optional.empty();
         try (InputStreamReader reader = new InputStreamReader(new FileInputStream(pom), StandardCharsets.UTF_8)) {
             return Optional.of(new MavenXpp3Reader().read(reader));

@@ -13,6 +13,8 @@ import java.util.stream.Collectors;
  */
 public class QueryArchitectureGraphTool {
 
+    private static final String LIMIT = "limit";
+
     private final ModelCache cache;
 
     /**
@@ -41,25 +43,25 @@ public class QueryArchitectureGraphTool {
                             text(args, "label", null),
                             text(args, "query", null),
                             filters(args),
-                            integer(args, "limit", 256)));
+                            integer(args, LIMIT, 256)));
                 case "find_edges" ->
-                    renderEdges(graph.findEdges(text(args, "label", null), filters(args), integer(args, "limit", 256)));
+                    renderEdges(graph.findEdges(text(args, "label", null), filters(args), integer(args, LIMIT, 256)));
                 case "neighborhood" ->
                     renderEdges(graph.neighborhood(
                             GraphNodeId.of(requiredText(args, "nodeId")),
                             text(args, "direction", "both"),
-                            integer(args, "limit", 256)));
+                            integer(args, LIMIT, 256)));
                 case "paths" ->
                     renderPaths(graph.paths(
                             GraphNodeId.of(requiredText(args, "fromId")),
                             GraphNodeId.of(requiredText(args, "toId")),
                             integer(args, "maxDepth", 5),
-                            integer(args, "limit", 256)));
+                            integer(args, LIMIT, 256)));
                 case "impacted_by" ->
                     renderNodes(graph.impactedBy(
                             GraphNodeId.of(requiredText(args, "nodeId")),
                             integer(args, "maxDepth", 3),
-                            integer(args, "limit", 256)));
+                            integer(args, LIMIT, 256)));
                 default -> "Unknown graph action: " + action;
             };
         } catch (Exception e) {

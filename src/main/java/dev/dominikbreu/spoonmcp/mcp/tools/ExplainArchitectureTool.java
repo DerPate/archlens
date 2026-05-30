@@ -11,6 +11,8 @@ import java.util.stream.Collectors;
  */
 public class ExplainArchitectureTool {
 
+    private static final String PAREN_BLOCK_END = ")\n\n";
+
     private final ModelCache cache;
 
     /**
@@ -48,7 +50,7 @@ public class ExplainArchitectureTool {
             sb.append("Workspace: ").append(model.workspacePath).append("\n");
             sb.append("Analysed: ").append(model.analysedAt).append("\n\n");
 
-            sb.append("## Applications (").append(apps.size()).append(")\n\n");
+            sb.append("## Applications (").append(apps.size()).append(PAREN_BLOCK_END);
             for (AppEntry app : apps) {
                 sb.append("### ").append(app.name).append("\n");
                 sb.append("- Technology: ").append(app.technology).append("\n");
@@ -108,7 +110,7 @@ public class ExplainArchitectureTool {
                     .toList();
 
             if (!deps.isEmpty()) {
-                sb.append("## Dependencies (").append(deps.size()).append(")\n\n");
+                sb.append("## Dependencies (").append(deps.size()).append(PAREN_BLOCK_END);
                 for (Dependency dep : deps) {
                     String fromName = componentName(dep.fromId.serialize(), model);
                     String toName = componentName(dep.toId.serialize(), model);
@@ -125,7 +127,7 @@ public class ExplainArchitectureTool {
 
             // Deployments summary
             if (!model.deployments.isEmpty()) {
-                sb.append("## Deployments (").append(model.deployments.size()).append(")\n\n");
+                sb.append("## Deployments (").append(model.deployments.size()).append(PAREN_BLOCK_END);
                 for (DeploymentEntry de : model.deployments) {
                     sb.append("- [").append(de.type).append("] ").append(de.name);
                     if (!de.ports.isEmpty()) sb.append(" ports=").append(de.ports);

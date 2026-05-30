@@ -31,6 +31,8 @@ import java.util.*;
  */
 public class DataFlowTracer {
 
+    private static final String MESSAGING = "messaging";
+
     private static final int MAX_DEPTH = 8;
 
     private static final Set<ComponentType> SINK_TYPES =
@@ -467,13 +469,13 @@ public class DataFlowTracer {
     }
 
     private boolean isSink(CallEdge edge, Component target) {
-        if ("messaging".equals(edge.callKind) || "event-bus".equals(edge.callKind)) return true;
+        if (MESSAGING.equals(edge.callKind) || "event-bus".equals(edge.callKind)) return true;
         return target != null && SINK_TYPES.contains(target.type);
     }
 
     private DataFlowSink.Kind classifySink(CallEdge edge, Component target) {
         if ("event-bus".equals(edge.callKind)) return DataFlowSink.Kind.EVENT_BUS;
-        if ("messaging".equals(edge.callKind)) return DataFlowSink.Kind.MESSAGING;
+        if (MESSAGING.equals(edge.callKind)) return DataFlowSink.Kind.MESSAGING;
         if (target == null) return DataFlowSink.Kind.UNKNOWN;
         if (hasStereotype(target, "object-storage")) return DataFlowSink.Kind.OBJECT_STORAGE;
         if (hasStereotype(target, "file-outbound")) return DataFlowSink.Kind.FILE_OUTBOUND;
@@ -486,7 +488,7 @@ public class DataFlowTracer {
     }
 
     private boolean isMsgClient(Component c) {
-        return hasStereotype(c, "messaging");
+        return hasStereotype(c, MESSAGING);
     }
 
     private boolean hasStereotype(Component c, String stereotype) {
