@@ -416,35 +416,40 @@ public class SpringExtractor {
 
     private String resolveAnnotationValue(CtExpression<?> value) {
         if (value instanceof CtLiteral<?> literal) {
-            Object raw = literal.getValue();
-            if (raw == null) {
-                return "";
-            } else {
-                return raw.toString();
-            }
+            return literalString(literal);
         }
         if (value instanceof CtNewArray<?> array) {
-            for (CtExpression<?> element : array.getElements()) {
-                String resolved = resolveAnnotationValue(element);
-                if (!resolved.isBlank()) return resolved;
-            }
-            return "";
+            return firstNonBlankElement(array);
         }
         if (value instanceof CtVariableRead<?> read && read.getVariable() instanceof CtFieldReference<?> fieldRef) {
-            try {
-                CtField<?> field = fieldRef.getDeclaration();
-                if (field != null && field.getDefaultExpression() instanceof CtLiteral<?> lit) {
-                    Object raw = lit.getValue();
-                    if (raw == null) {
-                        return "";
-                    } else {
-                        return raw.toString();
-                    }
-                }
-            } catch (Exception ignored) {
-            }
+            String fromField = fieldDefaultLiteral(fieldRef);
+            if (fromField != null) return fromField;
         }
         return value.toString().replace("\"", "");
+    }
+
+    private static String literalString(CtLiteral<?> literal) {
+        Object raw = literal.getValue();
+        return raw == null ? "" : raw.toString();
+    }
+
+    private String firstNonBlankElement(CtNewArray<?> array) {
+        for (CtExpression<?> element : array.getElements()) {
+            String resolved = resolveAnnotationValue(element);
+            if (!resolved.isBlank()) return resolved;
+        }
+        return "";
+    }
+
+    private static String fieldDefaultLiteral(CtFieldReference<?> fieldRef) {
+        try {
+            CtField<?> field = fieldRef.getDeclaration();
+            if (field != null && field.getDefaultExpression() instanceof CtLiteral<?> lit) {
+                return literalString(lit);
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     private boolean annotationMatches(CtAnnotation<?> annotation, Set<String> names) {
@@ -528,42 +533,36 @@ public class SpringExtractor {
     }
 
     private void extractOutboundCallSites(CtType<?> type, Component component, ArchitectureModel model) {
-        type.getElements(element -> element instanceof CtInvocation<?>).forEach(element -> {
-            CtInvocation<?> invocation = (CtInvocation<?>) element;
-            addKafkaOutboundSinkSite(invocation, component, model);
-            String executable;
-            if (invocation.getExecutable() == null) {
-                executable = "";
-            } else {
-                executable = invocation.getExecutable().getSimpleName();
-            }
-            List<String> args = invocation.getArguments().stream()
-                    .map(arg -> config.resolve(stripQuotes(arg.toString())))
-                    .toList();
-            if (args.isEmpty()) return;
-            if (Set.of("getForObject", "postForObject", "exchange", "uri").contains(executable)
-                    && looksLikeUrl(args.getFirst())) {
-                addInterface(
-                        invocation,
-                        component,
-                        "rest_client_operation",
-                        executable + " " + args.getFirst(),
-                        args.getFirst(),
-                        model);
-            }
-            if ("send".equals(executable)) {
-                addProducerInterface(invocation, component, MessagingBroker.KAFKA, args.getFirst(), model);
-            }
-            if ("convertAndSend".equals(executable)) {
-                MessagingBroker broker;
-                if (args.getFirst().contains("jms")) {
-                    broker = MessagingBroker.JMS;
-                } else {
-                    broker = MessagingBroker.RABBITMQ;
-                }
-                addProducerInterface(invocation, component, broker, args.getFirst(), model);
-            }
-        });
+        type.getElements(element -> element instanceof CtInvocation<?>)
+                .forEach(element -> processOutboundInvocation((CtInvocation<?>) element, component, model));
+    }
+
+    private void processOutboundInvocation(CtInvocation<?> invocation, Component component, ArchitectureModel model) {
+        addKafkaOutboundSinkSite(invocation, component, model);
+        String executable =
+                invocation.getExecutable() == null ? "" : invocation.getExecutable().getSimpleName();
+        List<String> args = invocation.getArguments().stream()
+                .map(arg -> config.resolve(stripQuotes(arg.toString())))
+                .toList();
+        if (args.isEmpty()) return;
+        if (Set.of("getForObject", "postForObject", "exchange", "uri").contains(executable)
+                && looksLikeUrl(args.getFirst())) {
+            addInterface(
+                    invocation,
+                    component,
+                    "rest_client_operation",
+                    executable + " " + args.getFirst(),
+                    args.getFirst(),
+                    model);
+        }
+        if ("send".equals(executable)) {
+            addProducerInterface(invocation, component, MessagingBroker.KAFKA, args.getFirst(), model);
+        }
+        if ("convertAndSend".equals(executable)) {
+            MessagingBroker broker =
+                    args.getFirst().contains("jms") ? MessagingBroker.JMS : MessagingBroker.RABBITMQ;
+            addProducerInterface(invocation, component, broker, args.getFirst(), model);
+        }
     }
 
     private void addKafkaOutboundSinkSite(CtInvocation<?> invocation, Component component, ArchitectureModel model) {

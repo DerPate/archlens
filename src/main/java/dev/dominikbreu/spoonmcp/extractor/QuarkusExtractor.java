@@ -117,78 +117,82 @@ public class QuarkusExtractor {
         }
     }
 
+    private record ComponentClassification(ComponentType type, String technology, List<String> stereotypes) {}
+
     private Component tryExtractComponent(CtType<?> type, AppId appId) {
-        boolean hasPath = hasAnnotation(type, JAX_RS_PATH);
-        boolean hasCdiScope = hasAnnotation(type, CDI_SCOPE_ANNOTATIONS);
-        boolean hasRestClient = hasAnnotation(type, REST_CLIENT_ANNOTATIONS);
-        boolean isEntity = hasAnnotation(type, ENTITY_ANNOTATIONS);
-        boolean hasWsEndpoint = hasAnnotation(type, WS_ENDPOINT_ANNOTATIONS);
-        boolean isGrpcService = hasAnnotation(type, GRPC_SERVICE_ANNOTATIONS) || implementsGrpcBindable(type);
-        boolean hasScheduled = type.getMethods().stream().anyMatch(m -> hasAnnotation(m, SCHEDULED_ANNOTATIONS));
-        boolean hasMessaging = type.getMethods().stream()
-                        .anyMatch(m -> hasAnnotation(m, INCOMING_ANNOTATIONS) || hasAnnotation(m, OUTGOING_ANNOTATIONS))
-                || type.getFields().stream().anyMatch(f -> hasAnnotation(f, CHANNEL_ANNOTATIONS))
-                || type.getFields().stream().anyMatch(f -> classifyRawClientField(f) != null);
-
-        ComponentType compType;
-        String technology;
-        List<String> stereotypes = new ArrayList<>();
-
-        if (isEntity) {
-            compType = ComponentType.ENTITY;
-            technology = "jpa";
-            stereotypes.add("entity");
-        } else if (hasRestClient) {
-            compType = ComponentType.HTTP_CLIENT;
-            technology = "microprofile-rest-client";
-            stereotypes.add("rest-client");
-            if (type.isInterface()) stereotypes.add("interface");
-        } else if (hasPath) {
-            compType = ComponentType.REST_RESOURCE;
-            technology = QUARKUS;
-            stereotypes.add("jax-rs");
-        } else if (hasWsEndpoint) {
-            compType = ComponentType.REST_RESOURCE;
-            technology = WEBSOCKET;
-            stereotypes.add(WEBSOCKET);
-        } else if (isGrpcService) {
-            compType = ComponentType.REST_RESOURCE;
-            technology = "grpc";
-            stereotypes.add("grpc");
-        } else if (hasScheduled) {
-            compType = ComponentType.SCHEDULER;
-            technology = QUARKUS;
-            stereotypes.add("scheduled");
-        } else if (hasCdiScope || hasMessaging) {
-            technology = QUARKUS;
-            String lower = type.getSimpleName().toLowerCase();
-            if (lower.endsWith("repository") || lower.endsWith("repo") || lower.endsWith("dao")) {
-                compType = ComponentType.REPOSITORY;
-                stereotypes.add("repository");
-            } else if (lower.endsWith("service")) {
-                compType = ComponentType.SERVICE;
-                stereotypes.add("service");
-            } else if (lower.endsWith("client") || lower.endsWith("proxy")) {
-                compType = ComponentType.HTTP_CLIENT;
-                stereotypes.add("client");
-            } else {
-                compType = ComponentType.SERVICE;
-            }
-            if (hasMessaging) stereotypes.add("messaging");
-        } else {
-            return null;
-        }
+        ComponentClassification classification = classifyComponent(type);
+        if (classification == null) return null;
 
         Component c = new Component();
         c.id = dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName());
-        c.type = compType;
+        c.type = classification.type();
         c.name = type.getSimpleName();
         c.qualifiedName = type.getQualifiedName();
         c.module = appId;
-        c.technology = technology;
-        c.stereotypes = stereotypes;
+        c.technology = classification.technology();
+        c.stereotypes = classification.stereotypes();
         c.source = new SourceInfo(getFile(type), getLine(type), ANNOTATION, 0.9);
         return c;
+    }
+
+    private ComponentClassification classifyComponent(CtType<?> type) {
+        List<String> stereotypes = new ArrayList<>();
+        if (hasAnnotation(type, ENTITY_ANNOTATIONS)) {
+            stereotypes.add("entity");
+            return new ComponentClassification(ComponentType.ENTITY, "jpa", stereotypes);
+        }
+        if (hasAnnotation(type, REST_CLIENT_ANNOTATIONS)) {
+            stereotypes.add("rest-client");
+            if (type.isInterface()) stereotypes.add("interface");
+            return new ComponentClassification(ComponentType.HTTP_CLIENT, "microprofile-rest-client", stereotypes);
+        }
+        if (hasAnnotation(type, JAX_RS_PATH)) {
+            stereotypes.add("jax-rs");
+            return new ComponentClassification(ComponentType.REST_RESOURCE, QUARKUS, stereotypes);
+        }
+        if (hasAnnotation(type, WS_ENDPOINT_ANNOTATIONS)) {
+            stereotypes.add(WEBSOCKET);
+            return new ComponentClassification(ComponentType.REST_RESOURCE, WEBSOCKET, stereotypes);
+        }
+        if (hasAnnotation(type, GRPC_SERVICE_ANNOTATIONS) || implementsGrpcBindable(type)) {
+            stereotypes.add("grpc");
+            return new ComponentClassification(ComponentType.REST_RESOURCE, "grpc", stereotypes);
+        }
+        if (type.getMethods().stream().anyMatch(m -> hasAnnotation(m, SCHEDULED_ANNOTATIONS))) {
+            stereotypes.add("scheduled");
+            return new ComponentClassification(ComponentType.SCHEDULER, QUARKUS, stereotypes);
+        }
+        boolean hasMessaging = hasMessaging(type);
+        if (hasAnnotation(type, CDI_SCOPE_ANNOTATIONS) || hasMessaging) {
+            ComponentType compType = cdiComponentType(type, stereotypes);
+            if (hasMessaging) stereotypes.add("messaging");
+            return new ComponentClassification(compType, QUARKUS, stereotypes);
+        }
+        return null;
+    }
+
+    private boolean hasMessaging(CtType<?> type) {
+        return type.getMethods().stream()
+                        .anyMatch(m -> hasAnnotation(m, INCOMING_ANNOTATIONS) || hasAnnotation(m, OUTGOING_ANNOTATIONS))
+                || type.getFields().stream().anyMatch(f -> hasAnnotation(f, CHANNEL_ANNOTATIONS))
+                || type.getFields().stream().anyMatch(f -> classifyRawClientField(f) != null);
+    }
+
+    private ComponentType cdiComponentType(CtType<?> type, List<String> stereotypes) {
+        String lower = type.getSimpleName().toLowerCase();
+        if (lower.endsWith("repository") || lower.endsWith("repo") || lower.endsWith("dao")) {
+            stereotypes.add("repository");
+            return ComponentType.REPOSITORY;
+        }
+        if (lower.endsWith("service")) {
+            stereotypes.add("service");
+            return ComponentType.SERVICE;
+        }
+        if (lower.endsWith("client") || lower.endsWith("proxy")) {
+            stereotypes.add("client");
+            return ComponentType.HTTP_CLIENT;
+        }
+        return ComponentType.SERVICE;
     }
 
     private void extractEntrypoints(CtType<?> type, Component component, ArchitectureModel model) {
@@ -201,74 +205,111 @@ public class QuarkusExtractor {
         }
 
         for (CtMethod<?> method : type.getMethods()) {
-            if (hasAnnotation(method, WS_ON_MESSAGE_ANNOTATIONS)) {
-                Entrypoint ep = new Entrypoint();
-                ep.id = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
-                        dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
-                        method.getSimpleName(),
-                        WEBSOCKET);
-                ep.type = EntrypointType.WEBSOCKET_ENDPOINT;
-                ep.name = method.getSimpleName();
-                ep.path = wsClassPath;
-                ep.componentId = component.id;
-                ep.source = new SourceInfo(getFile(method), getLine(method), ANNOTATION, 1.0);
-                model.entrypoints.add(ep);
-                continue;
-            }
-            String httpMethod = getHttpMethod(method);
-            if (httpMethod != null && component.type != ComponentType.HTTP_CLIENT) {
-                String methodPath = getAnnotationStringValue(method, JAX_RS_PATH);
-                String fullPath = combinePaths(classBasePath, methodPath);
-                boolean isSse = isSseEndpoint(method, type);
-                Entrypoint ep = new Entrypoint();
-                ep.id = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
-                        dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
-                        method.getSimpleName(),
-                        isSse ? "sse" : "");
-                ep.type = isSse ? EntrypointType.SSE_ENDPOINT : EntrypointType.REST_ENDPOINT;
-                ep.name = method.getSimpleName();
-                ep.httpMethod = httpMethod;
-                ep.path = fullPath;
-                ep.componentId = component.id;
-                ep.source = new SourceInfo(getFile(method), getLine(method), ANNOTATION, 1.0);
-                model.entrypoints.add(ep);
-                addInterface(
-                        method,
-                        component,
-                        isSse ? "sse_endpoint" : "rest_endpoint",
-                        httpMethod + " " + fullPath,
-                        fullPath,
-                        model);
-                continue;
-            }
-
-            if (hasAnnotation(method, SCHEDULED_ANNOTATIONS)) {
-                Entrypoint ep = new Entrypoint();
-                ep.id = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
-                        dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
-                        method.getSimpleName(),
-                        "scheduled");
-                ep.type = EntrypointType.SCHEDULER;
-                ep.name = method.getSimpleName();
-                ep.componentId = component.id;
-                ep.source = new SourceInfo(getFile(method), getLine(method), ANNOTATION, 1.0);
-                model.entrypoints.add(ep);
-            }
-
-            String incomingChannel = getAnnotationStringValue(method, INCOMING_ANNOTATIONS);
-            if (!incomingChannel.isEmpty()) {
-                addMessagingEntrypoint(
-                        method, type, component, EntrypointType.MESSAGING_CONSUMER, incomingChannel, "in", model);
-                addMessagingInterface(method, component, MESSAGING_CONSUMER, incomingChannel, model);
-            }
-            String outgoingChannel = getAnnotationStringValue(method, OUTGOING_ANNOTATIONS);
-            if (!outgoingChannel.isEmpty()) {
-                addMessagingEntrypoint(
-                        method, type, component, EntrypointType.MESSAGING_PRODUCER, outgoingChannel, "out", model);
-                addMessagingInterface(method, component, MESSAGING_PRODUCER, outgoingChannel, model);
-            }
+            extractMethodEntrypoint(method, type, component, model, classBasePath, wsClassPath);
         }
+        extractEmitterFieldEntrypoints(type, component, model);
+        extractRawClientInterfaces(type, component, model);
+        extractRestClientInterfaces(type, component, model, classBasePath);
+    }
 
+    private void extractMethodEntrypoint(
+            CtMethod<?> method,
+            CtType<?> type,
+            Component component,
+            ArchitectureModel model,
+            String classBasePath,
+            String wsClassPath) {
+        if (hasAnnotation(method, WS_ON_MESSAGE_ANNOTATIONS)) {
+            addWebSocketEntrypoint(method, type, component, model, wsClassPath);
+            return;
+        }
+        String httpMethod = getHttpMethod(method);
+        if (httpMethod != null && component.type != ComponentType.HTTP_CLIENT) {
+            addRestEntrypoint(method, type, component, model, classBasePath, httpMethod);
+            return;
+        }
+        if (hasAnnotation(method, SCHEDULED_ANNOTATIONS)) {
+            addScheduledEntrypoint(method, type, component, model);
+        }
+        addChannelEntrypoints(method, type, component, model);
+    }
+
+    private void addWebSocketEntrypoint(
+            CtMethod<?> method, CtType<?> type, Component component, ArchitectureModel model, String wsClassPath) {
+        Entrypoint ep = new Entrypoint();
+        ep.id = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
+                dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
+                method.getSimpleName(),
+                WEBSOCKET);
+        ep.type = EntrypointType.WEBSOCKET_ENDPOINT;
+        ep.name = method.getSimpleName();
+        ep.path = wsClassPath;
+        ep.componentId = component.id;
+        ep.source = new SourceInfo(getFile(method), getLine(method), ANNOTATION, 1.0);
+        model.entrypoints.add(ep);
+    }
+
+    private void addRestEntrypoint(
+            CtMethod<?> method,
+            CtType<?> type,
+            Component component,
+            ArchitectureModel model,
+            String classBasePath,
+            String httpMethod) {
+        String methodPath = getAnnotationStringValue(method, JAX_RS_PATH);
+        String fullPath = combinePaths(classBasePath, methodPath);
+        boolean isSse = isSseEndpoint(method, type);
+        Entrypoint ep = new Entrypoint();
+        ep.id = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
+                dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
+                method.getSimpleName(),
+                isSse ? "sse" : "");
+        ep.type = isSse ? EntrypointType.SSE_ENDPOINT : EntrypointType.REST_ENDPOINT;
+        ep.name = method.getSimpleName();
+        ep.httpMethod = httpMethod;
+        ep.path = fullPath;
+        ep.componentId = component.id;
+        ep.source = new SourceInfo(getFile(method), getLine(method), ANNOTATION, 1.0);
+        model.entrypoints.add(ep);
+        addInterface(
+                method,
+                component,
+                isSse ? "sse_endpoint" : "rest_endpoint",
+                httpMethod + " " + fullPath,
+                fullPath,
+                model);
+    }
+
+    private void addScheduledEntrypoint(
+            CtMethod<?> method, CtType<?> type, Component component, ArchitectureModel model) {
+        Entrypoint ep = new Entrypoint();
+        ep.id = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
+                dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
+                method.getSimpleName(),
+                "scheduled");
+        ep.type = EntrypointType.SCHEDULER;
+        ep.name = method.getSimpleName();
+        ep.componentId = component.id;
+        ep.source = new SourceInfo(getFile(method), getLine(method), ANNOTATION, 1.0);
+        model.entrypoints.add(ep);
+    }
+
+    private void addChannelEntrypoints(CtMethod<?> method, CtType<?> type, Component component, ArchitectureModel model) {
+        String incomingChannel = getAnnotationStringValue(method, INCOMING_ANNOTATIONS);
+        if (!incomingChannel.isEmpty()) {
+            addMessagingEntrypoint(
+                    method, type, component, EntrypointType.MESSAGING_CONSUMER, incomingChannel, "in", model);
+            addMessagingInterface(method, component, MESSAGING_CONSUMER, incomingChannel, model);
+        }
+        String outgoingChannel = getAnnotationStringValue(method, OUTGOING_ANNOTATIONS);
+        if (!outgoingChannel.isEmpty()) {
+            addMessagingEntrypoint(
+                    method, type, component, EntrypointType.MESSAGING_PRODUCER, outgoingChannel, "out", model);
+            addMessagingInterface(method, component, MESSAGING_PRODUCER, outgoingChannel, model);
+        }
+    }
+
+    private void extractEmitterFieldEntrypoints(CtType<?> type, Component component, ArchitectureModel model) {
         for (CtField<?> field : type.getFields()) {
             String channel = getAnnotationStringValue(field, CHANNEL_ANNOTATIONS);
             if (channel.isEmpty()) continue;
@@ -286,7 +327,9 @@ public class QuarkusExtractor {
             model.entrypoints.add(ep);
             addMessagingInterface(field, component, MESSAGING_PRODUCER, channel, model);
         }
+    }
 
+    private void extractRawClientInterfaces(CtType<?> type, Component component, ArchitectureModel model) {
         Map<String, MessagingCallSiteResolver.TrackedField> trackedFields = new LinkedHashMap<>();
         Map<String, RawClientKind> kinds = new LinkedHashMap<>();
         for (CtField<?> field : type.getFields()) {
@@ -312,46 +355,53 @@ public class QuarkusExtractor {
         for (CtField<?> field : type.getFields()) {
             RawClientKind kind = kinds.get(field.getSimpleName());
             if (kind == null) continue;
-            List<MessagingCallSiteResolver.Finding> findings = findingsByField.get(field.getSimpleName());
-            if (findings != null && !findings.isEmpty()) {
-                for (MessagingCallSiteResolver.Finding f : findings) {
-                    addRawClientInterface(
-                            component,
-                            model,
-                            field,
-                            kind.broker,
-                            f.role() == MessagingCallSiteResolver.Role.PRODUCER
-                                    ? MESSAGING_PRODUCER
-                                    : MESSAGING_CONSUMER,
-                            f.topic(),
-                            "call-site");
-                }
-            } else {
-                String ifaceType =
-                        switch (kind.role) {
-                            case PRODUCER -> MESSAGING_PRODUCER;
-                            case CONSUMER -> MESSAGING_CONSUMER;
-                            case BIDIRECTIONAL -> "messaging_client";
-                        };
-                addRawClientInterface(component, model, field, kind.broker, ifaceType, UNRESOLVED_TOPIC, "field-type");
-            }
+            emitRawClientInterface(field, kind, findingsByField.get(field.getSimpleName()), component, model);
         }
+    }
 
-        if (component.type == ComponentType.HTTP_CLIENT) {
-            String clientBasePath = normalizePath(classBasePath);
-            String serviceName = restClientServiceName(type);
-            InterfaceEntry clientIface =
-                    addInterface(type, component, "rest_client", component.name, clientBasePath, model);
-            if (clientIface != null) clientIface.externalServiceName = serviceName;
-            for (CtMethod<?> method : type.getMethods()) {
-                String httpMethod = getHttpMethod(method);
-                if (httpMethod == null) continue;
-                String methodPath = getAnnotationStringValue(method, JAX_RS_PATH);
-                String fullPath = combinePaths(clientBasePath, methodPath);
-                InterfaceEntry opIface = addInterface(
-                        method, component, "rest_client_operation", httpMethod + " " + fullPath, fullPath, model);
-                if (opIface != null) opIface.externalServiceName = serviceName;
+    private void emitRawClientInterface(
+            CtField<?> field,
+            RawClientKind kind,
+            List<MessagingCallSiteResolver.Finding> findings,
+            Component component,
+            ArchitectureModel model) {
+        if (findings != null && !findings.isEmpty()) {
+            for (MessagingCallSiteResolver.Finding f : findings) {
+                addRawClientInterface(
+                        component,
+                        model,
+                        field,
+                        kind.broker,
+                        f.role() == MessagingCallSiteResolver.Role.PRODUCER ? MESSAGING_PRODUCER : MESSAGING_CONSUMER,
+                        f.topic(),
+                        "call-site");
             }
+        } else {
+            String ifaceType =
+                    switch (kind.role) {
+                        case PRODUCER -> MESSAGING_PRODUCER;
+                        case CONSUMER -> MESSAGING_CONSUMER;
+                        case BIDIRECTIONAL -> "messaging_client";
+                    };
+            addRawClientInterface(component, model, field, kind.broker, ifaceType, UNRESOLVED_TOPIC, "field-type");
+        }
+    }
+
+    private void extractRestClientInterfaces(
+            CtType<?> type, Component component, ArchitectureModel model, String classBasePath) {
+        if (component.type != ComponentType.HTTP_CLIENT) return;
+        String clientBasePath = normalizePath(classBasePath);
+        String serviceName = restClientServiceName(type);
+        InterfaceEntry clientIface = addInterface(type, component, "rest_client", component.name, clientBasePath, model);
+        if (clientIface != null) clientIface.externalServiceName = serviceName;
+        for (CtMethod<?> method : type.getMethods()) {
+            String httpMethod = getHttpMethod(method);
+            if (httpMethod == null) continue;
+            String methodPath = getAnnotationStringValue(method, JAX_RS_PATH);
+            String fullPath = combinePaths(clientBasePath, methodPath);
+            InterfaceEntry opIface = addInterface(
+                    method, component, "rest_client_operation", httpMethod + " " + fullPath, fullPath, model);
+            if (opIface != null) opIface.externalServiceName = serviceName;
         }
     }
 
@@ -547,27 +597,27 @@ public class QuarkusExtractor {
     private String getAnnotationAttributeValue(CtElement element, Set<String> names, String attribute) {
         for (var ann : element.getAnnotations()) {
             if (!annMatches(ann, names)) continue;
-            try {
-                CtExpression<?> val = ann.getValue(attribute);
-                if (val == null) return "";
-                if (val instanceof CtLiteral<?> lit) {
-                    Object v = lit.getValue();
-                    if (v != null) {
-                        return v.toString();
-                    } else {
-                        return "";
-                    }
-                }
-                String str = val.toString();
-                if (str.startsWith("\"") && str.endsWith("\"")) {
-                    return str.substring(1, str.length() - 1);
-                }
-                return str;
-            } catch (Exception e) {
-                return "";
-            }
+            return annotationAttributeString(ann, attribute);
         }
         return "";
+    }
+
+    private String annotationAttributeString(spoon.reflect.declaration.CtAnnotation<?> ann, String attribute) {
+        try {
+            CtExpression<?> val = ann.getValue(attribute);
+            if (val == null) return "";
+            if (val instanceof CtLiteral<?> lit) {
+                Object v = lit.getValue();
+                return v != null ? v.toString() : "";
+            }
+            String str = val.toString();
+            if (str.startsWith("\"") && str.endsWith("\"")) {
+                return str.substring(1, str.length() - 1);
+            }
+            return str;
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     private String normalizePath(String path) {

@@ -102,44 +102,43 @@ public class UseCaseDetector {
         if (visible) {
             visitedComps.add(compId);
         }
-        String fromName;
-        if (fromComp != null) {
-            fromName = fromComp.name;
-        } else {
-            fromName = compId.serialize();
-        }
-        String currentVisibleSource;
-        if (visible) {
-            currentVisibleSource = fromName;
-        } else {
-            currentVisibleSource = visibleSourceName;
-        }
+        String fromName = fromComp != null ? fromComp.name : compId.serialize();
+        String currentVisibleSource = visible ? fromName : visibleSourceName;
 
         for (CallEdge edge : adj.getOrDefault(key, List.of())) {
-            if (!traversalPolicy.canTraverseInline(edge)) continue;
-            Component toComp = compById.get(edge.toComponentId);
-            boolean targetVisible = traversalPolicy.isHumanVisible(toComp);
-            String toName;
-            if (toComp != null) {
-                toName = toComp.name;
-            } else {
-                toName = edge.toComponentId.serialize();
-            }
-            if (targetVisible && currentVisibleSource != null) {
-                chain.add(currentVisibleSource + "." + edge.fromMethod + " → " + toName + "." + edge.toMethod);
-            }
-            collectCallChain(
-                    edge.toComponentId,
-                    edge.toMethod,
-                    currentVisibleSource,
-                    depth + 1,
-                    maxDepth,
-                    adj,
-                    compById,
-                    visitedKeys,
-                    visitedComps,
-                    chain);
+            traverseCallChainEdge(
+                    edge, currentVisibleSource, depth, maxDepth, adj, compById, visitedKeys, visitedComps, chain);
         }
+    }
+
+    private void traverseCallChainEdge(
+            CallEdge edge,
+            String currentVisibleSource,
+            int depth,
+            int maxDepth,
+            Map<String, List<CallEdge>> adj,
+            Map<ComponentId, Component> compById,
+            Set<String> visitedKeys,
+            Set<ComponentId> visitedComps,
+            List<String> chain) {
+        if (!traversalPolicy.canTraverseInline(edge)) return;
+        Component toComp = compById.get(edge.toComponentId);
+        boolean targetVisible = traversalPolicy.isHumanVisible(toComp);
+        String toName = toComp != null ? toComp.name : edge.toComponentId.serialize();
+        if (targetVisible && currentVisibleSource != null) {
+            chain.add(currentVisibleSource + "." + edge.fromMethod + " → " + toName + "." + edge.toMethod);
+        }
+        collectCallChain(
+                edge.toComponentId,
+                edge.toMethod,
+                currentVisibleSource,
+                depth + 1,
+                maxDepth,
+                adj,
+                compById,
+                visitedKeys,
+                visitedComps,
+                chain);
     }
 
     private void collectDepChain(
