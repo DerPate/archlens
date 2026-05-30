@@ -251,7 +251,6 @@ public class QueryArchitectureGraphTool {
         return ToolArgs.getInt(args, name, defaultValue);
     }
 
-    @SuppressWarnings("unchecked")
     private Map<String, String> filters(Map<String, Object> args) {
         Map<String, String> filters = new LinkedHashMap<>();
         Map<String, Object> filterNode = ToolArgs.getMap(args, "filters");

@@ -7,7 +7,6 @@ import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * MCP tool that lists runtime entrypoints from the indexed architecture model.
@@ -47,7 +46,7 @@ public class FindEntrypointsTool {
                     .filter(ep -> typeFilter == null || matchesType(ep.type, typeFilter))
                     .filter(ep -> methodFilter == null || methodFilter.equalsIgnoreCase(ep.httpMethod))
                     .filter(ep -> pathFilter == null || pathPrefixMatchesForDiscovery(ep.path, pathFilter))
-                    .collect(Collectors.toList());
+                    .toList();
 
             if (eps.isEmpty()) return "No entrypoints found matching the given criteria.";
 

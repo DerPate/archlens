@@ -11,7 +11,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 /**
  * MCP tool that exports a graph-centric architecture POC document.
@@ -281,7 +280,7 @@ public class ExportGraphArchitecturePocTool {
         List<String> values = java.util.Arrays.stream(keys)
                 .filter(properties::containsKey)
                 .map(key -> key + "=" + Objects.toString(properties.get(key), ""))
-                .collect(Collectors.toList());
+                .toList();
         if (!values.isEmpty()) {
             sb.append(" {").append(String.join(", ", values)).append("}");
         }

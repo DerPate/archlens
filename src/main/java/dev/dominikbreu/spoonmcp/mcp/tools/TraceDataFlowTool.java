@@ -5,7 +5,6 @@ import dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer;
 import dev.dominikbreu.spoonmcp.model.*;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * MCP tool that exposes pre-computed data-flow paths from entrypoint parameters to sinks.
@@ -54,7 +53,7 @@ public class TraceDataFlowTool {
                         .filter(p -> p.entrypointId != null
                                 && (p.entrypointId.serialize().equals(epFilter)
                                         || p.entrypointId.serialize().contains(epFilter)))
-                        .collect(Collectors.toList());
+                        .toList();
             }
             if (nameFilter != null) {
                 String methodFilter = RuntimeFlowInferrer.extractMethodFromRef(nameFilter);
@@ -71,18 +70,18 @@ public class TraceDataFlowTool {
                             return ep.name.toLowerCase().contains(lower)
                                     || RuntimeFlowInferrer.pathPrefixMatches(ep.path, pathFilter);
                         })
-                        .collect(Collectors.toList());
+                        .toList();
             }
             if (paramFilter != null) {
                 paths = paths.stream()
                         .filter(p -> p.trackedParam.equals(paramFilter) || p.trackedParam.contains(paramFilter))
-                        .collect(Collectors.toList());
+                        .toList();
             }
             if (sinkFilter != null) {
                 DataFlowSink.Kind filterKind = DataFlowSink.Kind.from(sinkFilter);
                 paths = paths.stream()
                         .filter(p -> p.sinks.stream().anyMatch(s -> s.kind == filterKind))
-                        .collect(Collectors.toList());
+                        .toList();
             }
 
             if (paths.isEmpty()) return "No data-flow paths found for the given filters.";

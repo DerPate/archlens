@@ -89,7 +89,7 @@ public class DetectUseCasesTool {
                                     && (module.equals(c.module.serialize())
                                             || c.module.serialize().contains(module)));
                 })
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private String format(List<UseCase> useCases, ArchitectureModel model, int maxDepth) {
