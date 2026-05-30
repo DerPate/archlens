@@ -21,6 +21,9 @@ import java.util.Map;
  */
 public class MermaidPipelineRenderer {
 
+    private static final String EDGE_LABEL_OPEN = " -->|";
+    private static final String STORE = "store";
+
     /** Creates a renderer with default styling. */
     public MermaidPipelineRenderer() {}
 
@@ -68,7 +71,7 @@ public class MermaidPipelineRenderer {
                 if (previousLastNode != null) {
                     edges.append("    ")
                             .append(previousLastNode)
-                            .append(" -->|")
+                            .append(EDGE_LABEL_OPEN)
                             .append(escape(previousSinkLabel == null ? "" : previousSinkLabel))
                             .append("| ")
                             .append(boundaryId)
@@ -83,7 +86,7 @@ public class MermaidPipelineRenderer {
                 String firstStepNode = "S" + segIdx + "_0";
                 edges.append("    ")
                         .append(boundaryId)
-                        .append(" -->|")
+                        .append(EDGE_LABEL_OPEN)
                         .append(escape(consumeLabel))
                         .append("| ")
                         .append(firstStepNode)
@@ -124,7 +127,7 @@ public class MermaidPipelineRenderer {
                 sb.append("    ").append(nodeId).append(nodeShape(label, type)).append("\n");
                 edges.append("    ")
                         .append(previousNodeInSeg)
-                        .append(" -->|")
+                        .append(EDGE_LABEL_OPEN)
                         .append(escape(step.method))
                         .append("| ")
                         .append(nodeId)
@@ -153,7 +156,7 @@ public class MermaidPipelineRenderer {
                         .append("\n");
                 edges.append("    ")
                         .append(previousNodeInSeg)
-                        .append(" -->|")
+                        .append(EDGE_LABEL_OPEN)
                         .append(escape(s.method == null ? "" : s.method))
                         .append("| ")
                         .append(termId)
@@ -234,11 +237,11 @@ public class MermaidPipelineRenderer {
 
     private String boundaryClass(DataFlowSink.Kind kind) {
         return switch (kind) {
-            case STORE -> "store";
+            case STORE -> STORE;
             case MESSAGING -> "messaging";
             case EVENT_BUS -> "eventbus";
             case PERSISTENCE -> "persistence";
-            default -> "store";
+            default -> STORE;
         };
     }
 
@@ -264,8 +267,8 @@ public class MermaidPipelineRenderer {
             case FILE_OUTBOUND -> "file";
             case MESSAGING -> "messaging";
             case EVENT_BUS -> "eventbus";
-            case STORE -> "store";
-            default -> "store";
+            case STORE -> STORE;
+            default -> STORE;
         };
     }
 

@@ -17,6 +17,16 @@ import java.util.Objects;
  */
 public class ExportGraphArchitecturePocTool {
 
+    private static final String ARCHITECTURAL_WEIGHT = "architecturalWeight";
+    private static final String PACKAGE_NAME = "packageName";
+    private static final String MODULE = "module";
+    private static final String FAN_IN = "fanIn";
+    private static final String FAN_OUT = "fanOut";
+    private static final String CONFIDENCE = "confidence";
+    private static final String COMPONENT_LABEL = "Component";
+    private static final String JSON_FENCE_OPEN = "```json\n";
+    private static final String JSON_FENCE_CLOSE = "```\n\n";
+
     private static final Path DEFAULT_OUTPUT = Path.of("docs", "SOURCE_ARCHITECTURE_POC.md");
 
     private final ModelCache cache;
@@ -119,10 +129,10 @@ public class ExportGraphArchitecturePocTool {
                         .reversed())
                 .thenComparingInt(node -> numeric(node.properties().get("noiseScore")))
                 .thenComparing(Comparator.comparingInt((ArchitectureGraph.GraphNode node) ->
-                                numeric(node.properties().get("architecturalWeight")))
+                                numeric(node.properties().get(ARCHITECTURAL_WEIGHT)))
                         .reversed())
                 .thenComparing(node -> node.id().serialize());
-        graph.findNodes("Component", null, Map.of(), 100).stream()
+        graph.findNodes(COMPONENT_LABEL, null, Map.of(), 100).stream()
                 .sorted(signalOrder)
                 .limit(12)
                 .forEach(node -> {
@@ -134,14 +144,14 @@ public class ExportGraphArchitecturePocTool {
                             sb,
                             node.properties(),
                             "componentType",
-                            "packageName",
-                            "module",
+                            PACKAGE_NAME,
+                            MODULE,
                             "sourceFile",
                             "sourceLine",
-                            "fanIn",
-                            "fanOut",
+                            FAN_IN,
+                            FAN_OUT,
                             "ownedEntrypointCount",
-                            "architecturalWeight",
+                            ARCHITECTURAL_WEIGHT,
                             "workflowRelevant",
                             "businessRelevant",
                             "infrastructureRole",
@@ -155,7 +165,7 @@ public class ExportGraphArchitecturePocTool {
         sb.append("## Cross-Module Dependencies\n\n");
         graph.findEdges("DEPENDS_ON", Map.of("isCrossModule", "true"), 100).stream()
                 .sorted(Comparator.comparingDouble(
-                        edge -> -numericDouble(edge.properties().get("confidence"))))
+                        edge -> -numericDouble(edge.properties().get(CONFIDENCE))))
                 .limit(20)
                 .forEach(edge -> {
                     sb.append("- `")
@@ -164,25 +174,25 @@ public class ExportGraphArchitecturePocTool {
                             .append(edge.toId().serialize())
                             .append("`");
                     appendProperties(
-                            sb, edge.properties(), "kind", "confidence", "fromModule", "toModule", "isRuntimeRelevant");
+                            sb, edge.properties(), "kind", CONFIDENCE, "fromModule", "toModule", "isRuntimeRelevant");
                     sb.append("\n");
                 });
         sb.append("\n");
 
         sb.append("## Entrypoint Reachability\n\n");
-        graph.findNodes("Component", null, Map.of("entrypointReachable", "true"), 100).stream()
+        graph.findNodes(COMPONENT_LABEL, null, Map.of("entrypointReachable", "true"), 100).stream()
                 .limit(20)
                 .forEach(node -> {
                     sb.append("- `").append(node.id()).append("`");
                     appendProperties(
                             sb,
                             node.properties(),
-                            "packageName",
-                            "module",
-                            "fanIn",
-                            "fanOut",
+                            PACKAGE_NAME,
+                            MODULE,
+                            FAN_IN,
+                            FAN_OUT,
                             "ownedEntrypointCount",
-                            "architecturalWeight");
+                            ARCHITECTURAL_WEIGHT);
                     sb.append("\n");
                 });
         sb.append("\n");
@@ -215,7 +225,7 @@ public class ExportGraphArchitecturePocTool {
 
         sb.append("## Focus Slice\n\n");
         sb.append("Focus component: `").append(focusComponent).append("`\n\n");
-        graph.findNodes("Component", focusComponent, Map.of(), 5).stream()
+        graph.findNodes(COMPONENT_LABEL, focusComponent, Map.of(), 5).stream()
                 .findFirst()
                 .ifPresent(node -> {
                     sb.append("- Node: `").append(node.id().serialize()).append("`\n");
@@ -223,13 +233,13 @@ public class ExportGraphArchitecturePocTool {
                             sb,
                             node.properties(),
                             "componentType",
-                            "packageName",
-                            "module",
+                            PACKAGE_NAME,
+                            MODULE,
                             "sourceFile",
                             "sourceLine",
-                            "confidence",
-                            "fanIn",
-                            "fanOut");
+                            CONFIDENCE,
+                            FAN_IN,
+                            FAN_OUT);
                     sb.append("\n");
                     graph.neighborhood(node.id(), "both", 20).forEach(edge -> {
                         sb.append("- ")
@@ -239,25 +249,25 @@ public class ExportGraphArchitecturePocTool {
                                 .append("]-> ")
                                 .append(edge.toId().serialize());
                         appendProperties(
-                                sb, edge.properties(), "kind", "confidence", "isCrossModule", "isRuntimeRelevant");
+                                sb, edge.properties(), "kind", CONFIDENCE, "isCrossModule", "isRuntimeRelevant");
                         sb.append("\n");
                     });
                     sb.append("\n");
                 });
 
         sb.append("## MCP Graph Query Examples\n\n");
-        sb.append("```json\n");
+        sb.append(JSON_FENCE_OPEN);
         sb.append("{\"action\":\"summary\"}\n");
-        sb.append("```\n\n");
-        sb.append("```json\n");
+        sb.append(JSON_FENCE_CLOSE);
+        sb.append(JSON_FENCE_OPEN);
         sb.append(
                 "{\"action\":\"find_nodes\",\"label\":\"Component\",\"filters\":{\"packageName\":\"dev.dominikbreu.spoonmcp.cache\"}}\n");
-        sb.append("```\n\n");
-        sb.append("```json\n");
+        sb.append(JSON_FENCE_CLOSE);
+        sb.append(JSON_FENCE_OPEN);
         sb.append(
                 "{\"action\":\"find_edges\",\"label\":\"DEPENDS_ON\",\"filters\":{\"confidence\":\">=0.65\",\"isCrossModule\":\"true\"}}\n");
-        sb.append("```\n\n");
-        sb.append("```json\n");
+        sb.append(JSON_FENCE_CLOSE);
+        sb.append(JSON_FENCE_OPEN);
         sb.append(
                 "{\"action\":\"impacted_by\",\"nodeId\":\"dev.dominikbreu.spoonmcp.cache.ArchitectureGraph\",\"maxDepth\":4}\n");
         sb.append("```\n");

@@ -38,6 +38,9 @@ import spoon.reflect.visitor.filter.TypeFilter;
  */
 public class ObjectFlowIndexBuilder {
 
+    private static final String PROJECT_TYPES = "project-types";
+    private static final String IMPLEMENTATION_GROUPS = "implementation-groups";
+
     private static Tracer tracer() {
         return GlobalOpenTelemetry.getTracer("dev.dominikbreu.spoonmcp");
     }
@@ -67,7 +70,7 @@ public class ObjectFlowIndexBuilder {
             List<CtType<?>> projectTypes = modelTypes.stream()
                     .filter(type -> componentByQualifiedName.containsKey(type.getQualifiedName()))
                     .toList();
-            span.setAttribute("project-types", (long) projectTypes.size());
+            span.setAttribute(PROJECT_TYPES, (long) projectTypes.size());
 
             if (sourceFacts == null) {
                 indexTypes(projectTypes, componentByQualifiedName, types);
@@ -80,7 +83,7 @@ public class ObjectFlowIndexBuilder {
             Map<CtInvocation<?>, List<ReceiverTarget>> receiverTargets =
                     receiverTargets(ctModel, projectTypes, types, implementations);
             ObjectFlowIndex index = new ObjectFlowIndex(types, implementations, receiverTargets);
-            span.setAttribute("implementation-groups", (long) implementations.size());
+            span.setAttribute(IMPLEMENTATION_GROUPS, (long) implementations.size());
             span.setAttribute("receiver-target-map-size", (long) receiverTargets.size());
             return index;
         } catch (RuntimeException e) {
@@ -112,7 +115,7 @@ public class ObjectFlowIndexBuilder {
                         sourceType.qualifiedName(), component.id.serialize(), abstractOrInterface);
                 types.put(typeFact.qualifiedName(), typeFact);
             }
-            span.setAttribute("project-types", projectTypes);
+            span.setAttribute(PROJECT_TYPES, projectTypes);
             span.setAttribute("indexed-types", (long) types.size());
             span.setAttribute("abstract-or-interface-types", abstractOrInterfaceCount);
         } catch (RuntimeException e) {
@@ -141,7 +144,7 @@ public class ObjectFlowIndexBuilder {
                         type.getQualifiedName(), component.id.serialize(), abstractOrInterface);
                 types.put(typeFact.qualifiedName(), typeFact);
             }
-            span.setAttribute("project-types", (long) projectTypes.size());
+            span.setAttribute(PROJECT_TYPES, (long) projectTypes.size());
             span.setAttribute("indexed-types", (long) types.size());
             span.setAttribute("abstract-or-interface-types", abstractOrInterfaceCount);
         } catch (RuntimeException e) {
@@ -181,7 +184,7 @@ public class ObjectFlowIndexBuilder {
             }
             span.setAttribute("concrete-types", concreteTypes);
             span.setAttribute("supertype-edges", supertypeEdges);
-            span.setAttribute("implementation-groups", (long) implementations.size());
+            span.setAttribute(IMPLEMENTATION_GROUPS, (long) implementations.size());
             span.setAttribute("implementation-links", implementationLinks);
             span.setAttribute("duplicate-implementation-links", duplicateImplementationLinks);
         } catch (RuntimeException e) {
@@ -220,7 +223,7 @@ public class ObjectFlowIndexBuilder {
                             .filter(t -> !t.abstractOrInterface())
                             .count());
             span.setAttribute("supertype-edges", supertypeEdges);
-            span.setAttribute("implementation-groups", (long) implementations.size());
+            span.setAttribute(IMPLEMENTATION_GROUPS, (long) implementations.size());
             span.setAttribute("implementation-links", implementationLinks);
             span.setAttribute("duplicate-implementation-links", duplicateImplementationLinks);
         } catch (RuntimeException e) {

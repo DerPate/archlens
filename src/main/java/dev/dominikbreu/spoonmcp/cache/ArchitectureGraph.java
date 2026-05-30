@@ -55,6 +55,27 @@ public class ArchitectureGraph {
     private final Map<GraphNodeId, Vertex> verticesById = new LinkedHashMap<>();
     private ArchitectureModel model;
 
+    private static final String SOURCE = "source";
+    private static final String TECHNOLOGY = "technology";
+    private static final String BROKER = "broker";
+    private static final String TOPIC = "topic";
+    private static final String COMPONENT_ID = "componentId";
+    private static final String DERIVED_FROM = "derivedFrom";
+    private static final String SOURCE_FILE = "sourceFile";
+    private static final String SOURCE_LINE = "sourceLine";
+    private static final String SINK_MARKER = ":sink:";
+    private static final String METHOD = "method";
+    private static final String FIELD_NAME = "fieldName";
+    private static final String FIELD_OWNER_COMPONENT_ID = "fieldOwnerComponentId";
+    private static final String VIA_FIELD = "viaField";
+    private static final String VIA_CHANNEL = "viaChannel";
+    private static final String CONFIDENCE = "confidence";
+    private static final String REL_STARTS_AT = "STARTS_AT";
+    private static final String REL_DEPENDS_ON = "DEPENDS_ON";
+    private static final String REL_WRITES_STATE = "WRITES_STATE";
+    private static final String REL_READS_STATE = "READS_STATE";
+    private static final String REL_STATE_HANDOFF = "STATE_HANDOFF";
+
     /** Creates an empty architecture graph projection. */
     public ArchitectureGraph() {}
 
@@ -81,25 +102,25 @@ public class ArchitectureGraph {
         sourceModel.runtimeFlows.forEach(this::addRuntimeFlow);
 
         sourceModel.applications.forEach(app -> app.componentIds.forEach(componentId -> addEdge(
-                app.id.serialize(), componentId.serialize(), "OWNS", Map.of("source", "application.componentIds"))));
+                app.id.serialize(), componentId.serialize(), "OWNS", Map.of(SOURCE, "application.componentIds"))));
         sourceModel.entrypoints.forEach(entrypoint -> addEdge(
                 entrypoint.id.serialize(),
                 entrypoint.componentId.serialize(),
-                "STARTS_AT",
-                Map.of("source", "entrypoint.componentId")));
+                REL_STARTS_AT,
+                Map.of(SOURCE, "entrypoint.componentId")));
         sourceModel.interfaces.forEach(interfaceEntry -> addEdge(
                 interfaceEntry.id,
                 interfaceEntry.componentId.serialize(),
                 "EXPOSES",
-                Map.of("source", "interface.componentId")));
+                Map.of(SOURCE, "interface.componentId")));
         sourceModel.containers.forEach(container -> container.componentIds.forEach(componentId -> addEdge(
-                container.id, componentId.serialize(), "CONTAINS", Map.of("source", "container.componentIds"))));
+                container.id, componentId.serialize(), "CONTAINS", Map.of(SOURCE, "container.componentIds"))));
         sourceModel.deployments.forEach(deployment -> deployment.appIds.forEach(
-                appId -> addEdge(deployment.id, appId.serialize(), "DEPLOYS", Map.of("source", "deployment.appIds"))));
+                appId -> addEdge(deployment.id, appId.serialize(), "DEPLOYS", Map.of(SOURCE, "deployment.appIds"))));
         sourceModel.dependencies.forEach(dependency -> addEdge(
                 dependency.fromId.serialize(),
                 dependency.toId.serialize(),
-                "DEPENDS_ON",
+                REL_DEPENDS_ON,
                 dependencyProperties(dependency)));
         addCallEdges(sourceModel);
         addFieldAccessEdges(sourceModel);
@@ -359,7 +380,7 @@ public class ArchitectureGraph {
         Vertex vertex = addVertex(app.id.serialize(), "Application", app.name);
         set(vertex, "kind", "application");
         set(vertex, "rootPath", app.rootPath);
-        set(vertex, "technology", app.technology);
+        set(vertex, TECHNOLOGY, app.technology);
         set(vertex, "packagingType", app.packagingType);
         set(vertex, "role", app.role);
         set(vertex, "parentAppId", app.parentAppId);
@@ -374,7 +395,7 @@ public class ArchitectureGraph {
         set(vertex, "packageName", packageName(component.qualifiedName));
         set(vertex, "simpleName", component.name);
         set(vertex, "module", component.module);
-        set(vertex, "technology", component.technology);
+        set(vertex, TECHNOLOGY, component.technology);
         set(vertex, "stereotypes", String.join(",", component.stereotypes));
         setSource(vertex, component.source);
     }
@@ -387,11 +408,11 @@ public class ArchitectureGraph {
         set(vertex, "httpMethod", entrypoint.httpMethod);
         set(vertex, "path", entrypoint.path);
         set(vertex, "channelName", entrypoint.channelName);
-        set(vertex, "broker", entrypoint.broker != null ? entrypoint.broker.name() : null);
-        set(vertex, "topic", entrypoint.topic);
+        set(vertex, BROKER, entrypoint.broker != null ? entrypoint.broker.name() : null);
+        set(vertex, TOPIC, entrypoint.topic);
         set(vertex, "parameters", String.join(",", entrypoint.parameters));
         set(vertex, "protocol", protocolFor(entrypoint));
-        set(vertex, "componentId", entrypoint.componentId);
+        set(vertex, COMPONENT_ID, entrypoint.componentId);
         setSource(vertex, entrypoint.source);
     }
 
@@ -401,11 +422,11 @@ public class ArchitectureGraph {
         set(vertex, "type", interfaceEntry.type);
         set(vertex, "interfaceType", interfaceEntry.type);
         set(vertex, "path", interfaceEntry.path);
-        set(vertex, "componentId", interfaceEntry.componentId);
+        set(vertex, COMPONENT_ID, interfaceEntry.componentId);
         set(vertex, "module", interfaceEntry.module);
-        set(vertex, "technology", interfaceEntry.technology);
-        set(vertex, "broker", interfaceEntry.broker != null ? interfaceEntry.broker.name() : null);
-        set(vertex, "topic", interfaceEntry.topic);
+        set(vertex, TECHNOLOGY, interfaceEntry.technology);
+        set(vertex, BROKER, interfaceEntry.broker != null ? interfaceEntry.broker.name() : null);
+        set(vertex, TOPIC, interfaceEntry.topic);
         set(vertex, "externalServiceName", interfaceEntry.externalServiceName);
         setSource(vertex, interfaceEntry.source);
     }
@@ -414,8 +435,8 @@ public class ArchitectureGraph {
         Vertex vertex = addVertex(container.id, "Container", container.name);
         set(vertex, "kind", "container");
         set(vertex, "appId", container.appId);
-        set(vertex, "technology", container.technology);
-        set(vertex, "derivedFrom", container.derivedFrom);
+        set(vertex, TECHNOLOGY, container.technology);
+        set(vertex, DERIVED_FROM, container.derivedFrom);
     }
 
     private void addDeployment(DeploymentEntry deployment) {
@@ -423,7 +444,7 @@ public class ArchitectureGraph {
         set(vertex, "kind", "deployment");
         set(vertex, "type", deployment.type);
         set(vertex, "deploymentType", deployment.type);
-        set(vertex, "source", deployment.source);
+        set(vertex, SOURCE, deployment.source);
         set(vertex, "ports", String.join(",", deployment.ports));
         set(vertex, "dependsOn", String.join(",", deployment.dependsOn));
         set(vertex, "roles", String.join(",", deployment.roles));
@@ -435,7 +456,7 @@ public class ArchitectureGraph {
         set(vertex, "kind", "externalSystem");
         set(vertex, "type", externalSystem.kind);
         set(vertex, "externalSystemKind", externalSystem.kind);
-        set(vertex, "technology", externalSystem.technology);
+        set(vertex, TECHNOLOGY, externalSystem.technology);
     }
 
     private void addRuntimeFlow(RuntimeFlow flow) {
@@ -450,14 +471,14 @@ public class ArchitectureGraph {
                 flow.id,
                 flow.entrypointId != null ? flow.entrypointId.serialize() : "",
                 "STARTED_BY",
-                Map.of("source", "runtimeFlow.entrypointId"));
+                Map.of(SOURCE, "runtimeFlow.entrypointId"));
         for (RuntimeFlowStep step : flow.steps) {
             String stepId = flow.id + ":step:" + step.order;
             Vertex stepVertex = addVertex(stepId, "RuntimeFlowStep", step.componentName);
             set(stepVertex, "kind", "runtimeFlowStep");
             set(stepVertex, "flowId", flow.id);
             set(stepVertex, "order", step.order);
-            set(stepVertex, "componentId", step.componentId != null ? step.componentId.serialize() : null);
+            set(stepVertex, COMPONENT_ID, step.componentId != null ? step.componentId.serialize() : null);
             set(stepVertex, "componentType", step.componentType);
             set(stepVertex, "via", step.via);
             addEdge(flow.id, stepId, "HAS_STEP", Map.of("order", step.order));
@@ -487,7 +508,7 @@ public class ArchitectureGraph {
             props.put("fromMethod", Objects.toString(callEdge.fromMethod, ""));
             props.put("toMethod", Objects.toString(callEdge.toMethod, ""));
             props.put("callKind", Objects.toString(callEdge.callKind, ""));
-            props.put("source", "call_graph");
+            props.put(SOURCE, "call_graph");
             if (callEdge.receiverEvidence != null) {
                 props.put("receiverEvidence", callEdge.receiverEvidence);
             }
@@ -504,8 +525,8 @@ public class ArchitectureGraph {
             props.put("returnsTracked", callEdge.returnsTracked);
             props.put("killedTrackedNames", String.join(",", callEdge.killedTrackedNames));
             if (callEdge.source != null) {
-                props.put("sourceFile", Objects.toString(callEdge.source.file, ""));
-                props.put("sourceLine", callEdge.source.line);
+                props.put(SOURCE_FILE, Objects.toString(callEdge.source.file, ""));
+                props.put(SOURCE_LINE, callEdge.source.line);
             }
             addEdge(callEdge.fromComponentId.serialize(), callEdge.toComponentId.serialize(), "CALLS", props);
         }
@@ -522,21 +543,21 @@ public class ArchitectureGraph {
 
         for (int i = 0; i < path.sinks.size(); i++) {
             DataFlowSink sink = path.sinks.get(i);
-            String sinkId = path.id + ":sink:" + i;
+            String sinkId = path.id + SINK_MARKER + i;
             Vertex sinkVertex = addVertex(sinkId, "DataFlowSink", sink.componentName);
             set(sinkVertex, "kind", "dataFlowSink");
             set(sinkVertex, "sinkKind", sink.kind != null ? sink.kind.value() : null);
             set(sinkVertex, "pathId", path.id);
-            set(sinkVertex, "componentId", sink.componentId != null ? sink.componentId.serialize() : null);
-            set(sinkVertex, "method", sink.method);
-            set(sinkVertex, "fieldName", sink.fieldName);
+            set(sinkVertex, COMPONENT_ID, sink.componentId != null ? sink.componentId.serialize() : null);
+            set(sinkVertex, METHOD, sink.method);
+            set(sinkVertex, FIELD_NAME, sink.fieldName);
             set(
                     sinkVertex,
-                    "fieldOwnerComponentId",
+                    FIELD_OWNER_COMPONENT_ID,
                     sink.fieldOwnerComponentId != null ? sink.fieldOwnerComponentId.serialize() : null);
             set(sinkVertex, "channel", sink.channel);
-            set(sinkVertex, "broker", sink.broker != null ? sink.broker.name() : null);
-            set(sinkVertex, "topic", sink.topic);
+            set(sinkVertex, BROKER, sink.broker != null ? sink.broker.name() : null);
+            set(sinkVertex, TOPIC, sink.topic);
             set(sinkVertex, "topicPropertyKey", sink.topicPropertyKey);
             set(sinkVertex, "payloadType", sink.payloadType);
             set(sinkVertex, "entityType", sink.entityType);
@@ -552,13 +573,13 @@ public class ArchitectureGraph {
                         sinkId,
                         sink.fieldOwnerComponentId.serialize(),
                         "ON_FIELD",
-                        Map.of("fieldName", Objects.toString(sink.fieldName, "")));
+                        Map.of(FIELD_NAME, Objects.toString(sink.fieldName, "")));
             } else if (sink.componentId != null) {
                 addEdge(
                         sinkId,
                         sink.componentId.serialize(),
                         "AT_COMPONENT",
-                        Map.of("method", Objects.toString(sink.method, "")));
+                        Map.of(METHOD, Objects.toString(sink.method, "")));
             }
         }
     }
@@ -580,16 +601,16 @@ public class ArchitectureGraph {
                 if (sink.kind != DataFlowSink.Kind.STORE
                         && sink.kind != DataFlowSink.Kind.MESSAGING
                         && sink.kind != DataFlowSink.Kind.EVENT_BUS) continue;
-                String sinkId = path.id + ":sink:" + i;
+                String sinkId = path.id + SINK_MARKER + i;
                 Map<String, Object> props = new HashMap<>();
                 props.put("linkKind", sink.kind.value());
                 if (sink.kind == DataFlowSink.Kind.STORE) {
-                    props.put("viaField", Objects.toString(sink.fieldName, ""));
+                    props.put(VIA_FIELD, Objects.toString(sink.fieldName, ""));
                     props.put(
-                            "fieldOwnerComponentId",
+                            FIELD_OWNER_COMPONENT_ID,
                             sink.fieldOwnerComponentId != null ? sink.fieldOwnerComponentId.serialize() : "");
                 } else {
-                    props.put("viaChannel", Objects.toString(sink.channel, ""));
+                    props.put(VIA_CHANNEL, Objects.toString(sink.channel, ""));
                 }
                 for (String downstreamPathId : sink.linkedPathIds) {
                     addEdge(sinkId, downstreamPathId, "LINKS_TO", props);
@@ -602,19 +623,19 @@ public class ArchitectureGraph {
         for (WorkflowLink link : new WorkflowLinker().link(sourceModel)) {
             Map<String, Object> props = new HashMap<>();
             props.put("kind", link.kind().name());
-            props.put("confidence", link.confidence());
+            props.put(CONFIDENCE, link.confidence());
             props.put("fromEntrypointId", Objects.toString(link.fromEntrypointId(), ""));
             props.put("toEntrypointId", Objects.toString(link.toEntrypointId(), ""));
             if (link.channel() != null) {
                 props.put("channel", link.channel());
-                props.put("viaChannel", link.channel());
+                props.put(VIA_CHANNEL, link.channel());
             }
             if (link.fieldOwnerComponentId() != null) {
-                props.put("fieldOwnerComponentId", link.fieldOwnerComponentId());
+                props.put(FIELD_OWNER_COMPONENT_ID, link.fieldOwnerComponentId());
             }
             if (link.fieldName() != null) {
-                props.put("fieldName", link.fieldName());
-                props.put("viaField", link.fieldName());
+                props.put(FIELD_NAME, link.fieldName());
+                props.put(VIA_FIELD, link.fieldName());
             }
             if (link.entityType() != null) props.put("entityType", link.entityType());
             if (link.repositoryOperation() != null) props.put("repositoryOperation", link.repositoryOperation());
@@ -668,12 +689,12 @@ public class ArchitectureGraph {
                     edgeProps.put("linkKind", in.kind != null ? in.kind.value() : "");
                     edgeProps.put("incomingSinkId", incomingSinkId(chain, i, sourceModel));
                     if (in.kind == DataFlowSink.Kind.STORE) {
-                        edgeProps.put("viaField", Objects.toString(in.fieldName, ""));
+                        edgeProps.put(VIA_FIELD, Objects.toString(in.fieldName, ""));
                         edgeProps.put(
-                                "fieldOwnerComponentId",
+                                FIELD_OWNER_COMPONENT_ID,
                                 in.fieldOwnerComponentId != null ? in.fieldOwnerComponentId.serialize() : "");
                     } else {
-                        edgeProps.put("viaChannel", Objects.toString(in.channel, ""));
+                        edgeProps.put(VIA_CHANNEL, Objects.toString(in.channel, ""));
                     }
                 }
                 addEdge(chainId, seg.path.id, "HAS_SEGMENT", edgeProps);
@@ -686,7 +707,7 @@ public class ArchitectureGraph {
         Segment prev = chain.segments.get(segmentIndex - 1);
         DataFlowSink target = chain.segments.get(segmentIndex).incomingSink;
         for (int i = 0; i < prev.path.sinks.size(); i++) {
-            if (prev.path.sinks.get(i) == target) return prev.path.id + ":sink:" + i;
+            if (prev.path.sinks.get(i) == target) return prev.path.id + SINK_MARKER + i;
         }
         return "";
     }
@@ -696,8 +717,8 @@ public class ArchitectureGraph {
         properties.put("id", dependency.id != null ? dependency.id.serialize() : null);
         properties.put("kind", Objects.toString(dependency.kind, ""));
         properties.put("dependencyKind", Objects.toString(dependency.kind, ""));
-        properties.put("derivedFrom", Objects.toString(dependency.derivedFrom, ""));
-        properties.put("confidence", dependency.confidence);
+        properties.put(DERIVED_FROM, Objects.toString(dependency.derivedFrom, ""));
+        properties.put(CONFIDENCE, dependency.confidence);
         properties.put("isRuntimeRelevant", isRuntimeRelevant(dependency));
         properties.put("isCondensable", isCondensable(dependency));
         properties.put("weight", dependency.confidence);
@@ -725,9 +746,9 @@ public class ArchitectureGraph {
             String fieldName = access.fieldBinding.fieldName();
             String edgeLabel;
             if (access.kind == FieldAccess.Kind.WRITE) {
-                edgeLabel = "WRITES_STATE";
+                edgeLabel = REL_WRITES_STATE;
             } else {
-                edgeLabel = "READS_STATE";
+                edgeLabel = REL_READS_STATE;
             }
             addEdge(access.componentId.serialize(), fieldOwner.serialize(), edgeLabel, fieldAccessProperties(access));
             dev.dominikbreu.spoonmcp.model.ids.FieldRef key =
@@ -755,7 +776,7 @@ public class ArchitectureGraph {
                         addEdge(
                                 write.componentId.serialize(),
                                 read.componentId.serialize(),
-                                "STATE_HANDOFF",
+                                REL_STATE_HANDOFF,
                                 stateHandoffProperties(write, read));
                     }
                 }
@@ -777,15 +798,15 @@ public class ArchitectureGraph {
         } else {
             fieldOwner = (access.componentId != null ? access.componentId : null);
         }
-        properties.put("fieldName", fieldName);
-        properties.put("fieldOwnerComponentId", fieldOwner != null ? fieldOwner.serialize() : "");
-        properties.put("method", Objects.toString(access.method, ""));
+        properties.put(FIELD_NAME, fieldName);
+        properties.put(FIELD_OWNER_COMPONENT_ID, fieldOwner != null ? fieldOwner.serialize() : "");
+        properties.put(METHOD, Objects.toString(access.method, ""));
         properties.put("accessKind", access.kind != null ? access.kind.name().toLowerCase(Locale.ROOT) : "");
-        properties.put("source", "field_access");
+        properties.put(SOURCE, "field_access");
         if (access.source != null) {
-            properties.put("sourceFile", Objects.toString(access.source.file, ""));
-            properties.put("sourceLine", access.source.line);
-            properties.put("confidence", access.source.confidence);
+            properties.put(SOURCE_FILE, Objects.toString(access.source.file, ""));
+            properties.put(SOURCE_LINE, access.source.line);
+            properties.put(CONFIDENCE, access.source.confidence);
         }
         return properties;
     }
@@ -804,12 +825,12 @@ public class ArchitectureGraph {
         } else {
             writeFieldOwner = (write.componentId != null ? write.componentId : null);
         }
-        properties.put("fieldName", writeFieldName);
-        properties.put("fieldOwnerComponentId", writeFieldOwner != null ? writeFieldOwner.serialize() : "");
+        properties.put(FIELD_NAME, writeFieldName);
+        properties.put(FIELD_OWNER_COMPONENT_ID, writeFieldOwner != null ? writeFieldOwner.serialize() : "");
         properties.put("writerMethod", Objects.toString(write.method, ""));
         properties.put("readerMethod", Objects.toString(read.method, ""));
-        properties.put("source", "field_access");
-        properties.put("confidence", 0.8);
+        properties.put(SOURCE, "field_access");
+        properties.put(CONFIDENCE, 0.8);
         return properties;
     }
 
@@ -834,7 +855,7 @@ public class ArchitectureGraph {
                     addEdge(
                             caller1.serialize(),
                             caller2.serialize(),
-                            "STATE_HANDOFF",
+                            REL_STATE_HANDOFF,
                             stateHandoffProperties(write, read));
                 }
             }
@@ -844,8 +865,8 @@ public class ArchitectureGraph {
     private void computeDerivedProperties() {
         Set<String> entrypointReachable = reachableFromEntrypoints();
         for (Vertex vertex : verticesById.values()) {
-            int fanIn = countEdges(vertex, Direction.IN, "DEPENDS_ON");
-            int fanOut = countEdges(vertex, Direction.OUT, "DEPENDS_ON");
+            int fanIn = countEdges(vertex, Direction.IN, REL_DEPENDS_ON);
+            int fanOut = countEdges(vertex, Direction.OUT, REL_DEPENDS_ON);
             set(vertex, "fanIn", fanIn);
             set(vertex, "fanOut", fanOut);
             set(vertex, "degree", fanIn + fanOut);
@@ -854,19 +875,19 @@ public class ArchitectureGraph {
                     "entrypointReachable",
                     entrypointReachable.contains(vertex.id().toString()));
             if ("Component".equals(vertex.label())) {
-                int ownedEntrypoints = countEdges(vertex, Direction.IN, "STARTS_AT");
+                int ownedEntrypoints = countEdges(vertex, Direction.IN, REL_STARTS_AT);
                 ArchitectureRelevanceScorer.Relevance relevance = ArchitectureRelevanceScorer.score(
                         componentById(vertex.id().toString()),
                         new ArchitectureRelevanceScorer.Metrics(
                                 fanIn,
                                 fanOut,
                                 ownedEntrypoints,
-                                countEdges(vertex, Direction.OUT, "READS_STATE"),
-                                countEdges(vertex, Direction.OUT, "WRITES_STATE"),
-                                countCrossComponentStateEdges(vertex, "READS_STATE"),
-                                countCrossComponentStateEdges(vertex, "WRITES_STATE"),
-                                countEdges(vertex, Direction.IN, "STATE_HANDOFF"),
-                                countEdges(vertex, Direction.OUT, "STATE_HANDOFF")));
+                                countEdges(vertex, Direction.OUT, REL_READS_STATE),
+                                countEdges(vertex, Direction.OUT, REL_WRITES_STATE),
+                                countCrossComponentStateEdges(vertex, REL_READS_STATE),
+                                countCrossComponentStateEdges(vertex, REL_WRITES_STATE),
+                                countEdges(vertex, Direction.IN, REL_STATE_HANDOFF),
+                                countEdges(vertex, Direction.OUT, REL_STATE_HANDOFF)));
                 set(vertex, "ownedEntrypointCount", ownedEntrypoints);
                 set(vertex, "workflowRelevant", relevance.workflowRelevant());
                 set(vertex, "businessRelevant", relevance.businessRelevant());
@@ -895,17 +916,17 @@ public class ArchitectureGraph {
             while (edges.hasNext()) {
                 Edge edge = edges.next();
                 String label = edge.label();
-                if ("STARTS_AT".equals(label)
+                if (REL_STARTS_AT.equals(label)
                         || "CALLS".equals(label)
-                        || "DEPENDS_ON".equals(label)
+                        || REL_DEPENDS_ON.equals(label)
                         || "VISITS".equals(label)
                         || "ORIGINATES".equals(label)
                         || "REACHES".equals(label)
                         || "LINKS_TO".equals(label)
                         || "WORKFLOW_LINK".equals(label)
-                        || "WRITES_STATE".equals(label)
-                        || "READS_STATE".equals(label)
-                        || "STATE_HANDOFF".equals(label)
+                        || REL_WRITES_STATE.equals(label)
+                        || REL_READS_STATE.equals(label)
+                        || REL_STATE_HANDOFF.equals(label)
                         || "ON_FIELD".equals(label)
                         || "AT_COMPONENT".equals(label)
                         || "HAS_SEGMENT".equals(label)) {
@@ -1021,10 +1042,10 @@ public class ArchitectureGraph {
         if (source == null) {
             return;
         }
-        set(vertex, "sourceFile", source.file);
-        set(vertex, "sourceLine", source.line);
-        set(vertex, "derivedFrom", source.derivedFrom);
-        set(vertex, "confidence", source.confidence);
+        set(vertex, SOURCE_FILE, source.file);
+        set(vertex, SOURCE_LINE, source.line);
+        set(vertex, DERIVED_FROM, source.derivedFrom);
+        set(vertex, CONFIDENCE, source.confidence);
     }
 
     private boolean matchesFilters(Map<String, Object> properties, Map<String, String> filters) {
@@ -1126,7 +1147,7 @@ public class ArchitectureGraph {
     private boolean isRuntimeRelevant(Dependency dependency) {
         String kind = Objects.toString(dependency.kind, "").toLowerCase(Locale.ROOT);
         return kind.contains("injection")
-                || kind.contains("method")
+                || kind.contains(METHOD)
                 || kind.contains("event")
                 || kind.contains("client")
                 || kind.contains("message");

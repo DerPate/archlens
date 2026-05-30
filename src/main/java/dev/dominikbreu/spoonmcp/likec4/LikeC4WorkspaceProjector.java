@@ -12,6 +12,9 @@ import java.util.Map;
 
 public final class LikeC4WorkspaceProjector {
 
+    private static final String COMPONENT = "component";
+    private static final String SYSTEM = "system";
+
     private final ArchitectureViewProjector componentProjector;
 
     public LikeC4WorkspaceProjector() {
@@ -37,7 +40,7 @@ public final class LikeC4WorkspaceProjector {
 
         List<LikeC4Element> components = componentProjection.nodes().stream()
                 .map(node ->
-                        new LikeC4Element(node.id(), "component", node.title(), node.id(), metadata(node.properties())))
+                        new LikeC4Element(node.id(), COMPONENT, node.title(), node.id(), metadata(node.properties())))
                 .toList();
 
         List<LikeC4Relationship> relationships = componentProjection.edges().stream()
@@ -61,13 +64,13 @@ public final class LikeC4WorkspaceProjector {
         }
 
         return new LikeC4Document(
-                List.of("system", "component"),
+                List.of(SYSTEM, COMPONENT),
                 elements,
                 relationships,
                 List.of(
                         new LikeC4View("context", "Context", systemIds, List.of()),
                         new LikeC4View("container", "Container", systemAndComponentIds, List.of()),
-                        new LikeC4View("component", "Component", componentIds, List.of())),
+                        new LikeC4View(COMPONENT, "Component", componentIds, List.of())),
                 warnings);
     }
 
@@ -75,7 +78,7 @@ public final class LikeC4WorkspaceProjector {
         if (app != null) {
             return new LikeC4Element(
                     app.id.serialize(),
-                    "system",
+                    SYSTEM,
                     title(app.name, app.id.serialize()),
                     app.id.serialize(),
                     appMetadata(app));
@@ -88,7 +91,7 @@ public final class LikeC4WorkspaceProjector {
         }
         return new LikeC4Element(
                 "system:workspace",
-                "system",
+                SYSTEM,
                 title(workspace, "Workspace"),
                 "workspace",
                 workspace == null || workspace.isBlank() ? Map.of() : Map.of("workspacePath", workspace));

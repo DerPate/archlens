@@ -10,6 +10,15 @@ import java.util.stream.Collectors;
  */
 public class MermaidFlowchartRenderer {
 
+    private static final String FLOWCHART_HEADER = "flowchart TD\n";
+    private static final String TECHNICAL_LIBRARY = "technical_library";
+    private static final String SUBGRAPH_OPEN = "    subgraph ";
+    private static final String SUBGRAPH_CLOSE = "    end\n";
+    private static final String INDENT8 = "        ";
+    private static final String EDGE_LABEL_OPEN = " -->|";
+    private static final String NODE_CLOSE_PAREN = ")\"]\n";
+    private static final String NODE_CLOSE = "\"]\n";
+
     /** Creates a flowchart renderer for architecture model views. */
     public MermaidFlowchartRenderer() {}
 
@@ -45,10 +54,10 @@ public class MermaidFlowchartRenderer {
     // ── module level: deployment-unit (WAR) → internal_module subgraphs ─────
 
     private String renderModuleLevel(List<AppEntry> apps, ArchitectureModel model) {
-        StringBuilder sb = new StringBuilder("flowchart TD\n");
+        StringBuilder sb = new StringBuilder(FLOWCHART_HEADER);
 
         for (AppEntry app : apps) {
-            if ("internal_module".equals(app.role) || "technical_library".equals(app.role)) continue;
+            if ("internal_module".equals(app.role) || TECHNICAL_LIBRARY.equals(app.role)) continue;
 
             // deployment_unit or standalone
             List<AppEntry> children = model.applications.stream()
@@ -63,32 +72,32 @@ public class MermaidFlowchartRenderer {
                         .append(nid(app.id.serialize()))
                         .append("[\"")
                         .append(escape(label))
-                        .append("\"]\n");
+                        .append(NODE_CLOSE);
             } else {
                 // WAR with internal modules
-                sb.append("    subgraph ")
+                sb.append(SUBGRAPH_OPEN)
                         .append(nid(app.id.serialize()))
                         .append("[\"")
                         .append(escape(app.name))
                         .append(" (")
                         .append(app.packagingType)
-                        .append(")\"]\n");
+                        .append(NODE_CLOSE_PAREN);
 
                 for (AppEntry child : children) {
                     String shape;
-                    if ("technical_library".equals(child.role)) {
+                    if (TECHNICAL_LIBRARY.equals(child.role)) {
                         shape = "([";
                     } else {
                         shape = "[";
                     }
                     String closeShape;
-                    if ("technical_library".equals(child.role)) {
+                    if (TECHNICAL_LIBRARY.equals(child.role)) {
                         closeShape = "])";
                     } else {
                         closeShape = "]";
                     }
                     String label = child.name + "\\n" + child.role;
-                    sb.append("        ")
+                    sb.append(INDENT8)
                             .append(nid(child.id.serialize()))
                             .append(shape)
                             .append("\"")
@@ -97,7 +106,7 @@ public class MermaidFlowchartRenderer {
                             .append(closeShape)
                             .append("\n");
                 }
-                sb.append("    end\n");
+                sb.append(SUBGRAPH_CLOSE);
             }
         }
 
@@ -132,7 +141,7 @@ public class MermaidFlowchartRenderer {
     // ── system level: one box per application ────────────────────────────────
 
     private String renderSystemLevel(List<AppEntry> apps, ArchitectureModel model) {
-        StringBuilder sb = new StringBuilder("flowchart TD\n");
+        StringBuilder sb = new StringBuilder(FLOWCHART_HEADER);
         for (AppEntry app : apps) {
             String id = nid(app.id.serialize());
             sb.append("    ")
@@ -143,7 +152,7 @@ public class MermaidFlowchartRenderer {
                     .append(app.technology)
                     .append(" / ")
                     .append(app.packagingType)
-                    .append("\"]\n");
+                    .append(NODE_CLOSE);
         }
 
         Set<String> visibleApps = apps.stream().map(a -> a.id.serialize()).collect(Collectors.toSet());
@@ -159,7 +168,7 @@ public class MermaidFlowchartRenderer {
             if (drawnEdges.add(key)) {
                 sb.append("    ")
                         .append(nid(fromApp))
-                        .append(" -->|")
+                        .append(EDGE_LABEL_OPEN)
                         .append(escape(dep.kind == null ? "" : dep.kind))
                         .append("| ")
                         .append(nid(dep.toId.serialize()))
@@ -202,7 +211,7 @@ public class MermaidFlowchartRenderer {
     // ── container level: subgraph per app, box per container ─────────────────
 
     private String renderContainerLevel(List<AppEntry> apps, ArchitectureModel model) {
-        StringBuilder sb = new StringBuilder("flowchart TD\n");
+        StringBuilder sb = new StringBuilder(FLOWCHART_HEADER);
 
         Map<String, String> compToContainer = buildCompToContainerMap(model);
 
@@ -216,13 +225,13 @@ public class MermaidFlowchartRenderer {
 
         Set<String> visibleContainers = new LinkedHashSet<>();
         for (AppEntry app : apps) {
-            sb.append("    subgraph ")
+            sb.append(SUBGRAPH_OPEN)
                     .append(nid(app.id.serialize()))
                     .append("[\"")
                     .append(escape(app.name))
                     .append(" (")
                     .append(app.technology)
-                    .append(")\"]\n");
+                    .append(NODE_CLOSE_PAREN);
 
             List<Container> appContainers = model.containers.stream()
                     .filter(c -> app.id.equals(c.appId))
@@ -235,13 +244,13 @@ public class MermaidFlowchartRenderer {
                         + container.componentIds.size() + " component"
                         + (container.componentIds.size() != 1 ? "s" : "")
                         + (epCount > 0 ? " / " + epCount + " EP" : "");
-                sb.append("        ")
+                sb.append(INDENT8)
                         .append(nid(container.id))
                         .append("[\"")
                         .append(label)
-                        .append("\"]\n");
+                        .append(NODE_CLOSE);
             }
-            sb.append("    end\n");
+            sb.append(SUBGRAPH_CLOSE);
         }
 
         // Aggregate cross-container edge kinds by (from, to) pair
@@ -289,7 +298,7 @@ public class MermaidFlowchartRenderer {
             String kindLabel = String.join(", ", entry.getValue());
             sb.append("    ")
                     .append(nid(parts[0]))
-                    .append(" -->|")
+                    .append(EDGE_LABEL_OPEN)
                     .append(escape(kindLabel))
                     .append("| ")
                     .append(nid(parts[1]))
@@ -310,16 +319,16 @@ public class MermaidFlowchartRenderer {
     // ── component level: subgraph per container, box per component ───────────
 
     private String renderComponentLevel(List<AppEntry> apps, ArchitectureModel model) {
-        StringBuilder sb = new StringBuilder("flowchart TD\n");
+        StringBuilder sb = new StringBuilder(FLOWCHART_HEADER);
 
         for (AppEntry app : apps) {
-            sb.append("    subgraph ")
+            sb.append(SUBGRAPH_OPEN)
                     .append(nid(app.id.serialize()))
                     .append("[\"")
                     .append(escape(app.name))
                     .append(" (")
                     .append(app.technology)
-                    .append(")\"]\n");
+                    .append(NODE_CLOSE_PAREN);
 
             List<Container> appContainers = model.containers.stream()
                     .filter(c -> app.id.equals(c.appId))
@@ -328,7 +337,7 @@ public class MermaidFlowchartRenderer {
             if (appContainers.isEmpty()) {
                 // No containers — flat list of components
                 for (dev.dominikbreu.spoonmcp.model.ids.ComponentId cid : app.componentIds) {
-                    renderComponentNode(sb, cid.serialize(), model, "        ");
+                    renderComponentNode(sb, cid.serialize(), model, INDENT8);
                 }
             } else {
                 for (Container container : appContainers) {
@@ -336,14 +345,14 @@ public class MermaidFlowchartRenderer {
                             .append(nid(container.id))
                             .append("[\"")
                             .append(escape(container.name))
-                            .append("\"]\n");
+                            .append(NODE_CLOSE);
                     for (dev.dominikbreu.spoonmcp.model.ids.ComponentId cid : container.componentIds) {
                         renderComponentNode(sb, cid.serialize(), model, "            ");
                     }
                     sb.append("        end\n");
                 }
             }
-            sb.append("    end\n");
+            sb.append(SUBGRAPH_CLOSE);
         }
 
         // Draw edges only between components belonging to the filtered apps
@@ -356,7 +365,7 @@ public class MermaidFlowchartRenderer {
             if (visibleComps.contains(dep.fromId.serialize()) && visibleComps.contains(dep.toId.serialize())) {
                 sb.append("    ")
                         .append(nid(dep.fromId.serialize()))
-                        .append(" -->|")
+                        .append(EDGE_LABEL_OPEN)
                         .append(escape(dep.kind))
                         .append("| ")
                         .append(nid(dep.toId.serialize()))

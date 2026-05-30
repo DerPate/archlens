@@ -12,6 +12,9 @@ import spoon.reflect.declaration.*;
  */
 public class JavaEEExtractor {
 
+    private static final String ANNOTATION = "annotation";
+    private static final String ON_MESSAGE = "onMessage";
+
     private static final Set<String> EJB_STATELESS = Set.of("javax.ejb.Stateless", "jakarta.ejb.Stateless");
     private static final Set<String> EJB_STATEFUL = Set.of("javax.ejb.Stateful", "jakarta.ejb.Stateful");
     private static final Set<String> EJB_SINGLETON = Set.of("javax.ejb.Singleton", "jakarta.ejb.Singleton");
@@ -91,7 +94,7 @@ public class JavaEEExtractor {
         c.module = appId;
         c.technology = tech;
         c.stereotypes = stereos;
-        c.source = new SourceInfo(getFile(type), getLine(type), "annotation", 0.95);
+        c.source = new SourceInfo(getFile(type), getLine(type), ANNOTATION, 0.95);
         return c;
     }
 
@@ -113,19 +116,19 @@ public class JavaEEExtractor {
                 ep.httpMethod = httpMethod;
                 ep.path = fullPath;
                 ep.componentId = component.id;
-                ep.source = new SourceInfo(getFile(method), getLine(method), "annotation", 1.0);
+                ep.source = new SourceInfo(getFile(method), getLine(method), ANNOTATION, 1.0);
                 model.entrypoints.add(ep);
                 addInterface(method, component, "rest_endpoint", httpMethod + " " + fullPath, fullPath, model);
                 continue;
             }
 
             // MDB onMessage is always an entrypoint
-            if (component.type == ComponentType.MESSAGE_DRIVEN_BEAN && "onMessage".equals(method.getSimpleName())) {
+            if (component.type == ComponentType.MESSAGE_DRIVEN_BEAN && ON_MESSAGE.equals(method.getSimpleName())) {
                 Entrypoint ep = new Entrypoint();
                 ep.id = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
-                        dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()), "onMessage", "");
+                        dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()), ON_MESSAGE, "");
                 ep.type = EntrypointType.JMS_CONSUMER;
-                ep.name = "onMessage";
+                ep.name = ON_MESSAGE;
                 ep.componentId = component.id;
                 ep.source = new SourceInfo(getFile(method), getLine(method), "type-relation", 0.95);
                 model.entrypoints.add(ep);
@@ -145,7 +148,7 @@ public class JavaEEExtractor {
         entry.componentId = component.id;
         entry.module = component.module;
         entry.technology = component.technology;
-        entry.source = new SourceInfo(getFile(element), getLine(element), "annotation", 0.95);
+        entry.source = new SourceInfo(getFile(element), getLine(element), ANNOTATION, 0.95);
         model.interfaces.add(entry);
     }
 
