@@ -65,38 +65,43 @@ public class MessagingCallSiteResolver {
         if (trackedFields.isEmpty()) return findings;
 
         for (CtInvocation<?> inv : type.getElements(new TypeFilter<>())) {
-            String name;
-            if (inv.getExecutable() != null) {
-                name = inv.getExecutable().getSimpleName();
-            } else {
-                name = null;
-            }
-            if (name == null) continue;
-
-            // Direct call: target is a tracked field, method name is broker-specific.
-            String fieldName = receiverFieldName(inv.getTarget(), trackedFields.keySet());
-            if (fieldName != null) {
-                TrackedField tf = trackedFields.get(fieldName);
-                Finding direct = directCallFinding(inv, name, tf, fieldName);
-                if (direct != null) {
-                    findings.add(direct);
-                    continue;
-                }
-                List<Finding> directList = directCallFindings(inv, name, tf, fieldName);
-                if (!directList.isEmpty()) {
-                    findings.addAll(directList);
-                    continue;
-                }
-            }
-
-            // Fluent chain: anchor on topic()/topicFilter(), walk inward, only valid for MQTT.
-            if (FLUENT_TOPIC_SETTERS.contains(name)) {
-                Finding fluent = fluentFinding(inv, trackedFields);
-                if (fluent != null) findings.add(fluent);
-            }
+            collectFindings(inv, trackedFields, findings);
         }
 
         return findings;
+    }
+
+    private void collectFindings(
+            CtInvocation<?> inv, Map<String, TrackedField> trackedFields, List<Finding> findings) {
+        String name = inv.getExecutable() != null ? inv.getExecutable().getSimpleName() : null;
+        if (name == null) return;
+
+        // Direct call: target is a tracked field, method name is broker-specific.
+        String fieldName = receiverFieldName(inv.getTarget(), trackedFields.keySet());
+        if (fieldName != null && addDirectCallFindings(inv, name, trackedFields.get(fieldName), fieldName, findings)) {
+            return;
+        }
+
+        // Fluent chain: anchor on topic()/topicFilter(), walk inward, only valid for MQTT.
+        if (FLUENT_TOPIC_SETTERS.contains(name)) {
+            Finding fluent = fluentFinding(inv, trackedFields);
+            if (fluent != null) findings.add(fluent);
+        }
+    }
+
+    private boolean addDirectCallFindings(
+            CtInvocation<?> inv, String name, TrackedField tf, String fieldName, List<Finding> findings) {
+        Finding direct = directCallFinding(inv, name, tf, fieldName);
+        if (direct != null) {
+            findings.add(direct);
+            return true;
+        }
+        List<Finding> directList = directCallFindings(inv, name, tf, fieldName);
+        if (!directList.isEmpty()) {
+            findings.addAll(directList);
+            return true;
+        }
+        return false;
     }
 
     private Finding directCallFinding(CtInvocation<?> inv, String methodName, TrackedField tf, String fieldName) {

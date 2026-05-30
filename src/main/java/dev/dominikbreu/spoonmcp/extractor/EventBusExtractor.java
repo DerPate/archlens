@@ -84,58 +84,53 @@ public class EventBusExtractor {
             Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> existingIds) {
         for (CtMethod<?> method : type.getMethods()) {
             for (CtInvocation<?> inv : method.getElements(new TypeFilter<>(CtInvocation.class))) {
-                if (!"consumer".equals(inv.getExecutable().getSimpleName())) continue;
-                CtTypeReference<?> targetType;
-                if (inv.getTarget() != null) {
-                    targetType = inv.getTarget().getType();
-                } else {
-                    targetType = null;
-                }
-                if (targetType == null) continue;
-                if (!"EventBus".equals(targetType.getSimpleName())) continue;
-                if (inv.getArguments().isEmpty()) continue;
-
-                String address = literalString(inv.getArguments().get(0));
-                CtLambda<?> lambda = findHandlerLambda(inv);
-                if (address == null || lambda == null) continue;
-                String paramName;
-
-                if (lambda.getParameters().isEmpty()) {
-                    paramName = "message";
-                } else {
-                    paramName = lambda.getParameters().get(0).getSimpleName();
-                }
-
-                dev.dominikbreu.spoonmcp.model.ids.ComponentId compId =
-                        dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName());
-                Component comp = findOrCreateComponent(
-                        compId,
-                        type,
-                        appId,
-                        ComponentType.CDI_EVENT_CONSUMER,
-                        "event-bus-consumer",
-                        model,
-                        existingIds);
-
-                dev.dominikbreu.spoonmcp.model.ids.EntrypointId epId =
-                        new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
-                                dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
-                                method.getSimpleName(),
-                                "eventbus:" + address);
-                if (model.entrypoints.stream().anyMatch(e -> epId.equals(e.id))) continue;
-
-                Entrypoint ep = new Entrypoint();
-                ep.id = epId;
-                ep.type = EntrypointType.EVENT_BUS_CONSUMER;
-                ep.name = method.getSimpleName();
-                ep.channelName = address;
-                ep.path = address;
-                ep.componentId = comp.id;
-                ep.parameters.add(paramName);
-                ep.source = new SourceInfo(getFile(inv), getLine(inv), "invocation", 0.9);
-                model.entrypoints.add(ep);
+                registerEventBusConsumer(type, method, inv, model, appId, existingIds);
             }
         }
+    }
+
+    private void registerEventBusConsumer(
+            CtType<?> type,
+            CtMethod<?> method,
+            CtInvocation<?> inv,
+            ArchitectureModel model,
+            AppId appId,
+            Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> existingIds) {
+        if (!"consumer".equals(inv.getExecutable().getSimpleName())) return;
+        CtTypeReference<?> targetType = inv.getTarget() != null ? inv.getTarget().getType() : null;
+        if (targetType == null) return;
+        if (!"EventBus".equals(targetType.getSimpleName())) return;
+        if (inv.getArguments().isEmpty()) return;
+
+        String address = literalString(inv.getArguments().get(0));
+        CtLambda<?> lambda = findHandlerLambda(inv);
+        if (address == null || lambda == null) return;
+        String paramName = lambda.getParameters().isEmpty()
+                ? "message"
+                : lambda.getParameters().get(0).getSimpleName();
+
+        dev.dominikbreu.spoonmcp.model.ids.ComponentId compId =
+                dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName());
+        Component comp = findOrCreateComponent(
+                compId, type, appId, ComponentType.CDI_EVENT_CONSUMER, "event-bus-consumer", model, existingIds);
+
+        dev.dominikbreu.spoonmcp.model.ids.EntrypointId epId =
+                new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
+                        dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
+                        method.getSimpleName(),
+                        "eventbus:" + address);
+        if (model.entrypoints.stream().anyMatch(e -> epId.equals(e.id))) return;
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = epId;
+        ep.type = EntrypointType.EVENT_BUS_CONSUMER;
+        ep.name = method.getSimpleName();
+        ep.channelName = address;
+        ep.path = address;
+        ep.componentId = comp.id;
+        ep.parameters.add(paramName);
+        ep.source = new SourceInfo(getFile(inv), getLine(inv), "invocation", 0.9);
+        model.entrypoints.add(ep);
     }
 
     private static String literalString(CtExpression<?> expr) {
