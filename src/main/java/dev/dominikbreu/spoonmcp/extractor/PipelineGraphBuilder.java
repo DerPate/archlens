@@ -305,15 +305,23 @@ public class PipelineGraphBuilder {
     }
 
     private DataFlowSink incomingSink(DataFlowPath current, WorkflowLink link) {
+        DataFlowSink.Kind expected = expectedSinkKind(link.kind());
+        if (expected == null) return null;
         for (DataFlowSink sink : current.sinks) {
             if (sink.linkedPathIds == null || !sink.linkedPathIds.contains(link.toPathId())) continue;
-            if (link.kind() == WorkflowLink.Kind.MESSAGING && sink.kind == DataFlowSink.Kind.MESSAGING) return sink;
-            if (link.kind() == WorkflowLink.Kind.EVENT_BUS && sink.kind == DataFlowSink.Kind.EVENT_BUS) return sink;
-            if (link.kind() == WorkflowLink.Kind.STATE_HANDOFF && sink.kind == DataFlowSink.Kind.STORE) return sink;
-            if (link.kind() == WorkflowLink.Kind.PERSISTENCE_HANDOFF && sink.kind == DataFlowSink.Kind.PERSISTENCE)
-                return sink;
+            if (sink.kind == expected) return sink;
         }
         return null;
+    }
+
+    private static DataFlowSink.Kind expectedSinkKind(WorkflowLink.Kind linkKind) {
+        return switch (linkKind) {
+            case MESSAGING -> DataFlowSink.Kind.MESSAGING;
+            case EVENT_BUS -> DataFlowSink.Kind.EVENT_BUS;
+            case STATE_HANDOFF -> DataFlowSink.Kind.STORE;
+            case PERSISTENCE_HANDOFF -> DataFlowSink.Kind.PERSISTENCE;
+            default -> null;
+        };
     }
 
     private void emit(List<Segment> segments, List<Chain> out) {
