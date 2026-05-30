@@ -113,7 +113,7 @@ class ContainerInferrerTest {
     void containerHasCorrectAppId() {
         List<Component> comps = List.of(comp("X", ComponentType.SERVICE, "my-app"));
         List<Container> containers = inferrer.infer(comps);
-        assertThat(containers).allMatch(c -> "my-app".equals(c.appId.serialize()));
+        assertThat(containers).isNotEmpty().allMatch(c -> "my-app".equals(c.appId.serialize()));
     }
 
     @Test

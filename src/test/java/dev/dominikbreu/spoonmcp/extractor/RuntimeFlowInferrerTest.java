@@ -67,7 +67,7 @@ class RuntimeFlowInferrerTest {
         ArchitectureModel model = threeLayerModel();
         RuntimeFlow flow = inferrer.infer(model.entrypoints.get(0).id.serialize(), 5, model);
 
-        assertThat(flow.steps).allMatch(s -> s.componentType != null && !s.componentType.isEmpty());
+        assertThat(flow.steps).isNotEmpty().allMatch(s -> s.componentType != null && !s.componentType.isEmpty());
     }
 
     @Test
