@@ -6,7 +6,6 @@ import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * MCP tool that lists components matching optional application, type, and technology filters.
@@ -44,7 +43,7 @@ public class FindComponentsTool {
                             || (c.module != null && c.module.serialize().contains(appId)))
                     .filter(c -> typeFilter == null || matchesType(c.type, typeFilter))
                     .filter(c -> techFilter == null || techFilter.equalsIgnoreCase(c.technology))
-                    .collect(Collectors.toList());
+                    .toList();
 
             if (comps.isEmpty()) return "No components found matching the given criteria.";
 

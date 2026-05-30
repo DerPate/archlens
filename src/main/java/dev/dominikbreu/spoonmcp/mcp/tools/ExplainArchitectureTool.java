@@ -38,7 +38,7 @@ public class ExplainArchitectureTool {
             List<AppEntry> apps = model.applications.stream()
                     .filter(a ->
                             appFilter == null || a.id.serialize().contains(appFilter) || a.name.contains(appFilter))
-                    .collect(Collectors.toList());
+                    .toList();
 
             if (apps.isEmpty())
                 return "No applications found" + (appFilter != null ? " matching '" + appFilter + "'" : "") + ".";
@@ -57,7 +57,7 @@ public class ExplainArchitectureTool {
 
                 List<Component> comps = model.components.stream()
                         .filter(c -> app.componentIds.contains(c.id))
-                        .collect(Collectors.toList());
+                        .toList();
 
                 Map<String, List<Component>> byType = comps.stream().collect(Collectors.groupingBy(c -> c.type.name()));
 
@@ -70,7 +70,7 @@ public class ExplainArchitectureTool {
 
                 List<Entrypoint> eps = model.entrypoints.stream()
                         .filter(e -> comps.stream().anyMatch(c -> c.id.equals(e.componentId)))
-                        .collect(Collectors.toList());
+                        .toList();
 
                 if (!eps.isEmpty()) {
                     sb.append("- Entrypoints (").append(eps.size()).append("):\n");
@@ -85,7 +85,7 @@ public class ExplainArchitectureTool {
 
                 List<Container> containers = model.containers.stream()
                         .filter(c -> app.id.equals(c.appId))
-                        .collect(Collectors.toList());
+                        .toList();
 
                 if (!containers.isEmpty()) {
                     sb.append("- Layers: ")
@@ -105,7 +105,7 @@ public class ExplainArchitectureTool {
                                 .anyMatch(a -> a.componentIds.stream().anyMatch(id -> id.equals(d.toId)));
                         return fromVisible && toVisible;
                     })
-                    .collect(Collectors.toList());
+                    .toList();
 
             if (!deps.isEmpty()) {
                 sb.append("## Dependencies (").append(deps.size()).append(")\n\n");

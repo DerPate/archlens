@@ -32,7 +32,7 @@ public class MermaidFlowchartRenderer {
         List<AppEntry> apps = model.applications.stream()
                 .filter(a ->
                         appIdFilter == null || a.id.serialize().contains(appIdFilter) || a.name.contains(appIdFilter))
-                .collect(Collectors.toList());
+                .toList();
 
         return switch (lvl) {
             case "system" -> renderSystemLevel(apps, model);
@@ -226,7 +226,7 @@ public class MermaidFlowchartRenderer {
 
             List<Container> appContainers = model.containers.stream()
                     .filter(c -> app.id.equals(c.appId))
-                    .collect(Collectors.toList());
+                    .toList();
 
             for (Container container : appContainers) {
                 visibleContainers.add(container.id);
@@ -323,7 +323,7 @@ public class MermaidFlowchartRenderer {
 
             List<Container> appContainers = model.containers.stream()
                     .filter(c -> app.id.equals(c.appId))
-                    .collect(Collectors.toList());
+                    .toList();
 
             if (appContainers.isEmpty()) {
                 // No containers — flat list of components

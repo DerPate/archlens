@@ -40,7 +40,7 @@ public class InferContainersTool {
             List<Container> containers = model.containers.stream()
                     .filter(c -> appFilter == null
                             || (c.appId != null && c.appId.serialize().contains(appFilter)))
-                    .collect(Collectors.toList());
+                    .toList();
 
             if (containers.isEmpty()) return "No containers found. Re-run index_workspace to build containers.";
 

@@ -1042,7 +1042,7 @@ public class CallGraphExtractor {
         String key = compId.serialize() + "#" + method.getSimpleName();
         if (!entrypointParams.containsKey(key)) return;
         List<String> names =
-                method.getParameters().stream().map(CtParameter::getSimpleName).collect(Collectors.toList());
+                method.getParameters().stream().map(CtParameter::getSimpleName).toList();
         model.entrypoints.stream()
                 .filter(ep -> ep.componentId.equals(compId) && ep.name.equals(method.getSimpleName()))
                 .filter(ep -> ep.parameters.isEmpty())

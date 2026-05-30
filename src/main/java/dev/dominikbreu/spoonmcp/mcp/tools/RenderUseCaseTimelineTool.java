@@ -6,7 +6,6 @@ import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.renderer.MermaidUseCaseTimelineRenderer;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * MCP tool that renders a Mermaid gantt chart showing the sequential execution steps
@@ -54,7 +53,7 @@ public class RenderUseCaseTimelineTool {
                         .filter(f -> f.entrypointId != null
                                 && (f.entrypointId.serialize().equals(filter)
                                         || f.entrypointId.serialize().contains(filter)))
-                        .collect(Collectors.toList());
+                        .toList();
             } else if (epNameFilter != null) {
                 String methodFilter = RuntimeFlowInferrer.extractMethodFromRef(epNameFilter);
                 String pathFilter = RuntimeFlowInferrer.extractPathFromRef(epNameFilter);
@@ -77,7 +76,7 @@ public class RenderUseCaseTimelineTool {
                                     || (ep.channelName != null
                                             && ep.channelName.toLowerCase().contains(lower));
                         })
-                        .collect(Collectors.toList());
+                        .toList();
             }
 
             if (flows.isEmpty()) return "No matching use cases found.";
