@@ -52,7 +52,7 @@ class StdoutSpanExporterTest {
     @Test
     void childSpanOmitsTraceId() {
         Span parent = tracer.spanBuilder("extract").startSpan();
-        try (var ignored = parent.makeCurrent()) {
+        try (var _ = parent.makeCurrent()) {
             Span child = tracer.spanBuilder("pass1-scan").startSpan();
             child.end();
         } finally {

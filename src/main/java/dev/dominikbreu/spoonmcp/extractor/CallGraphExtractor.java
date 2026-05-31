@@ -12,7 +12,6 @@ import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
-import io.opentelemetry.context.Scope;
 import java.util.*;
 import java.util.stream.Collectors;
 import spoon.reflect.CtModel;
@@ -192,7 +191,7 @@ public class CallGraphExtractor {
      */
     public void extract(CtModel ctModel, ArchitectureModel model) {
         Span span = tracer().spanBuilder("callgraph.extract").startSpan();
-        try (Scope _ = span.makeCurrent()) {
+        try (var _ = span.makeCurrent()) {
             ExtractionContext ctx = new ExtractionContext(ComponentIndex.build(model.components));
             model.callEdges.forEach(edge -> ctx.addSeenId(edge.id));
             model.outboundSinkSites.forEach(site -> ctx.addSeenId(site.id));

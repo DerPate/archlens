@@ -11,7 +11,6 @@ import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
-import io.opentelemetry.context.Scope;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -90,11 +89,11 @@ public class PipelineGraphBuilder {
         }
         Tracer t = tracer();
         Span buildSpan = t.spanBuilder("pipeline.build").startSpan();
-        try (Scope _ = buildSpan.makeCurrent()) {
+        try (var _ = buildSpan.makeCurrent()) {
 
             WorkflowGraph workflowGraph;
             Span wfSpan = t.spanBuilder("pipeline.workflow-graph").startSpan();
-            try (Scope _ = wfSpan.makeCurrent()) {
+            try (var _ = wfSpan.makeCurrent()) {
                 workflowGraph = new WorkflowGraphBuilder().build(model);
                 wfSpan.setAttribute("roots", (long) workflowGraph.rootPaths().size());
                 wfSpan.setAttribute("links", (long) workflowGraph.totalLinks());
@@ -108,7 +107,7 @@ public class PipelineGraphBuilder {
 
             List<Chain> chains = new ArrayList<>();
             Span dfsSpan = t.spanBuilder("pipeline.dfs").startSpan();
-            try (Scope _ = dfsSpan.makeCurrent()) {
+            try (var _ = dfsSpan.makeCurrent()) {
                 PipelineWalk walk = new PipelineWalk(workflowGraph, chains, maxDepth);
                 for (DataFlowPath p : workflowGraph.rootPaths()) {
                     extend(new ArrayList<>(), p, null, null, walk, new LinkedHashSet<>(), new LinkedHashSet<>());
@@ -124,7 +123,7 @@ public class PipelineGraphBuilder {
 
             List<Chain> result;
             Span dedupSpan = t.spanBuilder("pipeline.dedup").startSpan();
-            try (Scope _ = dedupSpan.makeCurrent()) {
+            try (var _ = dedupSpan.makeCurrent()) {
                 result = removeDuplicateChains(removePrefixChains(chains));
                 dedupSpan.setAttribute("final-chains", (long) result.size());
             } catch (RuntimeException e) {

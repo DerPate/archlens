@@ -6,7 +6,6 @@ import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
-import io.opentelemetry.context.Scope;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -72,7 +71,7 @@ public class SpringExtractor {
 
     public void extract(Collection<CtType<?>> types, ArchitectureModel model, AppId appId) {
         Span span = tracer().spanBuilder("spring.extract").startSpan();
-        try (Scope _ = span.makeCurrent()) {
+        try (var _ = span.makeCurrent()) {
             Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> existingIds = new HashSet<>();
             for (Component component : model.components) existingIds.add(component.id);
 
