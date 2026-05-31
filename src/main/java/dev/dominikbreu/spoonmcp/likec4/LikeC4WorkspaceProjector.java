@@ -55,8 +55,18 @@ public final class LikeC4WorkspaceProjector {
                 .filter(LikeC4WorkspaceProjector::isPrimaryComponent)
                 .sorted(primaryComponentPriority())
                 .toList();
+        // Also force in direct injection targets of entrypoint-owning components so that
+        // services wired to a listener/controller always appear alongside their owner.
+        Set<GraphNodeId> candidateIds = ids(primaryCandidates);
+        Set<GraphNodeId> injectionTargets = graph.findEdgesBetween(
+                        union(entrypointComponentIds, candidateIds), Set.of("DEPENDS_ON")).stream()
+                .filter(edge -> entrypointComponentIds.contains(edge.fromId()))
+                .map(ArchitectureGraph.GraphEdge::toId)
+                .filter(candidateIds::contains)
+                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+        Set<GraphNodeId> allForcedIds = union(entrypointComponentIds, injectionTargets);
         List<ArchitectureGraph.GraphNode> primaryComponents =
-                selectPrimaryComponents(primaryCandidates, entrypointComponentIds, componentLimit);
+                selectPrimaryComponents(primaryCandidates, allForcedIds, componentLimit);
 
         Set<GraphNodeId> primaryIds = ids(primaryComponents);
         int supportingEntityBudget = supportingEntityBudget(nodeLimit, entrypoints.size(), primaryComponents.size());
