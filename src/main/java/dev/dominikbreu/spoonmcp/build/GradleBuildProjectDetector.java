@@ -98,7 +98,7 @@ public class GradleBuildProjectDetector implements BuildProjectDetector {
         try {
             if (firstFile.isFile()) return Files.readString(firstFile.toPath());
             if (secondFile.isFile()) return Files.readString(secondFile.toPath());
-        } catch (Exception ignored) {
+        } catch (Exception _) {
         }
         return "";
     }

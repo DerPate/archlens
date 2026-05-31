@@ -1013,7 +1013,7 @@ public class CallGraphExtractor {
             if (decl != null && decl.getDefaultExpression() instanceof CtLiteral<?> lit) {
                 return literalValue(lit);
             }
-        } catch (Exception ignored) {
+        } catch (Exception _) {
         }
         return null;
     }
@@ -1024,7 +1024,7 @@ public class CallGraphExtractor {
                     && local.getDefaultExpression() instanceof CtLiteral<?> lit) {
                 return literalValue(lit);
             }
-        } catch (Exception ignored) {
+        } catch (Exception _) {
         }
         return null;
     }

@@ -13,7 +13,7 @@ project:
     java:
       groupId: dev.dominikbreu.spoonmcp
       artifactId: spoon-mcp-server
-      version: 21
+      version: 25
       mainClass: dev.dominikbreu.spoonmcp.Main
 
 release:

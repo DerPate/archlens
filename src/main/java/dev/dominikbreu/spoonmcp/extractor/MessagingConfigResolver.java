@@ -84,7 +84,7 @@ public class MessagingConfigResolver {
                     flat = readYaml(file);
                 }
                 collect(flat, brokers, topics);
-            } catch (IOException ignored) {
+            } catch (IOException _) {
             }
         }
 
