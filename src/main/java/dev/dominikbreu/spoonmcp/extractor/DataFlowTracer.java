@@ -6,7 +6,6 @@ import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
-import io.opentelemetry.context.Scope;
 import java.util.*;
 import org.apache.commons.lang3.StringUtils;
 
@@ -66,7 +65,7 @@ public class DataFlowTracer {
 
     public List<DataFlowPath> trace(ArchitectureModel model, ModelIndex index) {
         Span span = tracer().spanBuilder("dataflow.trace").startSpan();
-        try (Scope _ = span.makeCurrent()) {
+        try (var _ = span.makeCurrent()) {
             List<DataFlowPath> result = new ArrayList<>();
 
             for (Entrypoint ep : model.entrypoints) {

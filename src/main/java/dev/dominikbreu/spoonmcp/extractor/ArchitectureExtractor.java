@@ -14,7 +14,6 @@ import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
-import io.opentelemetry.context.Scope;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.*;
@@ -62,13 +61,13 @@ public class ArchitectureExtractor {
         Span extractSpan = t.spanBuilder("extract")
                 .setAttribute("workspace-path", model.workspacePath)
                 .startSpan();
-        try (Scope _ = extractSpan.makeCurrent()) {
+        try (var _ = extractSpan.makeCurrent()) {
 
             List<ModuleWork> modules = collectAllModules(projectPaths, model);
 
             // Phase 1: lightweight scan — components + entrypoints only, one CtModel at a time
             Span pass1 = t.spanBuilder("pass1-scan").startSpan();
-            try (Scope _ = pass1.makeCurrent()) {
+            try (var _ = pass1.makeCurrent()) {
                 for (ModuleWork work : modules) {
                     CtModel ctModel = buildCtModel(work.module(), "pass1-scan");
                     work.ctModel = ctModel;
@@ -98,7 +97,7 @@ public class ArchitectureExtractor {
 
             // Phase 2: enrich the component registry using the pass-1 Spoon models.
             Span pass2 = t.spanBuilder("pass2-enrichment").startSpan();
-            try (Scope _ = pass2.makeCurrent()) {
+            try (var _ = pass2.makeCurrent()) {
                 for (ModuleWork work : modules) {
                     CtModel ctModel = work.ctModel;
                     if (ctModel == null) {
@@ -127,7 +126,7 @@ public class ArchitectureExtractor {
 
             // Pass 2c: data-flow tracing — parameter propagation to sinks
             Span pass2c = t.spanBuilder("pass2c-dataflow").startSpan();
-            try (Scope _ = pass2c.makeCurrent()) {
+            try (var _ = pass2c.makeCurrent()) {
                 List<DataFlowPath> paths = dataFlowTracer.trace(model, modelIndex);
                 model.dataFlowPaths.addAll(paths);
                 pass2c.setAttribute("paths-found", (long) paths.size());
@@ -141,7 +140,7 @@ public class ArchitectureExtractor {
 
             // Pass 3-4: container inference + runtime flows
             Span pass34 = t.spanBuilder("pass3-4-runtime").startSpan();
-            try (Scope _ = pass34.makeCurrent()) {
+            try (var _ = pass34.makeCurrent()) {
                 model.containers.addAll(containerInferrer.infer(model.components));
                 externalSystemInferrer.infer(model);
                 for (Entrypoint entrypoint : model.entrypoints) {
@@ -178,7 +177,7 @@ public class ArchitectureExtractor {
                 .setAttribute("module", module.name())
                 .setAttribute("source-roots", (long) module.sourceRoots().size())
                 .startSpan();
-        try (Scope _ = span.makeCurrent()) {
+        try (var _ = span.makeCurrent()) {
             Launcher launcher = new Launcher();
             launcher.getEnvironment().setNoClasspath(true);
             launcher.getEnvironment().setAutoImports(true);
@@ -200,7 +199,7 @@ public class ArchitectureExtractor {
         Span span = tracer().spanBuilder("dependency.extract")
                 .setAttribute("module", module.name())
                 .startSpan();
-        try (Scope _ = span.makeCurrent()) {
+        try (var _ = span.makeCurrent()) {
             dependencyExtractor.extract(ctModel, model);
         } catch (RuntimeException e) {
             span.recordException(e);
