@@ -72,7 +72,7 @@ public class SpringExtractor {
 
     public void extract(Collection<CtType<?>> types, ArchitectureModel model, AppId appId) {
         Span span = tracer().spanBuilder("spring.extract").startSpan();
-        try (Scope scope = span.makeCurrent()) {
+        try (Scope _ = span.makeCurrent()) {
             Set<dev.dominikbreu.spoonmcp.model.ids.ComponentId> existingIds = new HashSet<>();
             for (Component component : model.components) existingIds.add(component.id);
 

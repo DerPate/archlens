@@ -327,7 +327,7 @@ public class ExportGraphArchitecturePocTool {
         }
         try {
             return Integer.parseInt(value.toString());
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             return 0;
         }
     }
@@ -356,7 +356,7 @@ public class ExportGraphArchitecturePocTool {
         }
         try {
             return Double.parseDouble(value.toString());
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             return 0.0d;
         }
     }

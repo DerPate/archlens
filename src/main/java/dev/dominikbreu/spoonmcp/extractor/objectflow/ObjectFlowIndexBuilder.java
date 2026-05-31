@@ -52,7 +52,7 @@ public class ObjectFlowIndexBuilder {
 
     public ObjectFlowIndex build(CtModel ctModel, ArchitectureModel architecture, SourceFactIndex sourceFacts) {
         Span span = tracer().spanBuilder("objectflow.build").startSpan();
-        try (Scope scope = span.makeCurrent()) {
+        try (Scope _ = span.makeCurrent()) {
             Map<String, Component> componentByQualifiedName = componentByQualifiedName(architecture);
             span.setAttribute("components", componentByQualifiedName.size());
 
@@ -101,7 +101,7 @@ public class ObjectFlowIndexBuilder {
             Map<String, Component> componentByQualifiedName,
             Map<String, ObjectFlowIndex.TypeFact> types) {
         Span span = tracer().spanBuilder("objectflow.type-index").startSpan();
-        try (Scope scope = span.makeCurrent()) {
+        try (Scope _ = span.makeCurrent()) {
             long projectTypes = 0;
             long abstractOrInterfaceCount = 0;
             for (SourceType sourceType : sourceFacts.types()) {
@@ -133,7 +133,7 @@ public class ObjectFlowIndexBuilder {
             Map<String, Component> componentByQualifiedName,
             Map<String, ObjectFlowIndex.TypeFact> types) {
         Span span = tracer().spanBuilder("objectflow.type-index").startSpan();
-        try (Scope scope = span.makeCurrent()) {
+        try (Scope _ = span.makeCurrent()) {
             long abstractOrInterfaceCount = 0;
             for (CtType<?> type : projectTypes) {
                 Component component = componentByQualifiedName.get(type.getQualifiedName());
@@ -163,7 +163,7 @@ public class ObjectFlowIndexBuilder {
             Map<String, ObjectFlowIndex.TypeFact> types,
             Map<String, List<ObjectFlowIndex.TypeFact>> implementations) {
         Span span = tracer().spanBuilder("objectflow.implementation-index").startSpan();
-        try (Scope scope = span.makeCurrent()) {
+        try (Scope _ = span.makeCurrent()) {
             long concreteTypes = 0;
             long supertypeEdges = 0;
             long implementationLinks = 0;
@@ -202,7 +202,7 @@ public class ObjectFlowIndexBuilder {
             Map<String, ObjectFlowIndex.TypeFact> types,
             Map<String, List<ObjectFlowIndex.TypeFact>> implementations) {
         Span span = tracer().spanBuilder("objectflow.implementation-index").startSpan();
-        try (Scope scope = span.makeCurrent()) {
+        try (Scope _ = span.makeCurrent()) {
             long implementationLinks = 0;
             long duplicateImplementationLinks = 0;
             long supertypeEdges = 0;
@@ -242,7 +242,7 @@ public class ObjectFlowIndexBuilder {
             Map<String, ObjectFlowIndex.TypeFact> types,
             Map<String, List<ObjectFlowIndex.TypeFact>> implementations) {
         Span span = tracer().spanBuilder("objectflow.receiver-targets").startSpan();
-        try (Scope scope = span.makeCurrent()) {
+        try (Scope _ = span.makeCurrent()) {
             ObjectFlowIndex typeIndex = new ObjectFlowIndex(types, implementations);
             Map<CtInvocation<?>, List<ReceiverTarget>> targets = new IdentityHashMap<>();
             ReceiverResolutionStats stats = new ReceiverResolutionStats();
@@ -570,7 +570,7 @@ public class ObjectFlowIndexBuilder {
 
     private static Map<String, Component> componentByQualifiedName(ArchitectureModel architecture) {
         Span span = tracer().spanBuilder("objectflow.component-index").startSpan();
-        try (Scope scope = span.makeCurrent()) {
+        try (Scope _ = span.makeCurrent()) {
             Map<String, Component> components = new LinkedHashMap<>();
             for (Component component : architecture.components) {
                 if (StringUtils.isNotBlank(component.qualifiedName)) {

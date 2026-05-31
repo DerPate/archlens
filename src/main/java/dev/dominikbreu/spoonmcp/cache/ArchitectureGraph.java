@@ -1121,7 +1121,7 @@ public class ArchitectureGraph {
                 case ">=" -> actualNumber >= expectedNumber;
                 default -> false;
             };
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             return false;
         }
     }

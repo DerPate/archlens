@@ -192,7 +192,7 @@ public class CallGraphExtractor {
      */
     public void extract(CtModel ctModel, ArchitectureModel model) {
         Span span = tracer().spanBuilder("callgraph.extract").startSpan();
-        try (Scope scope = span.makeCurrent()) {
+        try (Scope _ = span.makeCurrent()) {
             ExtractionContext ctx = new ExtractionContext(ComponentIndex.build(model.components));
             model.callEdges.forEach(edge -> ctx.addSeenId(edge.id));
             model.outboundSinkSites.forEach(site -> ctx.addSeenId(site.id));

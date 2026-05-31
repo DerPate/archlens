@@ -85,7 +85,7 @@ public class FindComponentsTool {
     private boolean matchesType(ComponentType type, String filter) {
         try {
             return type == ComponentType.valueOf(filter.toUpperCase());
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             return type.name().toLowerCase().contains(filter.toLowerCase());
         }
     }

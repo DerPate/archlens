@@ -80,7 +80,7 @@ public class FindEntrypointsTool {
     private boolean matchesType(EntrypointType type, String filter) {
         try {
             return type == EntrypointType.valueOf(filter.toUpperCase());
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             return type.name().toLowerCase().contains(filter.toLowerCase());
         }
     }
