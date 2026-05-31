@@ -40,23 +40,9 @@ public class DetectUseCasesTool {
             ArchitectureModel model = cache.load();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
 
-            String configFile = ToolArgs.getString(args, "configFile");
-            UseCaseNamingConfig config;
-            if (configFile == null) {
-                config = UseCaseNamingConfig.empty();
-            } else {
-                try {
-                    config = UseCaseNamingConfig.loadFrom(mapper, configFile);
-                } catch (Exception e) {
-                    String msg;
-                    if (e.getMessage() != null) {
-                        msg = e.getMessage();
-                    } else {
-                        msg = e.getClass().getSimpleName();
-                    }
-                    return "Error: could not load naming config — " + msg;
-                }
-            }
+            ConfigResult configResult = resolveConfig(ToolArgs.getString(args, "configFile"));
+            if (configResult.error() != null) return configResult.error();
+            UseCaseNamingConfig config = configResult.config();
 
             String filterModule = ToolArgs.getString(args, "module");
             int maxDepth = ToolArgs.getInt(args, "maxDepth", 5);
@@ -72,6 +58,21 @@ public class DetectUseCasesTool {
             return format(useCases, model, maxDepth);
         } catch (Exception e) {
             return "Error detecting use cases: " + e.getMessage();
+        }
+    }
+
+    /** Resolved naming config, or a user-facing error string when loading failed. */
+    private record ConfigResult(UseCaseNamingConfig config, String error) {}
+
+    private ConfigResult resolveConfig(String configFile) {
+        if (configFile == null) {
+            return new ConfigResult(UseCaseNamingConfig.empty(), null);
+        }
+        try {
+            return new ConfigResult(UseCaseNamingConfig.loadFrom(mapper, configFile), null);
+        } catch (Exception e) {
+            String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            return new ConfigResult(null, "Error: could not load naming config — " + msg);
         }
     }
 
