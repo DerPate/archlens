@@ -1,9 +1,12 @@
 package dev.dominikbreu.spoonmcp.renderer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.dominikbreu.spoonmcp.likec4.LikeC4Document;
+import dev.dominikbreu.spoonmcp.likec4.LikeC4DynamicStep;
+import dev.dominikbreu.spoonmcp.likec4.LikeC4DynamicView;
 import dev.dominikbreu.spoonmcp.likec4.LikeC4Element;
 import dev.dominikbreu.spoonmcp.likec4.LikeC4Relationship;
 import dev.dominikbreu.spoonmcp.likec4.LikeC4View;
@@ -123,7 +126,8 @@ class LikeC4ModelRendererTest {
                                 List.of("system:Billing", "component:InvoiceService"),
                                 List.of("Generated from starter workspace")),
                         new LikeC4View("everything", "Everything", List.of(), List.of())),
-                List.of("Unresolved dependency ClassPath"));
+                List.of("Unresolved dependency ClassPath"),
+                List.of());
 
         String likec4 = new LikeC4ModelRenderer().render(document);
 
@@ -198,6 +202,7 @@ class LikeC4ModelRendererTest {
                         new LikeC4Element("foo_bar", "component", "Second", "source:second", Map.of())),
                 List.of(new LikeC4Relationship("foo-bar", "foo_bar", "calls", "", Map.of())),
                 List.of(new LikeC4View("collisions", "Collisions", List.of("foo-bar", "foo_bar"), List.of())),
+                List.of(),
                 List.of());
 
         String likec4 = new LikeC4ModelRenderer().render(document);
@@ -210,13 +215,53 @@ class LikeC4ModelRendererTest {
     }
 
     @Test
+    void rendersDynamicViewsInsideViewsBlock() {
+        LikeC4Document document = new LikeC4Document(
+                List.of("component", "queue"),
+                List.of(
+                        new LikeC4Element("comp:OrderService", "component", "OrderService", "comp:OrderService", Map.of()),
+                        new LikeC4Element("topic:KAFKA:orders", "queue", "orders", "topic:KAFKA:orders", Map.of("broker", "KAFKA"))),
+                List.of(),
+                List.of(new LikeC4View("component", "Component", List.of("comp:OrderService"), List.of())),
+                List.of(),
+                List.of(new LikeC4DynamicView(
+                        "kafka_flow",
+                        "KAFKA Message Flow",
+                        List.of(new LikeC4DynamicStep(
+                                "topic:KAFKA:orders", "comp:OrderService", "consumes orders")))));
+
+        String likec4 = new LikeC4ModelRenderer().render(document);
+
+        assertTrue(likec4.contains("dynamic view kafka_flow {"), likec4);
+        assertTrue(likec4.contains("title 'KAFKA Message Flow'"), likec4);
+        assertTrue(likec4.contains("-> comp_orderservice 'consumes orders'"), likec4);
+        assertTrue(likec4.contains("topic_kafka_orders ->"), likec4);
+    }
+
+    @Test
+    void omitsDynamicViewsBlockWhenNoDynamicViewsExist() {
+        LikeC4Document document = new LikeC4Document(
+                List.of("component"),
+                List.of(new LikeC4Element("comp:A", "component", "A", "comp:A", Map.of())),
+                List.of(),
+                List.of(new LikeC4View("context", "Context", List.of("comp:A"), List.of())),
+                List.of(),
+                List.of());
+
+        String likec4 = new LikeC4ModelRenderer().render(document);
+
+        assertFalse(likec4.contains("dynamic view"), likec4);
+    }
+
+    @Test
     void commentsEveryPhysicalLineOfWarningsAndViewNotes() {
         LikeC4Document document = new LikeC4Document(
                 List.of("component"),
                 List.of(),
                 List.of(),
                 List.of(new LikeC4View("injection", "Injection", List.of(), List.of("first note\ninclude malicious"))),
-                List.of("first warning\nmodel { injected }"));
+                List.of("first warning\nmodel { injected }"),
+                List.of());
 
         String likec4 = new LikeC4ModelRenderer().render(document);
 

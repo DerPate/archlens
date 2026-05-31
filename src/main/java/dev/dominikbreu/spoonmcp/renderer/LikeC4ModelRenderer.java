@@ -1,6 +1,8 @@
 package dev.dominikbreu.spoonmcp.renderer;
 
 import dev.dominikbreu.spoonmcp.likec4.LikeC4Document;
+import dev.dominikbreu.spoonmcp.likec4.LikeC4DynamicStep;
+import dev.dominikbreu.spoonmcp.likec4.LikeC4DynamicView;
 import dev.dominikbreu.spoonmcp.likec4.LikeC4Element;
 import dev.dominikbreu.spoonmcp.likec4.LikeC4Relationship;
 import dev.dominikbreu.spoonmcp.likec4.LikeC4View;
@@ -86,7 +88,25 @@ public final class LikeC4ModelRenderer {
         for (LikeC4View view : document.views()) {
             appendView(sb, view, aliases);
         }
+        for (LikeC4DynamicView dynamicView : document.dynamicViews()) {
+            appendDynamicView(sb, dynamicView, aliases);
+        }
         sb.append("}\n");
+    }
+
+    private void appendDynamicView(StringBuilder sb, LikeC4DynamicView view, Map<String, String> aliases) {
+        sb.append("  dynamic view ").append(identifier(view.id())).append(" {\n");
+        sb.append("    title '").append(escape(view.title())).append("'\n");
+        for (LikeC4DynamicStep step : view.steps()) {
+            sb.append("    ")
+                    .append(aliasFor(step.sourceId(), aliases))
+                    .append(" -> ")
+                    .append(aliasFor(step.targetId(), aliases))
+                    .append(" '")
+                    .append(escape(step.title()))
+                    .append("'\n");
+        }
+        sb.append(INDENT_BLOCK_END);
     }
 
     private void appendView(StringBuilder sb, LikeC4View view, Map<String, String> aliases) {
