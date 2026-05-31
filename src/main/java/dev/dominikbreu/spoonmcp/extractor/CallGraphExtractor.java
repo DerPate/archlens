@@ -405,7 +405,7 @@ public class CallGraphExtractor {
         // Only meaningful when there are at least 2 arguments; single-argument writes
         // (add, offer, push, …) have no separate key position.
         if (args.size() < 2) return null;
-        CtExpression<?> first = args.get(0);
+        CtExpression<?> first = args.getFirst();
         if (first instanceof CtVariableRead<?> vr) {
             return vr.getVariable().getSimpleName();
         } else {
@@ -418,7 +418,7 @@ public class CallGraphExtractor {
         // Only inspect the last argument (value position for put/set/add etc.).
         // Falling back to earlier arguments would confuse the key with the value
         // for calls like put(key, someInvocation()).
-        CtExpression<?> last = args.get(args.size() - 1);
+        CtExpression<?> last = args.getLast();
         if (last instanceof CtVariableRead<?> vr) {
             return vr.getVariable().getSimpleName();
         } else {
@@ -428,7 +428,7 @@ public class CallGraphExtractor {
 
     private static String lastFieldReadName(List<spoon.reflect.code.CtExpression<?>> args) {
         if (args.isEmpty()) return null;
-        CtExpression<?> last = args.get(args.size() - 1);
+        CtExpression<?> last = args.getLast();
         if (last instanceof spoon.reflect.code.CtFieldRead<?> fr) {
             return fr.getVariable().getSimpleName();
         } else {
@@ -609,7 +609,7 @@ public class CallGraphExtractor {
                 .distinct()
                 .toList();
         if (implementationComponents.size() == 1) {
-            return implementationComponents.get(0);
+            return implementationComponents.getFirst();
         } else {
             return null;
         }

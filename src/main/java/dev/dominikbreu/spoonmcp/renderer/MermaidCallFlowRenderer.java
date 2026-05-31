@@ -76,7 +76,7 @@ public class MermaidCallFlowRenderer {
     private void appendClientEdge(
             StringBuilder sb, List<RuntimeFlowStep> steps, Entrypoint ep, Map<String, String> pidMap) {
         if (steps.isEmpty()) return;
-        RuntimeFlowStep first = steps.get(0);
+        RuntimeFlowStep first = steps.getFirst();
         String firstKey = first.componentId != null ? first.componentId.serialize() : first.componentName;
         sb.append("    Client -->|")
                 .append(escape(entrypointLabel(ep)))

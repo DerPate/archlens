@@ -103,12 +103,12 @@ public class EventBusExtractor {
         if (!"EventBus".equals(targetType.getSimpleName())) return;
         if (inv.getArguments().isEmpty()) return;
 
-        String address = literalString(inv.getArguments().get(0));
+        String address = literalString(inv.getArguments().getFirst());
         CtLambda<?> lambda = findHandlerLambda(inv);
         if (address == null || lambda == null) return;
         String paramName = lambda.getParameters().isEmpty()
                 ? "message"
-                : lambda.getParameters().get(0).getSimpleName();
+                : lambda.getParameters().getFirst().getSimpleName();
 
         dev.dominikbreu.spoonmcp.model.ids.ComponentId compId =
                 dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName());
@@ -205,7 +205,7 @@ public class EventBusExtractor {
                 // Extract the generic type parameter (the event payload type)
                 List<CtTypeReference<?>> args = field.getType().getActualTypeArguments();
                 if (!args.isEmpty()) {
-                    firedEventTypes.add(args.get(0).getSimpleName());
+                    firedEventTypes.add(args.getFirst().getSimpleName());
                 } else {
                     firedEventTypes.add("UnknownEvent");
                 }

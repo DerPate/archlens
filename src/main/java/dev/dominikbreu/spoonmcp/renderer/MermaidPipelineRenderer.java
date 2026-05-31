@@ -125,7 +125,7 @@ public class MermaidPipelineRenderer {
         } else if (seg.path.steps.isEmpty()) {
             headerComponentName = "?";
         } else {
-            headerComponentName = seg.path.steps.get(0).componentName;
+            headerComponentName = seg.path.steps.getFirst().componentName;
         }
         ComponentType headerType = headerComp != null ? headerComp.type : null;
         String headerLabel = headerComponentName + (ep != null && ep.name != null ? "." + ep.name : "");

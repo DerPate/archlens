@@ -306,7 +306,7 @@ public class ArchitectureGraph {
             if (state.nodeIds.size() > depthLimit + 1) {
                 continue;
             }
-            if (state.nodeId.equals(toId) && state.edgeLabels.size() > 0) {
+            if (state.nodeId.equals(toId) && !state.edgeLabels.isEmpty()) {
                 paths.add(toPath(state));
                 continue;
             }
@@ -672,7 +672,7 @@ public class ArchitectureGraph {
     }
 
     private void addChainVertex(String chainId, Chain chain) {
-        Segment root = chain.segments.get(0);
+        Segment root = chain.segments.getFirst();
         String rootEpId =
                 (root.path != null && root.path.entrypointId != null) ? root.path.entrypointId.serialize() : "";
         Vertex vertex = addVertex(chainId, "PipelineChain", chainId);
@@ -682,7 +682,7 @@ public class ArchitectureGraph {
         StringBuilder linkKinds = new StringBuilder();
         for (int i = 1; i < chain.segments.size(); i++) {
             DataFlowSink in = chain.segments.get(i).incomingSink;
-            if (linkKinds.length() > 0) linkKinds.append(',');
+            if (!linkKinds.isEmpty()) linkKinds.append(',');
             linkKinds.append(in != null && in.kind != null ? in.kind.value() : "");
         }
         set(vertex, "linkKinds", linkKinds.toString());

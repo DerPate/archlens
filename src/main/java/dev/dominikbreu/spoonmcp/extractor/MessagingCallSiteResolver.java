@@ -128,7 +128,7 @@ public class MessagingCallSiteResolver {
                 && tf.role() == Role.CONSUMER
                 && KAFKA_SUBSCRIBE_METHODS.contains(methodName)
                 && !inv.getArguments().isEmpty()) {
-            List<String> topics = resolveCollectionOfStrings(inv.getArguments().get(0));
+            List<String> topics = resolveCollectionOfStrings(inv.getArguments().getFirst());
             if (topics.isEmpty()) {
                 out.add(new Finding(fieldName, MessagingBroker.KAFKA, Role.CONSUMER, UNRESOLVED, line(inv)));
             } else {
@@ -190,9 +190,9 @@ public class MessagingCallSiteResolver {
 
     private String resolveKafkaSendTopic(CtInvocation<?> sendInv) {
         if (sendInv.getArguments().isEmpty()) return UNRESOLVED;
-        CtExpression<?> arg = sendInv.getArguments().get(0);
+        CtExpression<?> arg = sendInv.getArguments().getFirst();
         if (arg instanceof CtConstructorCall<?> ctor && !ctor.getArguments().isEmpty()) {
-            String resolved = resolveString(ctor.getArguments().get(0));
+            String resolved = resolveString(ctor.getArguments().getFirst());
             if (resolved != null) {
                 return resolved;
             } else {
