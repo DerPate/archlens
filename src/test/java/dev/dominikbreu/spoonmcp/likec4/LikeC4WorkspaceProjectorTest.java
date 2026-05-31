@@ -14,6 +14,7 @@ import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
+import dev.dominikbreu.spoonmcp.model.MessagingBroker;
 import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import dev.dominikbreu.spoonmcp.model.ids.DependencyId;
@@ -237,6 +238,74 @@ class LikeC4WorkspaceProjectorTest {
         }
     }
 
+    @Test
+    void projectsMessagingEntrypointsAsDynamicBrokerFlowViews() {
+        ArchitectureModel model = new ArchitectureModel("broker-flow-fixture");
+        AppEntry app = new AppEntry();
+        app.id = AppId.of("app:orders");
+        app.name = "orders";
+
+        Component listener = component("OrderListener", ComponentType.SERVICE);
+        Component notifier = component("PaymentNotifier", ComponentType.SERVICE);
+
+        app.componentIds.addAll(List.of(listener.id, notifier.id));
+        model.applications.add(app);
+        model.components.addAll(List.of(listener, notifier));
+
+        Entrypoint consumer = messagingEntrypoint("onOrder", EntrypointType.MESSAGING_CONSUMER, MessagingBroker.KAFKA, "orders", listener.id);
+        Entrypoint producer = messagingEntrypoint("sendPayment", EntrypointType.MESSAGING_PRODUCER, MessagingBroker.KAFKA, "payments", notifier.id);
+        model.entrypoints.addAll(List.of(consumer, producer));
+
+        ArchitectureGraph graph = new ArchitectureGraph();
+        graph.rebuild(model);
+
+        LikeC4Document document = new LikeC4WorkspaceProjector().projectWorkspace(graph, model, app, 8);
+
+        assertFalse(document.dynamicViews().isEmpty(), "expected dynamic views for messaging entrypoints");
+
+        LikeC4DynamicView kafkaFlow = document.dynamicViews().stream()
+                .filter(v -> v.id().toLowerCase().contains("kafka"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("no kafka dynamic view in: " + document.dynamicViews()));
+
+        assertFalse(kafkaFlow.steps().isEmpty(), "expected steps in kafka dynamic view");
+
+        assertTrue(document.elementKinds().contains("queue"), "expected queue kind for topic elements: " + document.elementKinds());
+
+        boolean hasQueueElement = document.elements().stream().anyMatch(e -> "queue".equals(e.kind()));
+        assertTrue(hasQueueElement, "expected queue element in document elements");
+
+        boolean hasConsumerStep = kafkaFlow.steps().stream()
+                .anyMatch(step -> listener.id.serialize().equals(step.targetId()));
+        assertTrue(hasConsumerStep, "expected consumer step targeting OrderListener in: " + kafkaFlow.steps());
+
+        boolean hasProducerStep = kafkaFlow.steps().stream()
+                .anyMatch(step -> notifier.id.serialize().equals(step.sourceId()));
+        assertTrue(hasProducerStep, "expected producer step from PaymentNotifier in: " + kafkaFlow.steps());
+    }
+
+    @Test
+    void producesNoDynamicViewsWhenNoMessagingEntrypoints() {
+        ArchitectureModel model = new ArchitectureModel("rest-only-fixture");
+        AppEntry app = new AppEntry();
+        app.id = AppId.of("app:rest");
+        app.name = "rest";
+
+        Component controller = component("OrderController", ComponentType.REST_RESOURCE);
+        app.componentIds.add(controller.id);
+        model.applications.add(app);
+        model.components.add(controller);
+        model.entrypoints.add(entrypoint("createOrder", EntrypointType.REST_ENDPOINT, "POST", "/orders", controller.id));
+
+        ArchitectureGraph graph = new ArchitectureGraph();
+        graph.rebuild(model);
+
+        LikeC4Document document = new LikeC4WorkspaceProjector().projectWorkspace(graph, model, app, 8);
+
+        assertTrue(document.dynamicViews().isEmpty(), "expected no dynamic views for REST-only app");
+        assertFalse(document.elementKinds().contains("queue"), "expected no queue kind for REST-only app");
+    }
+
     private static LikeC4View view(LikeC4Document document, String id) {
         LikeC4View view = document.views().stream()
                 .filter(candidate -> id.equals(candidate.id()))
@@ -285,6 +354,18 @@ class LikeC4WorkspaceProjectorTest {
         } else if (type == EntrypointType.MESSAGING_CONSUMER) {
             entrypoint.channelName = pathOrChannel;
         }
+        return entrypoint;
+    }
+
+    private static Entrypoint messagingEntrypoint(
+            String name, EntrypointType type, MessagingBroker broker, String channelName, ComponentId componentId) {
+        Entrypoint entrypoint = new Entrypoint();
+        entrypoint.id = EntrypointId.of(componentId, name, broker.name() + ":" + channelName);
+        entrypoint.name = name;
+        entrypoint.type = type;
+        entrypoint.componentId = componentId;
+        entrypoint.broker = broker;
+        entrypoint.channelName = channelName;
         return entrypoint;
     }
 }

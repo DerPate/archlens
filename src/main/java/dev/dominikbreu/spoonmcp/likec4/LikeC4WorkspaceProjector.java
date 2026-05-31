@@ -14,6 +14,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public final class LikeC4WorkspaceProjector {
 
@@ -33,6 +34,9 @@ public final class LikeC4WorkspaceProjector {
             "CDI_EVENT_PRODUCER",
             "REMOTE_SERVICE",
             "REPOSITORY");
+
+    private static final Set<String> MESSAGING_ENTRYPOINT_TYPES =
+            Set.of("MESSAGING_CONSUMER", "MESSAGING_PRODUCER", "JMS_CONSUMER");
 
     public LikeC4WorkspaceProjector() {
         // Public constructor for MCP tool wiring.
@@ -124,10 +128,19 @@ public final class LikeC4WorkspaceProjector {
                                 Map.of("label", edge.label())))
                         .toList();
 
+        List<LikeC4DynamicView> dynamicViews = projectMessageBrokerFlows(entrypoints);
+        List<LikeC4Element> topicElements = topicElementsFor(dynamicViews);
+
         List<LikeC4Element> elements = new ArrayList<>();
         elements.add(system);
         elements.addAll(entrypointElements);
         elements.addAll(components);
+        elements.addAll(topicElements);
+
+        List<String> baseKinds = new ArrayList<>(List.of("system", "entrypoint", "component"));
+        if (!topicElements.isEmpty()) {
+            baseKinds.add("queue");
+        }
 
         List<String> systemIds = List.of(system.id());
         List<String> primaryComponentIds =
@@ -154,14 +167,100 @@ public final class LikeC4WorkspaceProjector {
                 : List.of("Includes supporting entity components connected to selected architecture nodes");
 
         return new LikeC4Document(
-                List.of("system", "entrypoint", "component"),
+                List.copyOf(baseKinds),
                 elements,
                 concat(entrypointRelationships, relationships),
                 List.of(
                         new LikeC4View("context", "Context", systemIds, List.of()),
                         new LikeC4View("container", "Container", containerIds, List.of()),
                         new LikeC4View("component", "Component", componentViewIds, componentNotes)),
-                warnings);
+                warnings,
+                dynamicViews);
+    }
+
+    private static List<LikeC4DynamicView> projectMessageBrokerFlows(List<ArchitectureGraph.GraphNode> entrypoints) {
+        List<ArchitectureGraph.GraphNode> messagingNodes = entrypoints.stream()
+                .filter(node -> MESSAGING_ENTRYPOINT_TYPES.contains(entrypointTypeOf(node)))
+                .toList();
+        if (messagingNodes.isEmpty()) {
+            return List.of();
+        }
+
+        Map<String, List<ArchitectureGraph.GraphNode>> byBroker = messagingNodes.stream()
+                .collect(Collectors.groupingBy(
+                        node -> brokerOf(node), LinkedHashMap::new, Collectors.toList()));
+
+        List<LikeC4DynamicView> views = new ArrayList<>();
+        for (Map.Entry<String, List<ArchitectureGraph.GraphNode>> entry : byBroker.entrySet()) {
+            String broker = entry.getKey();
+            List<ArchitectureGraph.GraphNode> nodes = entry.getValue();
+
+            List<LikeC4DynamicStep> steps = new ArrayList<>();
+            for (ArchitectureGraph.GraphNode node : nodes) {
+                String type = entrypointTypeOf(node);
+                String channel = channelOf(node);
+                String topicId = topicNodeId(broker, channel);
+                String ownerComponentId = componentId(node).value();
+                if (ownerComponentId.isBlank()) {
+                    continue;
+                }
+                if ("MESSAGING_CONSUMER".equals(type) || "JMS_CONSUMER".equals(type)) {
+                    steps.add(new LikeC4DynamicStep(topicId, ownerComponentId, "consumes " + channel));
+                } else if ("MESSAGING_PRODUCER".equals(type)) {
+                    steps.add(new LikeC4DynamicStep(ownerComponentId, topicId, "publishes to " + channel));
+                }
+            }
+
+            if (!steps.isEmpty()) {
+                String viewId = broker.toLowerCase() + "_flow";
+                String viewTitle = broker + " Message Flow";
+                views.add(new LikeC4DynamicView(viewId, viewTitle, steps));
+            }
+        }
+        return views;
+    }
+
+    private static List<LikeC4Element> topicElementsFor(List<LikeC4DynamicView> dynamicViews) {
+        Set<String> seen = new LinkedHashSet<>();
+        List<LikeC4Element> elements = new ArrayList<>();
+        for (LikeC4DynamicView view : dynamicViews) {
+            for (LikeC4DynamicStep step : view.steps()) {
+                collectTopicId(step.sourceId(), seen, elements);
+                collectTopicId(step.targetId(), seen, elements);
+            }
+        }
+        return elements;
+    }
+
+    private static void collectTopicId(String id, Set<String> seen, List<LikeC4Element> elements) {
+        if (id.startsWith("topic:") && seen.add(id)) {
+            String[] parts = id.split(":", 3);
+            String broker = parts.length > 1 ? parts[1] : "";
+            String channel = parts.length > 2 ? parts[2] : id;
+            String title = channel.isBlank() ? id : channel;
+            elements.add(new LikeC4Element(id, "queue", title, id, Map.of("broker", broker)));
+        }
+    }
+
+    private static String topicNodeId(String broker, String channel) {
+        return "topic:" + broker + ":" + channel;
+    }
+
+    private static String entrypointTypeOf(ArchitectureGraph.GraphNode node) {
+        return String.valueOf(node.properties().getOrDefault("entrypointType", ""));
+    }
+
+    private static String brokerOf(ArchitectureGraph.GraphNode node) {
+        String broker = String.valueOf(node.properties().getOrDefault("broker", "")).trim();
+        return broker.isBlank() ? "UNKNOWN" : broker;
+    }
+
+    private static String channelOf(ArchitectureGraph.GraphNode node) {
+        String channel = String.valueOf(node.properties().getOrDefault("channelName", "")).trim();
+        if (!channel.isBlank()) {
+            return channel;
+        }
+        return String.valueOf(node.properties().getOrDefault("topic", "")).trim();
     }
 
     private static List<ArchitectureGraph.GraphNode> scopedComponents(
