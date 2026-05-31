@@ -32,6 +32,70 @@ release:
     changelog:
       enabled: true
       formatted: ALWAYS
+      preset: conventional-commits
+      skipMergeCommits: true
+      format: "- {{conventionalCommitDescription}}"
+      categoryTitleFormat: "### {{categoryTitle}}"
+      hide:
+        uncategorized: true
+        categories:
+          - merge
+          - changes
+          - test
+          - tasks
+          - build
+          - docs
+        contributors:
+          - "Copilot"
+          - "\\[bot\\]"
+      categories:
+        - title: "Features"
+          key: features
+          labels:
+            - feat
+            - feature
+            - enhancement
+          order: 1
+        - title: "Fixes"
+          key: fixes
+          labels:
+            - fix
+            - bug
+          order: 2
+        - title: "Documentation"
+          key: documentation
+          labels:
+            - docs
+          order: 3
+        - title: "Maintenance"
+          key: maintenance
+          labels:
+            - build
+            - chore
+            - perf
+            - refactor
+            - style
+            - test
+          order: 4
+      labelers:
+        - label: feat
+          title: "feat:"
+        - label: fix
+          title: "fix:"
+        - label: docs
+          title: "docs:"
+        - label: build
+          title: "build:"
+        - label: chore
+          title: "chore:"
+        - label: refactor
+          title: "refactor:"
+        - label: test
+          title: "test:"
+        - label: perf
+          title: "perf:"
+        - label: style
+          title: "style:"
       append:
         enabled: true
         target: CHANGELOG.md

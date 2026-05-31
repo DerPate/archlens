@@ -109,7 +109,7 @@ class LikeC4ModelRendererTest {
                                 "component",
                                 "Invoice's Service",
                                 "class:InvoiceService",
-                                Map.of("layer", "application"))),
+                                Map.of("kind", "component", "layer", "application", "technology", "java"))),
                 List.of(new LikeC4Relationship(
                         "system:Billing",
                         "component:InvoiceService",
@@ -145,6 +145,8 @@ class LikeC4ModelRendererTest {
                   component_invoiceservice = component 'Invoice\\'s Service' {
                     metadata {
                       layer 'application'
+                      meta_kind 'component'
+                      meta_technology 'java'
                       sourceid 'class:InvoiceService'
                     }
                   }
@@ -176,6 +178,8 @@ class LikeC4ModelRendererTest {
         assertTrue(likec4.contains("component_invoiceservice = component 'Invoice\\'s Service'"), likec4);
         assertTrue(likec4.contains("sourceid 'class:InvoiceService'"), likec4);
         assertTrue(likec4.contains("owner 'Finance\\\\Ops'"), likec4);
+        assertTrue(likec4.contains("meta_technology 'java'"), likec4);
+        assertTrue(likec4.contains("meta_kind 'component'"), likec4);
         assertTrue(likec4.contains("system_billing -> component_invoiceservice 'contains'"), likec4);
         assertTrue(likec4.contains("view workspace {"), likec4);
         assertTrue(likec4.contains("include system_billing"), likec4);
