@@ -205,7 +205,7 @@ public class PipelineGraphBuilder {
     private String chainKey(Chain c) {
         StringBuilder sb = new StringBuilder();
         for (Segment s : c.segments) {
-            if (sb.length() > 0) sb.append('|');
+            if (!sb.isEmpty()) sb.append('|');
             String epId;
             if (s.entrypoint != null) {
                 epId = s.entrypoint.id.serialize();

@@ -166,7 +166,7 @@ public class MermaidDependencyMapRenderer {
                 .toList();
         if (packages.isEmpty()) return "";
 
-        String prefix = packages.get(0);
+        String prefix = packages.getFirst();
         for (String pkg : packages) {
             // Shrink prefix until pkg equals it or starts with prefix + "."
             while (!pkg.equals(prefix) && !pkg.startsWith(prefix + ".")) {

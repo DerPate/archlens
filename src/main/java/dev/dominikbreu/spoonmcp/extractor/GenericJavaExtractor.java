@@ -75,7 +75,7 @@ public class GenericJavaExtractor {
                 && method.getModifiers().contains(ModifierKind.PUBLIC)
                 && "void".equals(method.getType().getSimpleName())
                 && method.getParameters().size() == 1
-                && method.getParameters().get(0).getType().toString().contains("String");
+                && method.getParameters().getFirst().getType().toString().contains("String");
     }
 
     private boolean isApplicationType(CtType<?> type) {

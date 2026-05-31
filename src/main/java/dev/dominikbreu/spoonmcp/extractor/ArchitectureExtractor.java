@@ -253,7 +253,7 @@ public class ArchitectureExtractor {
      */
     private void registerWarParent(BuildProject project, List<BuildModule> modules, ArchitectureModel model) {
         if (modules.isEmpty()) return;
-        String sharedParent = modules.get(0).parentName();
+        String sharedParent = modules.getFirst().parentName();
         if (sharedParent == null || !modules.stream().allMatch(m -> sharedParent.equals(m.parentName()))) return;
         String rootPackaging = detectMavenPackagingType(project.root().getAbsolutePath());
         if (!"war".equals(rootPackaging)) return;

@@ -590,7 +590,7 @@ public class SpringExtractor {
         if (!declaringType.contains("KafkaTemplate") && !targetType.contains("KafkaTemplate")) return;
 
         SpringConfigResolver.ResolvedValue topic = config.resolveWithKey(
-                stripQuotes(invocation.getArguments().get(0).toString()));
+                stripQuotes(invocation.getArguments().getFirst().toString()));
         CtMethod<?> enclosingMethod = invocation.getParent(CtMethod.class);
         if (enclosingMethod == null) return;
         OutboundSinkSite site = new OutboundSinkSite();

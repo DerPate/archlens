@@ -92,7 +92,7 @@ public class RenderPipelineTool {
         StringBuilder out = new StringBuilder();
         for (int i = 0; i < filtered.size(); i++) {
             Chain c = filtered.get(i);
-            Segment root = c.segments.get(0);
+            Segment root = c.segments.getFirst();
             String rootEpId;
             if (root.entrypoint != null) {
                 rootEpId = root.entrypoint.id.serialize();
@@ -116,7 +116,7 @@ public class RenderPipelineTool {
 
     private boolean isLifecycleChain(Chain c) {
         if (c.segments.isEmpty()) return false;
-        Segment first = c.segments.get(0);
+        Segment first = c.segments.getFirst();
         Entrypoint ep = first.entrypoint;
         if (ep != null) return LIFECYCLE_TYPES.contains(ep.type);
         // Fallback: check entrypoint ID suffix when entrypoint object is not in the model index.
@@ -127,7 +127,7 @@ public class RenderPipelineTool {
 
     private boolean rootMatches(Chain c, String filter) {
         if (c.segments.isEmpty()) return false;
-        Segment root = c.segments.get(0);
+        Segment root = c.segments.getFirst();
         Entrypoint ep = root.entrypoint;
         String method = RuntimeFlowInferrer.extractMethodFromRef(filter);
         String pathFilter = RuntimeFlowInferrer.extractPathFromRef(filter);
@@ -179,7 +179,7 @@ public class RenderPipelineTool {
 
     private String rootEntrypointId(Chain c) {
         if (c.segments.isEmpty()) return "";
-        Segment seg = c.segments.get(0);
+        Segment seg = c.segments.getFirst();
         if (seg.entrypoint != null && seg.entrypoint.id != null) return seg.entrypoint.id.serialize();
         DataFlowPath root = seg.path;
         if (root.entrypointId != null) {

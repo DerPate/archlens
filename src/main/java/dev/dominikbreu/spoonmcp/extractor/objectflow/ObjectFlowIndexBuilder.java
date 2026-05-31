@@ -495,7 +495,7 @@ public class ObjectFlowIndexBuilder {
             return arrayType.getComponentType().getQualifiedName();
         }
         if (!type.getActualTypeArguments().isEmpty()) {
-            return type.getActualTypeArguments().get(0).getQualifiedName();
+            return type.getActualTypeArguments().getFirst().getQualifiedName();
         }
         return type.getQualifiedName();
     }

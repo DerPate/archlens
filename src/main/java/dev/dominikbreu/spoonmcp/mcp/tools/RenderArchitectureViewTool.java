@@ -47,13 +47,13 @@ public final class RenderArchitectureViewTool {
 
     static AppEntry resolveApp(ArchitectureModel model, String appParam) {
         if (model.applications.isEmpty()) return null;
-        if (StringUtils.isBlank(appParam)) return model.applications.get(0);
+        if (StringUtils.isBlank(appParam)) return model.applications.getFirst();
         return model.applications.stream()
                 .filter(a -> appParam.equalsIgnoreCase(a.name)
                         || appParam.equalsIgnoreCase(a.id.serialize())
                         || a.id.serialize().contains(appParam)
                         || a.name.contains(appParam))
                 .findFirst()
-                .orElse(model.applications.get(0));
+                .orElse(model.applications.getFirst());
     }
 }
