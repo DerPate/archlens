@@ -420,7 +420,7 @@ public class ArchitectureGraph {
         set(vertex, TECHNOLOGY, app.technology);
         set(vertex, "packagingType", app.packagingType);
         set(vertex, "role", app.role);
-        set(vertex, "parentAppId", app.parentAppId);
+        set(vertex, "parentAppId", app.parentAppId != null ? app.parentAppId.serialize() : null);
     }
 
     private void addComponent(Component component) {
@@ -431,7 +431,7 @@ public class ArchitectureGraph {
         set(vertex, "qualifiedName", component.qualifiedName);
         set(vertex, "packageName", packageName(component.qualifiedName));
         set(vertex, "simpleName", component.name);
-        set(vertex, "module", component.module);
+        set(vertex, "module", component.module != null ? component.module.serialize() : null);
         set(vertex, TECHNOLOGY, component.technology);
         set(vertex, "stereotypes", String.join(",", component.stereotypes));
         setSource(vertex, component.source);
@@ -449,7 +449,7 @@ public class ArchitectureGraph {
         set(vertex, TOPIC, entrypoint.topic);
         set(vertex, "parameters", String.join(",", entrypoint.parameters));
         set(vertex, "protocol", protocolFor(entrypoint));
-        set(vertex, COMPONENT_ID, entrypoint.componentId);
+        set(vertex, COMPONENT_ID, entrypoint.componentId != null ? entrypoint.componentId.serialize() : null);
         setSource(vertex, entrypoint.source);
     }
 
@@ -459,8 +459,8 @@ public class ArchitectureGraph {
         set(vertex, "type", interfaceEntry.type);
         set(vertex, "interfaceType", interfaceEntry.type);
         set(vertex, "path", interfaceEntry.path);
-        set(vertex, COMPONENT_ID, interfaceEntry.componentId);
-        set(vertex, "module", interfaceEntry.module);
+        set(vertex, COMPONENT_ID, interfaceEntry.componentId != null ? interfaceEntry.componentId.serialize() : null);
+        set(vertex, "module", interfaceEntry.module != null ? interfaceEntry.module.serialize() : null);
         set(vertex, TECHNOLOGY, interfaceEntry.technology);
         set(vertex, BROKER, interfaceEntry.broker != null ? interfaceEntry.broker.name() : null);
         set(vertex, TOPIC, interfaceEntry.topic);
@@ -471,7 +471,7 @@ public class ArchitectureGraph {
     private void addContainer(Container container) {
         Vertex vertex = addVertex(container.id, "Container", container.name);
         set(vertex, "kind", "container");
-        set(vertex, "appId", container.appId);
+        set(vertex, "appId", container.appId != null ? container.appId.serialize() : null);
         set(vertex, TECHNOLOGY, container.technology);
         set(vertex, DERIVED_FROM, container.derivedFrom);
     }
