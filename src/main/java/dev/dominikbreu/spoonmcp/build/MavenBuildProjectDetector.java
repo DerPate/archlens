@@ -39,7 +39,7 @@ public class MavenBuildProjectDetector implements BuildProjectDetector {
     public String readPackaging(File root) {
         return readModel(root)
                 .map(Model::getPackaging)
-                .filter(value -> StringUtils.isNotBlank(value))
+                .filter(StringUtils::isNotBlank)
                 .orElse("jar");
     }
 
