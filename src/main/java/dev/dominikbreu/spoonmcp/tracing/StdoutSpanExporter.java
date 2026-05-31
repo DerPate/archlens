@@ -7,6 +7,7 @@ import io.opentelemetry.sdk.trace.data.StatusData;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
+import org.apache.commons.lang3.StringUtils;
 
 public class StdoutSpanExporter implements SpanExporter {
 
@@ -47,7 +48,7 @@ public class StdoutSpanExporter implements SpanExporter {
         StatusData status = span.getStatus();
         if (status.getStatusCode() == StatusCode.ERROR) {
             String desc = status.getDescription();
-            if (desc != null && !desc.isBlank()) {
+            if (StringUtils.isNotBlank(desc)) {
                 sb.append("  error=").append(desc);
             }
         }

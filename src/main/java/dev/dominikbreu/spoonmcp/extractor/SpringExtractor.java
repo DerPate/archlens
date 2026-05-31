@@ -12,6 +12,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.apache.commons.lang3.StringUtils;
 import spoon.reflect.code.CtExpression;
 import spoon.reflect.code.CtInvocation;
 import spoon.reflect.code.CtLiteral;
@@ -275,7 +276,7 @@ public class SpringExtractor {
             ArchitectureModel model) {
         if (!hasAnnotation(method, annotation)) return;
         String resolved = config.resolve(channel);
-        if (resolved == null || resolved.isBlank()) resolved = "(unresolved)";
+        if (StringUtils.isBlank(resolved)) resolved = "(unresolved)";
         dev.dominikbreu.spoonmcp.model.ids.EntrypointId id = new dev.dominikbreu.spoonmcp.model.ids.EntrypointId(
                 dev.dominikbreu.spoonmcp.model.ids.ComponentId.of(type.getQualifiedName()),
                 method.getSimpleName(),

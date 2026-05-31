@@ -3,6 +3,7 @@ package dev.dominikbreu.spoonmcp.extractor.objectflow;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import org.apache.commons.lang3.StringUtils;
 import spoon.reflect.code.CtConstructorCall;
 import spoon.reflect.code.CtExpression;
 import spoon.reflect.code.CtForEach;
@@ -85,7 +86,7 @@ final class ObjectFlowMethodAnalyzer {
 
     private static List<ReceiverTarget> targetFor(
             String qualifiedName, String methodName, ObjectFlowEvidence evidence) {
-        if (qualifiedName == null || qualifiedName.isBlank()) {
+        if (StringUtils.isBlank(qualifiedName)) {
             return List.of();
         }
         return List.of(new ReceiverTarget(qualifiedName, methodName, evidence, evidence.confidence(), false));

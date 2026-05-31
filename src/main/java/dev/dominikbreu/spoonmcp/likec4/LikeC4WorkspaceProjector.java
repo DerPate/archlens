@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.commons.lang3.StringUtils;
 
 public final class LikeC4WorkspaceProjector {
 
@@ -94,7 +95,7 @@ public final class LikeC4WorkspaceProjector {
                 SYSTEM,
                 title(workspace, "Workspace"),
                 "workspace",
-                workspace == null || workspace.isBlank() ? Map.of() : Map.of("workspacePath", workspace));
+                StringUtils.isBlank(workspace) ? Map.of() : Map.of("workspacePath", workspace));
     }
 
     private static Map<String, Object> appMetadata(AppEntry app) {
@@ -115,13 +116,13 @@ public final class LikeC4WorkspaceProjector {
     }
 
     private static void putIfPresent(Map<String, Object> metadata, String key, String value) {
-        if (value != null && !value.isBlank()) {
+        if (StringUtils.isNotBlank(value)) {
             metadata.put(key, value);
         }
     }
 
     private static String title(String value, String fallback) {
-        if (value == null || value.isBlank()) {
+        if (StringUtils.isBlank(value)) {
             return fallback;
         } else {
             return value;

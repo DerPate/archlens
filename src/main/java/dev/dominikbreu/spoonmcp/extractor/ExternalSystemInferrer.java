@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Post-pass that infers external systems from interfaces and messaging entrypoints.
@@ -48,7 +49,7 @@ public class ExternalSystemInferrer {
         for (InterfaceEntry iface : model.interfaces) {
             if (!"rest_client".equals(iface.type)) continue;
             String name = iface.externalServiceName;
-            if (name == null || name.isBlank()) continue;
+            if (StringUtils.isBlank(name)) continue;
             String id = "ext:rest:" + name;
             ExternalSystem system = systemsById.computeIfAbsent(id, k -> {
                 ExternalSystem s = new ExternalSystem();

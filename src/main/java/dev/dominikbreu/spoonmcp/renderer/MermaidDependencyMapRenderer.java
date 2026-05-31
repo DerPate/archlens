@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Renders component dependencies as an aggregated responsibility map.
@@ -109,7 +110,7 @@ public class MermaidDependencyMapRenderer {
 
     private String groupName(Component component, String rootPackage) {
         String qualifiedName = component.qualifiedName;
-        if (qualifiedName == null || qualifiedName.isBlank()) {
+        if (StringUtils.isBlank(qualifiedName)) {
             return groupFromModule(component);
         }
         int lastDot = qualifiedName.lastIndexOf('.');
@@ -203,7 +204,7 @@ public class MermaidDependencyMapRenderer {
     }
 
     private String nullToUnknown(String input) {
-        if (input == null || input.isBlank()) {
+        if (StringUtils.isBlank(input)) {
             return "unknown";
         } else {
             return input;

@@ -3,6 +3,7 @@ package dev.dominikbreu.spoonmcp.renderer;
 import dev.dominikbreu.spoonmcp.model.*;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Renders a Mermaid {@code flowchart TD} from a {@link RuntimeFlow}.
@@ -90,7 +91,7 @@ public class MermaidCallFlowRenderer {
             String fromPid = pidMap.get(edge.fromId.serialize());
             String toPid = pidMap.get(edge.toId.serialize());
             if (fromPid == null || toPid == null) continue;
-            String label = edge.label != null && !edge.label.isBlank() ? edge.label : "call";
+            String label = StringUtils.isNotBlank(edge.label) ? edge.label : "call";
             sb.append("    ")
                     .append(fromPid)
                     .append(" -->|")

@@ -9,6 +9,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
@@ -38,7 +39,7 @@ public class MavenBuildProjectDetector implements BuildProjectDetector {
     public String readPackaging(File root) {
         return readModel(root)
                 .map(Model::getPackaging)
-                .filter(value -> value != null && !value.isBlank())
+                .filter(value -> StringUtils.isNotBlank(value))
                 .orElse("jar");
     }
 
@@ -72,7 +73,7 @@ public class MavenBuildProjectDetector implements BuildProjectDetector {
                 root.getName(),
                 root,
                 parentName,
-                model.getPackaging() == null || model.getPackaging().isBlank() ? "jar" : model.getPackaging(),
+                StringUtils.isBlank(model.getPackaging()) ? "jar" : model.getPackaging(),
                 List.copyOf(plugins),
                 sourceRoot.isDirectory() ? List.of(sourceRoot) : List.of(),
                 resourceRoot.isDirectory() ? List.of(resourceRoot) : List.of(),

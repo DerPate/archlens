@@ -11,6 +11,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * MCP tool that exports a graph-centric architecture POC document.
@@ -165,7 +166,7 @@ public class ExportGraphArchitecturePocTool {
                 .limit(12)
                 .forEach(node -> {
                     sb.append("- `").append(node.id().serialize()).append("`");
-                    if (node.name() != null && !node.name().isBlank()) {
+                    if (StringUtils.isNotBlank(node.name())) {
                         sb.append(" ").append(node.name());
                     }
                     appendProperties(
@@ -253,10 +254,10 @@ public class ExportGraphArchitecturePocTool {
                 .append(". `")
                 .append(step.componentId)
                 .append("`");
-        if (step.componentName != null && !step.componentName.isBlank()) {
+        if (StringUtils.isNotBlank(step.componentName)) {
             sb.append(" ").append(step.componentName);
         }
-        if (step.via != null && !step.via.isBlank()) {
+        if (StringUtils.isNotBlank(step.via)) {
             sb.append(" via `").append(step.via).append("`");
         }
         sb.append("\n");

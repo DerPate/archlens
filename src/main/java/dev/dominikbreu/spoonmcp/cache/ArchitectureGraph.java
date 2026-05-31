@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -985,7 +986,7 @@ public class ArchitectureGraph {
     }
 
     private Vertex addVertex(String id, String label, String name) {
-        if (id == null || id.isBlank()) {
+        if (StringUtils.isBlank(id)) {
             id = label + ":" + verticesById.size();
         }
         GraphNodeId key = GraphNodeId.of(id);
@@ -1086,7 +1087,7 @@ public class ArchitectureGraph {
     }
 
     private boolean matchesFilterValue(Object actual, String expected) {
-        if (expected == null || expected.isBlank()) {
+        if (StringUtils.isBlank(expected)) {
             return true;
         }
         if (actual == null) {
@@ -1190,7 +1191,7 @@ public class ArchitectureGraph {
     }
 
     private String normalizeBlank(String value) {
-        if (value == null || value.isBlank()) {
+        if (StringUtils.isBlank(value)) {
             return null;
         } else {
             return value.trim();

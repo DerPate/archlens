@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 
 public final class ArchitectureViewProjector {
 
@@ -54,7 +55,7 @@ public final class ArchitectureViewProjector {
 
     // Resolves component IDs belonging to this scope via OWNS edges from the app node.
     private static Set<String> resolveScope(ArchitectureGraph graph, String scopeId) {
-        if (scopeId == null || scopeId.isBlank()) {
+        if (StringUtils.isBlank(scopeId)) {
             return Set.of();
         }
         return graph.findEdges("OWNS", Map.of(), 100).stream()
