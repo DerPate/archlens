@@ -8,6 +8,7 @@ import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Scope;
 import java.util.*;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Traces inter-procedural data-flow paths from entrypoint parameters to architectural sinks.
@@ -232,7 +233,7 @@ public class DataFlowTracer {
         consumerPathsByDestination
                 .computeIfAbsent(key, ignored -> new ArrayList<>())
                 .add(path.id);
-        if (ep.channelName != null && !ep.channelName.isBlank()) {
+        if (StringUtils.isNotBlank(ep.channelName)) {
             consumerPathsByChannel
                     .computeIfAbsent(ep.channelName.trim(), ignored -> new ArrayList<>())
                     .add(path.id);
@@ -265,7 +266,7 @@ public class DataFlowTracer {
     }
 
     private String destinationKey(dev.dominikbreu.spoonmcp.model.MessagingBroker broker, String destination) {
-        if (destination == null || destination.isBlank() || "(unresolved)".equals(destination)) return null;
+        if (StringUtils.isBlank(destination) || "(unresolved)".equals(destination)) return null;
         String brokerKey;
         if (broker == null) {
             brokerKey = "UNKNOWN";
@@ -480,7 +481,7 @@ public class DataFlowTracer {
     }
 
     private String firstNonBlank(String first, String second) {
-        if (first != null && !first.isBlank()) return first;
+        if (StringUtils.isNotBlank(first)) return first;
         return second;
     }
 

@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import org.apache.commons.lang3.StringUtils;
 
 public final class LikeC4ModelRenderer {
 
@@ -233,20 +234,12 @@ public final class LikeC4ModelRenderer {
     }
 
     private static String identifier(String raw) {
-        String clean = stripUnderscores(raw.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_]+", "_"));
+        // StringUtils.strip(…, "_") avoids the S5852 backtracking hotspot of an anchored ^_+/_+$ regex.
+        String clean = StringUtils.strip(raw.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_]+", "_"), "_");
         if (clean.isBlank() || Character.isDigit(clean.charAt(0))) {
             return "n_" + clean;
         }
         return clean;
-    }
-
-    /** Drops leading and trailing underscores without a regex (avoids the S5852 backtracking hotspot). */
-    private static String stripUnderscores(String s) {
-        int start = 0;
-        int end = s.length();
-        while (start < end && s.charAt(start) == '_') start++;
-        while (end > start && s.charAt(end - 1) == '_') end--;
-        return s.substring(start, end);
     }
 
     private static String escape(String value) {

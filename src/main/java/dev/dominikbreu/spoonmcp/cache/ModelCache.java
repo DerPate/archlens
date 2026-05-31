@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import org.apache.commons.lang3.StringUtils;
 import tools.jackson.databind.SerializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -232,7 +233,7 @@ public class ModelCache {
 
     private static CacheBackend configuredBackend() {
         String value = System.getProperty(BACKEND_PROPERTY);
-        if (value == null || value.isBlank()) {
+        if (StringUtils.isBlank(value)) {
             value = System.getenv(BACKEND_ENV);
         }
         return CacheBackend.from(value);
@@ -246,7 +247,7 @@ public class ModelCache {
         GRAPH;
 
         static CacheBackend from(String value) {
-            if (value == null || value.isBlank()) {
+            if (StringUtils.isBlank(value)) {
                 return JSON;
             }
             if ("graph".equalsIgnoreCase(value.trim())) {

@@ -4,6 +4,7 @@ import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Container;
 import java.util.*;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Groups components into logical containers.
@@ -51,7 +52,7 @@ public class ContainerInferrer {
     }
 
     private String packageContainerFor(Component component) {
-        if (component.qualifiedName == null || component.qualifiedName.isBlank()) {
+        if (StringUtils.isBlank(component.qualifiedName)) {
             return layerFor(component.type);
         }
 

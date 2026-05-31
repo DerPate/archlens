@@ -17,6 +17,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.commons.lang3.StringUtils;
 import spoon.reflect.CtModel;
 import spoon.reflect.code.CtArrayRead;
 import spoon.reflect.code.CtConstructorCall;
@@ -531,7 +532,7 @@ public class ObjectFlowIndexBuilder {
 
     private static List<ReceiverTarget> targetFor(
             String qualifiedName, String methodName, ObjectFlowEvidence evidence) {
-        if (qualifiedName == null || qualifiedName.isBlank()) {
+        if (StringUtils.isBlank(qualifiedName)) {
             return List.of();
         }
         return List.of(new ReceiverTarget(qualifiedName, methodName, evidence, evidence.confidence(), false));
@@ -572,7 +573,7 @@ public class ObjectFlowIndexBuilder {
         try (Scope scope = span.makeCurrent()) {
             Map<String, Component> components = new LinkedHashMap<>();
             for (Component component : architecture.components) {
-                if (component.qualifiedName != null && !component.qualifiedName.isBlank()) {
+                if (StringUtils.isNotBlank(component.qualifiedName)) {
                     components.putIfAbsent(component.qualifiedName, component);
                 }
             }
@@ -608,7 +609,7 @@ public class ObjectFlowIndexBuilder {
             return;
         }
         String qualifiedName = supertype.getQualifiedName();
-        if (qualifiedName == null || qualifiedName.isBlank() || !visited.add(qualifiedName)) {
+        if (StringUtils.isBlank(qualifiedName) || !visited.add(qualifiedName)) {
             return;
         }
         if (!qualifiedName.equals(concreteQualifiedName)) {

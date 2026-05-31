@@ -2,6 +2,7 @@ package dev.dominikbreu.spoonmcp.renderer;
 
 import dev.dominikbreu.spoonmcp.model.*;
 import java.util.List;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Renders a Mermaid {@code gantt} chart from a list of runtime flows.
@@ -89,7 +90,7 @@ public class MermaidUseCaseTimelineRenderer {
 
     private String taskLabel(RuntimeFlowStep step) {
         String via;
-        if (step.via != null && !step.via.isBlank()) {
+        if (StringUtils.isNotBlank(step.via)) {
             via = step.via;
         } else {
             via = "call";

@@ -4,6 +4,7 @@ import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import java.util.Locale;
 import java.util.Objects;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Scores graph components for workflow relevance without letting utility fan-in dominate.
@@ -139,7 +140,7 @@ final class ArchitectureRelevanceScorer {
     }
 
     private static boolean containsAny(String text, String... needles) {
-        if (text == null || text.isBlank()) {
+        if (StringUtils.isBlank(text)) {
             return false;
         }
         for (String needle : needles) {

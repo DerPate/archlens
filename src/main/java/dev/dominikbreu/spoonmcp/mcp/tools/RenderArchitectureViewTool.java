@@ -7,6 +7,7 @@ import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.renderer.ArchitectureViewMermaidRenderer;
 import dev.dominikbreu.spoonmcp.view.ArchitectureViewProjector;
 import java.util.Map;
+import org.apache.commons.lang3.StringUtils;
 
 public final class RenderArchitectureViewTool {
 
@@ -46,7 +47,7 @@ public final class RenderArchitectureViewTool {
 
     static AppEntry resolveApp(ArchitectureModel model, String appParam) {
         if (model.applications.isEmpty()) return null;
-        if (appParam == null || appParam.isBlank()) return model.applications.get(0);
+        if (StringUtils.isBlank(appParam)) return model.applications.get(0);
         return model.applications.stream()
                 .filter(a -> appParam.equalsIgnoreCase(a.name)
                         || appParam.equalsIgnoreCase(a.id.serialize())

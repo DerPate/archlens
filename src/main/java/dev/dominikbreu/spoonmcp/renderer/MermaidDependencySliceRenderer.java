@@ -12,6 +12,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Renders a focused Mermaid dependency diagram for one component.
@@ -111,7 +112,7 @@ public class MermaidDependencySliceRenderer {
     }
 
     private Component findComponent(ArchitectureModel model, String ref) {
-        if (ref == null || ref.isBlank()) return null;
+        if (StringUtils.isBlank(ref)) return null;
         return model.components.stream()
                 .filter(component -> component.id.serialize().equals(ref)
                         || component.name.equals(ref)

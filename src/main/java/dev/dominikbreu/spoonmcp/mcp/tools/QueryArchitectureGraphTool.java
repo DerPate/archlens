@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * MCP tool for graph-oriented architecture queries.
@@ -103,7 +104,7 @@ public class QueryArchitectureGraphTool {
                     .append(" [")
                     .append(node.label())
                     .append("]");
-            if (node.name() != null && !node.name().isBlank()) {
+            if (StringUtils.isNotBlank(node.name())) {
                 sb.append(" ").append(node.name());
             }
             appendInterestingProperties(
@@ -239,7 +240,7 @@ public class QueryArchitectureGraphTool {
 
     private String requiredText(Map<String, Object> args, String name) {
         String value = text(args, name, null);
-        if (value == null || value.isBlank()) {
+        if (StringUtils.isBlank(value)) {
             throw new IllegalArgumentException("'" + name + "' is required.");
         }
         return value;

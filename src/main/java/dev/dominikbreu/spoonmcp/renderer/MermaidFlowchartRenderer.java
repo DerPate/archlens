@@ -4,6 +4,7 @@ import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Renders deterministic Mermaid flowchart diagrams from the architecture model.
@@ -330,7 +331,7 @@ public class MermaidFlowchartRenderer {
     }
 
     private String nullToEmpty(String s) {
-        if (s == null || s.isBlank()) {
+        if (StringUtils.isBlank(s)) {
             return "uses";
         } else {
             return s;
