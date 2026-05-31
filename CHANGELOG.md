@@ -58,6 +58,26 @@ All notable changes to this project will be appended by JReleaser.
 - Added mandatory Python driver pattern to `AGENTS.md` (three rules: `stderr=sys.stderr`,
   send `notifications/initialized`, one request/response at a time).
 
+### ♻️ Refactoring / Code quality
+
+- **JDK 25 toolchain:** build now targets `maven.compiler.release=25` (enforcer
+  `requireJavaVersion [25,)`); verified against Spoon 11.3.0.
+- **`Spans.traced()` tracing helper:** new `dev.dominikbreu.spoonmcp.tracing.Spans` encapsulates
+  the `startSpan → makeCurrent → recordException → end` OpenTelemetry boilerplate behind a
+  `Supplier`/`Runnable` pair. `ArchitectureExtractor.extract()` and `PipelineGraphBuilder.build()`
+  were migrated onto it, flattening their stacked span `try`-with-resources blocks (clears S1141
+  nested-`try` smells project-wide, 7 → 0). Extraction phases in `extract()` were lifted into named
+  private methods, dropping the method's cognitive complexity back under threshold (S3776).
+- **Java 21 / 25 idioms:** unnamed variables (`_`) for ignored try-with-resources and catch
+  bindings; sequenced-collection accessors (`getFirst()`); `Math.clamp`; method references
+  (`StringUtils::isNotBlank`, S1612). Removed redundant `(long)` casts on `Span.setAttribute`
+  calls — `int` widens to the `long` overload (S1905).
+- **commons-lang3 `StringUtils`** adopted for null-safe blank/empty string checks in place of
+  hand-rolled helpers; Mermaid label escaping centralized into a single helper.
+- **SonarQube quality gate green:** new_violations 0, new_coverage 83.5%,
+  new_duplicated_lines_density 0.38%. 556 tests pass; SpotBugs and spotless (palantir-java-format)
+  clean.
+
 
 ## [spoon-mcp-server-1.0.2]
 
