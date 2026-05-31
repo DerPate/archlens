@@ -10,10 +10,8 @@ import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndexBuilder;
 import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import dev.dominikbreu.spoonmcp.scanner.SpoonScanner;
-import io.opentelemetry.api.GlobalOpenTelemetry;
+import dev.dominikbreu.spoonmcp.tracing.Spans;
 import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.StatusCode;
-import io.opentelemetry.api.trace.Tracer;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.*;
@@ -57,127 +55,83 @@ public class ArchitectureExtractor {
      */
     public ArchitectureModel extract(List<String> projectPaths) {
         ArchitectureModel model = new ArchitectureModel(String.join(",", projectPaths));
-        Tracer t = tracer();
-        Span extractSpan = t.spanBuilder("extract")
-                .setAttribute("workspace-path", model.workspacePath)
-                .startSpan();
-        try (var _ = extractSpan.makeCurrent()) {
-
+        Spans.traced("extract", () -> {
+            Span.current().setAttribute("workspace-path", model.workspacePath);
             List<ModuleWork> modules = collectAllModules(projectPaths, model);
-
-            // Phase 1: lightweight scan — components + entrypoints only, one CtModel at a time
-            Span pass1 = t.spanBuilder("pass1-scan").startSpan();
-            try (var _ = pass1.makeCurrent()) {
-                for (ModuleWork work : modules) {
-                    CtModel ctModel = buildCtModel(work.module(), "pass1-scan");
-                    work.ctModel = ctModel;
-                    Collection<CtType<?>> types = ctModel.getAllTypes();
-                    String tech = detectTechnology(types, work.module());
-                    work.app().technology = tech;
-
-                    if ("internal_module".equals(work.app().role)) {
-                        work.app().role = moduleClassifier.classify(types, work.app());
-                    }
-
-                    dispatchExtractors(types, model, work.app().id, work.module(), tech);
-
-                    Map<String, MessagingConfigResolver.ChannelConfig> resolved =
-                            messagingConfigResolver.resolve(work.module().root());
-                    applyMessagingBrokers(model, work.app().id, resolved);
-                }
-                eventBusExtractor.linkCrossModuleEvents(model);
-                pass1.setAttribute("modules", (long) modules.size());
-            } catch (RuntimeException e) {
-                pass1.recordException(e);
-                pass1.setStatus(StatusCode.ERROR, e.getMessage());
-                throw e;
-            } finally {
-                pass1.end();
-            }
-
-            // Phase 2: enrich the component registry using the pass-1 Spoon models.
-            Span pass2 = t.spanBuilder("pass2-enrichment").startSpan();
-            try (var _ = pass2.makeCurrent()) {
-                for (ModuleWork work : modules) {
-                    CtModel ctModel = work.ctModel;
-                    if (ctModel == null) {
-                        ctModel = buildCtModel(work.module(), "pass2-enrichment");
-                    }
-                    extractDependencies(ctModel, model, work.module());
-                    SourceFactIndex sourceFacts = sourceFactIndexBuilder.build(
-                            ctModel,
-                            work.module().name(),
-                            work.module().sourceRoots().size());
-                    pass2.setAttribute("sourceFactTypes." + work.module().name(), (long) sourceFacts.typeCount());
-                    ObjectFlowIndex objectFlowIndex = new ObjectFlowIndexBuilder().build(ctModel, model, sourceFacts);
-                    new CallGraphExtractor(objectFlowIndex, sourceFacts).extract(ctModel, model);
-                    work.ctModel = null;
-                }
-                pass2.setAttribute("modules", (long) modules.size());
-            } catch (RuntimeException e) {
-                pass2.recordException(e);
-                pass2.setStatus(StatusCode.ERROR, e.getMessage());
-                throw e;
-            } finally {
-                pass2.end();
-            }
-
+            Spans.traced("pass1-scan", () -> pass1Scan(modules, model));
+            Spans.traced("pass2-enrichment", () -> pass2Enrichment(modules, model));
             ModelIndex modelIndex = ModelIndex.build(model);
-
-            // Pass 2c: data-flow tracing — parameter propagation to sinks
-            Span pass2c = t.spanBuilder("pass2c-dataflow").startSpan();
-            try (var _ = pass2c.makeCurrent()) {
-                List<DataFlowPath> paths = dataFlowTracer.trace(model, modelIndex);
-                model.dataFlowPaths.addAll(paths);
-                pass2c.setAttribute("paths-found", (long) paths.size());
-            } catch (RuntimeException e) {
-                pass2c.recordException(e);
-                pass2c.setStatus(StatusCode.ERROR, e.getMessage());
-                throw e;
-            } finally {
-                pass2c.end();
-            }
-
-            // Pass 3-4: container inference + runtime flows
-            Span pass34 = t.spanBuilder("pass3-4-runtime").startSpan();
-            try (var _ = pass34.makeCurrent()) {
-                model.containers.addAll(containerInferrer.infer(model.components));
-                externalSystemInferrer.infer(model);
-                for (Entrypoint entrypoint : model.entrypoints) {
-                    RuntimeFlow flow = runtimeFlowInferrer.infer(entrypoint.id.serialize(), 5, model, modelIndex);
-                    if (flow != null) {
-                        model.runtimeFlows.add(flow);
-                    }
-                }
-            } catch (RuntimeException e) {
-                pass34.recordException(e);
-                pass34.setStatus(StatusCode.ERROR, e.getMessage());
-                throw e;
-            } finally {
-                pass34.end();
-            }
-
-        } catch (RuntimeException e) {
-            extractSpan.recordException(e);
-            extractSpan.setStatus(StatusCode.ERROR, e.getMessage());
-            throw e;
-        } finally {
-            extractSpan.end();
-        }
+            Spans.traced("pass2c-dataflow", () -> pass2cDataflow(model, modelIndex));
+            Spans.traced("pass3-4-runtime", () -> pass34Runtime(model, modelIndex));
+        });
         return model;
     }
 
-    private static Tracer tracer() {
-        return GlobalOpenTelemetry.getTracer("dev.dominikbreu.spoonmcp");
+    /** Phase 1: lightweight scan — components + entrypoints only, one CtModel at a time. */
+    private void pass1Scan(List<ModuleWork> modules, ArchitectureModel model) {
+        for (ModuleWork work : modules) {
+            CtModel ctModel = buildCtModel(work.module(), "pass1-scan");
+            work.ctModel = ctModel;
+            Collection<CtType<?>> types = ctModel.getAllTypes();
+            String tech = detectTechnology(types, work.module());
+            work.app().technology = tech;
+
+            if ("internal_module".equals(work.app().role)) {
+                work.app().role = moduleClassifier.classify(types, work.app());
+            }
+
+            dispatchExtractors(types, model, work.app().id, work.module(), tech);
+
+            Map<String, MessagingConfigResolver.ChannelConfig> resolved =
+                    messagingConfigResolver.resolve(work.module().root());
+            applyMessagingBrokers(model, work.app().id, resolved);
+        }
+        eventBusExtractor.linkCrossModuleEvents(model);
+        Span.current().setAttribute("modules", modules.size());
+    }
+
+    /** Phase 2: enrich the component registry using the pass-1 Spoon models. */
+    private void pass2Enrichment(List<ModuleWork> modules, ArchitectureModel model) {
+        for (ModuleWork work : modules) {
+            CtModel ctModel = work.ctModel;
+            if (ctModel == null) {
+                ctModel = buildCtModel(work.module(), "pass2-enrichment");
+            }
+            extractDependencies(ctModel, model, work.module());
+            SourceFactIndex sourceFacts = sourceFactIndexBuilder.build(
+                    ctModel, work.module().name(), work.module().sourceRoots().size());
+            Span.current().setAttribute("sourceFactTypes." + work.module().name(), sourceFacts.typeCount());
+            ObjectFlowIndex objectFlowIndex = new ObjectFlowIndexBuilder().build(ctModel, model, sourceFacts);
+            new CallGraphExtractor(objectFlowIndex, sourceFacts).extract(ctModel, model);
+            work.ctModel = null;
+        }
+        Span.current().setAttribute("modules", modules.size());
+    }
+
+    /** Pass 2c: data-flow tracing — parameter propagation to sinks. */
+    private void pass2cDataflow(ArchitectureModel model, ModelIndex modelIndex) {
+        List<DataFlowPath> paths = dataFlowTracer.trace(model, modelIndex);
+        model.dataFlowPaths.addAll(paths);
+        Span.current().setAttribute("paths-found", paths.size());
+    }
+
+    /** Pass 3-4: container inference + runtime flows. */
+    private void pass34Runtime(ArchitectureModel model, ModelIndex modelIndex) {
+        model.containers.addAll(containerInferrer.infer(model.components));
+        externalSystemInferrer.infer(model);
+        for (Entrypoint entrypoint : model.entrypoints) {
+            RuntimeFlow flow = runtimeFlowInferrer.infer(entrypoint.id.serialize(), 5, model, modelIndex);
+            if (flow != null) {
+                model.runtimeFlows.add(flow);
+            }
+        }
     }
 
     private CtModel buildCtModel(BuildModule module, String phase) {
-        Span span = tracer().spanBuilder("ctmodel.build")
-                .setAttribute("phase", phase)
-                .setAttribute("module", module.name())
-                .setAttribute("source-roots", (long) module.sourceRoots().size())
-                .startSpan();
-        try (var _ = span.makeCurrent()) {
+        return Spans.traced("ctmodel.build", () -> {
+            Span.current().setAttribute("phase", phase);
+            Span.current().setAttribute("module", module.name());
+            Span.current().setAttribute("source-roots", module.sourceRoots().size());
             Launcher launcher = new Launcher();
             launcher.getEnvironment().setNoClasspath(true);
             launcher.getEnvironment().setAutoImports(true);
@@ -186,28 +140,14 @@ public class ArchitectureExtractor {
             scanner.addSourceRoots(launcher, module);
             launcher.buildModel();
             return launcher.getModel();
-        } catch (RuntimeException e) {
-            span.recordException(e);
-            span.setStatus(StatusCode.ERROR, e.getMessage());
-            throw e;
-        } finally {
-            span.end();
-        }
+        });
     }
 
     private void extractDependencies(CtModel ctModel, ArchitectureModel model, BuildModule module) {
-        Span span = tracer().spanBuilder("dependency.extract")
-                .setAttribute("module", module.name())
-                .startSpan();
-        try (var _ = span.makeCurrent()) {
+        Spans.traced("dependency.extract", () -> {
+            Span.current().setAttribute("module", module.name());
             dependencyExtractor.extract(ctModel, model);
-        } catch (RuntimeException e) {
-            span.recordException(e);
-            span.setStatus(StatusCode.ERROR, e.getMessage());
-            throw e;
-        } finally {
-            span.end();
-        }
+        });
     }
 
     private static final class ModuleWork {
