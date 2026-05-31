@@ -233,12 +233,20 @@ public final class LikeC4ModelRenderer {
     }
 
     private static String identifier(String raw) {
-        String clean = raw.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_]+", "_");
-        clean = clean.replaceAll("^_+", "").replaceAll("_+$", "");
+        String clean = stripUnderscores(raw.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_]+", "_"));
         if (clean.isBlank() || Character.isDigit(clean.charAt(0))) {
             return "n_" + clean;
         }
         return clean;
+    }
+
+    /** Drops leading and trailing underscores without a regex (avoids the S5852 backtracking hotspot). */
+    private static String stripUnderscores(String s) {
+        int start = 0;
+        int end = s.length();
+        while (start < end && s.charAt(start) == '_') start++;
+        while (end > start && s.charAt(end - 1) == '_') end--;
+        return s.substring(start, end);
     }
 
     private static String escape(String value) {
