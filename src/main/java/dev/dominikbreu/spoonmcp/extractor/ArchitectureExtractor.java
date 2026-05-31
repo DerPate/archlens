@@ -406,7 +406,7 @@ public class ArchitectureExtractor {
                         || content.contains("jboss")
                         || content.contains(JAVAEE)
                         || content.contains("java-ee")) return JAVAEE;
-            } catch (Exception ignored) {
+            } catch (Exception _) {
             }
         }
 

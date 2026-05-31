@@ -39,7 +39,7 @@ public class DockerComposeMerger {
                 model.deployments.add(
                         buildDeploymentEntry(String.valueOf(entry.getKey()), entry.getValue(), composeFile, model));
             }
-        } catch (Exception ignored) {
+        } catch (Exception _) {
         }
     }
 

@@ -31,7 +31,7 @@ public class SpringConfigResolver {
                     parsed = readYaml(file);
                 }
                 values.putAll(parsed);
-            } catch (IOException ignored) {
+            } catch (IOException _) {
             }
         }
         return new Config(values);

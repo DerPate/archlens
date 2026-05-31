@@ -85,7 +85,7 @@ public class AnsibleMerger {
             }
 
             model.deployments.addAll(groups.values());
-        } catch (Exception ignored) {
+        } catch (Exception _) {
         }
     }
 
@@ -109,7 +109,7 @@ public class AnsibleMerger {
                 DeploymentEntry de = buildPlayDeployment(play, f);
                 if (de != null) model.deployments.add(de);
             }
-        } catch (Exception ignored) {
+        } catch (Exception _) {
         }
     }
 

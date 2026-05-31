@@ -561,7 +561,7 @@ public class ObjectFlowIndexBuilder {
                 if (declaration != null) {
                     return declaration;
                 }
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException _) {
                 // Spoon can fail declaration lookup for unresolved no-classpath locals.
             }
         }

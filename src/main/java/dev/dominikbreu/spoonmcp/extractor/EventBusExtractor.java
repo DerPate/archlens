@@ -296,7 +296,7 @@ public class EventBusExtractor {
                             return addr;
                         }
                     }
-                } catch (Exception ignored) {
+                } catch (Exception _) {
                 }
                 return method.getSimpleName();
             }

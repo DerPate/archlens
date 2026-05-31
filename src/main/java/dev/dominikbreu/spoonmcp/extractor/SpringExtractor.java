@@ -408,7 +408,7 @@ public class SpringExtractor {
                 if (value == null && VALUE.equals(attribute)) value = annotation.getValue("path");
                 if (value == null) return "";
                 return stripArray(resolveAnnotationValue(value));
-            } catch (Exception ignored) {
+            } catch (Exception _) {
                 return "";
             }
         }
@@ -448,7 +448,7 @@ public class SpringExtractor {
             if (field != null && field.getDefaultExpression() instanceof CtLiteral<?> lit) {
                 return literalString(lit);
             }
-        } catch (Exception ignored) {
+        } catch (Exception _) {
         }
         return null;
     }
