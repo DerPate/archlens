@@ -66,7 +66,7 @@ public class DataFlowTracer {
 
     public List<DataFlowPath> trace(ArchitectureModel model, ModelIndex index) {
         Span span = tracer().spanBuilder("dataflow.trace").startSpan();
-        try (Scope scope = span.makeCurrent()) {
+        try (Scope _ = span.makeCurrent()) {
             List<DataFlowPath> result = new ArrayList<>();
 
             for (Entrypoint ep : model.entrypoints) {

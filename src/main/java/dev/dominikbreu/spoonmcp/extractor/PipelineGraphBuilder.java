@@ -90,11 +90,11 @@ public class PipelineGraphBuilder {
         }
         Tracer t = tracer();
         Span buildSpan = t.spanBuilder("pipeline.build").startSpan();
-        try (Scope buildScope = buildSpan.makeCurrent()) {
+        try (Scope _ = buildSpan.makeCurrent()) {
 
             WorkflowGraph workflowGraph;
             Span wfSpan = t.spanBuilder("pipeline.workflow-graph").startSpan();
-            try (Scope scopeWf = wfSpan.makeCurrent()) {
+            try (Scope _ = wfSpan.makeCurrent()) {
                 workflowGraph = new WorkflowGraphBuilder().build(model);
                 wfSpan.setAttribute("roots", (long) workflowGraph.rootPaths().size());
                 wfSpan.setAttribute("links", (long) workflowGraph.totalLinks());
@@ -108,7 +108,7 @@ public class PipelineGraphBuilder {
 
             List<Chain> chains = new ArrayList<>();
             Span dfsSpan = t.spanBuilder("pipeline.dfs").startSpan();
-            try (Scope scopeDfs = dfsSpan.makeCurrent()) {
+            try (Scope _ = dfsSpan.makeCurrent()) {
                 PipelineWalk walk = new PipelineWalk(workflowGraph, chains, maxDepth);
                 for (DataFlowPath p : workflowGraph.rootPaths()) {
                     extend(new ArrayList<>(), p, null, null, walk, new LinkedHashSet<>(), new LinkedHashSet<>());
@@ -124,7 +124,7 @@ public class PipelineGraphBuilder {
 
             List<Chain> result;
             Span dedupSpan = t.spanBuilder("pipeline.dedup").startSpan();
-            try (Scope scopeDedup = dedupSpan.makeCurrent()) {
+            try (Scope _ = dedupSpan.makeCurrent()) {
                 result = removeDuplicateChains(removePrefixChains(chains));
                 dedupSpan.setAttribute("final-chains", (long) result.size());
             } catch (RuntimeException e) {

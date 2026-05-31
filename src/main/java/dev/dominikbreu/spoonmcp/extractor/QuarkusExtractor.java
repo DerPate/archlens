@@ -617,7 +617,7 @@ public class QuarkusExtractor {
                 return str.substring(1, str.length() - 1);
             }
             return str;
-        } catch (Exception e) {
+        } catch (Exception _) {
             return "";
         }
     }

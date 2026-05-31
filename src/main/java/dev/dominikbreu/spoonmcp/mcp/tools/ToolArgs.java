@@ -33,7 +33,7 @@ final class ToolArgs {
         if (v instanceof Number n) return n.intValue();
         try {
             return Integer.parseInt(v.toString());
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             return def;
         }
     }

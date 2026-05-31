@@ -85,7 +85,7 @@ public class MavenBuildProjectDetector implements BuildProjectDetector {
         if (!pom.isFile()) return Optional.empty();
         try (InputStreamReader reader = new InputStreamReader(new FileInputStream(pom), StandardCharsets.UTF_8)) {
             return Optional.of(new MavenXpp3Reader().read(reader));
-        } catch (java.io.IOException | XmlPullParserException ignored) {
+        } catch (java.io.IOException | XmlPullParserException _) {
             return Optional.empty();
         }
     }

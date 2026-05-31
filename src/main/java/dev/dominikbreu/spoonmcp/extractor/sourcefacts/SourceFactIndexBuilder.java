@@ -45,7 +45,7 @@ public class SourceFactIndexBuilder {
                 .setAttribute("module", moduleName)
                 .setAttribute("source-root-count", sourceRootCount)
                 .startSpan();
-        try (Scope scope = span.makeCurrent()) {
+        try (Scope _ = span.makeCurrent()) {
             List<SourceType> types = new ArrayList<>();
             List<SourceMethod> methods = new ArrayList<>();
             List<SourceField> fields = new ArrayList<>();
@@ -84,7 +84,7 @@ public class SourceFactIndexBuilder {
 
     private Map<String, List<SourceType>> buildImplementations(CtModel ctModel, List<SourceType> sourceTypes) {
         Span span = tracer().spanBuilder("sourcefacts.inheritance").startSpan();
-        try (Scope scope = span.makeCurrent()) {
+        try (Scope _ = span.makeCurrent()) {
             Map<String, SourceType> factsByQualifiedName = new LinkedHashMap<>();
             Map<String, CtType<?>> spoonTypesByQualifiedName = new LinkedHashMap<>();
             for (SourceType sourceType : sourceTypes) {
@@ -150,7 +150,7 @@ public class SourceFactIndexBuilder {
             List<SourceField> fields,
             List<SourceAnnotation> annotations) {
         Span span = tracer().spanBuilder("sourcefacts.members").startSpan();
-        try (Scope scope = span.makeCurrent()) {
+        try (Scope _ = span.makeCurrent()) {
             for (CtType<?> type : ctModel.getAllTypes()) {
                 SourceFactId typeId = typeId(type.getQualifiedName());
                 SourceType sourceType = new SourceType(
@@ -208,7 +208,7 @@ public class SourceFactIndexBuilder {
     private void buildInjectionFacts(
             CtModel ctModel, List<SourceAnnotation> annotations, List<SourceInjectionPoint> injectionPoints) {
         Span span = tracer().spanBuilder("sourcefacts.injection").startSpan();
-        try (Scope scope = span.makeCurrent()) {
+        try (Scope _ = span.makeCurrent()) {
             Map<SourceFactId, List<SourceAnnotation>> annotationsByOwner = indexAnnotationsByOwner(annotations);
             for (CtType<?> type : ctModel.getAllTypes()) {
                 collectFieldInjectionPoints(type, annotationsByOwner, injectionPoints);
@@ -300,7 +300,7 @@ public class SourceFactIndexBuilder {
         Span invocationSpan = tracer().spanBuilder("sourcefacts.invocations").startSpan();
         Span assignmentSpan = tracer().spanBuilder("sourcefacts.assignments").startSpan();
         Span returnSpan = tracer().spanBuilder("sourcefacts.returns").startSpan();
-        try (Scope ignored = invocationSpan.makeCurrent()) {
+        try (Scope _ = invocationSpan.makeCurrent()) {
             int invocationIndex = 0;
             int assignmentIndex = 0;
             int returnIndex = 0;
@@ -470,7 +470,7 @@ public class SourceFactIndexBuilder {
         }
         try {
             return annotation.getActualAnnotation().annotationType().getName();
-        } catch (RuntimeException e) {
+        } catch (RuntimeException _) {
             return "(unknown)";
         }
     }
