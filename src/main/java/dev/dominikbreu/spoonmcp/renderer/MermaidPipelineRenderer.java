@@ -291,7 +291,6 @@ public class MermaidPipelineRenderer {
     }
 
     private String escape(String s) {
-        if (s == null) return "";
-        return s.replace("\"", "'").replace("|", "-");
+        return Mermaid.escapeLabel(s);
     }
 }

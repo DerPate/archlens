@@ -444,7 +444,6 @@ public class MermaidFlowchartRenderer {
     }
 
     private String escape(String s) {
-        if (s == null) return "";
-        return s.replace("\"", "'").replace("\n", "\\n");
+        return Mermaid.escapeLabel(s);
     }
 }
