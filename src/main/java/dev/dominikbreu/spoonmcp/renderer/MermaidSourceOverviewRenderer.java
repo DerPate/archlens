@@ -104,10 +104,6 @@ public class MermaidSourceOverviewRenderer {
     }
 
     private String escape(String input) {
-        if (input == null) {
-            return "";
-        } else {
-            return input.replace("\"", "'");
-        }
+        return Mermaid.escapeLabel(input);
     }
 }

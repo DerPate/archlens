@@ -151,8 +151,7 @@ public class MermaidCallFlowRenderer {
     }
 
     private String escape(String s) {
-        if (s == null) return "";
-        return s.replace("\"", "'").replace("|", "-");
+        return Mermaid.escapeLabel(s);
     }
 
     private Entrypoint findEntrypoint(RuntimeFlow flow, ArchitectureModel model) {
