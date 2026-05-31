@@ -3,6 +3,167 @@
 All notable changes to this project will be appended by JReleaser.
 
 <!-- JRELEASER_CHANGELOG_APPEND - Do not remove or modify this section -->
+## [spoon-mcp-server-1.2.0]
+
+## Changelog
+
+### Features
+- add httpMethod and path filters to find_entrypoints
+- HTTP-method disambiguation via 'METHOD /path' ref syntax
+- seed call graph extraction from source facts
+- seed object flow from source facts
+- build source facts during extraction
+- trace source fact indexing phases
+- index source invocation assignment return and injection facts
+- index source inheritance implementations
+- build source type member and annotation facts
+- add immutable source fact index
+- add source fact model skeleton
+- add ModelIndex and typed adjacency/index types
+- add ComponentIndex and ExtractionContext for typed extraction state
+- add resolvedLiteralArgs to CallEdge, totalLinks to WorkflowGraph, and expand cache/objectflow tests
+- add OTel spans to callgraph dataflow spring and objectflow extractors
+- instrument PipelineGraphBuilder with OTel spans
+- instrument ArchitectureExtractor with OTel spans
+- add TracingConfig and wire OTel into server startup
+- add StdoutSpanExporter for console tracing output
+- explain missing pipeline links
+- render and expose persistence workflow links
+- link persistence workflow handoffs
+- link messaging data-flow paths by broker topic
+- trace outbound sinks through nested calls
+- extract spring kafka outbound sink sites
+- add pipeline handoff metadata to data-flow sinks
+- retain spring config placeholder provenance
+- consume build metadata and spring
+- extract outbound interfaces
+- extract inbound triggers
+- extract components and rest endpoints
+- resolve bounded application config
+- scan normalized build modules
+- add metadata service and unknown fallback detector
+- detect gradle project metadata
+- detect maven project metadata
+- add build metadata model
+- add workflow and object-flow analysis
+- make architecture view edges visible for all codebases
+- export architecture projections as likec4
+- expose architecture view rendering tool
+- render architecture projections as mermaid
+- project architecture graph into component views
+- add architecture view projection model
+- migrate to official MCP Java SDK and add ToolArgs helper
+- add render_pipeline tool and PipelineChain graph projection (#10)
+- add ownedEntrypointCount and architecturalWeight to component nodes; fix jar naming
+- emit cross-component FieldAccess READ for getter-style shared-state returns
+- vert.x eventbus / websocket / sse / grpc + file & object-storage sinks
+- tier 2 — nested-arg paramMapping, return-flow, killed locals
+- tier 1 — producer field-seed, sourceFieldName, logger denylist
+- infer in-memory channels, resolve topics, link cross-entrypoint stores
+- detect plain-Java main(String[]) methods as MAIN_METHOD entrypoints
+- use-case timeline renderer and doc cleanup
+- call graph extraction, use-case detection, and data-flow tracing
+
+### Fixes
+- prevent false call edges from generic Java API method names; add entrypoint filters and disambiguation
+- prefer exact path match in findEntrypoint; block prefix match for parameterised refs
+- skip capped polymorphic expansion edges in workflow traversal
+- path-prefix matching in trace_data_flow, timeline, and pipeline tools
+- delegate findStoredFlow to inferrer.findEntrypoint in flow tools
+- use path-prefix matching in RuntimeFlowInferrer.findEntrypoint
+- resolve constructor injected service calls
+- collapse tech detection to one annotation pass, run only matching extractor for unknown tech
+- stabilize model cache and graph semantics
+- load detect-use-cases config once instead of twice
+- stabilize mcp tool layer
+- eliminate lifecycle chains and same-entrypoint STORE loops
+- exclude lifecycle CDI observer entrypoints from pipeline chains
+- stop collectReachableRead* from crossing messaging/event-bus edges
+- skip steps[0] in segment loop to eliminate duplicate header node
+- guard null CallEdge fields in propagateStateHandoffThroughCallers
+- propagate STATE_HANDOFF through callers when writer and reader share a component
+- block same-entrypoint store-sink self-stitching in DataFlowTracer
+- include zero-sink MESSAGING_CONSUMER paths in DataFlowTracer result
+- deduplicate pipeline chains with identical entrypoint-ID sequences
+- suppress early-terminating prefix chains from PipelineGraphBuilder
+- selectDiverse caps at one chain per root, keeping the longest
+- filter CDI/main/RMI lifecycle chains from render_pipeline by default
+- improve architecture_view prompt — add index step and warnings guidance
+- diversity-first chain selection in render_pipeline (#11)
+- propagate calleeQualifiedName from OutboundSinkSite to DataFlowSink
+- remove DataFlowPath.paramType — field was never assigned
+- surface Emitter/EventBus send calls as messaging sinks and link downstream consumers (#7)
+- emit store sinks at depth 0 when param is destructured before storing
+- wire jreleaser.dry.run property through Maven plugin configuration
+- set GitHub remote in release checkout before JReleaser runs
+- render branching call flows and trace zero-param entrypoints to sinks
+- improve container-level flowchart and dependency map diagrams
+
+### Documentation
+- describe source fact extractor foundation
+- plan source fact index foundation
+- design source fact index foundation
+- close whole-repo stabilization audit
+- otel tracing implementation plan
+- otel tracing design spec
+- renderer docs and test audit — no findings
+- workflow and pipeline audit — no findings
+- extractor audit — no findings
+- correct F-001 status — false finding
+- record stabilization baseline
+- start whole-repo stabilization audit
+- design whole-repo stabilization pass
+- document pipeline workflow links
+- document spring and gradle extraction
+- design spring gradle extraction
+- teach agents architecture projection workflow
+- fix all 44 missing Javadoc warnings
+- add Known Limitations section for G7 and G9 to ARCHITECTURE.md
+- document render_pipeline empty-linkedPathIds behaviour (D3)
+- fix DataFlowPath/Sink property tables — remove paramType, add calleeQualifiedName/calleeMethod
+- write 1.0.2 changelog and fix jreleaser tag wiring
+- update tool reference, architecture guide, and llms.txt for call graph, use cases, and data-flow tracing
+
+### Maintenance
+- cover multi-segment parameterised paths in pathPrefixMatches and findEntrypoint
+- expose object-flow tracing details
+- reuse CtModel across extraction passes
+- add CtModel build tracing spans
+- extraction pipeline redesign complete, all tests pass
+- two-phase extraction pipeline with single CtModel in memory
+- RuntimeFlowInferrer accepts ModelIndex, eliminates per-entrypoint map rebuilds
+- redesign DataFlowTracer DFS with ModelIndex
+- wire ExtractionContext into CallGraphExtractor, true one-pass MethodScan, remove byComponentId
+- add error recording to child spans in ArchitectureExtractor
+- remove unreachable default branch in TracingConfig switch
+- add opentelemetry-sdk and otlp exporter dependencies
+- cover spring pipeline rendering end to end
+- add spring pipeline fixture
+- cover runtime flow chain
+- guard against vacuous pass in storeSinkDoesNotLink test
+- pre-compute path IDs in removePrefixChains, document algorithm
+- remove unused mockito-core dependency
+- fix stale docs, gitignore generated files, commit pending graph improvements
+- add architecture view self-test
+- apply Spotless formatting across all sources
+- bump version to 1.1.0
+- assert calleeMethod value on FILE_OUTBOUND sink (G6)
+- add Form 2 handler-chain fixture and test for Vert.x consumer detection
+- add direct EventBusExtractor unit test for Vert.x consumer detection (G4)
+- tighten WebSocket entrypoint assertion — add path check, use endsWith
+- add WebSocket endpoint detection test and ChatResource fixture (G5)
+- add log read site so denylist test is a genuine regression guard
+- verify Logger fields are excluded from shared-state seeding (G10)
+- replace DataFlowSink.kind String with Kind enum
+- add OWASP dependency-check, fix release pipeline, and update Java version docs
+- replace sequence diagrams with flowchart-based call flow renderer
+- reduce AST traversals per method from ~8 to 1 in CallGraphExtractor
+- apply spotless import ordering
+
+## Contributors
+We'd like to thank the following people for their contributions:
+Dominik Breu
+
 ## [Unreleased]
 
 ### 🚀 Features
@@ -101,5 +262,4 @@ All notable changes to this project will be appended by JReleaser.
 - Document new sink kinds, entrypoint families, and edge metadata in `docs/TOOLS.md` and `llms.txt`.
 - Add OWASP `dependency-check` plugin and refresh release-pipeline notes.
 - Resolve issue #4.
-
 

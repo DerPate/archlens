@@ -19,6 +19,9 @@ import dev.dominikbreu.spoonmcp.model.InterfaceEntry;
 import dev.dominikbreu.spoonmcp.model.RuntimeFlow;
 import dev.dominikbreu.spoonmcp.model.RuntimeFlowStep;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import dev.dominikbreu.spoonmcp.model.ids.GraphNodeId;
 import dev.dominikbreu.spoonmcp.workflow.WorkflowLink;
 import dev.dominikbreu.spoonmcp.workflow.WorkflowLinker;
@@ -188,6 +191,39 @@ public class ArchitectureGraph {
         nodes.sort(Comparator.comparing(GraphNode::label)
                 .thenComparing(node -> node.id().serialize()));
         return nodes.stream().limit(normalizeLimit(limit)).toList();
+    }
+
+    public synchronized List<GraphNode> nodesByComponentIds(Iterable<ComponentId> ids) {
+        List<GraphNode> nodes = new ArrayList<>();
+        Set<ComponentId> seen = new HashSet<>();
+        for (ComponentId id : ids) {
+            if (id == null || !seen.add(id)) continue;
+            Vertex vertex = verticesById.get(GraphNodeId.of(id.serialize()));
+            if (vertex != null) nodes.add(toNode(vertex));
+        }
+        return nodes;
+    }
+
+    public synchronized List<GraphNode> nodesByEntrypointIds(Iterable<EntrypointId> ids) {
+        List<GraphNode> nodes = new ArrayList<>();
+        Set<EntrypointId> seen = new HashSet<>();
+        for (EntrypointId id : ids) {
+            if (id == null || !seen.add(id)) continue;
+            Vertex vertex = verticesById.get(GraphNodeId.of(id.serialize()));
+            if (vertex != null) nodes.add(toNode(vertex));
+        }
+        return nodes;
+    }
+
+    public synchronized List<GraphNode> componentNodesOwnedBy(AppId appId) {
+        String appKey = appId.serialize();
+        List<GraphNode> nodes = new ArrayList<>();
+        for (GraphEdge edge : findEdges("OWNS", Map.of(), 1000)) {
+            if (!appKey.equals(edge.fromId().value())) continue;
+            Vertex vertex = verticesById.get(edge.toId());
+            if (vertex != null) nodes.add(toNode(vertex));
+        }
+        return nodes;
     }
 
     /**

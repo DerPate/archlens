@@ -212,7 +212,7 @@ public final class LikeC4ModelRenderer {
         for (Map.Entry<String, Object> entry : sortedMetadataEntries(metadata)) {
             sb.append(indent)
                     .append("  ")
-                    .append(identifier(entry.getKey()))
+                    .append(metadataKey(entry.getKey()))
                     .append(" '")
                     .append(escape(String.valueOf(entry.getValue())))
                     .append("'\n");
@@ -222,9 +222,17 @@ public final class LikeC4ModelRenderer {
 
     private static Iterable<Map.Entry<String, Object>> sortedMetadataEntries(Map<String, Object> metadata) {
         return metadata.entrySet().stream()
-                .sorted(Comparator.comparing((Map.Entry<String, Object> entry) -> identifier(entry.getKey()))
+                .sorted(Comparator.comparing((Map.Entry<String, Object> entry) -> metadataKey(entry.getKey()))
                         .thenComparing(Map.Entry::getKey))
                 .toList();
+    }
+
+    private static String metadataKey(String raw) {
+        String key = identifier(raw);
+        if (LIKEC4_KEYWORDS.contains(key)) {
+            return "meta_" + key;
+        }
+        return key;
     }
 
     private static void appendCommentLines(StringBuilder sb, String indent, String prefix, String value) {
@@ -245,4 +253,33 @@ public final class LikeC4ModelRenderer {
     private static String escape(String value) {
         return value.replace("\\", "\\\\").replace("'", "\\'");
     }
+
+    private static final Set<String> LIKEC4_KEYWORDS = Set.of(
+            "and",
+            "as",
+            "auto_layout",
+            "color",
+            "deployment",
+            "description",
+            "element",
+            "exclude",
+            "extends",
+            "global",
+            "group",
+            "icon",
+            "include",
+            "kind",
+            "link",
+            "metadata",
+            "model",
+            "or",
+            "relationship",
+            "shape",
+            "specification",
+            "style",
+            "summary",
+            "technology",
+            "title",
+            "view",
+            "views");
 }
