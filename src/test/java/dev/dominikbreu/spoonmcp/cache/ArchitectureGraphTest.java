@@ -47,6 +47,40 @@ class ArchitectureGraphTest {
     }
 
     @Test
+    void snapshotReturnsDeterministicNodesEdgesAndMetadata() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        Component service = component("PaymentService", "PaymentService", ComponentType.SERVICE);
+        Component repository = component("PaymentRepository", "PaymentRepository", ComponentType.REPOSITORY);
+        model.components.add(service);
+        model.components.add(repository);
+        Dependency dependency = new Dependency();
+        dependency.fromId = service.id;
+        dependency.toId = repository.id;
+        dependency.kind = "injection";
+        dependency.confidence = 0.9;
+        model.dependencies.add(dependency);
+
+        ArchitectureGraph graph = new ArchitectureGraph();
+        graph.rebuild(model);
+
+        ArchitectureGraph.GraphSnapshot snapshot = graph.snapshot(5000);
+
+        assertThat(snapshot.metadata().nodeCount()).isEqualTo(2);
+        assertThat(snapshot.metadata().edgeCount()).isEqualTo(1);
+        assertThat(snapshot.metadata().includedNodeCount()).isEqualTo(2);
+        assertThat(snapshot.metadata().includedEdgeCount()).isEqualTo(1);
+        assertThat(snapshot.metadata().truncated()).isFalse();
+        assertThat(snapshot.nodes())
+                .extracting(node -> node.id().serialize())
+                .containsExactly("PaymentRepository", "PaymentService");
+        assertThat(snapshot.edges()).singleElement().satisfies(edge -> {
+            assertThat(edge.fromId().serialize()).isEqualTo("PaymentService");
+            assertThat(edge.toId().serialize()).isEqualTo("PaymentRepository");
+            assertThat(edge.label()).isEqualTo("DEPENDS_ON");
+        });
+    }
+
+    @Test
     void findsNodesAndPaths() {
         ArchitectureGraph graph = new ArchitectureGraph();
         graph.rebuild(model());

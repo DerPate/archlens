@@ -164,6 +164,48 @@ public class ArchitectureGraph {
     }
 
     /**
+     * Returns a deterministic snapshot for visual graph debugging.
+     *
+     * @param limit maximum number of nodes to include
+     * @return graph snapshot containing included nodes, included edges, and raw counts
+     */
+    public synchronized GraphSnapshot snapshot(int limit) {
+        int nodeLimit = Math.clamp(limit <= 0 ? 5000 : limit, 1, 50000);
+        GraphSummary summary = summary();
+        List<GraphNode> nodes = new ArrayList<>();
+        Set<GraphNodeId> includedIds = new LinkedHashSet<>();
+        Iterator<Vertex> vertexIterator = graph.vertices();
+        while (vertexIterator.hasNext() && nodes.size() < nodeLimit) {
+            GraphNode node = toNode(vertexIterator.next());
+            nodes.add(node);
+            includedIds.add(node.id());
+        }
+        nodes.sort(Comparator.comparing(GraphNode::label).thenComparing(node -> node.id().serialize()));
+
+        List<GraphEdge> edges = new ArrayList<>();
+        Iterator<Edge> edgeIterator = graph.edges();
+        while (edgeIterator.hasNext()) {
+            GraphEdge edge = toEdge(edgeIterator.next());
+            if (includedIds.contains(edge.fromId()) && includedIds.contains(edge.toId())) {
+                edges.add(edge);
+            }
+        }
+        edges.sort(Comparator.comparing(GraphEdge::label)
+                .thenComparing(edge -> edge.fromId().serialize())
+                .thenComparing(edge -> edge.toId().serialize()));
+
+        GraphSnapshotMetadata metadata = new GraphSnapshotMetadata(
+                summary.nodeCount(),
+                summary.edgeCount(),
+                nodes.size(),
+                edges.size(),
+                nodes.size() < summary.nodeCount(),
+                summary.labels(),
+                summary.edges());
+        return new GraphSnapshot(metadata, List.copyOf(nodes), List.copyOf(edges));
+    }
+
+    /**
      * Finds graph nodes by label and free-text query.
      *
      * @param label optional node label filter
@@ -1247,6 +1289,35 @@ public class ArchitectureGraph {
      * @param edges edge counts by label
      */
     public record GraphSummary(int nodeCount, int edgeCount, Map<String, Integer> labels, Map<String, Integer> edges) {}
+
+    /**
+     * Serializable graph snapshot for visual tools.
+     *
+     * @param metadata raw graph and export counts
+     * @param nodes included graph nodes
+     * @param edges included graph edges between included nodes
+     */
+    public record GraphSnapshot(GraphSnapshotMetadata metadata, List<GraphNode> nodes, List<GraphEdge> edges) {}
+
+    /**
+     * Raw graph counts for snapshot exports.
+     *
+     * @param nodeCount total graph node count
+     * @param edgeCount total graph edge count
+     * @param includedNodeCount exported node count
+     * @param includedEdgeCount exported edge count
+     * @param truncated whether the node limit omitted graph nodes
+     * @param labels node counts by label
+     * @param edges edge counts by label
+     */
+    public record GraphSnapshotMetadata(
+            int nodeCount,
+            int edgeCount,
+            int includedNodeCount,
+            int includedEdgeCount,
+            boolean truncated,
+            Map<String, Integer> labels,
+            Map<String, Integer> edges) {}
 
     /**
      * Serializable graph node view used by MCP tools.
