@@ -937,6 +937,20 @@ Arguments:
 
 ---
 
+## `export_graph_viewer`
+
+Write a self-contained HTML file for visually debugging the raw detected architecture
+graph. The viewer uses the existing graph projection and shows nodes, edges, labels,
+filters, search, and raw property inspection. It does not interpret the graph or rank
+detected elements.
+
+Arguments:
+
+- `outputPath` string, optional. Default `docs/GRAPH_VIEWER.html`.
+- `limit` integer, optional. Maximum graph nodes to export. Default `5000`.
+
+---
+
 ## `render_architecture_view`
 
 Render a projection-first architecture view from the indexed graph.
