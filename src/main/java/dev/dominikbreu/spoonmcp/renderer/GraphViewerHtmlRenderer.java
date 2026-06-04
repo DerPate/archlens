@@ -8,8 +8,9 @@ import tools.jackson.databind.json.JsonMapper;
 /** Renders a self-contained visual debugger for the architecture graph. */
 public class GraphViewerHtmlRenderer {
 
-    private final JsonMapper mapper =
-            JsonMapper.builder().enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS).build();
+    private final JsonMapper mapper = JsonMapper.builder()
+            .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+            .build();
 
     /**
      * Renders a complete HTML document with embedded graph data.

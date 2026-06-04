@@ -170,7 +170,7 @@ public class ArchitectureGraph {
      * @return graph snapshot containing included nodes, included edges, and raw counts
      */
     public synchronized GraphSnapshot snapshot(int limit) {
-        int nodeLimit = Math.clamp(limit <= 0 ? 5000 : limit, 1, 50000);
+        int nodeLimit = Math.clamp(limit <= 0 ? 5000 : limit, 1, 50_000);
         GraphSummary summary = summary();
         List<GraphNode> nodes = new ArrayList<>();
         Set<GraphNodeId> includedIds = new LinkedHashSet<>();
@@ -180,7 +180,8 @@ public class ArchitectureGraph {
             nodes.add(node);
             includedIds.add(node.id());
         }
-        nodes.sort(Comparator.comparing(GraphNode::label).thenComparing(node -> node.id().serialize()));
+        nodes.sort(Comparator.comparing(GraphNode::label)
+                .thenComparing(node -> node.id().serialize()));
 
         List<GraphEdge> edges = new ArrayList<>();
         Iterator<Edge> edgeIterator = graph.edges();

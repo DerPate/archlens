@@ -15,10 +15,7 @@ class GraphViewerHtmlRendererTest {
     void rendersSelfContainedHtmlWithEmbeddedGraphData() {
         ArchitectureGraph.GraphSnapshot snapshot = snapshot(
                 new ArchitectureGraph.GraphNode(
-                        GraphNodeId.of("PaymentService"),
-                        "Component",
-                        "PaymentService",
-                        Map.of("type", "SERVICE")),
+                        GraphNodeId.of("PaymentService"), "Component", "PaymentService", Map.of("type", "SERVICE")),
                 new ArchitectureGraph.GraphEdge(
                         GraphNodeId.of("PaymentService"),
                         GraphNodeId.of("PaymentRepository"),
@@ -61,7 +58,6 @@ class GraphViewerHtmlRendererTest {
                 false,
                 Map.of("Component", 1),
                 edge == null ? Map.of() : Map.of(edge.label(), 1));
-        return new ArchitectureGraph.GraphSnapshot(
-                metadata, List.of(node), edge == null ? List.of() : List.of(edge));
+        return new ArchitectureGraph.GraphSnapshot(metadata, List.of(node), edge == null ? List.of() : List.of(edge));
     }
 }
