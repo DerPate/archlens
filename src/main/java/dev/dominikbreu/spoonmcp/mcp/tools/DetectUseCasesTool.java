@@ -1,6 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.extractor.UseCaseDetector;
 import dev.dominikbreu.spoonmcp.model.*;
 import java.util.List;
@@ -37,7 +38,8 @@ public class DetectUseCasesTool {
      */
     public String execute(Map<String, Object> args) {
         try {
-            ArchitectureModel model = cache.load();
+            ToolModelIndex index = cache.index();
+            ArchitectureModel model = index.rawModel();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
 
             ConfigResult configResult = resolveConfig(ToolArgs.getString(args, "configFile"));
@@ -50,12 +52,12 @@ public class DetectUseCasesTool {
             List<UseCase> useCases = detector.detect(model, config);
 
             if (filterModule != null) {
-                useCases = filterByModule(useCases, model, filterModule);
+                useCases = filterByModule(useCases, index, filterModule);
             }
 
             if (useCases.isEmpty()) return "No use cases detected.";
 
-            return format(useCases, model, maxDepth);
+            return format(useCases, index, maxDepth);
         } catch (Exception e) {
             return "Error detecting use cases: " + e.getMessage();
         }
@@ -76,24 +78,21 @@ public class DetectUseCasesTool {
         }
     }
 
-    private List<UseCase> filterByModule(List<UseCase> useCases, ArchitectureModel model, String module) {
+    private List<UseCase> filterByModule(List<UseCase> useCases, ToolModelIndex index, String module) {
         return useCases.stream()
                 .filter(uc -> {
-                    Entrypoint ep = model.entrypoints.stream()
-                            .filter(e -> uc.entrypointId != null && uc.entrypointId.equals(e.id))
-                            .findFirst()
-                            .orElse(null);
+                    Entrypoint ep = uc.entrypointId != null ? index.entrypoint(uc.entrypointId) : null;
                     if (ep == null) return false;
-                    return model.components.stream()
-                            .filter(c -> c.id.equals(ep.componentId))
-                            .anyMatch(c -> c.module != null
-                                    && (module.equals(c.module.serialize())
-                                            || c.module.serialize().contains(module)));
+                    Component comp = index.component(ep.componentId);
+                    return comp != null && comp.module != null
+                            && (module.equals(comp.module.serialize())
+                                    || comp.module.serialize().contains(module));
                 })
                 .toList();
     }
 
-    private String format(List<UseCase> useCases, ArchitectureModel model, int maxDepth) {
+    private String format(List<UseCase> useCases, ToolModelIndex index, int maxDepth) {
+        ArchitectureModel model = index.rawModel();
         StringBuilder sb = new StringBuilder();
         sb.append("Detected ").append(useCases.size()).append(" use case(s)");
         sb.append(
@@ -109,7 +108,7 @@ public class DetectUseCasesTool {
                 sb.append("  channel/path: ").append(uc.channelOrPath).append("\n");
             }
             sb.append("  components:   ")
-                    .append(resolveNames(uc.componentIds, model))
+                    .append(resolveNames(uc.componentIds, index))
                     .append("\n");
             if (!uc.methodChain.isEmpty()) {
                 int shown = Math.min(uc.methodChain.size(), maxDepth * 2);
@@ -127,13 +126,12 @@ public class DetectUseCasesTool {
     }
 
     private String resolveNames(
-            List<dev.dominikbreu.spoonmcp.model.ids.ComponentId> componentIds, ArchitectureModel model) {
+            List<dev.dominikbreu.spoonmcp.model.ids.ComponentId> componentIds, ToolModelIndex index) {
         return componentIds.stream()
-                .map(id -> model.components.stream()
-                        .filter(c -> c.id.equals(id))
-                        .map(c -> c.name)
-                        .findFirst()
-                        .orElse(id.serialize()))
+                .map(id -> {
+                    Component c = index.component(id);
+                    return c != null ? c.name : id.serialize();
+                })
                 .collect(Collectors.joining(", "));
     }
 }

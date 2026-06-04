@@ -1,12 +1,11 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
+import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.Container;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * MCP tool that lists logical containers inferred during indexing.
@@ -32,20 +31,17 @@ public class InferContainersTool {
      */
     public String execute(Map<String, Object> args) {
         try {
-            ArchitectureModel model = cache.load();
-            if (model == null) return "No workspace indexed yet. Call index_workspace first.";
+            ToolModelIndex index = cache.index();
+            if (index.rawModel() == null) return "No workspace indexed yet. Call index_workspace first.";
 
             String appFilter = ToolArgs.getString(args, "appId");
 
-            List<Container> containers = model.containers.stream()
+            List<Container> containers = index.containers().stream()
                     .filter(c -> appFilter == null
                             || (c.appId != null && c.appId.serialize().contains(appFilter)))
                     .toList();
 
             if (containers.isEmpty()) return "No containers found. Re-run index_workspace to build containers.";
-
-            Map<dev.dominikbreu.spoonmcp.model.ids.ComponentId, Component> compById =
-                    model.components.stream().collect(Collectors.toMap(c -> c.id, c -> c));
 
             StringBuilder sb = new StringBuilder();
             sb.append("Containers (").append(containers.size()).append("):\n\n");
@@ -62,7 +58,7 @@ public class InferContainersTool {
                 sb.append("    Derived from: ").append(c.derivedFrom).append("\n");
                 sb.append("    Components (").append(c.componentIds.size()).append("):\n");
                 for (dev.dominikbreu.spoonmcp.model.ids.ComponentId cid : c.componentIds) {
-                    Component comp = compById.get(cid);
+                    Component comp = index.component(cid);
                     if (comp != null) {
                         sb.append("      - [")
                                 .append(comp.type)

@@ -1,9 +1,12 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
+import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
+import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
+import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import java.util.List;
 import java.util.Map;
 
@@ -31,16 +34,22 @@ public class FindComponentsTool {
      */
     public String execute(Map<String, Object> args) {
         try {
-            ArchitectureModel model = cache.load();
-            if (model == null) return "No workspace indexed yet. Call index_workspace first.";
+            ToolModelIndex index = cache.index();
+            ArchitectureGraph graph = cache.graph();
+            if (index.rawModel() == null) return "No workspace indexed yet. Call index_workspace first.";
 
             String appId = ToolArgs.getString(args, "appId");
             String typeFilter = ToolArgs.getString(args, "type");
             String techFilter = ToolArgs.getString(args, "technology");
 
-            List<Component> comps = model.components.stream()
-                    .filter(c -> appId == null
-                            || (c.module != null && c.module.serialize().contains(appId)))
+            // Retrieve candidate nodes from graph; use owned-by index when appId is set
+            List<ArchitectureGraph.GraphNode> nodes = appId != null
+                    ? graph.componentNodesOwnedBy(AppId.of(appId))
+                    : graph.findNodes("Component", null, Map.of(), 5000);
+
+            List<Component> comps = nodes.stream()
+                    .map(n -> index.component(ComponentId.of(n.id().value())))
+                    .filter(c -> c != null)
                     .filter(c -> typeFilter == null || matchesType(c.type, typeFilter))
                     .filter(c -> techFilter == null || techFilter.equalsIgnoreCase(c.technology))
                     .toList();

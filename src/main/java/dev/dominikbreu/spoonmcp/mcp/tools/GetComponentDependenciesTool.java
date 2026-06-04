@@ -1,9 +1,12 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
+import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.extractor.DependencyCondenser;
 import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.GraphNodeId;
 import java.util.*;
 import java.util.Map;
 
@@ -32,8 +35,9 @@ public class GetComponentDependenciesTool {
      */
     public String execute(Map<String, Object> args) {
         try {
-            ArchitectureModel model = cache.load();
-            if (model == null) return "No workspace indexed yet. Call index_workspace first.";
+            ToolModelIndex index = cache.index();
+            ArchitectureGraph graph = cache.graph();
+            if (index.rawModel() == null) return "No workspace indexed yet. Call index_workspace first.";
 
             String ref = ToolArgs.getString(args, "componentId");
             if (ref == null) ref = ToolArgs.getString(args, "name");
@@ -42,23 +46,34 @@ public class GetComponentDependenciesTool {
             int depth = ToolArgs.getInt(args, "depth", 1);
             boolean condensed = ToolArgs.getBool(args, "condensed", true);
 
-            final String finalRef = ref;
-            Component root = model.components.stream()
-                    .filter(c -> c.id.serialize().equals(finalRef)
-                            || c.name.equals(finalRef)
-                            || c.id.qualifiedName().contains(finalRef))
-                    .findFirst()
-                    .orElse(null);
-
+            GraphNodeId rootNodeId = graph.resolveComponent(ref).orElse(null);
+            if (rootNodeId == null) return "Component not found: " + ref;
+            Component root = index.component(ComponentId.of(rootNodeId.value()));
             if (root == null) return "Component not found: " + ref;
 
-            List<Dependency> deps =
-                    condensed ? condenser.condense(model.dependencies, model.components) : model.dependencies;
+            ArchitectureModel model = index.rawModel();
+            List<Dependency> allDeps = condensed
+                    ? condenser.condense(model.dependencies, model.components)
+                    : model.dependencies;
+
+            // BFS over DEPENDS_ON edges in the graph, then hydrate deps from the model
+            Set<GraphNodeId> reachable = new LinkedHashSet<>();
+            reachable.add(rootNodeId);
+            graph.reachable(rootNodeId, "out", "DEPENDS_ON", depth, 1000)
+                    .forEach(n -> reachable.add(n.id()));
+
+            List<Dependency> result = allDeps.stream()
+                    .filter(d -> reachable.contains(GraphNodeId.of(d.fromId.serialize()))
+                            && reachable.contains(GraphNodeId.of(d.toId.serialize()))
+                            && !d.fromId.equals(d.toId))
+                    .toList();
 
             Map<ComponentId, Component> byId = new HashMap<>();
-            for (Component c : model.components) byId.put(c.id, c);
+            for (GraphNodeId nid : reachable) {
+                Component c = index.component(ComponentId.of(nid.value()));
+                if (c != null) byId.put(c.id, c);
+            }
 
-            List<Dependency> result = bfsDependencies(root, deps, depth);
             if (result.isEmpty()) {
                 return "No dependencies found for component: " + root.name + " (depth=" + depth + ", condensed="
                         + condensed + ")";
@@ -67,35 +82,6 @@ public class GetComponentDependenciesTool {
         } catch (Exception e) {
             return "Error getting dependencies: " + e.getMessage();
         }
-    }
-
-    private List<Dependency> bfsDependencies(Component root, List<Dependency> deps, int depth) {
-        Map<ComponentId, List<Dependency>> outgoing = new HashMap<>();
-        for (Dependency d : deps) {
-            outgoing.computeIfAbsent(d.fromId, k -> new ArrayList<>()).add(d);
-        }
-        List<Dependency> result = new ArrayList<>();
-        Set<ComponentId> visited = new HashSet<>();
-        Deque<ComponentId> queue = new ArrayDeque<>();
-        Map<ComponentId, Integer> depthMap = new HashMap<>();
-        queue.add(root.id);
-        depthMap.put(root.id, 0);
-
-        while (!queue.isEmpty()) {
-            ComponentId cur = queue.poll();
-            if (visited.contains(cur)) continue;
-            visited.add(cur);
-            int d = depthMap.getOrDefault(cur, 0);
-            if (d >= depth) continue;
-            for (Dependency dep : outgoing.getOrDefault(cur, List.of())) {
-                result.add(dep);
-                if (!visited.contains(dep.toId)) {
-                    depthMap.put(dep.toId, d + 1);
-                    queue.add(dep.toId);
-                }
-            }
-        }
-        return result;
     }
 
     private String formatDependencies(

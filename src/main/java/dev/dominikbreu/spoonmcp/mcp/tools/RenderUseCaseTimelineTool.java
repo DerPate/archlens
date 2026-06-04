@@ -1,6 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer;
 import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.renderer.MermaidUseCaseTimelineRenderer;
@@ -33,10 +34,11 @@ public class RenderUseCaseTimelineTool {
      */
     public String execute(Map<String, Object> args) {
         try {
-            ArchitectureModel model = cache.load();
+            ToolModelIndex index = cache.index();
+            ArchitectureModel model = index.rawModel();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
 
-            if (model.runtimeFlows.isEmpty()) {
+            if (index.runtimeFlows().isEmpty()) {
                 return "No runtime flows available. Re-index the workspace first.";
             }
 
@@ -45,7 +47,7 @@ public class RenderUseCaseTimelineTool {
             int maxUseCases = ToolArgs.getInt(args, "maxUseCases", 10);
             int maxDepth = ToolArgs.getInt(args, "maxDepth", 5);
 
-            List<RuntimeFlow> flows = filterFlows(model.runtimeFlows, epIdFilter, epNameFilter, model);
+            List<RuntimeFlow> flows = filterFlows(index.runtimeFlows(), epIdFilter, epNameFilter, index);
             if (flows.isEmpty()) return "No matching use cases found.";
             if (flows.size() > maxUseCases) {
                 flows = flows.subList(0, maxUseCases);
@@ -57,7 +59,7 @@ public class RenderUseCaseTimelineTool {
     }
 
     private List<RuntimeFlow> filterFlows(
-            List<RuntimeFlow> flows, String epIdFilter, String epNameFilter, ArchitectureModel model) {
+            List<RuntimeFlow> flows, String epIdFilter, String epNameFilter, ToolModelIndex index) {
         if (epIdFilter != null) {
             return flows.stream()
                     .filter(f -> f.entrypointId != null
@@ -70,18 +72,15 @@ public class RenderUseCaseTimelineTool {
             String pathFilter = RuntimeFlowInferrer.extractPathFromRef(epNameFilter);
             String lower = pathFilter.toLowerCase();
             return flows.stream()
-                    .filter(f -> flowMatchesName(f, model, methodFilter, pathFilter, lower))
+                    .filter(f -> flowMatchesName(f, index, methodFilter, pathFilter, lower))
                     .toList();
         }
         return flows;
     }
 
     private boolean flowMatchesName(
-            RuntimeFlow f, ArchitectureModel model, String methodFilter, String pathFilter, String lower) {
-        Entrypoint ep = model.entrypoints.stream()
-                .filter(e -> f.entrypointId != null && f.entrypointId.equals(e.id))
-                .findFirst()
-                .orElse(null);
+            RuntimeFlow f, ToolModelIndex index, String methodFilter, String pathFilter, String lower) {
+        Entrypoint ep = f.entrypointId != null ? index.entrypoint(f.entrypointId) : null;
         if (ep == null) {
             return f.entrypointId != null
                     && f.entrypointId.serialize().toLowerCase().contains(lower);

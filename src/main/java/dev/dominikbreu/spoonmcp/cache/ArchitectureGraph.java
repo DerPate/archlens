@@ -456,6 +456,105 @@ public class ArchitectureGraph {
         return !graph.vertices().hasNext();
     }
 
+    /**
+     * Resolves a component reference (serialized ComponentId, qualified name, simple name,
+     * or a contains-match on qualified name) to a graph node identifier.
+     *
+     * @param nameOrId component name or identifier string
+     * @return graph node id, or empty when not found
+     */
+    public synchronized Optional<GraphNodeId> resolveComponent(String nameOrId) {
+        if (nameOrId == null || nameOrId.isBlank()) return Optional.empty();
+        GraphNodeId direct = GraphNodeId.of(nameOrId);
+        Vertex directVertex = verticesById.get(direct);
+        if (directVertex != null && "Component".equals(directVertex.label())) {
+            return Optional.of(direct);
+        }
+        for (Map.Entry<GraphNodeId, Vertex> entry : verticesById.entrySet()) {
+            Vertex v = entry.getValue();
+            if (!"Component".equals(v.label())) continue;
+            String simpleName = v.properties("simpleName").hasNext()
+                    ? (String) v.properties("simpleName").next().value() : null;
+            String qualifiedName = v.properties("qualifiedName").hasNext()
+                    ? (String) v.properties("qualifiedName").next().value() : null;
+            if (nameOrId.equals(simpleName)) return Optional.of(entry.getKey());
+            if (qualifiedName != null && qualifiedName.contains(nameOrId)) return Optional.of(entry.getKey());
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Resolves an entrypoint reference (serialized EntrypointId or name) to a graph node
+     * identifier, using the supplied index for name resolution.
+     *
+     * @param ref   entrypoint identifier or name
+     * @param index tool model index for name resolution
+     * @return graph node id, or empty when not found
+     */
+    public synchronized Optional<GraphNodeId> resolveEntrypoint(String ref, ToolModelIndex index) {
+        if (ref == null || ref.isBlank()) return Optional.empty();
+        GraphNodeId direct = GraphNodeId.of(ref);
+        if (verticesById.containsKey(direct)) return Optional.of(direct);
+        for (Entrypoint ep : index.allEntrypoints()) {
+            if (ep.id == null) continue;
+            boolean nameMatch = ep.name != null && ep.name.equals(ref);
+            boolean idMatch = ep.id.serialize().equals(ref);
+            if (nameMatch || idMatch) {
+                GraphNodeId key = GraphNodeId.of(ep.id.serialize());
+                if (verticesById.containsKey(key)) return Optional.of(key);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Returns all nodes reachable from a starting node within the given depth along
+     * edges of the specified label. Depth-bounded BFS; excludes the starting node.
+     *
+     * @param from      starting node identifier
+     * @param direction out, in, or both
+     * @param edgeLabel edge label to follow; null follows all labels
+     * @param depth     maximum hop count
+     * @param limit     maximum number of result nodes
+     * @return reachable nodes
+     */
+    public synchronized List<GraphNode> reachable(
+            GraphNodeId from, String direction, String edgeLabel, int depth, int limit) {
+        if (!verticesById.containsKey(from)) return List.of();
+        int depthLimit = Math.clamp(depth <= 0 ? 1 : depth, 1, 10);
+        int resultLimit = normalizeLimit(limit);
+        Direction graphDirection =
+                switch (normalizeBlank(direction) == null ? "both" : direction.toLowerCase(Locale.ROOT)) {
+                    case "in", "incoming" -> Direction.IN;
+                    case "out", "outgoing" -> Direction.OUT;
+                    default -> Direction.BOTH;
+                };
+        LinkedHashSet<GraphNodeId> visited = new LinkedHashSet<>();
+        visited.add(from);
+        ArrayDeque<NodeDepth> queue = new ArrayDeque<>();
+        queue.add(new NodeDepth(from, 0));
+        List<GraphNode> result = new ArrayList<>();
+
+        while (!queue.isEmpty() && result.size() < resultLimit) {
+            NodeDepth current = queue.removeFirst();
+            if (current.depth >= depthLimit) continue;
+            Vertex vertex = verticesById.get(current.nodeId);
+            if (vertex == null) continue;
+            Iterator<Edge> edges = vertex.edges(graphDirection);
+            while (edges.hasNext()) {
+                Edge edge = edges.next();
+                if (edgeLabel != null && !edgeLabel.equals(edge.label())) continue;
+                Vertex neighbour = graphDirection == Direction.IN ? edge.outVertex() : edge.inVertex();
+                GraphNodeId neighbourId = nid(neighbour);
+                if (visited.add(neighbourId)) {
+                    result.add(toNode(neighbour));
+                    queue.addLast(new NodeDepth(neighbourId, current.depth + 1));
+                }
+            }
+        }
+        return result;
+    }
+
     private void addApplication(AppEntry app) {
         Vertex vertex = addVertex(app.id.serialize(), "Application", app.name);
         set(vertex, "kind", "application");

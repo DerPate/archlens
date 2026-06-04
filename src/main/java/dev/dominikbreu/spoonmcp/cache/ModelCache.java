@@ -29,6 +29,7 @@ public class ModelCache {
     private final CacheBackend backend;
     private final ArchitectureGraph graph;
     private ArchitectureModel current;
+    private ToolModelIndex cachedIndex;
 
     /** Creates a cache using the default local cache directory. */
     public ModelCache() {
@@ -67,6 +68,7 @@ public class ModelCache {
      */
     public void store(ArchitectureModel model) throws IOException {
         this.current = model;
+        this.cachedIndex = null;
         File dir = workspaceDir(model);
         if (!dir.exists() && !dir.mkdirs()) {
             throw new IOException("Failed to create cache directory: " + dir.getAbsolutePath());
@@ -89,6 +91,7 @@ public class ModelCache {
      */
     public void clearActive() throws IOException {
         this.current = null;
+        this.cachedIndex = null;
         graph.rebuild(null);
         Files.deleteIfExists(activeWorkspaceFile().toPath());
     }
@@ -153,6 +156,20 @@ public class ModelCache {
             graph.rebuild(model);
         }
         return graph;
+    }
+
+    /**
+     * Returns an O(1) lookup index over the current model, built lazily and
+     * invalidated on each {@link #store} or {@link #clearActive}.
+     *
+     * @return tool model index
+     * @throws IOException if the current model must be loaded and cannot be read
+     */
+    public ToolModelIndex index() throws IOException {
+        if (cachedIndex == null) {
+            cachedIndex = ToolModelIndex.from(load());
+        }
+        return cachedIndex;
     }
 
     /**

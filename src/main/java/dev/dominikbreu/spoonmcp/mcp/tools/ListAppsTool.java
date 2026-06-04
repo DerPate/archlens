@@ -1,6 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.model.AppEntry;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import java.util.Map;
@@ -29,14 +30,15 @@ public class ListAppsTool {
      */
     public String execute(Map<String, Object> args) {
         try {
-            ArchitectureModel model = cache.load();
+            ToolModelIndex index = cache.index();
+            ArchitectureModel model = index.rawModel();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
 
-            if (model.applications.isEmpty()) return "No applications found in the indexed workspace.";
+            if (index.allApps().isEmpty()) return "No applications found in the indexed workspace.";
 
             StringBuilder sb = new StringBuilder();
-            sb.append("Applications (").append(model.applications.size()).append("):\n\n");
-            for (AppEntry app : model.applications) {
+            sb.append("Applications (").append(index.allApps().size()).append("):\n\n");
+            for (AppEntry app : index.allApps()) {
                 sb.append("- ")
                         .append(app.name)
                         .append("\n  id:          ")
