@@ -43,6 +43,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
+import org.apache.tinkerpop.gremlin.process.traversal.Path;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -59,6 +63,7 @@ import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 public class ArchitectureGraph {
 
     private Graph graph = TinkerGraph.open();
+    private GraphTraversalSource g = graph.traversal();
     private final Map<GraphNodeId, Vertex> verticesById = new LinkedHashMap<>();
     private ArchitectureModel model;
 
@@ -93,6 +98,7 @@ public class ArchitectureGraph {
      */
     public synchronized void rebuild(ArchitectureModel sourceModel) {
         this.graph = TinkerGraph.open();
+        this.g = this.graph.traversal();
         this.verticesById.clear();
         this.model = sourceModel;
         if (sourceModel == null) {
@@ -365,7 +371,7 @@ public class ArchitectureGraph {
     }
 
     /**
-     * Finds dependency-oriented paths between two graph nodes.
+     * Finds simple paths between two graph nodes via outgoing edges.
      *
      * @param fromId source graph node identifier
      * @param toId target graph node identifier
@@ -379,36 +385,16 @@ public class ArchitectureGraph {
         }
         int depthLimit = Math.clamp(maxDepth <= 0 ? 5 : maxDepth, 1, 8);
         int resultLimit = normalizeLimit(limit);
-        List<GraphPath> paths = new ArrayList<>();
-        ArrayDeque<PathState> queue = new ArrayDeque<>();
-        queue.add(new PathState(fromId, List.of(fromId), List.of()));
 
-        while (!queue.isEmpty() && paths.size() < resultLimit) {
-            PathState state = queue.removeFirst();
-            if (state.nodeIds.size() > depthLimit + 1) {
-                continue;
-            }
-            if (state.nodeId.equals(toId) && !state.edgeLabels.isEmpty()) {
-                paths.add(toPath(state));
-                continue;
-            }
-
-            Vertex vertex = verticesById.get(state.nodeId);
-            Iterator<Edge> edges = vertex.edges(Direction.OUT);
-            while (edges.hasNext()) {
-                Edge edge = edges.next();
-                GraphNodeId nextId = nid(edge.inVertex());
-                if (state.nodeIds.contains(nextId)) {
-                    continue;
-                }
-                List<GraphNodeId> nextNodes = new ArrayList<>(state.nodeIds);
-                nextNodes.add(nextId);
-                List<String> nextEdges = new ArrayList<>(state.edgeLabels);
-                nextEdges.add(edge.label());
-                queue.addLast(new PathState(nextId, nextNodes, nextEdges));
-            }
-        }
-        return paths;
+        return g.V(fromId.value())
+                .repeat(__.outE().inV().simplePath())
+                .until(__.hasId(toId.value()).or().loops().is(P.gte(depthLimit)))
+                .hasId(toId.value())
+                .path()
+                .limit(resultLimit)
+                .toList()
+                .stream().map(this::pathToGraphPath)
+                .toList();
     }
 
     /**
@@ -425,28 +411,16 @@ public class ArchitectureGraph {
         }
         int depthLimit = Math.clamp(maxDepth <= 0 ? 3 : maxDepth, 1, 8);
         int resultLimit = normalizeLimit(limit);
-        Set<GraphNodeId> seen = new LinkedHashSet<>();
-        ArrayDeque<NodeDepth> queue = new ArrayDeque<>();
-        queue.add(new NodeDepth(targetId, 0));
 
-        while (!queue.isEmpty() && seen.size() < resultLimit + 1) {
-            NodeDepth current = queue.removeFirst();
-            if (current.depth >= depthLimit) {
-                continue;
-            }
-            Vertex vertex = verticesById.get(current.nodeId);
-            Iterator<Edge> incoming = vertex.edges(Direction.IN);
-            while (incoming.hasNext()) {
-                GraphNodeId sourceId = nid(incoming.next().outVertex());
-                if (seen.add(sourceId)) {
-                    queue.addLast(new NodeDepth(sourceId, current.depth + 1));
-                }
-            }
-        }
-        seen.remove(targetId);
-        return seen.stream()
+        return g.V(targetId.value())
+                .repeat(__.in())
+                .emit()
+                .times(depthLimit)
+                .dedup()
+                .not(__.hasId(targetId.value()))
                 .limit(resultLimit)
-                .map(id -> toNode(verticesById.get(id)))
+                .toList()
+                .stream().map(this::toNode)
                 .toList();
     }
 
@@ -512,7 +486,7 @@ public class ArchitectureGraph {
 
     /**
      * Returns all nodes reachable from a starting node within the given depth along
-     * edges of the specified label. Depth-bounded BFS; excludes the starting node.
+     * edges of the specified label. Excludes the starting node.
      *
      * @param from      starting node identifier
      * @param direction out, in, or both
@@ -526,36 +500,28 @@ public class ArchitectureGraph {
         if (!verticesById.containsKey(from)) return List.of();
         int depthLimit = Math.clamp(depth <= 0 ? 1 : depth, 1, 10);
         int resultLimit = normalizeLimit(limit);
-        Direction graphDirection =
-                switch (normalizeBlank(direction) == null ? "both" : direction.toLowerCase(Locale.ROOT)) {
-                    case "in", "incoming" -> Direction.IN;
-                    case "out", "outgoing" -> Direction.OUT;
-                    default -> Direction.BOTH;
-                };
-        LinkedHashSet<GraphNodeId> visited = new LinkedHashSet<>();
-        visited.add(from);
-        ArrayDeque<NodeDepth> queue = new ArrayDeque<>();
-        queue.add(new NodeDepth(from, 0));
-        List<GraphNode> result = new ArrayList<>();
 
-        while (!queue.isEmpty() && result.size() < resultLimit) {
-            NodeDepth current = queue.removeFirst();
-            if (current.depth >= depthLimit) continue;
-            Vertex vertex = verticesById.get(current.nodeId);
-            if (vertex == null) continue;
-            Iterator<Edge> edges = vertex.edges(graphDirection);
-            while (edges.hasNext()) {
-                Edge edge = edges.next();
-                if (edgeLabel != null && !edgeLabel.equals(edge.label())) continue;
-                Vertex neighbour = graphDirection == Direction.IN ? edge.outVertex() : edge.inVertex();
-                GraphNodeId neighbourId = nid(neighbour);
-                if (visited.add(neighbourId)) {
-                    result.add(toNode(neighbour));
-                    queue.addLast(new NodeDepth(neighbourId, current.depth + 1));
-                }
-            }
-        }
-        return result;
+        return g.V(from.value())
+                .repeat(directedStep(direction, edgeLabel))
+                .emit()
+                .times(depthLimit)
+                .dedup()
+                .limit(resultLimit)
+                .toList()
+                .stream().map(this::toNode)
+                .toList();
+    }
+
+    /** Builds a single-hop anonymous traversal step for the given direction and optional edge label. */
+    @SuppressWarnings("unchecked")
+    private org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal<Vertex, Vertex>
+            directedStep(String direction, String edgeLabel) {
+        String d = normalizeBlank(direction) == null ? "both" : direction.toLowerCase(Locale.ROOT);
+        return switch (d) {
+            case "in", "incoming"   -> edgeLabel != null ? __.in(edgeLabel)   : __.in();
+            case "out", "outgoing"  -> edgeLabel != null ? __.out(edgeLabel)  : __.out();
+            default                 -> edgeLabel != null ? __.both(edgeLabel) : __.both();
+        };
     }
 
     private void addApplication(AppEntry app) {
@@ -1316,10 +1282,14 @@ public class ArchitectureGraph {
         return new GraphEdge(nid(edge.outVertex()), nid(edge.inVertex()), edge.label(), properties(edge));
     }
 
-    private GraphPath toPath(PathState state) {
-        List<GraphNode> nodes =
-                state.nodeIds.stream().map(id -> toNode(verticesById.get(id))).toList();
-        return new GraphPath(nodes, state.edgeLabels);
+    private GraphPath pathToGraphPath(Path path) {
+        List<GraphNode> nodes = new ArrayList<>();
+        List<String> edgeLabels = new ArrayList<>();
+        for (Object obj : path.objects()) {
+            if (obj instanceof Vertex v) nodes.add(toNode(v));
+            else if (obj instanceof Edge e) edgeLabels.add(e.label());
+        }
+        return new GraphPath(nodes, edgeLabels);
     }
 
     private Map<String, Object> properties(org.apache.tinkerpop.gremlin.structure.Element element) {
@@ -1844,8 +1814,4 @@ public class ArchitectureGraph {
      * @param edgeLabels ordered edge labels between path nodes
      */
     public record GraphPath(List<GraphNode> nodes, List<String> edgeLabels) {}
-
-    private record PathState(GraphNodeId nodeId, List<GraphNodeId> nodeIds, List<String> edgeLabels) {}
-
-    private record NodeDepth(GraphNodeId nodeId, int depth) {}
 }
