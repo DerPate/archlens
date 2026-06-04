@@ -1,10 +1,12 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
+import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer;
-import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.List;
 import java.util.Map;
 
@@ -32,17 +34,19 @@ public class FindEntrypointsTool {
      */
     public String execute(Map<String, Object> args) {
         try {
-            ArchitectureModel model = cache.load();
-            if (model == null) return "No workspace indexed yet. Call index_workspace first.";
+            ToolModelIndex index = cache.index();
+            ArchitectureGraph graph = cache.graph();
+            if (index.rawModel() == null) return "No workspace indexed yet. Call index_workspace first.";
 
             String appId = ToolArgs.getString(args, "appId");
             String typeFilter = ToolArgs.getString(args, "type");
             String methodFilter = ToolArgs.getString(args, "httpMethod");
             String pathFilter = ToolArgs.getString(args, "path");
 
-            List<Entrypoint> eps = model.entrypoints.stream()
-                    .filter(ep ->
-                            appId == null || ep.componentId.qualifiedName().contains(appId))
+            List<Entrypoint> eps = graph.findNodes("Entrypoint", null, Map.of(), 5000).stream()
+                    .map(n -> index.entrypoint(EntrypointId.deserialize(n.id().value())))
+                    .filter(ep -> ep != null)
+                    .filter(ep -> appId == null || ep.componentId.qualifiedName().contains(appId))
                     .filter(ep -> typeFilter == null || matchesType(ep.type, typeFilter))
                     .filter(ep -> methodFilter == null || methodFilter.equalsIgnoreCase(ep.httpMethod))
                     .filter(ep -> pathFilter == null || pathPrefixMatchesForDiscovery(ep.path, pathFilter))

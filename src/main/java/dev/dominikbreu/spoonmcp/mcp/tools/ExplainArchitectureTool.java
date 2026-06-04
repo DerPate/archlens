@@ -1,6 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.model.*;
 import java.util.List;
 import java.util.Map;
@@ -32,12 +33,13 @@ public class ExplainArchitectureTool {
      */
     public String execute(Map<String, Object> args) {
         try {
-            ArchitectureModel model = cache.load();
+            ToolModelIndex index = cache.index();
+            ArchitectureModel model = index.rawModel();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
 
             String appFilter = ToolArgs.getString(args, "appId");
 
-            List<AppEntry> apps = model.applications.stream()
+            List<AppEntry> apps = index.allApps().stream()
                     .filter(a ->
                             appFilter == null || a.id.serialize().contains(appFilter) || a.name.contains(appFilter))
                     .toList();
@@ -54,7 +56,7 @@ public class ExplainArchitectureTool {
             for (AppEntry app : apps) {
                 appendApplication(sb, app, model);
             }
-            appendDependencies(sb, apps, model);
+            appendDependencies(sb, apps, model, index);
             appendDeployments(sb, model);
 
             return sb.toString();
@@ -109,7 +111,7 @@ public class ExplainArchitectureTool {
         }
     }
 
-    private void appendDependencies(StringBuilder sb, List<AppEntry> apps, ArchitectureModel model) {
+    private void appendDependencies(StringBuilder sb, List<AppEntry> apps, ArchitectureModel model, ToolModelIndex index) {
         List<Dependency> deps = model.dependencies.stream()
                 .filter(d -> {
                     boolean fromVisible =
@@ -123,9 +125,9 @@ public class ExplainArchitectureTool {
         sb.append("## Dependencies (").append(deps.size()).append(PAREN_BLOCK_END);
         for (Dependency dep : deps) {
             sb.append("- ")
-                    .append(componentName(dep.fromId.serialize(), model))
+                    .append(componentName(dep.fromId, index))
                     .append(" → ")
-                    .append(componentName(dep.toId.serialize(), model))
+                    .append(componentName(dep.toId, index))
                     .append(" [")
                     .append(dep.kind)
                     .append("]\n");
@@ -144,11 +146,8 @@ public class ExplainArchitectureTool {
         }
     }
 
-    private String componentName(String id, ArchitectureModel model) {
-        return model.components.stream()
-                .filter(c -> c.id.serialize().equals(id))
-                .findFirst()
-                .map(c -> c.name)
-                .orElse(id);
+    private String componentName(dev.dominikbreu.spoonmcp.model.ids.ComponentId id, ToolModelIndex index) {
+        Component c = index.component(id);
+        return c != null ? c.name : id.serialize();
     }
 }

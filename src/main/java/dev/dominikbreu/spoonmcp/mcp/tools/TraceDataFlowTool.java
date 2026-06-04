@@ -1,6 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer;
 import dev.dominikbreu.spoonmcp.model.*;
 import java.util.List;
@@ -34,7 +35,8 @@ public class TraceDataFlowTool {
      */
     public String execute(Map<String, Object> args) {
         try {
-            ArchitectureModel model = cache.load();
+            ToolModelIndex index = cache.index();
+            ArchitectureModel model = index.rawModel();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
 
             if (model.callEdges.isEmpty()) {
@@ -43,13 +45,13 @@ public class TraceDataFlowTool {
 
             List<DataFlowPath> paths = model.dataFlowPaths;
             paths = filterByEntrypointId(paths, ToolArgs.getString(args, "entrypointId"));
-            paths = filterByEntrypointName(paths, ToolArgs.getString(args, "entrypointName"), model);
+            paths = filterByEntrypointName(paths, ToolArgs.getString(args, "entrypointName"), index);
             paths = filterByParam(paths, ToolArgs.getString(args, "param"));
             paths = filterBySinkKind(paths, ToolArgs.getString(args, "sinkKind"));
 
             if (paths.isEmpty()) return "No data-flow paths found for the given filters.";
 
-            return format(paths, model);
+            return format(paths, index);
         } catch (Exception e) {
             return "Error tracing data flow: " + e.getMessage();
         }
@@ -65,22 +67,19 @@ public class TraceDataFlowTool {
     }
 
     private static List<DataFlowPath> filterByEntrypointName(
-            List<DataFlowPath> paths, String nameFilter, ArchitectureModel model) {
+            List<DataFlowPath> paths, String nameFilter, ToolModelIndex index) {
         if (nameFilter == null) return paths;
         String methodFilter = RuntimeFlowInferrer.extractMethodFromRef(nameFilter);
         String pathFilter = RuntimeFlowInferrer.extractPathFromRef(nameFilter);
         String lower = pathFilter.toLowerCase();
         return paths.stream()
-                .filter(p -> entrypointNameMatches(p, model, methodFilter, pathFilter, lower))
+                .filter(p -> entrypointNameMatches(p, index, methodFilter, pathFilter, lower))
                 .toList();
     }
 
     private static boolean entrypointNameMatches(
-            DataFlowPath p, ArchitectureModel model, String methodFilter, String pathFilter, String lower) {
-        Entrypoint ep = model.entrypoints.stream()
-                .filter(e -> p.entrypointId != null && p.entrypointId.equals(e.id))
-                .findFirst()
-                .orElse(null);
+            DataFlowPath p, ToolModelIndex index, String methodFilter, String pathFilter, String lower) {
+        Entrypoint ep = p.entrypointId != null ? index.entrypoint(p.entrypointId) : null;
         if (ep == null) return false;
         if (methodFilter != null && !methodFilter.equalsIgnoreCase(ep.httpMethod)) return false;
         return ep.name.toLowerCase().contains(lower) || RuntimeFlowInferrer.pathPrefixMatches(ep.path, pathFilter);
@@ -101,18 +100,18 @@ public class TraceDataFlowTool {
                 .toList();
     }
 
-    private String format(List<DataFlowPath> paths, ArchitectureModel model) {
+    private String format(List<DataFlowPath> paths, ToolModelIndex index) {
         StringBuilder sb = new StringBuilder();
         sb.append(paths.size()).append(" data-flow path(s):\n\n");
         for (DataFlowPath path : paths) {
-            formatPath(sb, path, model);
+            formatPath(sb, path, index);
         }
         return sb.toString();
     }
 
-    private void formatPath(StringBuilder sb, DataFlowPath path, ArchitectureModel model) {
+    private void formatPath(StringBuilder sb, DataFlowPath path, ToolModelIndex index) {
         sb.append("## ")
-                .append(entrypointLabel(path, model))
+                .append(entrypointLabel(path, index))
                 .append(" → param: ")
                 .append(path.trackedParam)
                 .append("\n");
@@ -122,11 +121,8 @@ public class TraceDataFlowTool {
         sb.append("\n");
     }
 
-    private static String entrypointLabel(DataFlowPath path, ArchitectureModel model) {
-        Entrypoint ep = model.entrypoints.stream()
-                .filter(e -> path.entrypointId != null && path.entrypointId.equals(e.id))
-                .findFirst()
-                .orElse(null);
+    private static String entrypointLabel(DataFlowPath path, ToolModelIndex index) {
+        Entrypoint ep = path.entrypointId != null ? index.entrypoint(path.entrypointId) : null;
         if (ep != null) {
             return (ep.httpMethod != null ? ep.httpMethod + " " : "") + (ep.path != null ? ep.path : ep.name);
         }

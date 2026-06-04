@@ -1,11 +1,15 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
+import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.RuntimeFlow;
 import dev.dominikbreu.spoonmcp.model.RuntimeFlowStep;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
+import dev.dominikbreu.spoonmcp.model.ids.GraphNodeId;
 import java.util.Map;
 
 /**
@@ -33,7 +37,9 @@ public class GetRuntimeFlowTool {
      */
     public String execute(Map<String, Object> args) {
         try {
-            ArchitectureModel model = cache.load();
+            ToolModelIndex index = cache.index();
+            ArchitectureGraph graph = cache.graph();
+            ArchitectureModel model = index.rawModel();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
 
             String ref = ToolArgs.getString(args, "entrypointId");
@@ -42,17 +48,14 @@ public class GetRuntimeFlowTool {
 
             int maxDepth = ToolArgs.getInt(args, "maxDepth", 5);
 
-            RuntimeFlow resolvedFlow = findStoredFlow(ref, maxDepth, model);
+            RuntimeFlow resolvedFlow = findStoredFlow(ref, maxDepth, index, graph);
             if (resolvedFlow == null) resolvedFlow = inferrer.infer(ref, maxDepth, model);
             if (resolvedFlow == null) {
-                return "Entrypoint not found: " + ref + "\n\nAvailable entrypoints:\n" + listEntrypoints(model);
+                return "Entrypoint not found: " + ref + "\n\nAvailable entrypoints:\n" + listEntrypoints(index);
             }
             final RuntimeFlow flow = resolvedFlow;
 
-            Entrypoint ep = model.entrypoints.stream()
-                    .filter(e -> flow.entrypointId != null && flow.entrypointId.equals(e.id))
-                    .findFirst()
-                    .orElse(null);
+            Entrypoint ep = flow.entrypointId != null ? index.entrypoint(flow.entrypointId) : null;
 
             StringBuilder sb = new StringBuilder();
             sb.append("Runtime flow for: ");
@@ -88,9 +91,9 @@ public class GetRuntimeFlowTool {
         }
     }
 
-    private String listEntrypoints(ArchitectureModel model) {
+    private String listEntrypoints(ToolModelIndex index) {
         StringBuilder sb = new StringBuilder();
-        for (Entrypoint ep : model.entrypoints) {
+        for (Entrypoint ep : index.allEntrypoints()) {
             sb.append("  - ")
                     .append(ep.id.serialize())
                     .append(" (")
@@ -104,11 +107,12 @@ public class GetRuntimeFlowTool {
         }
     }
 
-    private RuntimeFlow findStoredFlow(String ref, int maxDepth, ArchitectureModel model) {
-        Entrypoint ep = inferrer.findEntrypoint(ref, model);
-        if (ep == null) return null;
-        return model.runtimeFlows.stream()
-                .filter(f -> f.entrypointId != null && f.entrypointId.equals(ep.id))
+    private RuntimeFlow findStoredFlow(String ref, int maxDepth, ToolModelIndex index, ArchitectureGraph graph) {
+        GraphNodeId epNodeId = graph.resolveEntrypoint(ref, index).orElse(null);
+        if (epNodeId == null) return null;
+        EntrypointId epId = EntrypointId.deserialize(epNodeId.value());
+        return index.runtimeFlows().stream()
+                .filter(f -> f.entrypointId != null && f.entrypointId.equals(epId))
                 .filter(f -> maxDepth >= Math.max(0, f.steps.size() - 1))
                 .findFirst()
                 .orElse(null);
