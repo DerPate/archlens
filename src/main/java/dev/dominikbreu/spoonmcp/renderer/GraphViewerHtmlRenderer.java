@@ -1,31 +1,16 @@
 package dev.dominikbreu.spoonmcp.renderer;
 
-import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
-import java.time.Instant;
-import tools.jackson.databind.SerializationFeature;
-import tools.jackson.databind.json.JsonMapper;
-
 /** Renders a self-contained visual debugger for the architecture graph. */
 public class GraphViewerHtmlRenderer {
 
-    private final JsonMapper mapper = JsonMapper.builder()
-            .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
-            .build();
-
     /**
-     * Renders a complete HTML document with embedded graph data.
+     * Renders a complete HTML document with a serialized graph export payload.
      *
-     * @param snapshot graph snapshot to visualize
-     * @param generatedAt generation timestamp
+     * @param graphJson JSON payload produced by the graph export tool path
      * @return self-contained HTML document
      */
-    public String render(ArchitectureGraph.GraphSnapshot snapshot, Instant generatedAt) {
-        try {
-            String json = escapeScriptString(mapper.writeValueAsString(new ViewerPayload(snapshot, generatedAt)));
-            return template().replace("__GRAPH_JSON__", json);
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to render graph viewer HTML", e);
-        }
+    public String render(String graphJson) {
+        return template().replace("__GRAPH_JSON__", escapeScriptString(graphJson));
     }
 
     private static String escapeScriptString(String json) {
@@ -447,5 +432,4 @@ public class GraphViewerHtmlRenderer {
                 """;
     }
 
-    private record ViewerPayload(ArchitectureGraph.GraphSnapshot snapshot, Instant generatedAt) {}
 }

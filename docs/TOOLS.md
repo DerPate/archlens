@@ -967,11 +967,11 @@ Arguments:
 
 ## `export_graph_viewer`
 
-Write a self-contained HTML file for visually debugging the raw detected architecture
-graph. The viewer uses the existing graph projection and shows nodes, edges, labels,
-filters, search, and raw property inspection. It does not interpret the graph or rank
-detected elements. For richer interaction, prefer `export_graph_data` and load the
-result in the standalone graph viewer app.
+Write a self-contained HTML file for visually debugging the detected architecture
+graph. The viewer embeds the same graph export payload as `export_graph_data`: the
+raw snapshot plus any viewer-ready projections. It shows nodes, edges, labels,
+filters, search, and raw property inspection. For richer interaction, prefer
+`export_graph_data` and load the result in the standalone graph viewer app.
 
 Arguments:
 

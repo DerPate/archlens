@@ -44,6 +44,8 @@ class ExportGraphViewerToolTest {
         assertThat(result).contains("Edges: 0");
         assertThat(Files.readString(output))
                 .contains("Architecture Graph Viewer")
+                .contains("\"projections\"")
+                .contains("\"pipelines\"")
                 .contains("PaymentService");
     }
 }
