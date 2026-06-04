@@ -46,17 +46,69 @@ public class GraphViewerHtmlRenderer {
                   <meta charset="utf-8">
                   <meta name="viewport" content="width=device-width, initial-scale=1">
                   <title>Architecture Graph Viewer</title>
+                  <script src="https://cdnjs.cloudflare.com/ajax/libs/graphology/0.25.4/graphology.umd.min.js"></script>
+                  <script src="https://cdnjs.cloudflare.com/ajax/libs/sigma.js/2.4.0/sigma.min.js"></script>
                   <style>
-                    body { margin: 0; font: 13px system-ui, sans-serif; color: #172026; background: #f7f7f4; }
-                    #app { display: grid; grid-template-columns: 300px 1fr 340px; min-height: 100vh; }
-                    aside, section { padding: 14px; border-right: 1px solid #d8d8d0; overflow: auto; }
-                    #graph { width: 100%; height: 100vh; background: #ffffff; display: block; }
+                    :root {
+                      --bg: #f5f5f0;
+                      --panel: #ffffff;
+                      --line: #d7d9d2;
+                      --text: #162026;
+                      --muted: #5b6870;
+                      --accent: #2563eb;
+                    }
+                    body {
+                      margin: 0;
+                      font: 13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                      color: var(--text);
+                      background: var(--bg);
+                    }
+                    #app {
+                      display: grid;
+                      grid-template-columns: 320px minmax(480px, 1fr) 380px;
+                      height: 100vh;
+                      overflow: hidden;
+                    }
+                    aside, section {
+                      padding: 14px;
+                      border-right: 1px solid var(--line);
+                      overflow: auto;
+                      background: var(--bg);
+                    }
+                    section { border-right: 0; border-left: 1px solid var(--line); }
+                    #sigma-container { width: 100%; height: 100vh; background: #fbfbf8; }
                     h1 { font-size: 16px; margin: 0 0 12px; }
                     h2 { font-size: 13px; margin: 18px 0 8px; }
                     label { display: block; margin: 5px 0; }
-                    input[type="search"] { width: 100%; box-sizing: border-box; padding: 7px; }
-                    pre { white-space: pre-wrap; word-break: break-word; background: #fff; padding: 10px; border: 1px solid #d8d8d0; }
-                    .meta { color: #4d5a62; line-height: 1.5; }
+                    input[type="search"], input[type="number"], select {
+                      width: 100%;
+                      box-sizing: border-box;
+                      padding: 7px;
+                      border: 1px solid #aeb6bc;
+                      background: #fff;
+                    }
+                    input[type="checkbox"] { vertical-align: middle; }
+                    button {
+                      width: 100%;
+                      margin-top: 8px;
+                      padding: 8px;
+                      border: 1px solid #9aa7b1;
+                      background: #fff;
+                      color: var(--text);
+                      cursor: pointer;
+                    }
+                    button:hover { border-color: var(--accent); }
+                    pre {
+                      white-space: pre-wrap;
+                      word-break: break-word;
+                      background: var(--panel);
+                      padding: 10px;
+                      border: 1px solid var(--line);
+                      max-height: calc(100vh - 95px);
+                      overflow: auto;
+                    }
+                    .meta, .hint { color: var(--muted); line-height: 1.5; }
+                    .metric { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
                   </style>
                 </head>
                 <body>
@@ -65,13 +117,26 @@ public class GraphViewerHtmlRenderer {
                       <h1>Architecture Graph Viewer</h1>
                       <div class="meta" id="meta"></div>
                       <h2>Search</h2>
-                      <input id="search" type="search" autocomplete="off">
+                      <input id="search" type="search" autocomplete="off" placeholder="Node id, label, property...">
+                      <button id="showSearch">Show search matches</button>
+                      <button id="showSelected">Show selected neighborhood</button>
+                      <button id="resetView">Reset overview</button>
+                      <h2>Visible Nodes</h2>
+                      <input id="visibleLimit" type="number" min="25" max="5000" step="25" value="350">
+                      <h2>Neighborhood Radius</h2>
+                      <select id="radius">
+                        <option value="1" selected>1 hop</option>
+                        <option value="2">2 hops</option>
+                      </select>
+                      <h2>Labels</h2>
+                      <label><input id="nodeLabelsVisible" type="checkbox" checked> Node labels</label>
+                      <label><input id="edgeLabelsVisible" type="checkbox"> Edge labels</label>
                       <h2>Node Labels</h2>
                       <div id="nodeFilters"></div>
                       <h2>Edge Labels</h2>
                       <div id="edgeFilters"></div>
                     </aside>
-                    <canvas id="graph"></canvas>
+                    <main id="sigma-container"></main>
                     <section>
                       <h2>Selection</h2>
                       <pre id="selection">Click a node or edge.</pre>
@@ -79,28 +144,69 @@ public class GraphViewerHtmlRenderer {
                   </div>
                   <script>
                     const GRAPH_DATA = JSON.parse('__GRAPH_JSON__');
-                    const state = { search: "", nodeLabels: new Set(), edgeLabels: new Set() };
-                    const canvas = document.getElementById("graph");
-                    const ctx = canvas.getContext("2d");
-                    const colors = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#dc2626", "#0891b2", "#4b5563"];
-                    const nodeColor = new Map([...new Set(GRAPH_DATA.snapshot.nodes.map(n => n.label))]
+                    const allNodes = GRAPH_DATA.snapshot.nodes;
+                    const allEdges = GRAPH_DATA.snapshot.edges;
+                    const nodeById = new Map(allNodes.map(node => [node.id, node]));
+                    const incidentEdges = new Map();
+                    const state = {
+                      mode: "overview",
+                      search: "",
+                      selectedNodeId: null,
+                      selectedEdgeKey: null,
+                      nodeLabels: new Set(),
+                      edgeLabels: new Set()
+                    };
+                    let renderer = null;
+                    let renderedGraph = null;
+                    const colors = [
+                      "#2563eb", "#059669", "#d97706", "#7c3aed", "#dc2626",
+                      "#0891b2", "#4b5563", "#be123c", "#65a30d", "#0f766e"
+                    ];
+                    const nodeColor = new Map([...new Set(allNodes.map(node => node.label))]
+                      .sort()
                       .map((label, index) => [label, colors[index % colors.length]]));
-                    const positions = new Map();
+
+                    for (const edge of allEdges) {
+                      if (!incidentEdges.has(edge.fromId)) incidentEdges.set(edge.fromId, []);
+                      if (!incidentEdges.has(edge.toId)) incidentEdges.set(edge.toId, []);
+                      incidentEdges.get(edge.fromId).push(edge);
+                      incidentEdges.get(edge.toId).push(edge);
+                    }
 
                     function init() {
                       const meta = GRAPH_DATA.snapshot.metadata;
                       document.getElementById("meta").textContent =
-                        `${meta.includedNodeCount} nodes, ${meta.includedEdgeCount} edges`;
-                      state.nodeLabels = new Set([...new Set(GRAPH_DATA.snapshot.nodes.map(n => n.label))]);
-                      state.edgeLabels = new Set([...new Set(GRAPH_DATA.snapshot.edges.map(e => e.label))]);
+                        `${meta.includedNodeCount} nodes, ${meta.includedEdgeCount} edges loaded`;
+                      state.nodeLabels = new Set([...new Set(allNodes.map(node => node.label))]);
+                      state.edgeLabels = new Set([...new Set(allEdges.map(edge => edge.label))]);
                       buildFilters("nodeFilters", state.nodeLabels, () => state.nodeLabels);
                       buildFilters("edgeFilters", state.edgeLabels, () => state.edgeLabels);
                       document.getElementById("search").addEventListener("input", event => {
                         state.search = event.target.value.toLowerCase();
+                      });
+                      document.getElementById("showSearch").addEventListener("click", () => {
+                        state.mode = "search";
                         render();
                       });
-                      canvas.addEventListener("click", selectAt);
-                      layout();
+                      document.getElementById("showSelected").addEventListener("click", () => {
+                        state.mode = "neighborhood";
+                        render();
+                      });
+                      document.getElementById("resetView").addEventListener("click", () => {
+                        state.mode = "overview";
+                        state.selectedNodeId = null;
+                        state.selectedEdgeKey = null;
+                        document.getElementById("selection").textContent = "Click a node or edge.";
+                        render();
+                      });
+                      document.getElementById("visibleLimit").addEventListener("change", render);
+                      document.getElementById("radius").addEventListener("change", render);
+                      document.getElementById("nodeLabelsVisible").addEventListener("change", event => {
+                        if (renderer) renderer.setSetting("renderLabels", event.target.checked);
+                      });
+                      document.getElementById("edgeLabelsVisible").addEventListener("change", event => {
+                        if (renderer) renderer.setSetting("renderEdgeLabels", event.target.checked);
+                      });
                       render();
                     }
 
@@ -120,94 +226,142 @@ public class GraphViewerHtmlRenderer {
                       });
                     }
 
-                    function layout() {
-                      const nodes = GRAPH_DATA.snapshot.nodes;
-                      const cols = Math.ceil(Math.sqrt(Math.max(nodes.length, 1)));
-                      nodes.forEach((node, index) => positions.set(node.id, {
-                        x: 90 + (index % cols) * 140,
-                        y: 90 + Math.floor(index / cols) * 110
-                      }));
-                    }
-
                     function matchesText(item) {
                       if (!state.search) return true;
                       return JSON.stringify(item).toLowerCase().includes(state.search);
                     }
 
-                    function visibleNodes() {
-                      return GRAPH_DATA.snapshot.nodes.filter(node => state.nodeLabels.has(node.label) && matchesText(node));
+                    function passesNodeFilter(node) {
+                      return state.nodeLabels.has(node.label);
+                    }
+
+                    function passesEdgeFilter(edge) {
+                      return state.edgeLabels.has(edge.label);
+                    }
+
+                    function selectedNodes() {
+                      const limit = Math.max(25, Math.min(5000, Number(document.getElementById("visibleLimit").value) || 350));
+                      if (state.mode === "neighborhood" && state.selectedNodeId) {
+                        return neighborhood(state.selectedNodeId, Number(document.getElementById("radius").value) || 1)
+                          .filter(passesNodeFilter)
+                          .slice(0, limit);
+                      }
+                      if (state.mode === "search" && state.search) {
+                        const seeds = allNodes.filter(node => passesNodeFilter(node) && matchesText(node)).slice(0, limit);
+                        const ids = new Set(seeds.map(node => node.id));
+                        for (const seed of seeds.slice(0, 25)) {
+                          for (const node of neighborhood(seed.id, 1)) ids.add(node.id);
+                        }
+                        return [...ids].map(id => nodeById.get(id)).filter(Boolean).filter(passesNodeFilter).slice(0, limit);
+                      }
+                      return allNodes.filter(passesNodeFilter).slice(0, limit);
+                    }
+
+                    function neighborhood(nodeId, radius) {
+                      const seen = new Set([nodeId]);
+                      let frontier = new Set([nodeId]);
+                      for (let depth = 0; depth < radius; depth++) {
+                        const next = new Set();
+                        for (const id of frontier) {
+                          for (const edge of incidentEdges.get(id) || []) {
+                            if (passesEdgeFilter(edge)) {
+                              next.add(edge.fromId);
+                              next.add(edge.toId);
+                            }
+                          }
+                        }
+                        for (const id of next) seen.add(id);
+                        frontier = next;
+                      }
+                      return [...seen].map(id => nodeById.get(id)).filter(Boolean);
                     }
 
                     function visibleEdges(nodeIds) {
-                      return GRAPH_DATA.snapshot.edges.filter(edge =>
-                        state.edgeLabels.has(edge.label)
-                          && nodeIds.has(edge.fromId)
-                          && nodeIds.has(edge.toId)
-                          && matchesText(edge));
+                      return allEdges.filter(edge =>
+                        passesEdgeFilter(edge) && nodeIds.has(edge.fromId) && nodeIds.has(edge.toId));
                     }
 
                     function render() {
-                      canvas.width = canvas.clientWidth * devicePixelRatio;
-                      canvas.height = canvas.clientHeight * devicePixelRatio;
-                      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-                      ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-                      const nodes = visibleNodes();
+                      const nodes = selectedNodes();
                       const nodeIds = new Set(nodes.map(node => node.id));
                       const edges = visibleEdges(nodeIds);
-                      ctx.font = "12px system-ui, sans-serif";
-                      edges.forEach(drawEdge);
-                      nodes.forEach(drawNode);
-                    }
+                      const graph = new graphology.Graph({ multi: true, type: "directed" });
+                      const positions = positionsFor(nodes);
 
-                    function drawEdge(edge) {
-                      const a = positions.get(edge.fromId);
-                      const b = positions.get(edge.toId);
-                      if (!a || !b) return;
-                      ctx.strokeStyle = "#aab2b8";
-                      ctx.fillStyle = "#4d5a62";
-                      ctx.beginPath();
-                      ctx.moveTo(a.x, a.y);
-                      ctx.lineTo(b.x, b.y);
-                      ctx.stroke();
-                      ctx.fillText(edge.label, (a.x + b.x) / 2 + 4, (a.y + b.y) / 2 - 4);
-                    }
-
-                    function drawNode(node) {
-                      const point = positions.get(node.id);
-                      if (!point) return;
-                      ctx.fillStyle = nodeColor.get(node.label) || "#4b5563";
-                      ctx.beginPath();
-                      ctx.arc(point.x, point.y, 24, 0, Math.PI * 2);
-                      ctx.fill();
-                      ctx.fillStyle = "#172026";
-                      ctx.fillText(node.name || node.id, point.x - 36, point.y + 42);
-                    }
-
-                    function selectAt(event) {
-                      const rect = canvas.getBoundingClientRect();
-                      const x = event.clientX - rect.left;
-                      const y = event.clientY - rect.top;
-                      const nodes = visibleNodes();
-                      const selectedNode = nodes.find(node => {
+                      for (const node of nodes) {
                         const point = positions.get(node.id);
-                        return point && Math.hypot(point.x - x, point.y - y) <= 26;
+                        graph.addNode(node.id, {
+                          label: node.name || node.id,
+                          x: point.x,
+                          y: point.y,
+                          size: state.selectedNodeId === node.id ? 12 : 7,
+                          color: state.selectedNodeId === node.id ? "#f97316" : nodeColor.get(node.label) || "#4b5563",
+                          raw: node
+                        });
+                      }
+                      edges.forEach((edge, index) => {
+                        graph.addDirectedEdgeWithKey(`${edge.fromId}->${edge.toId}:${edge.label}:${index}`, edge.fromId, edge.toId, {
+                          label: edge.label,
+                          size: state.selectedEdgeKey === `${edge.fromId}->${edge.toId}:${edge.label}:${index}` ? 2 : 0.7,
+                          color: state.selectedEdgeKey === `${edge.fromId}->${edge.toId}:${edge.label}:${index}` ? "#f97316" : "#a7b0b7",
+                          raw: edge
+                        });
                       });
-                      const selectedEdge = selectedNode ? null : visibleEdges(new Set(nodes.map(node => node.id)))
-                        .find(edge => isNearEdge(edge, x, y));
-                      document.getElementById("selection").textContent =
-                        JSON.stringify(selectedNode || selectedEdge || "Click a node or edge.", null, 2);
+
+                      if (renderer) renderer.kill();
+                      renderedGraph = graph;
+                      renderer = new Sigma(graph, document.getElementById("sigma-container"), {
+                        renderLabels: document.getElementById("nodeLabelsVisible").checked,
+                        renderEdgeLabels: document.getElementById("edgeLabelsVisible").checked,
+                        labelRenderedSizeThreshold: 7,
+                        allowInvalidContainer: true
+                      });
+                      renderer.setSetting("renderLabels", document.getElementById("nodeLabelsVisible").checked);
+                      renderer.setSetting("renderEdgeLabels", document.getElementById("edgeLabelsVisible").checked);
+                      renderer.on("clickNode", event => selectNode(event.node));
+                      renderer.on("clickEdge", event => selectEdge(event.edge));
+                      document.getElementById("meta").innerHTML =
+                        `${GRAPH_DATA.snapshot.metadata.includedNodeCount} nodes, ${GRAPH_DATA.snapshot.metadata.includedEdgeCount} edges loaded<br>` +
+                        `${nodes.length} visible nodes, ${edges.length} visible edges`;
                     }
 
-                    function isNearEdge(edge, x, y) {
-                      const a = positions.get(edge.fromId);
-                      const b = positions.get(edge.toId);
-                      if (!a || !b) return false;
-                      const length = Math.hypot(b.x - a.x, b.y - a.y);
-                      if (length === 0) return false;
-                      const t = Math.max(0, Math.min(1, ((x - a.x) * (b.x - a.x) + (y - a.y) * (b.y - a.y)) / (length * length)));
-                      const px = a.x + t * (b.x - a.x);
-                      const py = a.y + t * (b.y - a.y);
-                      return Math.hypot(px - x, py - y) <= 8;
+                    function positionsFor(nodes) {
+                      const grouped = new Map();
+                      for (const node of nodes) {
+                        if (!grouped.has(node.label)) grouped.set(node.label, []);
+                        grouped.get(node.label).push(node);
+                      }
+                      const groups = [...grouped.entries()].sort(([a], [b]) => a.localeCompare(b));
+                      const positions = new Map();
+                      const groupRadius = Math.max(6, groups.length * 1.6);
+                      groups.forEach(([label, group], groupIndex) => {
+                        const groupAngle = (Math.PI * 2 * groupIndex) / Math.max(groups.length, 1);
+                        const centerX = Math.cos(groupAngle) * groupRadius;
+                        const centerY = Math.sin(groupAngle) * groupRadius;
+                        const radius = Math.max(1.5, Math.sqrt(group.length) * 0.9);
+                        group.sort((a, b) => a.id.localeCompare(b.id)).forEach((node, index) => {
+                          const angle = (Math.PI * 2 * index) / Math.max(group.length, 1);
+                          positions.set(node.id, {
+                            x: centerX + Math.cos(angle) * radius,
+                            y: centerY + Math.sin(angle) * radius
+                          });
+                        });
+                      });
+                      return positions;
+                    }
+
+                    function selectNode(nodeId) {
+                      state.selectedNodeId = nodeId;
+                      state.selectedEdgeKey = null;
+                      document.getElementById("selection").textContent =
+                        JSON.stringify(renderedGraph.getNodeAttribute(nodeId, "raw"), null, 2);
+                    }
+
+                    function selectEdge(edgeKey) {
+                      state.selectedEdgeKey = edgeKey;
+                      state.selectedNodeId = null;
+                      document.getElementById("selection").textContent =
+                        JSON.stringify(renderedGraph.getEdgeAttribute(edgeKey, "raw"), null, 2);
                     }
 
                     init();

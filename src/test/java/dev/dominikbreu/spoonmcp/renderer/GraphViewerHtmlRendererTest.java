@@ -29,7 +29,25 @@ class GraphViewerHtmlRendererTest {
         assertThat(html).contains("\"id\":\"PaymentService\"");
         assertThat(html).contains("\"label\":\"DEPENDS_ON\"");
         assertThat(html).contains("const GRAPH_DATA = JSON.parse(");
-        assertThat(html).doesNotContain("https://");
+    }
+
+    @Test
+    void rendersSigmaGraphologyExplorerControls() {
+        ArchitectureGraph.GraphSnapshot snapshot = snapshot(
+                new ArchitectureGraph.GraphNode(
+                        GraphNodeId.of("PaymentService"), "Component", "PaymentService", Map.of("type", "SERVICE")),
+                null);
+
+        String html = new GraphViewerHtmlRenderer().render(snapshot, Instant.parse("2026-06-04T12:00:00Z"));
+
+        assertThat(html).contains("https://cdnjs.cloudflare.com/ajax/libs/sigma.js/");
+        assertThat(html).contains("https://cdnjs.cloudflare.com/ajax/libs/graphology/");
+        assertThat(html).contains("new graphology.Graph");
+        assertThat(html).contains("new Sigma");
+        assertThat(html).contains("Show selected neighborhood");
+        assertThat(html).contains("Visible Nodes");
+        assertThat(html).contains("renderer.setSetting");
+        assertThat(html).doesNotContain("<canvas id=\"graph\"");
     }
 
     @Test
