@@ -23,7 +23,12 @@ class McpServerTest {
             assertThat(spec.tool().inputSchema()).isNotNull();
         });
         assertThat(specs.stream().map(s -> s.tool().name()))
-                .contains("index_workspace", "list_apps", "find_entrypoints", "query_architecture_graph");
+                .contains(
+                        "index_workspace",
+                        "list_apps",
+                        "find_entrypoints",
+                        "query_architecture_graph",
+                        "export_graph_viewer");
     }
 
     @Test
