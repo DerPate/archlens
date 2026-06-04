@@ -44,7 +44,8 @@ public class ExportGraphDataTool {
             int limit = ToolArgs.getInt(args, "limit", DEFAULT_LIMIT);
             ArchitectureGraph.GraphSnapshot snapshot = graph.snapshot(limit);
             String json = mapper.writerWithDefaultPrettyPrinter()
-                    .writeValueAsString(new GraphDataPayload(snapshot, Instant.now()));
+                    .writeValueAsString(
+                            new GraphDataPayload(snapshot, GraphDataProjection.from(snapshot), Instant.now()));
 
             Path parent = output.getParent();
             if (parent != null) Files.createDirectories(parent);
@@ -58,5 +59,8 @@ public class ExportGraphDataTool {
         }
     }
 
-    private record GraphDataPayload(ArchitectureGraph.GraphSnapshot snapshot, Instant generatedAt) {}
+    private record GraphDataPayload(
+            ArchitectureGraph.GraphSnapshot snapshot,
+            GraphDataProjection.ViewerProjections projections,
+            Instant generatedAt) {}
 }

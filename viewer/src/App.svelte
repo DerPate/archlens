@@ -85,7 +85,7 @@
 
   function choosePipeline(pipeline: PipelineSummary) {
     selectedPipelineId = pipeline.id;
-    selected = pipeline.node;
+    selected = pipeline.node ?? null;
     void renderGraph(true);
   }
 

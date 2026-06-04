@@ -1,6 +1,30 @@
 export interface GraphPayload {
   snapshot: GraphSnapshot;
+  projections?: ViewerProjections;
   generatedAt?: string;
+}
+
+export interface ViewerProjections {
+  pipelines: PipelineProjection[];
+}
+
+export interface PipelineProjection {
+  id: string;
+  title: string;
+  subtitle: string;
+  rootEntrypointId: string;
+  segments: PipelineSegmentProjection[];
+  segmentIds: string[];
+  nodeIds: string[];
+  edgeKeys: string[];
+}
+
+export interface PipelineSegmentProjection {
+  id: string;
+  index: number;
+  title: string;
+  linkKind?: string;
+  viaChannel?: string;
 }
 
 export interface GraphSnapshot {

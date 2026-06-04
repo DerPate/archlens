@@ -31,3 +31,8 @@ http://localhost:5173/?graph=/phoenix-graph.json
 
 The viewer does not interpret architecture facts. It only filters and visualizes
 raw node labels, edge labels, IDs, names, and properties from the exported graph.
+
+Newer exports also include `projections.pipelines`. Those projections are
+viewer-ready indexes derived from the raw graph by the MCP server, so the viewer
+can show pipeline rows and focused slices without parsing synthetic IDs like
+`chain:12`.
