@@ -62,6 +62,14 @@ import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
  */
 public class ArchitectureGraph {
 
+    private static final Comparator<GraphNode> NODE_ORDER =
+            Comparator.comparing(GraphNode::label).thenComparing(n -> n.id().serialize());
+
+    private static final Comparator<GraphEdge> EDGE_ORDER =
+            Comparator.comparing(GraphEdge::label)
+                      .thenComparing(e -> e.fromId().serialize())
+                      .thenComparing(e -> e.toId().serialize());
+
     private Graph graph = TinkerGraph.open();
     private GraphTraversalSource g = graph.traversal();
     private final Map<GraphNodeId, Vertex> verticesById = new LinkedHashMap<>();
@@ -189,8 +197,7 @@ public class ArchitectureGraph {
             nodes.add(node);
             includedIds.add(node.id());
         }
-        nodes.sort(Comparator.comparing(GraphNode::label)
-                .thenComparing(node -> node.id().serialize()));
+        nodes.sort(NODE_ORDER);
 
         List<GraphEdge> edges = new ArrayList<>();
         Iterator<Edge> edgeIterator = graph.edges();
@@ -200,9 +207,7 @@ public class ArchitectureGraph {
                 edges.add(edge);
             }
         }
-        edges.sort(Comparator.comparing(GraphEdge::label)
-                .thenComparing(edge -> edge.fromId().serialize())
-                .thenComparing(edge -> edge.toId().serialize()));
+        edges.sort(EDGE_ORDER);
 
         GraphSnapshotMetadata metadata = new GraphSnapshotMetadata(
                 summary.nodeCount(),
@@ -227,22 +232,13 @@ public class ArchitectureGraph {
     public synchronized List<GraphNode> findNodes(String label, String query, Map<String, String> filters, int limit) {
         String normalizedLabel = normalizeBlank(label);
         String normalizedQuery = normalizeBlank(query);
-        List<GraphNode> nodes = new ArrayList<>();
-        Iterator<Vertex> iterator = graph.vertices();
-        while (iterator.hasNext()) {
-            Vertex vertex = iterator.next();
-            if (normalizedLabel != null && !vertex.label().equalsIgnoreCase(normalizedLabel)) {
-                continue;
-            }
-            GraphNode node = toNode(vertex);
-            if ((normalizedQuery == null || node.matches(normalizedQuery))
-                    && matchesFilters(node.properties(), filters)) {
-                nodes.add(node);
-            }
-        }
-        nodes.sort(Comparator.comparing(GraphNode::label)
-                .thenComparing(node -> node.id().serialize()));
-        return nodes.stream().limit(normalizeLimit(limit)).toList();
+        return g.V().toList().stream()
+                .filter(v -> normalizedLabel == null || v.label().equalsIgnoreCase(normalizedLabel))
+                .map(this::toNode)
+                .filter(node -> (normalizedQuery == null || node.matches(normalizedQuery))
+                        && matchesFilters(node.properties(), filters))
+                .limit(normalizeLimit(limit))
+                .toList();
     }
 
     public synchronized List<GraphNode> nodesByComponentIds(Iterable<ComponentId> ids) {
@@ -304,9 +300,6 @@ public class ArchitectureGraph {
         while (iterator.hasNext()) {
             edges.add(toEdge(iterator.next()));
         }
-        edges.sort(Comparator.comparing(GraphEdge::label)
-                .thenComparing(edge -> edge.fromId().serialize())
-                .thenComparing(edge -> edge.toId().serialize()));
         return edges.stream().limit(normalizeLimit(limit)).toList();
     }
 
@@ -320,22 +313,12 @@ public class ArchitectureGraph {
      */
     public synchronized List<GraphEdge> findEdges(String label, Map<String, String> filters, int limit) {
         String normalizedLabel = normalizeBlank(label);
-        List<GraphEdge> edges = new ArrayList<>();
-        Iterator<Edge> iterator = graph.edges();
-        while (iterator.hasNext()) {
-            Edge edge = iterator.next();
-            if (normalizedLabel != null && !edge.label().equalsIgnoreCase(normalizedLabel)) {
-                continue;
-            }
-            GraphEdge graphEdge = toEdge(edge);
-            if (matchesFilters(graphEdge.properties(), filters)) {
-                edges.add(graphEdge);
-            }
-        }
-        edges.sort(Comparator.comparing(GraphEdge::label)
-                .thenComparing(edge -> edge.fromId().serialize())
-                .thenComparing(edge -> edge.toId().serialize()));
-        return edges.stream().limit(normalizeLimit(limit)).toList();
+        return g.E().toList().stream()
+                .filter(e -> normalizedLabel == null || e.label().equalsIgnoreCase(normalizedLabel))
+                .map(this::toEdge)
+                .filter(edge -> matchesFilters(edge.properties(), filters))
+                .limit(normalizeLimit(limit))
+                .toList();
     }
 
     /**
@@ -364,9 +347,7 @@ public class ArchitectureGraph {
             }
         }
         return seen.values().stream()
-                .sorted(Comparator.comparing(GraphEdge::label)
-                        .thenComparing(edge -> edge.fromId().serialize())
-                        .thenComparing(edge -> edge.toId().serialize()))
+                .sorted(EDGE_ORDER)
                 .toList();
     }
 
@@ -1072,36 +1053,27 @@ public class ArchitectureGraph {
     }
 
     private Set<String> reachableFromEntrypoints() {
+        // Uses manual BFS with a visited set to guarantee termination on cyclic graphs.
+        // repeat().emit() without aggregate("seen") guard loops forever on cycles.
         Set<String> reachable = new LinkedHashSet<>();
         ArrayDeque<String> queue = new ArrayDeque<>();
-        verticesById.values().stream()
-                .filter(vertex -> "Entrypoint".equals(vertex.label()))
-                .map(vertex -> vertex.id().toString())
-                .forEach(queue::addLast);
+        g.V().hasLabel("Entrypoint").id().map(Object::toString).toList().forEach(queue::addLast);
         while (!queue.isEmpty()) {
             String nodeId = queue.removeFirst();
-            if (!reachable.add(nodeId)) {
-                continue;
-            }
+            if (!reachable.add(nodeId)) continue;
             Vertex vertex = verticesById.get(GraphNodeId.of(nodeId));
+            if (vertex == null) continue;
             Iterator<Edge> edges = vertex.edges(Direction.OUT);
             while (edges.hasNext()) {
                 Edge edge = edges.next();
                 String label = edge.label();
-                if (REL_STARTS_AT.equals(label)
-                        || "CALLS".equals(label)
-                        || REL_DEPENDS_ON.equals(label)
-                        || "VISITS".equals(label)
-                        || "ORIGINATES".equals(label)
-                        || "REACHES".equals(label)
-                        || "LINKS_TO".equals(label)
-                        || "WORKFLOW_LINK".equals(label)
-                        || REL_WRITES_STATE.equals(label)
-                        || REL_READS_STATE.equals(label)
-                        || REL_STATE_HANDOFF.equals(label)
-                        || "ON_FIELD".equals(label)
-                        || "AT_COMPONENT".equals(label)
-                        || "HAS_SEGMENT".equals(label)) {
+                if (REL_STARTS_AT.equals(label) || "CALLS".equals(label)
+                        || REL_DEPENDS_ON.equals(label) || "VISITS".equals(label)
+                        || "ORIGINATES".equals(label) || "REACHES".equals(label)
+                        || "LINKS_TO".equals(label) || "WORKFLOW_LINK".equals(label)
+                        || REL_WRITES_STATE.equals(label) || REL_READS_STATE.equals(label)
+                        || REL_STATE_HANDOFF.equals(label) || "ON_FIELD".equals(label)
+                        || "AT_COMPONENT".equals(label) || "HAS_SEGMENT".equals(label)) {
                     queue.addLast(edge.inVertex().id().toString());
                 }
             }

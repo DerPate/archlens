@@ -89,7 +89,7 @@ class ArchitectureGraphTest {
         List<ArchitectureGraph.GraphPath> paths =
                 graph.paths(GraphNodeId.of("orders#"), GraphNodeId.of("OrderRepository"), 3, 10);
 
-        assertThat(nodes).extracting(node -> node.id().serialize()).containsExactly("OrderService");
+        assertThat(nodes).extracting(node -> node.id().serialize()).containsExactlyInAnyOrder("OrderService");
         assertThat(paths).hasSize(1);
         assertThat(paths.getFirst().nodes())
                 .extracting(node -> node.id().serialize())
