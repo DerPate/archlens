@@ -146,6 +146,8 @@ public class GraphViewerHtmlRenderer {
                     const GRAPH_DATA = JSON.parse('__GRAPH_JSON__');
                     const allNodes = GRAPH_DATA.snapshot.nodes;
                     const allEdges = GRAPH_DATA.snapshot.edges;
+                    const FORCE_ATLAS_MODULE_URL =
+                      "https://esm.sh/graphology-layout-forceatlas2@0.10.1?bundle";
                     const nodeById = new Map(allNodes.map(node => [node.id, node]));
                     const incidentEdges = new Map();
                     const state = {
@@ -158,6 +160,8 @@ public class GraphViewerHtmlRenderer {
                     };
                     let renderer = null;
                     let renderedGraph = null;
+                    let forceAtlas2Promise = null;
+                    let layoutToken = 0;
                     const colors = [
                       "#2563eb", "#059669", "#d97706", "#7c3aed", "#dc2626",
                       "#0891b2", "#4b5563", "#be123c", "#65a30d", "#0f766e"
@@ -186,28 +190,28 @@ public class GraphViewerHtmlRenderer {
                       });
                       document.getElementById("showSearch").addEventListener("click", () => {
                         state.mode = "search";
-                        render();
+                        void render();
                       });
                       document.getElementById("showSelected").addEventListener("click", () => {
                         state.mode = "neighborhood";
-                        render();
+                        void render();
                       });
                       document.getElementById("resetView").addEventListener("click", () => {
                         state.mode = "overview";
                         state.selectedNodeId = null;
                         state.selectedEdgeKey = null;
                         document.getElementById("selection").textContent = "Click a node or edge.";
-                        render();
+                        void render();
                       });
-                      document.getElementById("visibleLimit").addEventListener("change", render);
-                      document.getElementById("radius").addEventListener("change", render);
+                      document.getElementById("visibleLimit").addEventListener("change", () => void render());
+                      document.getElementById("radius").addEventListener("change", () => void render());
                       document.getElementById("nodeLabelsVisible").addEventListener("change", event => {
                         if (renderer) renderer.setSetting("renderLabels", event.target.checked);
                       });
                       document.getElementById("edgeLabelsVisible").addEventListener("change", event => {
                         if (renderer) renderer.setSetting("renderEdgeLabels", event.target.checked);
                       });
-                      render();
+                      void render();
                     }
 
                     function buildFilters(id, values, accessor) {
@@ -219,7 +223,7 @@ public class GraphViewerHtmlRenderer {
                         input.checked = true;
                         input.addEventListener("change", () => {
                           if (input.checked) accessor().add(value); else accessor().delete(value);
-                          render();
+                          void render();
                         });
                         label.append(input, " ", value);
                         root.append(label);
@@ -281,7 +285,8 @@ public class GraphViewerHtmlRenderer {
                         passesEdgeFilter(edge) && nodeIds.has(edge.fromId) && nodeIds.has(edge.toId));
                     }
 
-                    function render() {
+                    async function render() {
+                      const token = ++layoutToken;
                       const nodes = selectedNodes();
                       const nodeIds = new Set(nodes.map(node => node.id));
                       const edges = visibleEdges(nodeIds);
@@ -322,10 +327,17 @@ public class GraphViewerHtmlRenderer {
                       renderer.on("clickEdge", event => selectEdge(event.edge));
                       document.getElementById("meta").innerHTML =
                         `${GRAPH_DATA.snapshot.metadata.includedNodeCount} nodes, ${GRAPH_DATA.snapshot.metadata.includedEdgeCount} edges loaded<br>` +
-                        `${nodes.length} visible nodes, ${edges.length} visible edges`;
+                        `${nodes.length} visible nodes, ${edges.length} visible edges<br>` +
+                        `Layout: packed grid`;
+
+                      await refineLayout(graph, token);
                     }
 
                     function positionsFor(nodes) {
+                      return packedGridPositions(nodes);
+                    }
+
+                    function packedGridPositions(nodes) {
                       const grouped = new Map();
                       for (const node of nodes) {
                         if (!grouped.has(node.label)) grouped.set(node.label, []);
@@ -333,21 +345,85 @@ public class GraphViewerHtmlRenderer {
                       }
                       const groups = [...grouped.entries()].sort(([a], [b]) => a.localeCompare(b));
                       const positions = new Map();
-                      const groupRadius = Math.max(6, groups.length * 1.6);
-                      groups.forEach(([label, group], groupIndex) => {
-                        const groupAngle = (Math.PI * 2 * groupIndex) / Math.max(groups.length, 1);
-                        const centerX = Math.cos(groupAngle) * groupRadius;
-                        const centerY = Math.sin(groupAngle) * groupRadius;
-                        const radius = Math.max(1.5, Math.sqrt(group.length) * 0.9);
+
+                      const cell = 3.2;
+                      const groupGap = 8;
+                      const groupCols = Math.max(1, Math.ceil(Math.sqrt(Math.max(groups.length, 1))));
+                      const groupSizes = groups.map(([label, group]) => {
+                        const cols = Math.max(1, Math.ceil(Math.sqrt(group.length)));
+                        const rows = Math.max(1, Math.ceil(group.length / cols));
+                        return { label, group, cols, rows, width: cols * cell, height: rows * cell };
+                      });
+                      const columnWidths = Array(groupCols).fill(0);
+                      const rowHeights = [];
+                      groupSizes.forEach((group, index) => {
+                        const col = index % groupCols;
+                        const row = Math.floor(index / groupCols);
+                        columnWidths[col] = Math.max(columnWidths[col], group.width);
+                        rowHeights[row] = Math.max(rowHeights[row] || 0, group.height);
+                      });
+                      const columnOffsets = offsets(columnWidths, groupGap);
+                      const rowOffsets = offsets(rowHeights, groupGap);
+
+                      groupSizes.forEach(({ group, cols }, groupIndex) => {
+                        const groupCol = groupIndex % groupCols;
+                        const groupRow = Math.floor(groupIndex / groupCols);
+                        const startX = columnOffsets[groupCol];
+                        const startY = rowOffsets[groupRow];
                         group.sort((a, b) => a.id.localeCompare(b.id)).forEach((node, index) => {
-                          const angle = (Math.PI * 2 * index) / Math.max(group.length, 1);
                           positions.set(node.id, {
-                            x: centerX + Math.cos(angle) * radius,
-                            y: centerY + Math.sin(angle) * radius
+                            x: startX + (index % cols) * cell,
+                            y: startY + Math.floor(index / cols) * cell
                           });
                         });
                       });
                       return positions;
+                    }
+
+                    function offsets(sizes, gap) {
+                      const total = sizes.reduce((sum, size) => sum + size, 0) + gap * Math.max(0, sizes.length - 1);
+                      let cursor = -total / 2;
+                      return sizes.map(size => {
+                        const offset = cursor;
+                        cursor += size + gap;
+                        return offset;
+                      });
+                    }
+
+                    async function refineLayout(graph, token) {
+                      if (graph.order < 2 || graph.order > 1200) return;
+                      const forceAtlas2 = await loadForceAtlas2();
+                      if (!forceAtlas2 || token !== layoutToken || renderedGraph !== graph) return;
+
+                      const inferred = forceAtlas2.inferSettings ? forceAtlas2.inferSettings(graph) : {};
+                      const settings = {
+                        ...inferred,
+                        adjustSizes: true,
+                        barnesHutOptimize: graph.order > 300,
+                        gravity: 0.15,
+                        scalingRatio: 80,
+                        slowDown: 8
+                      };
+                      forceAtlas2.assign(graph, {
+                        iterations: Math.min(180, Math.max(60, Math.round(graph.order / 2))),
+                        settings
+                      });
+                      if (token === layoutToken && renderer && renderedGraph === graph) {
+                        renderer.refresh();
+                        document.getElementById("meta").innerHTML =
+                          `${GRAPH_DATA.snapshot.metadata.includedNodeCount} nodes, ${GRAPH_DATA.snapshot.metadata.includedEdgeCount} edges loaded<br>` +
+                          `${graph.order} visible nodes, ${graph.size} visible edges<br>` +
+                          `Layout: ForceAtlas2`;
+                      }
+                    }
+
+                    async function loadForceAtlas2() {
+                      if (!forceAtlas2Promise) {
+                        forceAtlas2Promise = import(FORCE_ATLAS_MODULE_URL)
+                          .then(module => module.default || module)
+                          .catch(() => null);
+                      }
+                      return forceAtlas2Promise;
                     }
 
                     function selectNode(nodeId) {

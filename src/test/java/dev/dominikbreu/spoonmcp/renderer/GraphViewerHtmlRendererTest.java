@@ -47,6 +47,9 @@ class GraphViewerHtmlRendererTest {
         assertThat(html).contains("Show selected neighborhood");
         assertThat(html).contains("Visible Nodes");
         assertThat(html).contains("renderer.setSetting");
+        assertThat(html).contains("graphology-layout-forceatlas2");
+        assertThat(html).contains("packedGridPositions");
+        assertThat(html).doesNotContain("const groupRadius");
         assertThat(html).doesNotContain("<canvas id=\"graph\"");
     }
 
