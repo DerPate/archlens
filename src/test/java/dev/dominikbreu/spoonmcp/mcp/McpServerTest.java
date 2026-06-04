@@ -28,6 +28,7 @@ class McpServerTest {
                         "list_apps",
                         "find_entrypoints",
                         "query_architecture_graph",
+                        "export_graph_data",
                         "export_graph_viewer");
     }
 

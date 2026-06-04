@@ -937,12 +937,36 @@ Arguments:
 
 ---
 
+## `export_graph_data`
+
+Write raw architecture graph snapshot JSON for standalone visual graph viewers.
+This is the preferred export for interactive graph debugging UIs because it keeps
+the MCP server responsible for source-derived data and leaves rendering,
+filtering, layout, and interaction to a frontend.
+
+The JSON shape is:
+
+- `snapshot.metadata`: total and included node/edge counts, truncation flag, and
+  node/edge label counts.
+- `snapshot.nodes`: raw graph nodes with `id`, `label`, `name`, and `properties`.
+- `snapshot.edges`: raw graph edges with `fromId`, `toId`, `label`, and
+  `properties`.
+- `generatedAt`: export timestamp.
+
+Arguments:
+
+- `outputPath` string, optional. Default `docs/GRAPH_DATA.json`.
+- `limit` integer, optional. Maximum graph nodes to export. Default `5000`.
+
+---
+
 ## `export_graph_viewer`
 
 Write a self-contained HTML file for visually debugging the raw detected architecture
 graph. The viewer uses the existing graph projection and shows nodes, edges, labels,
 filters, search, and raw property inspection. It does not interpret the graph or rank
-detected elements.
+detected elements. For richer interaction, prefer `export_graph_data` and load the
+result in the standalone graph viewer app.
 
 Arguments:
 
