@@ -106,6 +106,62 @@ button:hover {
   margin-bottom: 8px;
 }
 
+.pipeline-list {
+  display: grid;
+  gap: 6px;
+  max-height: 260px;
+  overflow: auto;
+  margin-top: 8px;
+}
+
+.pipeline-list button {
+  display: grid;
+  gap: 3px;
+  text-align: left;
+}
+
+.pipeline-list strong {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.pipeline-list span,
+.pipeline-detail span,
+.pipeline-detail p {
+  color: #5d6871;
+  font-size: 12px;
+}
+
+.selected-row {
+  border-color: #2563eb;
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+
+.pipeline-detail {
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid #d5d8d0;
+  background: white;
+}
+
+.pipeline-detail h3 {
+  margin: 0 0 4px;
+  font-size: 13px;
+}
+
+.pipeline-detail ol {
+  padding-left: 18px;
+}
+
+.pipeline-detail li {
+  margin: 7px 0;
+}
+
+.pipeline-detail li strong,
+.pipeline-detail li span {
+  display: block;
+}
+
 .filter-row {
   display: grid;
   grid-template-columns: auto 1fr 48px;

@@ -54,3 +54,5 @@ docs/PHOENIX_GRAPH_VIEWER.html
 viewer/node_modules/
 viewer/dist/
 viewer/public/*.json
+viewer/test-results/
+viewer/playwright-report/
