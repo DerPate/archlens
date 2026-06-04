@@ -48,3 +48,9 @@ docs/superpowers/
 docs/ARCHITECTURE_PROJECTION.md
 docs/GENERATED_ARCHITECTURE.md
 docs/SOURCE_ARCHITECTURE_POC.md
+docs/PHOENIX_GRAPH_VIEWER.html
+
+# Standalone graph viewer frontend
+viewer/node_modules/
+viewer/dist/
+viewer/public/*.json

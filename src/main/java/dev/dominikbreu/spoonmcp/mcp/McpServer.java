@@ -31,6 +31,7 @@ public class McpServer {
     private final RenderComponentDependencyDiagramTool dependencyDiagramTool;
     private final ExportArchitectureDocsTool exportDocsTool;
     private final ExportGraphArchitecturePocTool exportGraphPocTool;
+    private final ExportGraphDataTool exportGraphDataTool;
     private final ExportGraphViewerTool exportGraphViewerTool;
     private final QueryArchitectureGraphTool graphTool;
     private final DetectUseCasesTool detectUseCasesTool;
@@ -71,6 +72,7 @@ public class McpServer {
         this.dependencyDiagramTool = new RenderComponentDependencyDiagramTool(cache);
         this.exportDocsTool = new ExportArchitectureDocsTool(cache);
         this.exportGraphPocTool = new ExportGraphArchitecturePocTool(cache);
+        this.exportGraphDataTool = new ExportGraphDataTool(cache);
         this.exportGraphViewerTool = new ExportGraphViewerTool(cache);
         this.graphTool = new QueryArchitectureGraphTool(cache);
         this.detectUseCasesTool = new DetectUseCasesTool(cache);
@@ -245,6 +247,13 @@ public class McpServer {
                                 TYPE_STRING,
                                 "Component used for the graph focus slice (default McpServer)"),
                 exportGraphPocTool::execute));
+
+        specs.add(toolSpec(
+                "export_graph_data",
+                "Write raw architecture graph snapshot JSON for standalone visual graph viewers.",
+                schema().opt("outputPath", TYPE_STRING, "Output JSON path (default docs/GRAPH_DATA.json)")
+                        .opt("limit", TYPE_INTEGER, "Maximum graph nodes to export (default 5000)"),
+                exportGraphDataTool::execute));
 
         specs.add(toolSpec(
                 "export_graph_viewer",
