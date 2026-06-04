@@ -42,6 +42,8 @@ class ExportGraphViewerToolTest {
         assertThat(result).contains("Exported graph viewer to " + output.toAbsolutePath());
         assertThat(result).contains("Nodes: 1");
         assertThat(result).contains("Edges: 0");
-        assertThat(Files.readString(output)).contains("Architecture Graph Viewer").contains("PaymentService");
+        assertThat(Files.readString(output))
+                .contains("Architecture Graph Viewer")
+                .contains("PaymentService");
     }
 }
