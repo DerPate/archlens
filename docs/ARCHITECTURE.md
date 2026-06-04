@@ -23,6 +23,27 @@ Workflow behavior is derived in layers:
 Do not add independent traversal rules to renderers or MCP tools. Add them to
 `WorkflowTraversalPolicy` or `WorkflowLinker`, then cover them with tests.
 
+### Cache and Graph Layer
+
+`dev.dominikbreu.spoonmcp.cache` is the data-access layer for MCP tools. It has three
+components that work together:
+
+- **`ModelCache`** — stores and loads the `ArchitectureModel`. Exposes `index()` (returns
+  a `ToolModelIndex`) and `graph()` (returns the `ArchitectureGraph`). Both are built
+  lazily and cached until the next `index_workspace` call.
+- **`ToolModelIndex`** — pre-built O(1) lookup maps over the loaded model: `EntrypointId →
+  Entrypoint`, `AppId → AppEntry`, and component lookups via the existing `ComponentIndex`.
+  Use `cache.index()` in tools. Call `index.rawModel()` only when a renderer or
+  infrastructure component needs the full `ArchitectureModel`.
+- **`ArchitectureGraph`** — TinkerPop/Gremlin graph projection of the model. `GraphNode`
+  is a sealed interface with 12 typed per-label records (`ComponentNode`, `EntrypointNode`,
+  etc.) replacing the previous untyped `Map<String,Object>` property bag. Key traversal
+  methods: `resolveComponent`, `resolveEntrypoint`, `reachable`, `neighborhood`, `paths`,
+  `impactedBy`, `findNodes`, `findEdges`.
+
+MCP tools must not call `cache.load()` directly. Traversal goes through `cache.graph()`;
+typed lookups go through `cache.index()`. Only `IndexWorkspaceTool` writes to the cache.
+
 ### Build Metadata
 
 `dev.dominikbreu.spoonmcp.build` owns project-shape detection. Maven, Gradle Groovy,

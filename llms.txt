@@ -47,7 +47,11 @@ The server is designed for consumption by LLM agents and MCP-capable clients
 - Deployment / asset mergers: ./src/main/java/dev/dominikbreu/spoonmcp/merger/
 - Architecture model: ./src/main/java/dev/dominikbreu/spoonmcp/model/
 - Cache & graph projection: ./src/main/java/dev/dominikbreu/spoonmcp/cache/
-  - `ModelCache.java`, `ArchitectureGraph.java`
+  - `ModelCache.java` — stores/loads the architecture model; exposes `index()` and `graph()`
+  - `ArchitectureGraph.java` — TinkerPop/Gremlin graph projection; typed `GraphNode` sealed
+    interface with per-label records (`ComponentNode`, `EntrypointNode`, etc.)
+  - `ToolModelIndex.java` — O(1) lookup index over the loaded model (EntrypointId, AppId,
+    ComponentId); built lazily via `cache.index()`, reset on each `index_workspace`
 - Mermaid renderers: ./src/main/java/dev/dominikbreu/spoonmcp/renderer/
   - flowchart, call flow, dependency map, dependency slice, source overview, use case timeline
 - Tests: ./src/test/java/
@@ -94,13 +98,20 @@ The server is designed for consumption by LLM agents and MCP-capable clients
 `get_runtime_flow`, `render_call_flow`, `render_use_case_timeline`, `render_source_overview`,
 `render_dependency_map`, `render_component_dependency_diagram`,
 `export_architecture_docs`, `export_graph_architecture_poc`,
-`query_architecture_graph`, `explain_architecture`,
-`detect_use_cases`, `trace_data_flow`, `render_pipeline`.
+`export_graph_data`, `export_graph_viewer`,
+`query_architecture_graph`, `render_architecture_view`, `export_likec4_model`,
+`explain_architecture`, `detect_use_cases`, `trace_data_flow`, `render_pipeline`.
 
 `render_pipeline` stitches multiple `DataFlowPath`s into a single end-to-end Mermaid
 diagram across entrypoint boundaries (consumer → store → scheduler → channel → consumer).
 Prefer it over `render_call_flow` (single entrypoint) and `trace_data_flow` (textual
 per-path output) when the question is "what does the full pipeline look like".
+
+`render_architecture_view` renders a projection-first Mermaid component view ranked by
+workflow relevance, business relevance, and bridge score — use before hand-drawing C4 diagrams.
+`export_likec4_model` exports a LikeC4-compatible workspace projection; `export_graph_data`
+exports raw graph JSON for standalone viewers; `export_graph_viewer` writes a self-contained
+HTML graph explorer.
 
 See `./docs/TOOLS.md` for arguments and examples.
 
@@ -143,6 +154,19 @@ Prompts are workflow templates for clients and agents; they do not replace tools
 
 ## Notes For Agents
 
+- Cache layer design: `ModelCache` is the single coordination point. `cache.index()`
+  returns a `ToolModelIndex` (O(1) typed lookups for Component, Entrypoint, AppEntry)
+  built lazily and reset on each `index_workspace`. `cache.graph()` returns the
+  `ArchitectureGraph` (TinkerPop projection with `resolveComponent`, `resolveEntrypoint`,
+  `reachable`, `neighborhood`, `paths`, `impactedBy`). Tools that need traversal use the
+  graph; tools that need typed domain objects hydrate from `index`. Tools that need the
+  full model explicitly call `index.rawModel()`. No MCP tool calls `cache.load()` directly.
+- `ArchitectureGraph.GraphNode` is a sealed interface with 12 typed per-label records:
+  `ComponentNode`, `EntrypointNode`, `ApplicationNode`, `InterfaceNode`, `ContainerNode`,
+  `DeploymentNode`, `ExternalSystemNode`, `RuntimeFlowNode`, `RuntimeFlowStepNode`,
+  `DataFlowPathNode`, `DataFlowSinkNode`, `PipelineChainNode`, and `UnknownNode`
+  (fallback). Pattern-match on the record type for typed field access; `properties()`
+  is preserved for serialisation and the graph viewer.
 - The cached architecture model is in-process; tools other than `index_workspace`
   require a previous `index_workspace` call (or a pre-existing `.spoon-mcp-cache/`).
 - Stdio examples are JSONL-style request streams: one complete JSON-RPC object per

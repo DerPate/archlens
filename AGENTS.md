@@ -11,6 +11,13 @@ Important paths:
 - `src/main/java/dev/dominikbreu/spoonmcp/Main.java`: process entry point.
 - `src/main/java/dev/dominikbreu/spoonmcp/mcp/McpServer.java`: JSON-RPC loop, MCP initialize response, tool registry, and dispatch.
 - `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/`: individual MCP tool adapters.
+- `src/main/java/dev/dominikbreu/spoonmcp/cache/`: data-access layer for tools.
+  - `ModelCache.java`: stores/loads the model; exposes `index()` and `graph()`.
+  - `ArchitectureGraph.java`: TinkerPop graph projection; `GraphNode` is a sealed interface with
+    12 typed per-label records. Traversal methods: `resolveComponent`, `resolveEntrypoint`,
+    `reachable`, `neighborhood`, `paths`, `impactedBy`.
+  - `ToolModelIndex.java`: O(1) lookup index (EntrypointId → Entrypoint, AppId → AppEntry,
+    ComponentId → Component). Built lazily via `cache.index()`, reset on `index_workspace`.
 - `src/main/java/dev/dominikbreu/spoonmcp/extractor/`: Java/Spoon architecture extraction.
 - `src/main/java/dev/dominikbreu/spoonmcp/extractor/objectflow/`: source-derived
   receiver and object-flow analysis used by call graph and field access extraction.
@@ -46,6 +53,11 @@ java -jar target/spoon-mcp-server.jar
 - Prefer entity/model changes that are covered by focused tests.
 - Do not skip Spotless or SpotBugs to make `verify` pass. Fix formatting with
   `mvn spotless:apply` and address or explicitly justify SpotBugs findings.
+- **Tool data-access pattern**: MCP tools must not call `cache.load()` directly.
+  Use `cache.graph()` for graph traversal and resolution, `cache.index()` for O(1)
+  typed lookups, and `cache.index().rawModel()` only when a renderer or infrastructure
+  component genuinely requires the full `ArchitectureModel`. `IndexWorkspaceTool` is
+  the only writer and keeps its direct `ModelCache` reference.
 - Update `docs/TOOLS.md` when adding or changing MCP tools.
 - Update `docs/ARCHITECTURE.md` when changing major package responsibilities.
 - When adding new graph vertex/edge labels in `cache/ArchitectureGraph.java`, also:
