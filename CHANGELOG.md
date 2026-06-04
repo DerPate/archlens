@@ -2,34 +2,6 @@
 
 All notable changes to this project will be appended by JReleaser.
 
-## [Unreleased]
-
-### Refactors
-
-- **v3: complete graph rework** — zero `cache.load()` calls remain in MCP tools.
-  `QueryArchitectureGraphTool.renderNodes()` replaced 51-key property-bag iteration with
-  a typed `switch` on sealed `GraphNode` records. `MermaidCallFlowRenderer` and
-  `MermaidPipelineRenderer` signatures changed from `(…, ArchitectureModel)` to
-  `(…, ToolModelIndex)`, eliminating full-model lookups inside renderers. Eight remaining
-  tools swapped `cache.load()` for `cache.index().rawModel()`, making full-model
-  dependency explicit.
-
-- **v2: graph middleware** — all tool resolution and traversal routed through the graph.
-  New `ToolModelIndex` provides O(1) lookups for `EntrypointId → Entrypoint` and
-  `AppId → AppEntry` (previously O(n) stream scans). `ArchitectureGraph` gained
-  `resolveComponent()`, `resolveEntrypoint()`, and `reachable()` (multi-hop BFS replacing
-  hand-rolled traversal). 10 tools migrated from flat list scans to graph traversal and
-  index hydration. `ModelCache.index()` exposes `ToolModelIndex` lazily with automatic
-  reset on each index.
-
-- **`GraphNode` sealed interface** — replaced `record GraphNode(…, Map<String,Object>
-  properties)` with a sealed interface and 12 typed per-label records (`ComponentNode`,
-  `EntrypointNode`, `ApplicationNode`, `InterfaceNode`, `ContainerNode`, `DeploymentNode`,
-  `ExternalSystemNode`, `RuntimeFlowNode`, `RuntimeFlowStepNode`, `DataFlowPathNode`,
-  `DataFlowSinkNode`, `PipelineChainNode`, `UnknownNode`). Each record carries
-  strongly-typed domain fields; `properties()` is preserved for serialisation and the
-  graph viewer.
-
 <!-- JRELEASER_CHANGELOG_APPEND - Do not remove or modify this section -->
 ## [spoon-mcp-server-1.2.0]
 
