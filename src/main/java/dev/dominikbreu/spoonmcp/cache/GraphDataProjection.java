@@ -1,6 +1,6 @@
-package dev.dominikbreu.spoonmcp.mcp.tools;
+package dev.dominikbreu.spoonmcp.cache;
 
-import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import dev.dominikbreu.spoonmcp.model.ids.GraphNodeId;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -11,21 +11,22 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/** Viewer-friendly projections derived from the raw architecture graph snapshot. */
-final class GraphDataProjection {
+/** Viewer-friendly projections derived from the architecture graph snapshot. */
+public final class GraphDataProjection {
 
     private GraphDataProjection() {}
 
-    static ViewerProjections from(ArchitectureGraph.GraphSnapshot snapshot) {
+    public static ViewerProjections from(ArchitectureGraph.GraphSnapshot snapshot) {
         return new ViewerProjections(pipelineProjections(snapshot));
     }
 
     private static List<PipelineProjection> pipelineProjections(ArchitectureGraph.GraphSnapshot snapshot) {
-        Map<String, ArchitectureGraph.GraphNode> nodeById = snapshot.nodes().stream()
-                .collect(Collectors.toMap(node -> node.id().serialize(), Function.identity(), (a, b) -> a));
+        Map<GraphNodeId, ArchitectureGraph.GraphNode> nodeById = snapshot.nodes().stream()
+                .collect(Collectors.toMap(ArchitectureGraph.GraphNode::id, Function.identity(), (a, b) -> a));
 
         return snapshot.nodes().stream()
-                .filter(node -> "PipelineChain".equals(node.label()))
+                .filter(ArchitectureGraph.PipelineChainNode.class::isInstance)
+                .map(ArchitectureGraph.PipelineChainNode.class::cast)
                 .map(chain -> pipelineProjection(snapshot, nodeById, chain))
                 .sorted(Comparator.comparing(PipelineProjection::title))
                 .toList();
@@ -33,25 +34,25 @@ final class GraphDataProjection {
 
     private static PipelineProjection pipelineProjection(
             ArchitectureGraph.GraphSnapshot snapshot,
-            Map<String, ArchitectureGraph.GraphNode> nodeById,
-            ArchitectureGraph.GraphNode chain) {
-        String chainId = chain.id().serialize();
-        String rootEntrypointId = stringProperty(chain, "rootEntrypointId", chainId);
+            Map<GraphNodeId, ArchitectureGraph.GraphNode> nodeById,
+            ArchitectureGraph.PipelineChainNode chain) {
+        GraphNodeId chainId = chain.id();
+        String rootEntrypointId = chain.rootEntrypointId();
         List<SegmentEdge> segmentEdges = segmentEdges(snapshot, chainId);
         List<PipelineSegmentProjection> segments = segmentEdges.stream()
                 .map(segmentEdge -> segmentProjection(nodeById, segmentEdge))
                 .filter(segment -> segment != null)
                 .toList();
 
-        Set<String> segmentIds = segments.stream()
-                .map(PipelineSegmentProjection::id)
+        Set<GraphNodeId> segmentIds = segments.stream()
+                .map(segment -> GraphNodeId.of(segment.id()))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         GraphSlice slice = graphSlice(snapshot, segmentIds);
-        String linkKinds = stringProperty(chain, "linkKinds", "");
-        int segmentCount = intProperty(chain.properties(), "segmentCount", segments.size());
+        String linkKinds = String.join(",", chain.linkKinds());
+        int segmentCount = chain.segmentCount() > 0 ? chain.segmentCount() : segments.size();
 
         return new PipelineProjection(
-                chainId,
+                chainId.serialize(),
                 entrypointTitle(rootEntrypointId),
                 List.of(linkKinds, segmentCount + " segments").stream()
                         .filter(part -> part != null && !part.isBlank())
@@ -64,61 +65,62 @@ final class GraphDataProjection {
     }
 
     private static PipelineSegmentProjection segmentProjection(
-            Map<String, ArchitectureGraph.GraphNode> nodeById, SegmentEdge segmentEdge) {
-        ArchitectureGraph.GraphNode node = nodeById.get(segmentEdge.edge().toId().serialize());
-        if (node == null) return null;
+            Map<GraphNodeId, ArchitectureGraph.GraphNode> nodeById, SegmentEdge segmentEdge) {
+        ArchitectureGraph.GraphNode node = nodeById.get(segmentEdge.edge().toId());
+        if (!(node instanceof ArchitectureGraph.DataFlowPathNode pathNode)) return null;
         String linkKind = stringProperty(segmentEdge.edge().properties(), "linkKind", "");
         String viaChannel = stringProperty(segmentEdge.edge().properties(), "viaChannel", "");
         return new PipelineSegmentProjection(
-                node.id().serialize(),
+                pathNode.id().serialize(),
                 segmentEdge.index(),
-                dataFlowPathTitle(node),
+                dataFlowPathTitle(pathNode),
                 blankToNull(linkKind),
                 blankToNull(viaChannel));
     }
 
-    private static List<SegmentEdge> segmentEdges(ArchitectureGraph.GraphSnapshot snapshot, String chainId) {
+    private static List<SegmentEdge> segmentEdges(ArchitectureGraph.GraphSnapshot snapshot, GraphNodeId chainId) {
         return snapshot.edges().stream()
-                .filter(edge -> chainId.equals(edge.fromId().serialize()))
+                .filter(edge -> chainId.equals(edge.fromId()))
                 .filter(edge -> "HAS_SEGMENT".equals(edge.label()))
                 .map(edge -> new SegmentEdge(intProperty(edge.properties(), "segmentIndex", 0), edge))
                 .sorted(Comparator.comparingInt(SegmentEdge::index))
                 .toList();
     }
 
-    private static GraphSlice graphSlice(ArchitectureGraph.GraphSnapshot snapshot, Set<String> segmentIds) {
-        Set<String> selectedIds = new LinkedHashSet<>(segmentIds);
+    private static GraphSlice graphSlice(ArchitectureGraph.GraphSnapshot snapshot, Set<GraphNodeId> segmentIds) {
+        Set<GraphNodeId> selectedIds = new LinkedHashSet<>(segmentIds);
         List<IndexedEdge> selectedEdges = new ArrayList<>();
 
         for (int i = 0; i < snapshot.edges().size(); i++) {
             ArchitectureGraph.GraphEdge edge = snapshot.edges().get(i);
             if ("HAS_SEGMENT".equals(edge.label())) continue;
-            if (selectedIds.contains(edge.fromId().serialize()) || selectedIds.contains(edge.toId().serialize())) {
+            if (selectedIds.contains(edge.fromId()) || selectedIds.contains(edge.toId())) {
                 selectedEdges.add(new IndexedEdge(i, edge));
-                selectedIds.add(edge.fromId().serialize());
-                selectedIds.add(edge.toId().serialize());
+                selectedIds.add(edge.fromId());
+                selectedIds.add(edge.toId());
             }
         }
 
         for (int i = 0; i < snapshot.edges().size(); i++) {
             ArchitectureGraph.GraphEdge edge = snapshot.edges().get(i);
             if (containsEdge(selectedEdges, edge)) continue;
-            if (selectedIds.contains(edge.fromId().serialize()) && selectedIds.contains(edge.toId().serialize())) {
+            if (selectedIds.contains(edge.fromId()) && selectedIds.contains(edge.toId())) {
                 selectedEdges.add(new IndexedEdge(i, edge));
             }
         }
 
-        Set<String> nodeIds = snapshot.nodes().stream()
-                .map(node -> node.id().serialize())
+        Set<GraphNodeId> nodeIds = snapshot.nodes().stream()
+                .map(ArchitectureGraph.GraphNode::id)
                 .filter(selectedIds::contains)
-                .filter(id -> !id.startsWith("chain:"))
+                .filter(id -> !id.serialize().startsWith("chain:"))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         List<String> visibleEdgeKeys = selectedEdges.stream()
-                .filter(edge -> nodeIds.contains(edge.edge().fromId().serialize())
-                        && nodeIds.contains(edge.edge().toId().serialize()))
+                .filter(edge -> nodeIds.contains(edge.edge().fromId()) && nodeIds.contains(edge.edge().toId()))
                 .map(edge -> edgeKey(edge.edge(), edge.index()))
                 .toList();
-        return new GraphSlice(List.copyOf(nodeIds), visibleEdgeKeys);
+        return new GraphSlice(
+                nodeIds.stream().map(GraphNodeId::serialize).toList(),
+                visibleEdgeKeys);
     }
 
     private static boolean containsEdge(List<IndexedEdge> edges, ArchitectureGraph.GraphEdge edge) {
@@ -150,10 +152,13 @@ final class GraphDataProjection {
         return method.isBlank() ? simpleOwner : simpleOwner + "." + method;
     }
 
-    private static String dataFlowPathTitle(ArchitectureGraph.GraphNode node) {
-        String entrypointId = stringProperty(node, "entrypointId", fallbackEntrypointId(node.id()));
-        String trackedParam = stringProperty(node, "trackedParam", "");
-        return entrypointTitle(entrypointId) + (trackedParam.isBlank() ? "" : " #" + trackedParam);
+    private static String dataFlowPathTitle(ArchitectureGraph.DataFlowPathNode node) {
+        EntrypointId entrypointId = node.entrypointId();
+        String serializedEntrypointId =
+                entrypointId != null ? entrypointId.serialize() : fallbackEntrypointId(node.id());
+        String trackedParam = node.trackedParam();
+        return entrypointTitle(serializedEntrypointId)
+                + (trackedParam == null || trackedParam.isBlank() ? "" : " #" + trackedParam);
     }
 
     private static String fallbackEntrypointId(GraphNodeId id) {
@@ -161,10 +166,6 @@ final class GraphDataProjection {
         if (value.startsWith("df:")) value = value.substring(3);
         int lastHash = value.lastIndexOf('#');
         return lastHash >= 0 ? value.substring(0, lastHash) : value;
-    }
-
-    private static String stringProperty(ArchitectureGraph.GraphNode node, String key, String defaultValue) {
-        return stringProperty(node.properties(), key, defaultValue);
     }
 
     private static String stringProperty(Map<String, Object> properties, String key, String defaultValue) {
@@ -181,9 +182,9 @@ final class GraphDataProjection {
         return value == null || value.isBlank() ? null : value;
     }
 
-    record ViewerProjections(List<PipelineProjection> pipelines) {}
+    public record ViewerProjections(List<PipelineProjection> pipelines) {}
 
-    record PipelineProjection(
+    public record PipelineProjection(
             String id,
             String title,
             String subtitle,
@@ -193,7 +194,7 @@ final class GraphDataProjection {
             List<String> nodeIds,
             List<String> edgeKeys) {}
 
-    record PipelineSegmentProjection(String id, int index, String title, String linkKind, String viaChannel) {}
+    public record PipelineSegmentProjection(String id, int index, String title, String linkKind, String viaChannel) {}
 
     private record SegmentEdge(int index, ArchitectureGraph.GraphEdge edge) {}
 

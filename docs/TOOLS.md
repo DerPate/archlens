@@ -939,7 +939,7 @@ Arguments:
 
 ## `export_graph_data`
 
-Write raw architecture graph snapshot JSON for standalone visual graph viewers.
+Write architecture graph export JSON for standalone visual graph viewers.
 This is the preferred export for interactive graph debugging UIs because it keeps
 the MCP server responsible for source-derived data and leaves rendering,
 filtering, layout, and interaction to a frontend.
@@ -951,11 +951,11 @@ The JSON shape is:
 - `snapshot.nodes`: raw graph nodes with `id`, `label`, `name`, and `properties`.
 - `snapshot.edges`: raw graph edges with `fromId`, `toId`, `label`, and
   `properties`.
-- `projections.pipelines`: viewer-ready pipeline summaries derived from the raw
-  graph. Each entry keeps the synthetic chain ID but also includes human-facing
-  titles, segment titles, segment node IDs, and the node/edge IDs to render for a
-  focused pipeline slice. This avoids forcing viewers to parse raw IDs such as
-  `chain:12`.
+- `projections.pipelines`: viewer-ready pipeline summaries derived in the graph
+  cache layer. Each entry keeps the synthetic chain ID but also includes
+  human-facing titles, segment titles, segment node IDs, and the node/edge IDs to
+  render for a focused pipeline slice. This avoids forcing viewers to parse raw
+  IDs such as `chain:12`.
 - `generatedAt`: export timestamp.
 
 Arguments:

@@ -50,6 +50,8 @@ The server is designed for consumption by LLM agents and MCP-capable clients
   - `ModelCache.java` — stores/loads the architecture model; exposes `index()` and `graph()`
   - `ArchitectureGraph.java` — TinkerPop/Gremlin graph projection; typed `GraphNode` sealed
     interface with per-label records (`ComponentNode`, `EntrypointNode`, etc.)
+  - `GraphDataProjection.java` — graph-export view indexes derived from graph snapshots;
+    keep viewer/export projections here rather than in MCP tool adapters
   - `ToolModelIndex.java` — O(1) lookup index over the loaded model (EntrypointId, AppId,
     ComponentId); built lazily via `cache.index()`, reset on each `index_workspace`
 - Mermaid renderers: ./src/main/java/dev/dominikbreu/spoonmcp/renderer/
@@ -167,6 +169,8 @@ Prompts are workflow templates for clients and agents; they do not replace tools
   `DataFlowPathNode`, `DataFlowSinkNode`, `PipelineChainNode`, and `UnknownNode`
   (fallback). Pattern-match on the record type for typed field access; `properties()`
   is preserved for serialisation and the graph viewer.
+- Keep graph-export projections in `cache/GraphDataProjection.java` so MCP tools stay thin
+  writers around `cache.graph()` data instead of growing their own graph interpretation layer.
 - The cached architecture model is in-process; tools other than `index_workspace`
   require a previous `index_workspace` call (or a pre-existing `.spoon-mcp-cache/`).
 - Stdio examples are JSONL-style request streams: one complete JSON-RPC object per
