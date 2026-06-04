@@ -1,8 +1,8 @@
-package dev.dominikbreu.spoonmcp.mcp.tools;
+package dev.dominikbreu.spoonmcp.cache;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import dev.dominikbreu.spoonmcp.model.ids.GraphNodeId;
 import java.util.List;
 import java.util.Map;
@@ -22,35 +22,28 @@ class GraphDataProjectionTest {
                         Map.of("PipelineChain", 1, "DataFlowPath", 2, "DataFlowSink", 1, "Component", 1),
                         Map.of("HAS_SEGMENT", 2, "REACHES", 1, "AT_COMPONENT", 1)),
                 List.of(
-                        node(
+                        new ArchitectureGraph.PipelineChainNode(
+                                GraphNodeId.of("chain:12"),
                                 "chain:12",
-                                "PipelineChain",
-                                "chain:12",
-                                Map.of(
-                                        "rootEntrypointId",
-                                        "de.homeinstead.phoenix.controller.ServiceRequestController#update:PUT:/serviceRequest/{id}",
-                                        "linkKinds",
-                                        "messaging",
-                                        "segmentCount",
-                                        2)),
-                        node(
+                                2,
+                                "de.homeinstead.phoenix.controller.ServiceRequestController#update:PUT:/serviceRequest/{id}",
+                                List.of("messaging")),
+                        new ArchitectureGraph.DataFlowPathNode(
+                                GraphNodeId.of("df:serviceRequest#serviceRequest"),
                                 "df:serviceRequest#serviceRequest",
-                                "DataFlowPath",
-                                "df:serviceRequest#serviceRequest",
-                                Map.of(
-                                        "entrypointId",
-                                        "de.homeinstead.phoenix.controller.ServiceRequestController#update:PUT:/serviceRequest/{id}",
-                                        "trackedParam",
-                                        "serviceRequest")),
-                        node(
+                                EntrypointId.deserialize(
+                                        "de.homeinstead.phoenix.controller.ServiceRequestController#update:PUT:/serviceRequest/{id}"),
+                                "serviceRequest",
+                                1,
+                                1),
+                        new ArchitectureGraph.DataFlowPathNode(
+                                GraphNodeId.of("df:address#event"),
                                 "df:address#event",
-                                "DataFlowPath",
-                                "df:address#event",
-                                Map.of(
-                                        "entrypointId",
-                                        "de.homeinstead.phoenix.inbound.AddressMessageListener#listenCustomer:spring-listener:KAFKA:address",
-                                        "trackedParam",
-                                        "event")),
+                                EntrypointId.deserialize(
+                                        "de.homeinstead.phoenix.inbound.AddressMessageListener#listenCustomer:spring-listener:KAFKA:address"),
+                                "event",
+                                1,
+                                1),
                         node(
                                 "sink:serviceRequest:3",
                                 "DataFlowSink",

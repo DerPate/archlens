@@ -40,6 +40,9 @@ components that work together:
   etc.) replacing the previous untyped `Map<String,Object>` property bag. Key traversal
   methods: `resolveComponent`, `resolveEntrypoint`, `reachable`, `neighborhood`, `paths`,
   `impactedBy`, `findNodes`, `findEdges`.
+- **`GraphDataProjection`** — cache-layer export projections over `ArchitectureGraph`
+  snapshots, such as viewer-ready pipeline summaries and focused graph slices. Keep these
+  graph-derived view indexes here rather than in MCP tool adapters.
 
 MCP tools must not call `cache.load()` directly. Traversal goes through `cache.graph()`;
 typed lookups go through `cache.index()`. Only `IndexWorkspaceTool` writes to the cache.
