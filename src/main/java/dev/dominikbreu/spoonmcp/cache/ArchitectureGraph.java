@@ -43,8 +43,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.tinkerpop.gremlin.process.traversal.PBiPredicate;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Path;
+import org.apache.tinkerpop.gremlin.process.traversal.TextP;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -69,6 +71,12 @@ public class ArchitectureGraph {
             Comparator.comparing(GraphEdge::label)
                       .thenComparing(e -> e.fromId().serialize())
                       .thenComparing(e -> e.toId().serialize());
+
+    /** Case-insensitive substring match used as Gremlin filter predicate. Works on any stored type. */
+    private static final PBiPredicate<Object, Object> CI_CONTAINS =
+            (stored, expected) -> stored != null
+                    && stored.toString().toLowerCase(Locale.ROOT)
+                             .contains(expected.toString());
 
     private Graph graph = TinkerGraph.open();
     private GraphTraversalSource g = graph.traversal();
@@ -232,11 +240,15 @@ public class ArchitectureGraph {
     public synchronized List<GraphNode> findNodes(String label, String query, Map<String, String> filters, int limit) {
         String normalizedLabel = normalizeBlank(label);
         String normalizedQuery = normalizeBlank(query);
-        return g.V().toList().stream()
+        var traversal = g.V();
+        for (var entry : filters.entrySet()) {
+            P<Object> pred = toGremlinPredicate(entry.getValue());
+            if (pred != null) traversal = traversal.has(entry.getKey(), pred);
+        }
+        return traversal.toList().stream()
                 .filter(v -> normalizedLabel == null || v.label().equalsIgnoreCase(normalizedLabel))
                 .map(this::toNode)
-                .filter(node -> (normalizedQuery == null || node.matches(normalizedQuery))
-                        && matchesFilters(node.properties(), filters))
+                .filter(node -> normalizedQuery == null || node.matches(normalizedQuery))
                 .limit(normalizeLimit(limit))
                 .toList();
     }
@@ -313,10 +325,14 @@ public class ArchitectureGraph {
      */
     public synchronized List<GraphEdge> findEdges(String label, Map<String, String> filters, int limit) {
         String normalizedLabel = normalizeBlank(label);
-        return g.E().toList().stream()
+        var traversal = g.E();
+        for (var entry : filters.entrySet()) {
+            P<Object> pred = toGremlinPredicate(entry.getValue());
+            if (pred != null) traversal = traversal.has(entry.getKey(), pred);
+        }
+        return traversal.toList().stream()
                 .filter(e -> normalizedLabel == null || e.label().equalsIgnoreCase(normalizedLabel))
                 .map(this::toEdge)
-                .filter(edge -> matchesFilters(edge.properties(), filters))
                 .limit(normalizeLimit(limit))
                 .toList();
     }
@@ -518,8 +534,8 @@ public class ArchitectureGraph {
     private void addComponent(Component component) {
         Vertex vertex = addVertex(component.id.serialize(), "Component", component.name);
         set(vertex, "kind", "component");
-        set(vertex, "type", component.type != null ? component.type.name() : null);
-        set(vertex, "componentType", component.type != null ? component.type.name() : null);
+        setLower(vertex, "type", component.type != null ? component.type.name() : null);
+        setLower(vertex, "componentType", component.type != null ? component.type.name() : null);
         set(vertex, "qualifiedName", component.qualifiedName);
         set(vertex, "packageName", packageName(component.qualifiedName));
         set(vertex, "simpleName", component.name);
@@ -532,12 +548,12 @@ public class ArchitectureGraph {
     private void addEntrypoint(Entrypoint entrypoint) {
         Vertex vertex = addVertex(entrypoint.id.serialize(), "Entrypoint", entrypoint.name);
         set(vertex, "kind", "entrypoint");
-        set(vertex, "type", entrypoint.type != null ? entrypoint.type.name() : null);
-        set(vertex, "entrypointType", entrypoint.type != null ? entrypoint.type.name() : null);
+        setLower(vertex, "type", entrypoint.type != null ? entrypoint.type.name() : null);
+        setLower(vertex, "entrypointType", entrypoint.type != null ? entrypoint.type.name() : null);
         set(vertex, "httpMethod", entrypoint.httpMethod);
         set(vertex, "path", entrypoint.path);
         set(vertex, "channelName", entrypoint.channelName);
-        set(vertex, BROKER, entrypoint.broker != null ? entrypoint.broker.name() : null);
+        setLower(vertex, BROKER, entrypoint.broker != null ? entrypoint.broker.name() : null);
         set(vertex, TOPIC, entrypoint.topic);
         set(vertex, "parameters", String.join(",", entrypoint.parameters));
         set(vertex, "protocol", protocolFor(entrypoint));
@@ -548,13 +564,13 @@ public class ArchitectureGraph {
     private void addInterface(InterfaceEntry interfaceEntry) {
         Vertex vertex = addVertex(interfaceEntry.id, "Interface", interfaceEntry.name);
         set(vertex, "kind", "interface");
-        set(vertex, "type", interfaceEntry.type);
-        set(vertex, "interfaceType", interfaceEntry.type);
+        setLower(vertex, "type", interfaceEntry.type);
+        setLower(vertex, "interfaceType", interfaceEntry.type);
         set(vertex, "path", interfaceEntry.path);
         set(vertex, COMPONENT_ID, interfaceEntry.componentId != null ? interfaceEntry.componentId.serialize() : null);
         set(vertex, "module", interfaceEntry.module != null ? interfaceEntry.module.serialize() : null);
         set(vertex, TECHNOLOGY, interfaceEntry.technology);
-        set(vertex, BROKER, interfaceEntry.broker != null ? interfaceEntry.broker.name() : null);
+        setLower(vertex, BROKER, interfaceEntry.broker != null ? interfaceEntry.broker.name() : null);
         set(vertex, TOPIC, interfaceEntry.topic);
         set(vertex, "externalServiceName", interfaceEntry.externalServiceName);
         setSource(vertex, interfaceEntry.source);
@@ -571,8 +587,8 @@ public class ArchitectureGraph {
     private void addDeployment(DeploymentEntry deployment) {
         Vertex vertex = addVertex(deployment.id, "Deployment", deployment.name);
         set(vertex, "kind", "deployment");
-        set(vertex, "type", deployment.type);
-        set(vertex, "deploymentType", deployment.type);
+        setLower(vertex, "type", deployment.type);
+        setLower(vertex, "deploymentType", deployment.type);
         set(vertex, SOURCE, deployment.source);
         set(vertex, "ports", String.join(",", deployment.ports));
         set(vertex, "dependsOn", String.join(",", deployment.dependsOn));
@@ -583,8 +599,8 @@ public class ArchitectureGraph {
     private void addExternalSystem(ExternalSystem externalSystem) {
         Vertex vertex = addVertex(externalSystem.id, "ExternalSystem", externalSystem.name);
         set(vertex, "kind", "externalSystem");
-        set(vertex, "type", externalSystem.kind);
-        set(vertex, "externalSystemKind", externalSystem.kind);
+        setLower(vertex, "type", externalSystem.kind);
+        setLower(vertex, "externalSystemKind", externalSystem.kind);
         set(vertex, TECHNOLOGY, externalSystem.technology);
     }
 
@@ -608,7 +624,7 @@ public class ArchitectureGraph {
             set(stepVertex, "flowId", flow.id);
             set(stepVertex, "order", step.order);
             set(stepVertex, COMPONENT_ID, step.componentId != null ? step.componentId.serialize() : null);
-            set(stepVertex, "componentType", step.componentType);
+            setLower(stepVertex, "componentType", step.componentType);
             set(stepVertex, "via", step.via);
             addEdge(flow.id, stepId, "HAS_STEP", Map.of("order", step.order));
             addEdge(
@@ -687,7 +703,7 @@ public class ArchitectureGraph {
                 FIELD_OWNER_COMPONENT_ID,
                 sink.fieldOwnerComponentId != null ? sink.fieldOwnerComponentId.serialize() : null);
         set(sinkVertex, "channel", sink.channel);
-        set(sinkVertex, BROKER, sink.broker != null ? sink.broker.name() : null);
+        setLower(sinkVertex, BROKER, sink.broker != null ? sink.broker.name() : null);
         set(sinkVertex, TOPIC, sink.topic);
         set(sinkVertex, "topicPropertyKey", sink.topicPropertyKey);
         set(sinkVertex, "payloadType", sink.payloadType);
@@ -1230,7 +1246,8 @@ public class ArchitectureGraph {
     private <T extends Enum<T>> T vEnum(Vertex v, String key, Class<T> cls) {
         String s = vStr(v, key);
         if (s == null || s.isBlank()) return null;
-        try { return Enum.valueOf(cls, s); } catch (IllegalArgumentException e) { return null; }
+        try { return Enum.valueOf(cls, s.toUpperCase(Locale.ROOT)); }
+        catch (IllegalArgumentException e) { return null; }
     }
 
     private List<String> vList(Vertex v, String key) {
@@ -1276,6 +1293,13 @@ public class ArchitectureGraph {
         }
     }
 
+    /** Stores a string property in lowercase for consistent case-insensitive filtering. */
+    private void setLower(Vertex vertex, String key, String value) {
+        if (value != null && !value.isBlank()) {
+            vertex.property(key, value.toLowerCase(Locale.ROOT));
+        }
+    }
+
     private void set(Edge edge, String key, Object value) {
         if (value != null && !Objects.toString(value).isBlank()) {
             edge.property(key, value);
@@ -1301,57 +1325,23 @@ public class ArchitectureGraph {
         set(vertex, CONFIDENCE, source.confidence);
     }
 
-    private boolean matchesFilters(Map<String, Object> properties, Map<String, String> filters) {
-        if (filters == null || filters.isEmpty()) {
-            return true;
-        }
-        for (Map.Entry<String, String> filter : filters.entrySet()) {
-            Object actual = properties.get(filter.getKey());
-            if (!matchesFilterValue(actual, filter.getValue())) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private boolean matchesFilterValue(Object actual, String expected) {
-        if (StringUtils.isBlank(expected)) {
-            return true;
-        }
-        if (actual == null) {
-            return false;
-        }
-        String actualText = actual.toString();
-        if (expected.startsWith("<=")
-                || expected.startsWith(">=")
-                || expected.startsWith("<")
-                || expected.startsWith(">")) {
-            return matchesNumeric(actualText, expected);
-        }
-        return actualText.equalsIgnoreCase(expected)
-                || actualText.toLowerCase(Locale.ROOT).contains(expected.toLowerCase(Locale.ROOT));
-    }
-
-    private boolean matchesNumeric(String actualText, String expected) {
+    /**
+     * Maps a filter value string to a Gremlin {@link P} predicate.
+     * Numeric operators ({@code <}, {@code <=}, {@code >}, {@code >=}) produce range predicates.
+     * All other values produce a case-insensitive substring match via {@link #CI_CONTAINS}.
+     * Blank values return {@code null} (pass-through — no predicate applied).
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static P<Object> toGremlinPredicate(String filterValue) {
+        if (StringUtils.isBlank(filterValue)) return null;
+        String v = filterValue.trim();
         try {
-            String operator;
-            if (expected.startsWith("<=") || expected.startsWith(">=")) {
-                operator = expected.substring(0, 2);
-            } else {
-                operator = expected.substring(0, 1);
-            }
-            double expectedNumber = Double.parseDouble(expected.substring(operator.length()));
-            double actualNumber = Double.parseDouble(actualText);
-            return switch (operator) {
-                case "<" -> actualNumber < expectedNumber;
-                case "<=" -> actualNumber <= expectedNumber;
-                case ">" -> actualNumber > expectedNumber;
-                case ">=" -> actualNumber >= expectedNumber;
-                default -> false;
-            };
-        } catch (NumberFormatException _) {
-            return false;
-        }
+            if (v.startsWith("<=")) return (P) P.lte(Double.parseDouble(v.substring(2)));
+            if (v.startsWith(">=")) return (P) P.gte(Double.parseDouble(v.substring(2)));
+            if (v.startsWith("<"))  return (P) P.lt(Double.parseDouble(v.substring(1)));
+            if (v.startsWith(">"))  return (P) P.gt(Double.parseDouble(v.substring(1)));
+        } catch (NumberFormatException ignored) {}
+        return (P) P.test(CI_CONTAINS, v.toLowerCase(Locale.ROOT));
     }
 
     private Component componentById(String componentId) {

@@ -502,7 +502,7 @@ class ArchitectureGraphTest {
         assertThat(graph.findNodes("ExternalSystem", null, Map.of("technology", "kafka"), 10))
                 .anySatisfy(node -> assertThat(node.properties())
                         .containsEntry("kind", "externalSystem")
-                        .containsEntry("externalSystemKind", "MESSAGE_BROKER")
+                        .containsEntry("externalSystemKind", "message_broker")
                         .containsEntry("technology", "kafka"));
         assertThat(graph.findEdges("DEPENDS_ON", Map.of("kind", "messaging"), 10))
                 .anySatisfy(edge -> {
