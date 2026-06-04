@@ -250,14 +250,14 @@ public class McpServer {
 
         specs.add(toolSpec(
                 "export_graph_data",
-                "Write raw architecture graph snapshot JSON for standalone visual graph viewers.",
+                "Write architecture graph JSON for standalone visual graph viewers, including raw snapshot data and viewer-ready projections.",
                 schema().opt("outputPath", TYPE_STRING, "Output JSON path (default docs/GRAPH_DATA.json)")
                         .opt("limit", TYPE_INTEGER, "Maximum graph nodes to export (default 5000)"),
                 exportGraphDataTool::execute));
 
         specs.add(toolSpec(
                 "export_graph_viewer",
-                "Write a self-contained HTML viewer for visually debugging the raw detected architecture graph.",
+                "Write a self-contained HTML viewer using the same graph export payload as export_graph_data.",
                 schema().opt("outputPath", TYPE_STRING, "Output HTML path (default docs/GRAPH_VIEWER.html)")
                         .opt("limit", TYPE_INTEGER, "Maximum graph nodes to export (default 5000)"),
                 exportGraphViewerTool::execute));

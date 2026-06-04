@@ -6,19 +6,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Map;
-import tools.jackson.databind.SerializationFeature;
-import tools.jackson.databind.json.JsonMapper;
 
-/** MCP tool that writes raw architecture graph snapshot JSON for external viewers. */
+/** MCP tool that writes graph snapshot JSON for external viewers. */
 public class ExportGraphDataTool {
 
     private static final Path DEFAULT_OUTPUT = Path.of("docs", "GRAPH_DATA.json");
     private static final int DEFAULT_LIMIT = 5000;
 
     private final ModelCache cache;
-    private final JsonMapper mapper = JsonMapper.builder()
-            .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
-            .build();
 
     /**
      * Creates the tool with the shared model cache.
@@ -30,7 +25,7 @@ public class ExportGraphDataTool {
     }
 
     /**
-     * Exports raw graph data to the requested path.
+     * Exports graph data to the requested path.
      *
      * @param args JSON arguments including outputPath and limit
      * @return export status message with raw counts
@@ -43,9 +38,7 @@ public class ExportGraphDataTool {
             Path output = Path.of(ToolArgs.getString(args, "outputPath", DEFAULT_OUTPUT.toString()));
             int limit = ToolArgs.getInt(args, "limit", DEFAULT_LIMIT);
             ArchitectureGraph.GraphSnapshot snapshot = graph.snapshot(limit);
-            String json = mapper.writerWithDefaultPrettyPrinter()
-                    .writeValueAsString(
-                            new GraphDataPayload(snapshot, GraphDataProjection.from(snapshot), Instant.now()));
+            String json = GraphExportJson.write(snapshot, Instant.now());
 
             Path parent = output.getParent();
             if (parent != null) Files.createDirectories(parent);
@@ -58,9 +51,4 @@ public class ExportGraphDataTool {
             return "Error exporting graph data: " + e.getMessage();
         }
     }
-
-    private record GraphDataPayload(
-            ArchitectureGraph.GraphSnapshot snapshot,
-            GraphDataProjection.ViewerProjections projections,
-            Instant generatedAt) {}
 }

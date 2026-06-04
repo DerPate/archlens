@@ -40,7 +40,7 @@ public class ExportGraphViewerTool {
             Path output = Path.of(ToolArgs.getString(args, "outputPath", DEFAULT_OUTPUT.toString()));
             int limit = ToolArgs.getInt(args, "limit", DEFAULT_LIMIT);
             ArchitectureGraph.GraphSnapshot snapshot = graph.snapshot(limit);
-            String html = renderer.render(snapshot, Instant.now());
+            String html = renderer.render(GraphExportJson.write(snapshot, Instant.now()));
 
             Path parent = output.getParent();
             if (parent != null) Files.createDirectories(parent);
