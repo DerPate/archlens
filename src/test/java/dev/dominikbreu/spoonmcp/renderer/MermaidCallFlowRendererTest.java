@@ -2,6 +2,7 @@ package dev.dominikbreu.spoonmcp.renderer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
@@ -13,19 +14,18 @@ class MermaidCallFlowRendererTest {
 
     @Test
     void outputStartsWithFlowchartDirective() {
-        assertThat(renderer.render(flow(3), model(3))).startsWith("flowchart TD");
+        assertThat(renderer.render(flow(3), index(3))).startsWith("flowchart TD");
     }
 
     @Test
     void containsClientNode() {
-        assertThat(renderer.render(flow(3), model(3))).contains("Client([Client])");
+        assertThat(renderer.render(flow(3), index(3))).contains("Client([Client])");
     }
 
     @Test
     void containsEachComponentBySimpleName() {
-        ArchitectureModel m = model(3);
         RuntimeFlow f = flow(3);
-        String out = renderer.render(f, m);
+        String out = renderer.render(f, index(3));
         for (RuntimeFlowStep step : f.steps) {
             assertThat(out).contains(step.componentName);
         }
@@ -35,7 +35,7 @@ class MermaidCallFlowRendererTest {
     void repositoryRendersAsCylinder() {
         ArchitectureModel m = model(2);
         m.components.get(1).type = ComponentType.REPOSITORY;
-        String out = renderer.render(flow(2), m);
+        String out = renderer.render(flow(2), ToolModelIndex.from(m));
         assertThat(out).contains("[(Comp1)]");
     }
 
@@ -43,7 +43,7 @@ class MermaidCallFlowRendererTest {
     void httpClientRendersAsParallelogram() {
         ArchitectureModel m = model(2);
         m.components.get(1).type = ComponentType.HTTP_CLIENT;
-        String out = renderer.render(flow(2), m);
+        String out = renderer.render(flow(2), ToolModelIndex.from(m));
         assertThat(out).contains("[/Comp1/]");
     }
 
@@ -51,7 +51,7 @@ class MermaidCallFlowRendererTest {
     void schedulerRendersAsStadium() {
         ArchitectureModel m = model(2);
         m.components.get(1).type = ComponentType.SCHEDULER;
-        String out = renderer.render(flow(2), m);
+        String out = renderer.render(flow(2), ToolModelIndex.from(m));
         assertThat(out).contains("([Comp1])");
     }
 
@@ -60,14 +60,13 @@ class MermaidCallFlowRendererTest {
         RuntimeFlow f = flow(3);
         f.edges.get(0).label = "processOrder";
         f.edges.get(1).label = "save";
-        String out = renderer.render(f, model(3));
+        String out = renderer.render(f, index(3));
         assertThat(out).contains("-->|processOrder|");
         assertThat(out).contains("-->|save|");
     }
 
     @Test
     void branchingFlowRendersBothBranches() {
-        ArchitectureModel m = model(3);
         RuntimeFlow f = new RuntimeFlow();
         f.id = "flow:test";
         f.entrypointId = EntrypointId.deserialize("test");
@@ -80,11 +79,10 @@ class MermaidCallFlowRendererTest {
             s.via = "call";
             f.steps.add(s);
         }
-        // Comp0 fans out to both Comp1 and Comp2 — not a chain
         f.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of("Comp0"), ComponentId.of("Comp1"), "doB"));
         f.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of("Comp0"), ComponentId.of("Comp2"), "doC"));
 
-        String out = renderer.render(f, m);
+        String out = renderer.render(f, index(3));
         assertThat(out).contains("Comp0 -->|doB| Comp1");
         assertThat(out).contains("Comp0 -->|doC| Comp2");
         assertThat(out).doesNotContain("Comp1 -->");
@@ -101,7 +99,7 @@ class MermaidCallFlowRendererTest {
         m.entrypoints.add(ep);
         RuntimeFlow f = flow(2);
         f.entrypointId = ep.id;
-        String out = renderer.render(f, m);
+        String out = renderer.render(f, ToolModelIndex.from(m));
         assertThat(out).contains("POST /orders");
     }
 
@@ -115,13 +113,13 @@ class MermaidCallFlowRendererTest {
         m.entrypoints.add(ep);
         RuntimeFlow f = flow(2);
         f.entrypointId = ep.id;
-        String out = renderer.render(f, m);
+        String out = renderer.render(f, ToolModelIndex.from(m));
         assertThat(out).contains("order-events");
     }
 
     @Test
     void noReturnArrowsRendered() {
-        String out = renderer.render(flow(4), model(4));
+        String out = renderer.render(flow(4), index(4));
         assertThat(out).doesNotContain("-->>");
         assertThat(out).doesNotContain("result");
     }
@@ -131,7 +129,7 @@ class MermaidCallFlowRendererTest {
         RuntimeFlow f = new RuntimeFlow();
         f.id = "flow:empty";
         f.entrypointId = EntrypointId.deserialize("none");
-        String out = renderer.render(f, new ArchitectureModel("test"));
+        String out = renderer.render(f, ToolModelIndex.from(null));
         assertThat(out).contains("flowchart TD");
         assertThat(out).contains("no flow steps");
     }
@@ -157,12 +155,16 @@ class MermaidCallFlowRendererTest {
             s.via = "call";
             f.steps.add(s);
         }
-        String out = renderer.render(f, m);
+        String out = renderer.render(f, ToolModelIndex.from(m));
         assertThat(out).contains("Service_1");
         assertThat(out).contains("Service_2");
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
+
+    private ToolModelIndex index(int n) {
+        return ToolModelIndex.from(model(n));
+    }
 
     private ArchitectureModel model(int n) {
         ArchitectureModel m = new ArchitectureModel("test");

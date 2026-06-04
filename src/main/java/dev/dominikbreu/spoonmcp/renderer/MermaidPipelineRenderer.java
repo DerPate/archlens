@@ -1,16 +1,13 @@
 package dev.dominikbreu.spoonmcp.renderer;
 
+import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Chain;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Segment;
-import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.DataFlowStep;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
-import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Renders a single pipeline {@link Chain} as a Mermaid {@code flowchart TD}.
@@ -32,19 +29,16 @@ public class MermaidPipelineRenderer {
      * Renders {@code chain} as Mermaid text.
      *
      * @param chain pipeline chain to render
-     * @param model architecture model used to resolve component shapes
+     * @param index tool model index for component lookups
      * @return Mermaid flowchart text
      */
-    public String render(Chain chain, ArchitectureModel model) {
+    public String render(Chain chain, ToolModelIndex index) {
         if (chain == null || chain.segments.isEmpty()) {
             return "flowchart TD\n    note[no pipeline chain]\n";
         }
-        Map<ComponentId, Component> compById = new HashMap<>();
-        for (Component c : model.components) compById.put(c.id, c);
-
         RenderState st = new RenderState();
         for (int segIdx = 0; segIdx < chain.segments.size(); segIdx++) {
-            renderSegment(st, chain, segIdx, compById);
+            renderSegment(st, chain, segIdx, index);
         }
         return assemble(st);
     }
@@ -59,16 +53,16 @@ public class MermaidPipelineRenderer {
         String previousSinkLabel;
     }
 
-    private void renderSegment(RenderState st, Chain chain, int segIdx, Map<ComponentId, Component> compById) {
+    private void renderSegment(RenderState st, Chain chain, int segIdx, ToolModelIndex index) {
         Segment seg = chain.segments.get(segIdx);
         Entrypoint ep = seg.entrypoint;
 
         // Boundary node from previous segment (skip for first segment).
         if (seg.incomingSink != null) {
-            renderBoundary(st, seg, ep, segIdx, compById);
+            renderBoundary(st, seg, ep, segIdx, index);
         }
-        String headerNodeId = renderHeader(st, seg, ep, segIdx, compById);
-        String previousNodeInSeg = renderSteps(st, seg, segIdx, headerNodeId, compById);
+        String headerNodeId = renderHeader(st, seg, ep, segIdx, index);
+        String previousNodeInSeg = renderSteps(st, seg, segIdx, headerNodeId, index);
         renderTerminalSinks(st, chain, seg, segIdx, previousNodeInSeg);
 
         // Determine which sink (if any) links to the next segment.
@@ -79,10 +73,10 @@ public class MermaidPipelineRenderer {
     }
 
     private void renderBoundary(
-            RenderState st, Segment seg, Entrypoint ep, int segIdx, Map<ComponentId, Component> compById) {
+            RenderState st, Segment seg, Entrypoint ep, int segIdx, ToolModelIndex index) {
         st.boundaryCounter++;
         String boundaryId = "B" + st.boundaryCounter;
-        String boundaryLabel = boundaryLabel(seg.incomingSink, compById);
+        String boundaryLabel = boundaryLabel(seg.incomingSink, index);
         st.nodes
                 .append("    ")
                 .append(boundaryId)
@@ -116,9 +110,9 @@ public class MermaidPipelineRenderer {
     }
 
     private String renderHeader(
-            RenderState st, Segment seg, Entrypoint ep, int segIdx, Map<ComponentId, Component> compById) {
+            RenderState st, Segment seg, Entrypoint ep, int segIdx, ToolModelIndex index) {
         String headerNodeId = "S" + segIdx + "_0";
-        Component headerComp = (ep != null && ep.componentId != null) ? compById.get(ep.componentId) : null;
+        Component headerComp = (ep != null && ep.componentId != null) ? index.component(ep.componentId) : null;
         String headerComponentName;
         if (headerComp != null) {
             headerComponentName = headerComp.name;
@@ -138,14 +132,13 @@ public class MermaidPipelineRenderer {
     }
 
     private String renderSteps(
-            RenderState st, Segment seg, int segIdx, String headerNodeId, Map<ComponentId, Component> compById) {
+            RenderState st, Segment seg, int segIdx, String headerNodeId, ToolModelIndex index) {
         String previousNodeInSeg = headerNodeId;
         for (int i = 1; i < seg.path.steps.size(); i++) {
             DataFlowStep step = seg.path.steps.get(i);
             String nodeId = "S" + segIdx + "_" + i;
-            ComponentType type = (step.componentId != null && compById.containsKey(step.componentId))
-                    ? compById.get(step.componentId).type
-                    : null;
+            Component stepComp = step.componentId != null ? index.component(step.componentId) : null;
+            ComponentType type = stepComp != null ? stepComp.type : null;
             String label = step.componentName + "." + step.method;
             st.nodes
                     .append("    ")
@@ -233,20 +226,19 @@ public class MermaidPipelineRenderer {
         };
     }
 
-    private String boundaryLabel(DataFlowSink sink, Map<ComponentId, Component> compById) {
+    private String boundaryLabel(DataFlowSink sink, ToolModelIndex index) {
         return switch (sink.kind) {
-            case STORE -> storeBoundaryLabel(sink, compById);
+            case STORE -> storeBoundaryLabel(sink, index);
             case MESSAGING, EVENT_BUS -> sink.channel != null ? sink.channel : "channel";
             case PERSISTENCE -> sink.entityType != null ? sink.entityType : nonNullComponentName(sink);
             default -> sink.componentName != null ? sink.componentName : sink.kind.value();
         };
     }
 
-    private String storeBoundaryLabel(DataFlowSink sink, Map<ComponentId, Component> compById) {
-        String owner = (sink.fieldOwnerComponentId != null && compById.get(sink.fieldOwnerComponentId) != null)
-                ? compById.get(sink.fieldOwnerComponentId).name
-                : nonNullComponentName(sink);
-        return owner + "." + (sink.fieldName != null ? sink.fieldName : "?");
+    private String storeBoundaryLabel(DataFlowSink sink, ToolModelIndex index) {
+        Component owner = sink.fieldOwnerComponentId != null ? index.component(sink.fieldOwnerComponentId) : null;
+        String ownerName = owner != null ? owner.name : nonNullComponentName(sink);
+        return ownerName + "." + (sink.fieldName != null ? sink.fieldName : "?");
     }
 
     private static String nonNullComponentName(DataFlowSink sink) {
