@@ -28,7 +28,6 @@ import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import dev.dominikbreu.spoonmcp.model.ids.GraphNodeId;
 import dev.dominikbreu.spoonmcp.workflow.WorkflowLink;
 import dev.dominikbreu.spoonmcp.workflow.WorkflowLinker;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -1069,32 +1068,23 @@ public class ArchitectureGraph {
     }
 
     private Set<String> reachableFromEntrypoints() {
-        // Uses manual BFS with a visited set to guarantee termination on cyclic graphs.
-        // repeat().emit() without aggregate("seen") guard loops forever on cycles.
-        Set<String> reachable = new LinkedHashSet<>();
-        ArrayDeque<String> queue = new ArrayDeque<>();
-        g.V().hasLabel("Entrypoint").id().map(Object::toString).toList().forEach(queue::addLast);
-        while (!queue.isEmpty()) {
-            String nodeId = queue.removeFirst();
-            if (!reachable.add(nodeId)) continue;
-            Vertex vertex = verticesById.get(GraphNodeId.of(nodeId));
-            if (vertex == null) continue;
-            Iterator<Edge> edges = vertex.edges(Direction.OUT);
-            while (edges.hasNext()) {
-                Edge edge = edges.next();
-                String label = edge.label();
-                if (REL_STARTS_AT.equals(label) || "CALLS".equals(label)
-                        || REL_DEPENDS_ON.equals(label) || "VISITS".equals(label)
-                        || "ORIGINATES".equals(label) || "REACHES".equals(label)
-                        || "LINKS_TO".equals(label) || "WORKFLOW_LINK".equals(label)
-                        || REL_WRITES_STATE.equals(label) || REL_READS_STATE.equals(label)
-                        || REL_STATE_HANDOFF.equals(label) || "ON_FIELD".equals(label)
-                        || "AT_COMPONENT".equals(label) || "HAS_SEGMENT".equals(label)) {
-                    queue.addLast(edge.inVertex().id().toString());
-                }
-            }
-        }
-        return reachable;
+        // aggregate("seen") accumulates visited vertices as a side effect so
+        // where(not(within("seen"))) prevents re-visiting on cyclic graphs.
+        // cap("seen") returns the full accumulated set including starting Entrypoints.
+        return g.V().hasLabel("Entrypoint")
+                .aggregate("seen")
+                .repeat(__.out(
+                        REL_STARTS_AT, "CALLS", REL_DEPENDS_ON, "VISITS",
+                        "ORIGINATES", "REACHES", "LINKS_TO", "WORKFLOW_LINK",
+                        REL_WRITES_STATE, REL_READS_STATE, REL_STATE_HANDOFF,
+                        "ON_FIELD", "AT_COMPONENT", "HAS_SEGMENT")
+                        .where(P.without("seen"))
+                        .aggregate("seen"))
+                .cap("seen")
+                .unfold()
+                .id()
+                .map(Object::toString)
+                .toSet();
     }
 
     private int countEdges(Vertex vertex, Direction direction, String label) {
