@@ -7,15 +7,18 @@ import dev.dominikbreu.spoonmcp.model.AppEntry;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.CallEdge;
 import dev.dominikbreu.spoonmcp.model.Component;
+import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Container;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.DeploymentEntry;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
+import dev.dominikbreu.spoonmcp.model.EntrypointType;
 import dev.dominikbreu.spoonmcp.model.ExternalSystem;
 import dev.dominikbreu.spoonmcp.model.FieldAccess;
 import dev.dominikbreu.spoonmcp.model.InterfaceEntry;
+import dev.dominikbreu.spoonmcp.model.MessagingBroker;
 import dev.dominikbreu.spoonmcp.model.RuntimeFlow;
 import dev.dominikbreu.spoonmcp.model.RuntimeFlowStep;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
@@ -1200,8 +1203,113 @@ public class ArchitectureGraph {
     }
 
     private GraphNode toNode(Vertex vertex) {
-        Map<String, Object> properties = properties(vertex);
-        return new GraphNode(nid(vertex), vertex.label(), Objects.toString(properties.get("name"), ""), properties);
+        GraphNodeId nodeId = nid(vertex);
+        String name = Objects.toString(vStr(vertex, "name"), "");
+        return switch (vertex.label()) {
+            case "Application" -> new ApplicationNode(nodeId, name,
+                    vStr(vertex, TECHNOLOGY), vStr(vertex, "packagingType"),
+                    vStr(vertex, "role"), vStr(vertex, "rootPath"),
+                    AppId.of(vStr(vertex, "parentAppId")));
+            case "Component" -> new ComponentNode(nodeId, name,
+                    vEnum(vertex, "type", ComponentType.class),
+                    vStr(vertex, "qualifiedName"), vStr(vertex, "packageName"),
+                    AppId.of(vStr(vertex, "module")), vStr(vertex, TECHNOLOGY),
+                    vList(vertex, "stereotypes"), vSource(vertex),
+                    vInt(vertex, "fanIn"), vInt(vertex, "fanOut"), vInt(vertex, "degree"),
+                    vInt(vertex, "ownedEntrypointCount"), vInt(vertex, "architecturalWeight"),
+                    vBool(vertex, "workflowRelevant"), vBool(vertex, "businessRelevant"),
+                    vStr(vertex, "infrastructureRole"), vInt(vertex, "noiseScore"),
+                    vInt(vertex, "workflowBridgeScore"), vBool(vertex, "entrypointReachable"));
+            case "Entrypoint" -> new EntrypointNode(nodeId, name,
+                    vEnum(vertex, "type", EntrypointType.class),
+                    vStr(vertex, "httpMethod"), vStr(vertex, "path"),
+                    vStr(vertex, "channelName"), vEnum(vertex, BROKER, MessagingBroker.class),
+                    vStr(vertex, TOPIC), vList(vertex, "parameters"), vStr(vertex, "protocol"),
+                    vComponentId(vertex, COMPONENT_ID), vSource(vertex));
+            case "Interface" -> new InterfaceNode(nodeId, name,
+                    vStr(vertex, "interfaceType"), vStr(vertex, "path"),
+                    vComponentId(vertex, COMPONENT_ID), AppId.of(vStr(vertex, "module")),
+                    vStr(vertex, TECHNOLOGY), vEnum(vertex, BROKER, MessagingBroker.class),
+                    vStr(vertex, TOPIC), vStr(vertex, "externalServiceName"), vSource(vertex));
+            case "Container" -> new ContainerNode(nodeId, name,
+                    AppId.of(vStr(vertex, "appId")), vStr(vertex, TECHNOLOGY),
+                    vStr(vertex, DERIVED_FROM));
+            case "Deployment" -> new DeploymentNode(nodeId, name,
+                    vStr(vertex, "type"), vList(vertex, "ports"),
+                    vList(vertex, "dependsOn"), vList(vertex, "roles"), vList(vertex, "hosts"));
+            case "ExternalSystem" -> new ExternalSystemNode(nodeId, name,
+                    vStr(vertex, "externalSystemKind"), vStr(vertex, TECHNOLOGY));
+            case "RuntimeFlow" -> new RuntimeFlowNode(nodeId, name,
+                    EntrypointId.deserialize(vStr(vertex, "entrypointId")),
+                    vInt(vertex, "stepCount"));
+            case "RuntimeFlowStep" -> new RuntimeFlowStepNode(nodeId, name,
+                    vStr(vertex, "flowId"), vInt(vertex, "order"),
+                    vComponentId(vertex, COMPONENT_ID), vStr(vertex, "componentType"),
+                    vStr(vertex, "via"));
+            case "DataFlowPath" -> new DataFlowPathNode(nodeId, name,
+                    EntrypointId.deserialize(vStr(vertex, "entrypointId")),
+                    vStr(vertex, "trackedParam"),
+                    vInt(vertex, "stepCount"), vInt(vertex, "sinkCount"));
+            case "DataFlowSink" -> new DataFlowSinkNode(nodeId, name,
+                    DataFlowSink.Kind.from(vStr(vertex, "sinkKind")),
+                    vStr(vertex, "pathId"), vComponentId(vertex, COMPONENT_ID),
+                    vStr(vertex, METHOD), vStr(vertex, FIELD_NAME),
+                    vComponentId(vertex, FIELD_OWNER_COMPONENT_ID),
+                    vStr(vertex, "channel"), vEnum(vertex, BROKER, MessagingBroker.class),
+                    vStr(vertex, TOPIC), vStr(vertex, "topicPropertyKey"),
+                    vStr(vertex, "payloadType"), vStr(vertex, "entityType"),
+                    vStr(vertex, "repositoryOperation"), vStr(vertex, "linkEvidence"),
+                    vStr(vertex, "calleeQualifiedName"), vSource(vertex));
+            case "PipelineChain" -> new PipelineChainNode(nodeId, name,
+                    vInt(vertex, "segmentCount"), vStr(vertex, "rootEntrypointId"),
+                    vList(vertex, "linkKinds"));
+            default -> new UnknownNode(nodeId, vertex.label(), name, properties(vertex));
+        };
+    }
+
+    // --- vertex property helpers ---
+
+    private String vStr(Vertex v, String key) {
+        var it = v.properties(key);
+        return it.hasNext() ? Objects.toString(it.next().value(), null) : null;
+    }
+
+    private int vInt(Vertex v, String key) {
+        var it = v.properties(key);
+        return it.hasNext() ? ((Number) it.next().value()).intValue() : 0;
+    }
+
+    private double vDouble(Vertex v, String key) {
+        var it = v.properties(key);
+        return it.hasNext() ? ((Number) it.next().value()).doubleValue() : 0.0;
+    }
+
+    private boolean vBool(Vertex v, String key) {
+        var it = v.properties(key);
+        return it.hasNext() && Boolean.TRUE.equals(it.next().value());
+    }
+
+    private <T extends Enum<T>> T vEnum(Vertex v, String key, Class<T> cls) {
+        String s = vStr(v, key);
+        if (s == null || s.isBlank()) return null;
+        try { return Enum.valueOf(cls, s); } catch (IllegalArgumentException e) { return null; }
+    }
+
+    private List<String> vList(Vertex v, String key) {
+        String s = vStr(v, key);
+        if (s == null || s.isBlank()) return List.of();
+        return List.of(s.split(","));
+    }
+
+    private ComponentId vComponentId(Vertex v, String key) {
+        String s = vStr(v, key);
+        return s != null && !s.isBlank() ? ComponentId.of(s) : null;
+    }
+
+    private SourceInfo vSource(Vertex v) {
+        String file = vStr(v, SOURCE_FILE);
+        if (file == null) return null;
+        return new SourceInfo(file, vInt(v, SOURCE_LINE), vStr(v, DERIVED_FROM), vDouble(v, CONFIDENCE));
     }
 
     private GraphEdge toEdge(Edge edge) {
@@ -1419,26 +1527,303 @@ public class ArchitectureGraph {
             Map<String, Integer> labels,
             Map<String, Integer> edges) {}
 
-    /**
-     * Serializable graph node view used by MCP tools.
-     *
-     * @param id stable node identifier
-     * @param label graph label
-     * @param name display name
-     * @param properties node properties
-     */
-    public record GraphNode(GraphNodeId id, String label, String name, Map<String, Object> properties) {
-        boolean matches(String query) {
-            String needle = query.toLowerCase(Locale.ROOT);
-            if (id.serialize().toLowerCase(Locale.ROOT).contains(needle)
-                    || label.toLowerCase(Locale.ROOT).contains(needle)
-                    || name.toLowerCase(Locale.ROOT).contains(needle)) {
-                return true;
+    // --- typed graph node hierarchy ---
+
+    /** Typed, immutable view of a graph vertex. Each subtype corresponds to one vertex label. */
+    public sealed interface GraphNode
+            permits ApplicationNode, ComponentNode, EntrypointNode, InterfaceNode,
+                    ContainerNode, DeploymentNode, ExternalSystemNode,
+                    RuntimeFlowNode, RuntimeFlowStepNode,
+                    DataFlowPathNode, DataFlowSinkNode, PipelineChainNode,
+                    UnknownNode {
+        GraphNodeId id();
+        String name();
+        String label();
+        /** Property map for serialisation and generic display — derived from typed fields. */
+        Map<String, Object> properties();
+        boolean matches(String query);
+
+        private static Map<String, Object> propsOf(Object... keysAndValues) {
+            Map<String, Object> map = new LinkedHashMap<>();
+            for (int i = 0; i + 1 < keysAndValues.length; i += 2) {
+                Object val = keysAndValues[i + 1];
+                if (val != null) map.put((String) keysAndValues[i], val.toString().isBlank() ? null : val);
             }
-            return properties.values().stream()
-                    .filter(Objects::nonNull)
-                    .map(value -> value.toString().toLowerCase(Locale.ROOT))
-                    .anyMatch(value -> value.contains(needle));
+            map.entrySet().removeIf(e -> e.getValue() == null);
+            return map;
+        }
+
+        private static boolean q(String query, String value) {
+            return value != null && value.toLowerCase(Locale.ROOT).contains(query.toLowerCase(Locale.ROOT));
+        }
+    }
+
+    public record ApplicationNode(
+            GraphNodeId id, String name,
+            String technology, String packagingType, String role,
+            String rootPath, AppId parentAppId) implements GraphNode {
+        @Override public String label() { return "Application"; }
+        @Override public Map<String, Object> properties() {
+            return GraphNode.propsOf(
+                    "technology", technology, "packagingType", packagingType,
+                    "role", role, "rootPath", rootPath,
+                    "parentAppId", parentAppId != null ? parentAppId.serialize() : null);
+        }
+        @Override public boolean matches(String query) {
+            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name)
+                    || GraphNode.q(query, technology) || GraphNode.q(query, role);
+        }
+    }
+
+    public record ComponentNode(
+            GraphNodeId id, String name,
+            ComponentType type, String qualifiedName, String packageName,
+            AppId module, String technology, List<String> stereotypes, SourceInfo source,
+            int fanIn, int fanOut, int degree, int ownedEntrypointCount,
+            int architecturalWeight, boolean workflowRelevant, boolean businessRelevant,
+            String infrastructureRole, int noiseScore, int workflowBridgeScore,
+            boolean entrypointReachable) implements GraphNode {
+        @Override public String label() { return "Component"; }
+        @Override public Map<String, Object> properties() {
+            Map<String, Object> m = new LinkedHashMap<>();
+            if (type != null)      { m.put("type", type.name()); m.put("componentType", type.name()); }
+            m.put("qualifiedName", qualifiedName);
+            m.put("packageName", packageName);
+            m.put("simpleName", name);
+            if (module != null)    m.put("module", module.serialize());
+            m.put("technology", technology);
+            if (!stereotypes.isEmpty()) m.put("stereotypes", String.join(",", stereotypes));
+            if (source != null) {
+                m.put("sourceFile", source.file);
+                m.put("sourceLine", source.line);
+                m.put("derivedFrom", source.derivedFrom);
+                m.put("confidence", source.confidence);
+            }
+            m.put("fanIn", fanIn); m.put("fanOut", fanOut); m.put("degree", degree);
+            m.put("ownedEntrypointCount", ownedEntrypointCount);
+            m.put("architecturalWeight", architecturalWeight);
+            m.put("workflowRelevant", workflowRelevant);
+            m.put("businessRelevant", businessRelevant);
+            if (infrastructureRole != null) m.put("infrastructureRole", infrastructureRole);
+            m.put("noiseScore", noiseScore);
+            m.put("workflowBridgeScore", workflowBridgeScore);
+            m.put("entrypointReachable", entrypointReachable);
+            m.entrySet().removeIf(e -> e.getValue() == null);
+            return m;
+        }
+        @Override public boolean matches(String query) {
+            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name)
+                    || GraphNode.q(query, qualifiedName) || GraphNode.q(query, technology)
+                    || (type != null && GraphNode.q(query, type.name()))
+                    || (module != null && GraphNode.q(query, module.serialize()));
+        }
+    }
+
+    public record EntrypointNode(
+            GraphNodeId id, String name,
+            EntrypointType type, String httpMethod, String path,
+            String channelName, MessagingBroker broker, String topic,
+            List<String> parameters, String protocol,
+            ComponentId componentId, SourceInfo source) implements GraphNode {
+        @Override public String label() { return "Entrypoint"; }
+        @Override public Map<String, Object> properties() {
+            Map<String, Object> m = new LinkedHashMap<>();
+            if (type != null)   { m.put("type", type.name()); m.put("entrypointType", type.name()); }
+            m.put("httpMethod", httpMethod); m.put("path", path);
+            m.put("channelName", channelName);
+            if (broker != null) m.put("broker", broker.name());
+            m.put("topic", topic);
+            if (!parameters.isEmpty()) m.put("parameters", String.join(",", parameters));
+            m.put("protocol", protocol);
+            if (componentId != null) m.put("componentId", componentId.serialize());
+            if (source != null) {
+                m.put("sourceFile", source.file); m.put("sourceLine", source.line);
+                m.put("derivedFrom", source.derivedFrom); m.put("confidence", source.confidence);
+            }
+            m.entrySet().removeIf(e -> e.getValue() == null);
+            return m;
+        }
+        @Override public boolean matches(String query) {
+            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name)
+                    || GraphNode.q(query, path) || GraphNode.q(query, channelName)
+                    || GraphNode.q(query, topic) || (type != null && GraphNode.q(query, type.name()));
+        }
+    }
+
+    public record InterfaceNode(
+            GraphNodeId id, String name,
+            String type, String path, ComponentId componentId, AppId module,
+            String technology, MessagingBroker broker, String topic,
+            String externalServiceName, SourceInfo source) implements GraphNode {
+        @Override public String label() { return "Interface"; }
+        @Override public Map<String, Object> properties() {
+            return GraphNode.propsOf(
+                    "interfaceType", type, "type", type, "path", path,
+                    "componentId", componentId != null ? componentId.serialize() : null,
+                    "module", module != null ? module.serialize() : null,
+                    "technology", technology,
+                    "broker", broker != null ? broker.name() : null,
+                    "topic", topic, "externalServiceName", externalServiceName);
+        }
+        @Override public boolean matches(String query) {
+            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name)
+                    || GraphNode.q(query, path) || GraphNode.q(query, type);
+        }
+    }
+
+    public record ContainerNode(
+            GraphNodeId id, String name,
+            AppId appId, String technology, String derivedFrom) implements GraphNode {
+        @Override public String label() { return "Container"; }
+        @Override public Map<String, Object> properties() {
+            return GraphNode.propsOf(
+                    "appId", appId != null ? appId.serialize() : null,
+                    "technology", technology, "derivedFrom", derivedFrom);
+        }
+        @Override public boolean matches(String query) {
+            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name)
+                    || GraphNode.q(query, technology);
+        }
+    }
+
+    public record DeploymentNode(
+            GraphNodeId id, String name,
+            String type, List<String> ports, List<String> dependsOn,
+            List<String> roles, List<String> hosts) implements GraphNode {
+        @Override public String label() { return "Deployment"; }
+        @Override public Map<String, Object> properties() {
+            return GraphNode.propsOf(
+                    "type", type, "deploymentType", type,
+                    "ports", ports.isEmpty() ? null : String.join(",", ports),
+                    "dependsOn", dependsOn.isEmpty() ? null : String.join(",", dependsOn),
+                    "roles", roles.isEmpty() ? null : String.join(",", roles),
+                    "hosts", hosts.isEmpty() ? null : String.join(",", hosts));
+        }
+        @Override public boolean matches(String query) {
+            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name)
+                    || GraphNode.q(query, type);
+        }
+    }
+
+    public record ExternalSystemNode(
+            GraphNodeId id, String name,
+            String kind, String technology) implements GraphNode {
+        @Override public String label() { return "ExternalSystem"; }
+        @Override public Map<String, Object> properties() {
+            return GraphNode.propsOf(
+                    "kind", "externalSystem",
+                    "externalSystemKind", kind, "type", kind, "technology", technology);
+        }
+        @Override public boolean matches(String query) {
+            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name)
+                    || GraphNode.q(query, kind) || GraphNode.q(query, technology);
+        }
+    }
+
+    public record RuntimeFlowNode(
+            GraphNodeId id, String name,
+            EntrypointId entrypointId, int stepCount) implements GraphNode {
+        @Override public String label() { return "RuntimeFlow"; }
+        @Override public Map<String, Object> properties() {
+            return GraphNode.propsOf(
+                    "entrypointId", entrypointId != null ? entrypointId.serialize() : null,
+                    "stepCount", stepCount);
+        }
+        @Override public boolean matches(String query) {
+            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name)
+                    || (entrypointId != null && GraphNode.q(query, entrypointId.serialize()));
+        }
+    }
+
+    public record RuntimeFlowStepNode(
+            GraphNodeId id, String name,
+            String flowId, int order, ComponentId componentId,
+            String componentType, String via) implements GraphNode {
+        @Override public String label() { return "RuntimeFlowStep"; }
+        @Override public Map<String, Object> properties() {
+            return GraphNode.propsOf(
+                    "flowId", flowId, "order", order,
+                    "componentId", componentId != null ? componentId.serialize() : null,
+                    "componentType", componentType, "via", via);
+        }
+        @Override public boolean matches(String query) {
+            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name)
+                    || GraphNode.q(query, componentType);
+        }
+    }
+
+    public record DataFlowPathNode(
+            GraphNodeId id, String name,
+            EntrypointId entrypointId, String trackedParam,
+            int stepCount, int sinkCount) implements GraphNode {
+        @Override public String label() { return "DataFlowPath"; }
+        @Override public Map<String, Object> properties() {
+            return GraphNode.propsOf(
+                    "entrypointId", entrypointId != null ? entrypointId.serialize() : null,
+                    "trackedParam", trackedParam,
+                    "stepCount", stepCount, "sinkCount", sinkCount);
+        }
+        @Override public boolean matches(String query) {
+            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, trackedParam);
+        }
+    }
+
+    public record DataFlowSinkNode(
+            GraphNodeId id, String name,
+            DataFlowSink.Kind sinkKind, String pathId, ComponentId componentId,
+            String method, String fieldName, ComponentId fieldOwnerComponentId,
+            String channel, MessagingBroker broker, String topic,
+            String topicPropertyKey, String payloadType,
+            String entityType, String repositoryOperation,
+            String linkEvidence, String calleeQualifiedName, SourceInfo source) implements GraphNode {
+        @Override public String label() { return "DataFlowSink"; }
+        @Override public Map<String, Object> properties() {
+            return GraphNode.propsOf(
+                    "sinkKind", sinkKind != null ? sinkKind.value() : null,
+                    "pathId", pathId,
+                    "componentId", componentId != null ? componentId.serialize() : null,
+                    "method", method, "fieldName", fieldName,
+                    "fieldOwnerComponentId", fieldOwnerComponentId != null ? fieldOwnerComponentId.serialize() : null,
+                    "channel", channel,
+                    "broker", broker != null ? broker.name() : null,
+                    "topic", topic, "topicPropertyKey", topicPropertyKey,
+                    "payloadType", payloadType, "entityType", entityType,
+                    "repositoryOperation", repositoryOperation,
+                    "linkEvidence", linkEvidence, "calleeQualifiedName", calleeQualifiedName);
+        }
+        @Override public boolean matches(String query) {
+            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name)
+                    || (sinkKind != null && GraphNode.q(query, sinkKind.value()))
+                    || GraphNode.q(query, method) || GraphNode.q(query, channel);
+        }
+    }
+
+    public record PipelineChainNode(
+            GraphNodeId id, String name,
+            int segmentCount, String rootEntrypointId,
+            List<String> linkKinds) implements GraphNode {
+        @Override public String label() { return "PipelineChain"; }
+        @Override public Map<String, Object> properties() {
+            return GraphNode.propsOf(
+                    "segmentCount", segmentCount, "rootEntrypointId", rootEntrypointId,
+                    "linkKinds", linkKinds.isEmpty() ? null : String.join(",", linkKinds));
+        }
+        @Override public boolean matches(String query) {
+            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, rootEntrypointId);
+        }
+    }
+
+    /** Fallback for vertex labels without a dedicated typed record. */
+    public record UnknownNode(
+            GraphNodeId id, String label, String name,
+            Map<String, Object> rawProperties) implements GraphNode {
+        @Override public Map<String, Object> properties() { return rawProperties; }
+        @Override public boolean matches(String query) {
+            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, label)
+                    || GraphNode.q(query, name)
+                    || rawProperties.values().stream()
+                            .filter(Objects::nonNull)
+                            .anyMatch(v -> GraphNode.q(query, v.toString()));
         }
     }
 

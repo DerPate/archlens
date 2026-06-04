@@ -14,7 +14,7 @@ class GraphViewerHtmlRendererTest {
     @Test
     void rendersSelfContainedHtmlWithEmbeddedGraphData() {
         ArchitectureGraph.GraphSnapshot snapshot = snapshot(
-                new ArchitectureGraph.GraphNode(
+                new ArchitectureGraph.UnknownNode(
                         GraphNodeId.of("PaymentService"), "Component", "PaymentService", Map.of("type", "SERVICE")),
                 new ArchitectureGraph.GraphEdge(
                         GraphNodeId.of("PaymentService"),
@@ -34,7 +34,7 @@ class GraphViewerHtmlRendererTest {
     @Test
     void rendersSigmaGraphologyExplorerControls() {
         ArchitectureGraph.GraphSnapshot snapshot = snapshot(
-                new ArchitectureGraph.GraphNode(
+                new ArchitectureGraph.UnknownNode(
                         GraphNodeId.of("PaymentService"), "Component", "PaymentService", Map.of("type", "SERVICE")),
                 null);
 
@@ -56,7 +56,7 @@ class GraphViewerHtmlRendererTest {
     @Test
     void escapesScriptBreakingCharactersInEmbeddedJson() {
         ArchitectureGraph.GraphSnapshot snapshot = snapshot(
-                new ArchitectureGraph.GraphNode(
+                new ArchitectureGraph.UnknownNode(
                         GraphNodeId.of("</script><script>alert(1)</script>"),
                         "Component",
                         "<Payment>",
