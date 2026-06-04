@@ -1,6 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Chain;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Segment;
@@ -47,7 +48,8 @@ public class RenderPipelineTool {
      */
     public String execute(Map<String, Object> args) {
         try {
-            ArchitectureModel model = cache.load();
+            ToolModelIndex index = cache.index();
+            ArchitectureModel model = index.rawModel();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
             if (model.callEdges.isEmpty()) {
                 return "No call-graph data available. Re-index the workspace to enable pipeline rendering.";
@@ -70,7 +72,7 @@ public class RenderPipelineTool {
             if (filtered.isEmpty()) {
                 return "No pipeline chains matched the given filters.";
             }
-            return renderChains(filtered, model);
+            return renderChains(filtered, index);
         } catch (Exception e) {
             return "Error rendering pipeline: " + e.getMessage();
         }
@@ -88,7 +90,7 @@ public class RenderPipelineTool {
         return candidates;
     }
 
-    private String renderChains(List<Chain> filtered, ArchitectureModel model) {
+    private String renderChains(List<Chain> filtered, ToolModelIndex index) {
         StringBuilder out = new StringBuilder();
         for (int i = 0; i < filtered.size(); i++) {
             Chain c = filtered.get(i);
@@ -108,7 +110,7 @@ public class RenderPipelineTool {
                     .append(" segments=")
                     .append(c.segments.size())
                     .append("\n");
-            out.append(renderer.render(c, model));
+            out.append(renderer.render(c, index));
             if (i < filtered.size() - 1) out.append("\n");
         }
         return out.toString();

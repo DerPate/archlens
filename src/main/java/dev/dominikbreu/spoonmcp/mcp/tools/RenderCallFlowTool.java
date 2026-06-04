@@ -1,9 +1,8 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer;
-import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
-import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.RuntimeFlow;
 import dev.dominikbreu.spoonmcp.renderer.MermaidCallFlowRenderer;
 import java.util.Map;
@@ -34,8 +33,8 @@ public class RenderCallFlowTool {
      */
     public String execute(Map<String, Object> args) {
         try {
-            ArchitectureModel model = cache.load();
-            if (model == null) return "No workspace indexed yet. Call index_workspace first.";
+            ToolModelIndex index = cache.index();
+            if (index.rawModel() == null) return "No workspace indexed yet. Call index_workspace first.";
 
             String ref = ToolArgs.getString(args, "entrypointId");
             if (ref == null) ref = ToolArgs.getString(args, "entrypointName");
@@ -43,20 +42,20 @@ public class RenderCallFlowTool {
 
             int maxDepth = ToolArgs.getInt(args, "maxDepth", 5);
 
-            RuntimeFlow flow = findStoredFlow(ref, maxDepth, model);
-            if (flow == null) flow = inferrer.infer(ref, maxDepth, model);
+            RuntimeFlow flow = findStoredFlow(ref, maxDepth, index);
+            if (flow == null) flow = inferrer.infer(ref, maxDepth, index.rawModel());
             if (flow == null) return "Entrypoint not found: " + ref;
 
-            return renderer.render(flow, model);
+            return renderer.render(flow, index);
         } catch (Exception e) {
             return "Error rendering call flow: " + e.getMessage();
         }
     }
 
-    private RuntimeFlow findStoredFlow(String ref, int maxDepth, ArchitectureModel model) {
-        Entrypoint ep = inferrer.findEntrypoint(ref, model);
+    private RuntimeFlow findStoredFlow(String ref, int maxDepth, ToolModelIndex index) {
+        dev.dominikbreu.spoonmcp.model.Entrypoint ep = inferrer.findEntrypoint(ref, index.rawModel());
         if (ep == null) return null;
-        return model.runtimeFlows.stream()
+        return index.runtimeFlows().stream()
                 .filter(f -> f.entrypointId != null && f.entrypointId.equals(ep.id))
                 .filter(f -> maxDepth >= Math.max(0, f.steps.size() - 1))
                 .findFirst()

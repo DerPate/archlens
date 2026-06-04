@@ -1,5 +1,6 @@
 package dev.dominikbreu.spoonmcp.renderer;
 
+import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.model.*;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -30,16 +31,16 @@ public class MermaidCallFlowRenderer {
      * Renders a Mermaid flowchart for the given runtime flow.
      *
      * @param flow  runtime flow to render
-     * @param model architecture model containing component metadata
+     * @param index tool model index for component and entrypoint lookups
      * @return Mermaid flowchart text
      */
-    public String render(RuntimeFlow flow, ArchitectureModel model) {
+    public String render(RuntimeFlow flow, ToolModelIndex index) {
         if (flow == null || flow.steps.isEmpty()) {
             return "flowchart TD\n    note[no flow steps found]\n";
         }
 
-        Entrypoint ep = findEntrypoint(flow, model);
-        Map<String, Component> compById = buildCompById(model);
+        Entrypoint ep = flow.entrypointId != null ? index.entrypoint(flow.entrypointId) : null;
+        Map<String, Component> compById = buildCompById(flow, index);
         List<RuntimeFlowStep> steps = flow.steps;
         Map<String, String> pidMap = buildPidMap(steps);
 
@@ -154,17 +155,14 @@ public class MermaidCallFlowRenderer {
         return Mermaid.escapeLabel(s);
     }
 
-    private Entrypoint findEntrypoint(RuntimeFlow flow, ArchitectureModel model) {
-        if (flow.entrypointId == null) return null;
-        return model.entrypoints.stream()
-                .filter(e -> flow.entrypointId.equals(e.id))
-                .findFirst()
-                .orElse(null);
-    }
-
-    private Map<String, Component> buildCompById(ArchitectureModel model) {
+    private Map<String, Component> buildCompById(RuntimeFlow flow, ToolModelIndex index) {
         Map<String, Component> map = new HashMap<>();
-        for (Component c : model.components) map.put(c.id.serialize(), c);
+        for (RuntimeFlowStep step : flow.steps) {
+            if (step.componentId != null) {
+                Component c = index.component(step.componentId);
+                if (c != null) map.put(step.componentId.serialize(), c);
+            }
+        }
         return map;
     }
 }
