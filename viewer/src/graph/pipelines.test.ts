@@ -77,6 +77,37 @@ const payload: GraphPayload = {
 };
 
 describe('pipeline explorer model', () => {
+  it('uses exported pipeline projections when available', () => {
+    const projectedPayload: GraphPayload = {
+      ...payload,
+      projections: {
+        pipelines: [
+          {
+            id: 'chain:12',
+            title: 'Exported title',
+            subtitle: 'exported subtitle',
+            rootEntrypointId: 'root',
+            segments: [
+              {
+                id: 'df:serviceRequest#serviceRequest',
+                index: 0,
+                title: 'Exported segment'
+              }
+            ],
+            segmentIds: ['df:serviceRequest#serviceRequest'],
+            nodeIds: ['df:serviceRequest#serviceRequest', 'sink:serviceRequest:3'],
+            edgeKeys: ['df:serviceRequest#serviceRequest->sink:serviceRequest:3:REACHES:2']
+          }
+        ]
+      }
+    };
+
+    expect(pipelineSummaries(projectedPayload)[0].title).toBe('Exported title');
+    expect(selectedPipelineGraph(projectedPayload, 'chain:12').nodes.map((node) => node.id))
+      .toEqual(['df:serviceRequest#serviceRequest', 'sink:serviceRequest:3']);
+    expect(selectedPipelineGraph(projectedPayload, 'chain:12').edges.map((edge) => edge.label)).toEqual(['REACHES']);
+  });
+
   it('turns synthetic chain nodes into human pipeline summaries', () => {
     const [summary] = pipelineSummaries(payload);
 

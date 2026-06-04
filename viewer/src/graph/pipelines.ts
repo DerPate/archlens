@@ -1,22 +1,8 @@
-import type { GraphEdge, GraphNode, GraphPayload } from './types';
+import type { GraphEdge, GraphNode, GraphPayload, PipelineProjection, PipelineSegmentProjection } from './types';
 
-export interface PipelineSegment {
-  id: string;
-  index: number;
-  title: string;
-  linkKind?: string;
-  viaChannel?: string;
-  node: GraphNode;
-}
+export type PipelineSegment = PipelineSegmentProjection & { node?: GraphNode };
 
-export interface PipelineSummary {
-  id: string;
-  title: string;
-  subtitle: string;
-  rootEntrypointId: string;
-  segments: PipelineSegment[];
-  node: GraphNode;
-}
+export type PipelineSummary = PipelineProjection & { node?: GraphNode };
 
 export interface PipelineGraph {
   nodes: GraphNode[];
@@ -24,6 +10,15 @@ export interface PipelineGraph {
 }
 
 export function pipelineSummaries(payload: GraphPayload): PipelineSummary[] {
+  if (payload.projections?.pipelines) {
+    const nodeById = new Map(payload.snapshot.nodes.map((node) => [node.id, node]));
+    return payload.projections.pipelines.map((pipeline) => ({
+      ...pipeline,
+      node: nodeById.get(pipeline.id),
+      segments: pipeline.segments.map((segment) => ({ ...segment, node: nodeById.get(segment.id) }))
+    }));
+  }
+
   const nodeById = new Map(payload.snapshot.nodes.map((node) => [node.id, node]));
   return payload.snapshot.nodes
     .filter((node) => node.label === 'PipelineChain')
@@ -53,6 +48,9 @@ export function pipelineSummaries(payload: GraphPayload): PipelineSummary[] {
         subtitle: [linkKinds, `${segmentCount} segments`].filter(Boolean).join(', '),
         rootEntrypointId,
         segments,
+        segmentIds: segments.map((segment) => segment.id),
+        nodeIds: selectedPipelineGraph(payload, chain.id).nodes.map((node) => node.id),
+        edgeKeys: selectedPipelineGraph(payload, chain.id).edges.map((edge, index) => edgeKey(edge, index)),
         node: chain
       };
     })
@@ -61,6 +59,19 @@ export function pipelineSummaries(payload: GraphPayload): PipelineSummary[] {
 
 export function selectedPipelineGraph(payload: GraphPayload, chainId: string): PipelineGraph {
   const nodeById = new Map(payload.snapshot.nodes.map((node) => [node.id, node]));
+  const projectedPipeline = payload.projections?.pipelines.find((pipeline) => pipeline.id === chainId);
+  if (projectedPipeline) {
+    const nodeIds = new Set(projectedPipeline.nodeIds);
+    const edgeKeys = new Set(projectedPipeline.edgeKeys);
+    return {
+      nodes: projectedPipeline.nodeIds
+        .map((id) => nodeById.get(id))
+        .filter((node): node is GraphNode => Boolean(node)),
+      edges: payload.snapshot.edges.filter((edge, index) => edgeKeys.has(edgeKey(edge, index)))
+        .filter((edge) => nodeIds.has(edge.fromId) && nodeIds.has(edge.toId))
+    };
+  }
+
   const segmentIds = new Set(segmentEdgesFor(payload, chainId).map((edge) => edge.toId));
   const selectedIds = new Set(segmentIds);
   const selectedEdges: GraphEdge[] = [];
@@ -87,6 +98,10 @@ export function selectedPipelineGraph(payload: GraphPayload, chainId: string): P
   const visibleIds = new Set(nodes.map((node) => node.id));
   const edges = selectedEdges.filter((edge) => visibleIds.has(edge.fromId) && visibleIds.has(edge.toId));
   return { nodes, edges };
+}
+
+function edgeKey(edge: GraphEdge, index: number): string {
+  return `${edge.fromId}->${edge.toId}:${edge.label}:${index}`;
 }
 
 export function entrypointTitle(entrypointId: string): string {

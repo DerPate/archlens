@@ -44,6 +44,8 @@ class ExportGraphDataToolTest {
         assertThat(result).contains("Edges: 0");
         assertThat(Files.readString(output))
                 .contains("\"snapshot\"")
+                .contains("\"projections\"")
+                .contains("\"pipelines\"")
                 .contains("\"metadata\"")
                 .contains("\"nodes\"")
                 .contains("\"edges\"")
