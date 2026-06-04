@@ -53,7 +53,11 @@ For step-by-step install instructions and example MCP client configurations (Cla
 - `render_component_dependency_diagram`
 - `export_architecture_docs`
 - `export_graph_architecture_poc`
+- `export_graph_data`
+- `export_graph_viewer`
 - `query_architecture_graph`
+- `render_architecture_view`
+- `export_likec4_model`
 - `explain_architecture`
 - `trace_data_flow`
 - `detect_use_cases`
@@ -71,6 +75,7 @@ The server also exposes workflow prompts through `prompts/list` and `prompts/get
 - `investigate_component`
 - `trace_use_case`
 - `find_pipeline`
+- `architecture_view`
 
 These prompts guide clients through multi-tool architecture workflows without duplicating every individual tool description.
 
