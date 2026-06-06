@@ -49,6 +49,9 @@ class ExportGraphDataToolTest {
                 .contains("\"metadata\"")
                 .contains("\"nodes\"")
                 .contains("\"edges\"")
+                .contains("\"label\" : \"Component\"")
+                .contains("\"properties\"")
+                .contains("\"qualifiedName\" : \"com.example.PaymentService\"")
                 .contains("PaymentService");
     }
 }
