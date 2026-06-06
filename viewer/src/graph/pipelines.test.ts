@@ -130,9 +130,8 @@ describe('pipeline explorer model', () => {
 
     expect(pipelineSummaries(projectedPayload)[0].title).toBe('Exported title');
     expect(selectedPipelineGraph(projectedPayload, 'chain:12').nodes.map((node) => node.id))
-      .toEqual(['df:serviceRequest#serviceRequest', 'sink:serviceRequest:3']);
-    expect(selectedPipelineGraph(projectedPayload, 'chain:12').edges.map((edge) => edge.label)).toEqual(['REACHES']);
-    expect(selectedPipelineGraph(projectedPayload, 'chain:12').nodes.map((node) => node.id)).not.toContain('sink:side');
+      .toEqual(['df:serviceRequest#serviceRequest', 'sink:serviceRequest:3', 'sink:side']);
+    expect(selectedPipelineGraph(projectedPayload, 'chain:12').edges.map((edge) => edge.label)).toEqual(['REACHES', 'REACHES']);
   });
 
   it('turns synthetic chain nodes into human pipeline summaries', () => {

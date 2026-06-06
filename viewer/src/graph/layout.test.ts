@@ -39,7 +39,9 @@ describe('pipeline layout', () => {
           index: 0,
           title: 'CustomerController.update PUT /customer/{id} #customer',
           startNodeId: nodes[0].id,
-          endNodeIds: ['sink:1']
+          endNodeIds: ['sink:1'],
+          nodeIds: [nodes[0].id, 'sink:1', 'sink:side', 'de.example.KafkaJsonProducer'],
+          edgeKeys: []
         },
         {
           id: nodes[1].id,
@@ -67,6 +69,8 @@ describe('pipeline layout', () => {
     expect(graph.getNodeAttribute('sink:1', 'x')).toBeLessThan(graph.getNodeAttribute(nodes[1].id, 'x'));
     expect(graph.getNodeAttribute('sink:side', 'x')).toBeGreaterThan(graph.getNodeAttribute(nodes[0].id, 'x'));
     expect(graph.getNodeAttribute('sink:side', 'x')).toBeLessThan(graph.getNodeAttribute('sink:1', 'x'));
+    expect(graph.getNodeAttribute('sink:side', 'y')).toBeGreaterThan(graph.getNodeAttribute('sink:1', 'y'));
+    expect(graph.getNodeAttribute('de.example.KafkaJsonProducer', 'y')).toBeGreaterThan(graph.getNodeAttribute(nodes[0].id, 'y'));
   });
 });
 

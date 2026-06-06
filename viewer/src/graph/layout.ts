@@ -74,10 +74,17 @@ export function assignPipelineLayout(graph: Graph, pipeline: PipelineSummary): v
   const segmentStage = new Map(pipeline.segmentIds.map((id, index) => [id, index * 2]));
   const startStage = new Map<string, number>();
   const primaryEndStage = new Map<string, number>();
+  const spineNodeIds = new Set<string>();
   for (const segment of pipeline.segments) {
     const stage = segment.index * 2;
-    startStage.set(segment.startNodeId ?? segment.id, stage);
-    for (const endNodeId of segment.endNodeIds ?? []) primaryEndStage.set(endNodeId, stage + 1);
+    const startNodeId = segment.startNodeId ?? segment.id;
+    startStage.set(startNodeId, stage);
+    spineNodeIds.add(startNodeId);
+    spineNodeIds.add(segment.id);
+    for (const endNodeId of segment.endNodeIds ?? []) {
+      primaryEndStage.set(endNodeId, stage + 1);
+      spineNodeIds.add(endNodeId);
+    }
   }
 
   graph.forEachEdge((_key, attributes, fromId, toId) => {
@@ -92,16 +99,27 @@ export function assignPipelineLayout(graph: Graph, pipeline: PipelineSummary): v
     }
   });
 
+  const evidenceStage = new Map<string, number>();
+  for (const segment of pipeline.segments) {
+    const stage = segment.index * 2 + 0.55;
+    for (const nodeId of segment.nodeIds ?? []) {
+      if (!spineNodeIds.has(nodeId) && graph.hasNode(nodeId) && !evidenceStage.has(nodeId)) {
+        evidenceStage.set(nodeId, stage);
+      }
+    }
+  }
+
   const stageBuckets = new Map<number, string[]>();
   const stageOf = (nodeId: string) => {
     if (startStage.has(nodeId)) return startStage.get(nodeId) ?? 0;
     if (primaryEndStage.has(nodeId)) return primaryEndStage.get(nodeId) ?? 0;
+    if (evidenceStage.has(nodeId)) return evidenceStage.get(nodeId) ?? 0;
     let best: number | null = null;
     graph.forEachEdge((_key, attributes, fromId, toId) => {
       const raw = attributes.raw as GraphEdge | undefined;
       if (fromId === nodeId && segmentStage.has(String(toId))) best = segmentStage.get(String(toId)) ?? 0;
       if (toId === nodeId && segmentStage.has(String(fromId))) best = segmentStage.get(String(fromId)) ?? 0;
-      if (raw?.label === 'REACHES' && segmentStage.has(String(fromId))) best = (segmentStage.get(String(fromId)) ?? 0) + 0.7;
+      if (raw?.label === 'REACHES' && segmentStage.has(String(fromId))) best = (segmentStage.get(String(fromId)) ?? 0) + 0.55;
       if (raw?.label === 'AT_COMPONENT' && primaryEndStage.has(String(fromId))) best = (primaryEndStage.get(String(fromId)) ?? 0) + 0.35;
     });
     if (best !== null) return best;
@@ -116,20 +134,37 @@ export function assignPipelineLayout(graph: Graph, pipeline: PipelineSummary): v
 
     const isStart = startStage.has(String(nodeId));
     const isPrimaryEnd = primaryEndStage.has(String(nodeId));
-    graph.setNodeAttribute(nodeId, 'size', isStart ? 12 : isPrimaryEnd ? 8 : 4.5);
+    const isEvidence = evidenceStage.has(String(nodeId));
+    graph.setNodeAttribute(nodeId, 'size', isStart ? 12 : isPrimaryEnd ? 8 : isEvidence ? 3.4 : 4.5);
     graph.setNodeAttribute(nodeId, 'label', isStart || isPrimaryEnd ? displayLabel(raw) : '');
   });
 
   for (const [stage, nodeIds] of stageBuckets) {
     const ordered = nodeIds.sort((a, b) => nodeRank(graph, a) - nodeRank(graph, b) || a.localeCompare(b));
+    const evidenceCount = ordered.filter((nodeId) => evidenceStage.has(nodeId)).length;
+    const evidenceCols = Math.max(1, Math.ceil(Math.sqrt(evidenceCount)));
+    let evidenceIndex = 0;
     const spread = Math.max(8, Math.min(40, ordered.length * 2.2));
     ordered.forEach((nodeId, index) => {
       const centered = index - (ordered.length - 1) / 2;
       const raw = graph.getNodeAttribute(nodeId, 'raw') as GraphNode | undefined;
       const isStart = startStage.has(nodeId);
       const isPrimaryEnd = primaryEndStage.has(nodeId);
+      const isEvidence = evidenceStage.has(nodeId);
+      if (isEvidence) {
+        const col = evidenceIndex % evidenceCols;
+        const row = Math.floor(evidenceIndex / evidenceCols);
+        graph.setNodeAttribute(nodeId, 'x', stage * 18 + (col - (evidenceCols - 1) / 2) * 4);
+        graph.setNodeAttribute(nodeId, 'y', 18 + row * 4);
+        evidenceIndex += 1;
+        return;
+      }
       graph.setNodeAttribute(nodeId, 'x', stage * 18);
-      graph.setNodeAttribute(nodeId, 'y', isStart ? 0 : isPrimaryEnd ? 0 : centered * Math.min(5, spread / Math.max(1, ordered.length)));
+      graph.setNodeAttribute(
+        nodeId,
+        'y',
+        isStart ? 0 : isPrimaryEnd ? 0 : centered * Math.min(5, spread / Math.max(1, ordered.length))
+      );
       if (raw?.label === 'Component') graph.setNodeAttribute(nodeId, 'y', (centered + 0.5) * 5);
     });
   }
