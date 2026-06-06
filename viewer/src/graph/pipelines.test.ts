@@ -80,6 +80,22 @@ describe('pipeline explorer model', () => {
   it('uses exported pipeline projections when available', () => {
     const projectedPayload: GraphPayload = {
       ...payload,
+      snapshot: {
+        ...payload.snapshot,
+        nodes: [
+          ...payload.snapshot.nodes,
+          {
+            id: 'sink:side',
+            label: 'DataFlowSink',
+            name: 'KafkaJsonProducer',
+            properties: {}
+          }
+        ],
+        edges: [
+          ...payload.snapshot.edges,
+          { fromId: 'df:serviceRequest#serviceRequest', toId: 'sink:side', label: 'REACHES', properties: {} }
+        ]
+      },
       projections: {
         pipelines: [
           {
@@ -93,12 +109,20 @@ describe('pipeline explorer model', () => {
                 index: 0,
                 title: 'Exported segment',
                 startNodeId: 'df:serviceRequest#serviceRequest',
-                endNodeIds: ['sink:serviceRequest:3']
+                endNodeIds: ['sink:serviceRequest:3'],
+                nodeIds: ['df:serviceRequest#serviceRequest', 'sink:serviceRequest:3', 'sink:side'],
+                edgeKeys: [
+                  'df:serviceRequest#serviceRequest->sink:serviceRequest:3:REACHES:2',
+                  'df:serviceRequest#serviceRequest->sink:side:REACHES:4'
+                ]
               }
             ],
             segmentIds: ['df:serviceRequest#serviceRequest'],
-            nodeIds: ['df:serviceRequest#serviceRequest', 'sink:serviceRequest:3'],
-            edgeKeys: ['df:serviceRequest#serviceRequest->sink:serviceRequest:3:REACHES:2']
+            nodeIds: ['df:serviceRequest#serviceRequest', 'sink:serviceRequest:3', 'sink:side'],
+            edgeKeys: [
+              'df:serviceRequest#serviceRequest->sink:serviceRequest:3:REACHES:2',
+              'df:serviceRequest#serviceRequest->sink:side:REACHES:4'
+            ]
           }
         ]
       }
@@ -108,6 +132,7 @@ describe('pipeline explorer model', () => {
     expect(selectedPipelineGraph(projectedPayload, 'chain:12').nodes.map((node) => node.id))
       .toEqual(['df:serviceRequest#serviceRequest', 'sink:serviceRequest:3']);
     expect(selectedPipelineGraph(projectedPayload, 'chain:12').edges.map((edge) => edge.label)).toEqual(['REACHES']);
+    expect(selectedPipelineGraph(projectedPayload, 'chain:12').nodes.map((node) => node.id)).not.toContain('sink:side');
   });
 
   it('turns synthetic chain nodes into human pipeline summaries', () => {
