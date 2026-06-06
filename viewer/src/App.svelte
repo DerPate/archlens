@@ -22,6 +22,7 @@
   let layoutName = 'packed grid';
   let selectedPipelineId: string | null = null;
   let pipelineSearch = '';
+  let showAllGraphData = false;
 
   $: nodeLabels = payload ? Object.keys(payload.snapshot.metadata.labels).sort() : [];
   $: edgeLabels = payload ? Object.keys(payload.snapshot.metadata.edges).sort() : [];
@@ -61,7 +62,8 @@
   function setPayload(nextPayload: GraphPayload) {
     payload = nextPayload;
     state = createInitialFilterState(nextPayload);
-    selectedPipelineId = pipelineSummaries(nextPayload)[0]?.id ?? null;
+    selectedPipelineId = null;
+    showAllGraphData = false;
     selected = null;
     status = `Loaded ${nextPayload.snapshot.metadata.includedNodeCount} nodes, ${nextPayload.snapshot.metadata.includedEdgeCount} edges`;
     void renderGraph();
@@ -70,6 +72,7 @@
   function choosePreset(preset: Preset) {
     if (!state) return;
     selectedPipelineId = null;
+    showAllGraphData = false;
     state = applyPreset(state, preset);
     selected = null;
     void renderGraph(true);
@@ -78,19 +81,43 @@
   function resetFilters() {
     if (!payload) return;
     state = createInitialFilterState(payload);
-    selectedPipelineId = pipelineSummaries(payload)[0]?.id ?? null;
+    selectedPipelineId = null;
+    showAllGraphData = false;
     selected = null;
     void renderGraph();
   }
 
   function choosePipeline(pipeline: PipelineSummary) {
+    if (selectedPipelineId === pipeline.id) {
+      clearPipelineSelection();
+      return;
+    }
     selectedPipelineId = pipeline.id;
+    showAllGraphData = false;
     selected = pipeline.node ?? null;
+    void renderGraph(true);
+  }
+
+  function clearPipelineSelection() {
+    if (!payload || !state) return;
+    selectedPipelineId = null;
+    showAllGraphData = true;
+    selected = null;
+    state = {
+      ...state,
+      nodeLabels: new Set(Object.keys(payload.snapshot.metadata.labels)),
+      edgeLabels: new Set(Object.keys(payload.snapshot.metadata.edges)),
+      search: '',
+      visibleLimit: payload.snapshot.metadata.includedNodeCount,
+      selectedNodeId: null,
+      mode: 'overview'
+    };
     void renderGraph(true);
   }
 
   function toggleNodeLabel(label: string, checked: boolean) {
     if (!state) return;
+    showAllGraphData = false;
     const next = new Set(state.nodeLabels);
     if (checked) next.add(label);
     else next.delete(label);
@@ -100,6 +127,7 @@
 
   function toggleEdgeLabel(label: string, checked: boolean) {
     if (!state) return;
+    showAllGraphData = false;
     const next = new Set(state.edgeLabels);
     if (checked) next.add(label);
     else next.delete(label);
@@ -109,24 +137,28 @@
 
   function updateSearch(search: string) {
     if (!state) return;
+    showAllGraphData = false;
     state = { ...state, search, mode: search.trim() ? 'search' : 'overview' };
     void renderGraph();
   }
 
   function updateLimit(visibleLimit: number) {
     if (!state) return;
+    showAllGraphData = false;
     state = { ...state, visibleLimit };
     void renderGraph();
   }
 
   function updateRadius(radius: number) {
     if (!state) return;
+    showAllGraphData = false;
     state = { ...state, radius };
     void renderGraph();
   }
 
   function updateHideIsolated(hideIsolated: boolean) {
     if (!state) return;
+    showAllGraphData = false;
     state = { ...state, hideIsolated };
     void renderGraph();
   }
@@ -134,7 +166,11 @@
   async function renderGraph(forceLayout = false) {
     if (!payload || !state || !container) return;
     await tick();
-    const graphSlice = selectedPipelineId ? selectedPipelineGraph(payload, selectedPipelineId) : visibleGraph(payload, state);
+    const graphSlice = selectedPipelineId
+      ? selectedPipelineGraph(payload, selectedPipelineId)
+      : showAllGraphData
+        ? { nodes: payload.snapshot.nodes, edges: payload.snapshot.edges }
+        : visibleGraph(payload, state);
     const graph = buildGraph(graphSlice.nodes, graphSlice.edges, nodeLabels);
     layoutName = 'packed grid';
     const selectedPipeline = selectedPipelineId ? pipelines.find((pipeline) => pipeline.id === selectedPipelineId) : null;
@@ -169,6 +205,7 @@
     if (exploreClickedNode) {
       state = { ...state, selectedNodeId: nodeId, mode: 'neighborhood' };
       selectedPipelineId = null;
+      showAllGraphData = false;
       void renderGraph(true);
     }
   }
@@ -177,6 +214,7 @@
     if (!state || !selected || !('id' in selected)) return;
     state = { ...state, selectedNodeId: selected.id, mode: 'neighborhood' };
     selectedPipelineId = null;
+    showAllGraphData = false;
     void renderGraph(true);
   }
 
@@ -188,6 +226,7 @@
   function soloNodeLabel(label: string) {
     if (!state) return;
     selectedPipelineId = null;
+    showAllGraphData = false;
     state = { ...state, nodeLabels: new Set([label]), mode: 'overview', selectedNodeId: null };
     selected = null;
     void renderGraph(true);
@@ -209,6 +248,9 @@
 
     <section>
       <h2>Pipeline Explorer</h2>
+      {#if selectedPipelineId}
+        <button type="button" class="secondary-action" on:click={clearPipelineSelection}>Show graph data</button>
+      {/if}
       <input
         type="search"
         placeholder="Filter pipelines..."
@@ -311,6 +353,7 @@
               </li>
             {/each}
           </ol>
+          <button type="button" on:click={clearPipelineSelection}>Show graph data</button>
         </div>
       {/if}
     {/if}
