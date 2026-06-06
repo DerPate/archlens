@@ -23,6 +23,8 @@ export interface PipelineSegmentProjection {
   id: string;
   index: number;
   title: string;
+  startNodeId?: string;
+  endNodeIds?: string[];
   linkKind?: string;
   viaChannel?: string;
 }

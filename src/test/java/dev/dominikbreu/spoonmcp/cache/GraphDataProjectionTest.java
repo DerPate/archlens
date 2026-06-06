@@ -89,6 +89,11 @@ class GraphDataProjectionTest {
                     .containsExactly(
                             "ServiceRequestController.update PUT /serviceRequest/{id} #serviceRequest",
                             "AddressMessageListener.listenCustomer KAFKA address #event");
+            assertThat(pipeline.segments())
+                    .extracting(GraphDataProjection.PipelineSegmentProjection::startNodeId)
+                    .containsExactly("df:serviceRequest#serviceRequest", "df:address#event");
+            assertThat(pipeline.segments().getFirst().endNodeIds()).containsExactly("sink:serviceRequest:3");
+            assertThat(pipeline.segments().get(1).endNodeIds()).isEmpty();
         });
     }
 

@@ -71,24 +71,31 @@ export function assignForceAtlasLayout(graph: Graph): void {
 }
 
 export function assignPipelineLayout(graph: Graph, pipeline: PipelineSummary): void {
-  const segmentStage = new Map(pipeline.segmentIds.map((id, index) => [id, index]));
-  const incomingSinkStage = new Map<string, number>();
+  const segmentStage = new Map(pipeline.segmentIds.map((id, index) => [id, index * 2]));
+  const startStage = new Map<string, number>();
+  const endStage = new Map<string, number>();
+  for (const segment of pipeline.segments) {
+    const stage = segment.index * 2;
+    startStage.set(segment.startNodeId ?? segment.id, stage);
+    for (const endNodeId of segment.endNodeIds ?? []) endStage.set(endNodeId, stage + 1);
+  }
+
   graph.forEachEdge((_key, attributes, fromId, toId) => {
     const raw = attributes.raw as GraphEdge | undefined;
     const stage = segmentStage.get(String(toId));
     if (!raw || stage === undefined) return;
     if (raw.label === 'HAS_SEGMENT') {
       const incomingSinkId = stringProperty(raw, 'incomingSinkId');
-      if (incomingSinkId) incomingSinkStage.set(incomingSinkId, stage - 0.5);
+      if (incomingSinkId && !endStage.has(incomingSinkId)) endStage.set(incomingSinkId, stage - 1);
     } else if (raw.label === 'LINKS_TO') {
-      incomingSinkStage.set(String(fromId), stage - 0.5);
+      if (!endStage.has(String(fromId))) endStage.set(String(fromId), stage - 1);
     }
   });
 
   const stageBuckets = new Map<number, string[]>();
   const stageOf = (nodeId: string) => {
-    if (segmentStage.has(nodeId)) return segmentStage.get(nodeId) ?? 0;
-    if (incomingSinkStage.has(nodeId)) return incomingSinkStage.get(nodeId) ?? 0;
+    if (startStage.has(nodeId)) return startStage.get(nodeId) ?? 0;
+    if (endStage.has(nodeId)) return endStage.get(nodeId) ?? 0;
     let best: number | null = null;
     graph.forEachEdge((_key, _attributes, fromId, toId) => {
       if (fromId === nodeId && segmentStage.has(String(toId))) best = segmentStage.get(String(toId)) ?? 0;
@@ -104,10 +111,10 @@ export function assignPipelineLayout(graph: Graph, pipeline: PipelineSummary): v
     if (!stageBuckets.has(stage)) stageBuckets.set(stage, []);
     stageBuckets.get(stage)?.push(String(nodeId));
 
-    const isSegment = segmentStage.has(String(nodeId));
-    const isHandoff = incomingSinkStage.has(String(nodeId));
-    graph.setNodeAttribute(nodeId, 'size', isSegment ? 12 : isHandoff ? 8 : 4.5);
-    graph.setNodeAttribute(nodeId, 'label', isSegment || isHandoff ? displayLabel(raw) : '');
+    const isStart = startStage.has(String(nodeId));
+    const isEnd = endStage.has(String(nodeId));
+    graph.setNodeAttribute(nodeId, 'size', isStart ? 12 : isEnd ? 8 : 4.5);
+    graph.setNodeAttribute(nodeId, 'label', isStart || isEnd ? displayLabel(raw) : '');
   });
 
   for (const [stage, nodeIds] of stageBuckets) {
@@ -116,10 +123,10 @@ export function assignPipelineLayout(graph: Graph, pipeline: PipelineSummary): v
     ordered.forEach((nodeId, index) => {
       const centered = index - (ordered.length - 1) / 2;
       const raw = graph.getNodeAttribute(nodeId, 'raw') as GraphNode | undefined;
-      const isSegment = segmentStage.has(nodeId);
-      const isHandoff = incomingSinkStage.has(nodeId);
-      graph.setNodeAttribute(nodeId, 'x', stage * 34);
-      graph.setNodeAttribute(nodeId, 'y', isSegment ? 0 : isHandoff ? 0 : centered * Math.min(5, spread / Math.max(1, ordered.length)));
+      const isStart = startStage.has(nodeId);
+      const isEnd = endStage.has(nodeId);
+      graph.setNodeAttribute(nodeId, 'x', stage * 18);
+      graph.setNodeAttribute(nodeId, 'y', isStart ? 0 : isEnd ? 0 : centered * Math.min(5, spread / Math.max(1, ordered.length)));
       if (raw?.label === 'Component') graph.setNodeAttribute(nodeId, 'y', (centered + 0.5) * 5);
     });
   }

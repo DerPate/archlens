@@ -31,7 +31,22 @@ describe('pipeline layout', () => {
       title: 'CustomerController.update PUT /customer/{id}',
       subtitle: 'messaging, 2 segments',
       rootEntrypointId: 'de.example.CustomerController#update:PUT:/customer/{id}',
-      segments: [],
+      segments: [
+        {
+          id: nodes[0].id,
+          index: 0,
+          title: 'CustomerController.update PUT /customer/{id} #customer',
+          startNodeId: nodes[0].id,
+          endNodeIds: ['sink:1']
+        },
+        {
+          id: nodes[1].id,
+          index: 1,
+          title: 'AddressListener.listen KAFKA address #event',
+          startNodeId: nodes[1].id,
+          endNodeIds: []
+        }
+      ],
       segmentIds: [nodes[0].id, nodes[1].id],
       nodeIds: nodes.map((node) => node.id),
       edgeKeys: []
@@ -45,6 +60,8 @@ describe('pipeline layout', () => {
     expect(graph.getNodeAttribute('sink:1', 'label')).toBe('AddressMessage address');
     expect(graph.getNodeAttribute('de.example.KafkaJsonProducer', 'label')).toBe('');
     expect(graph.getNodeAttribute(nodes[0].id, 'x')).toBeLessThan(graph.getNodeAttribute(nodes[1].id, 'x'));
+    expect(graph.getNodeAttribute(nodes[0].id, 'x')).toBeLessThan(graph.getNodeAttribute('sink:1', 'x'));
+    expect(graph.getNodeAttribute('sink:1', 'x')).toBeLessThan(graph.getNodeAttribute(nodes[1].id, 'x'));
   });
 });
 
