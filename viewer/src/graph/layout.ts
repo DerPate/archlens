@@ -1,6 +1,7 @@
 import Graph from 'graphology';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
 import type { GraphEdge, GraphNode } from './types';
+import type { PipelineSummary } from './pipelines';
 
 export interface PositionedNode extends GraphNode {
   x: number;
@@ -69,6 +70,61 @@ export function assignForceAtlasLayout(graph: Graph): void {
   });
 }
 
+export function assignPipelineLayout(graph: Graph, pipeline: PipelineSummary): void {
+  const segmentStage = new Map(pipeline.segmentIds.map((id, index) => [id, index]));
+  const incomingSinkStage = new Map<string, number>();
+  graph.forEachEdge((_key, attributes, fromId, toId) => {
+    const raw = attributes.raw as GraphEdge | undefined;
+    const stage = segmentStage.get(String(toId));
+    if (!raw || stage === undefined) return;
+    if (raw.label === 'HAS_SEGMENT') {
+      const incomingSinkId = stringProperty(raw, 'incomingSinkId');
+      if (incomingSinkId) incomingSinkStage.set(incomingSinkId, stage - 0.5);
+    } else if (raw.label === 'LINKS_TO') {
+      incomingSinkStage.set(String(fromId), stage - 0.5);
+    }
+  });
+
+  const stageBuckets = new Map<number, string[]>();
+  const stageOf = (nodeId: string) => {
+    if (segmentStage.has(nodeId)) return segmentStage.get(nodeId) ?? 0;
+    if (incomingSinkStage.has(nodeId)) return incomingSinkStage.get(nodeId) ?? 0;
+    let best: number | null = null;
+    graph.forEachEdge((_key, _attributes, fromId, toId) => {
+      if (fromId === nodeId && segmentStage.has(String(toId))) best = segmentStage.get(String(toId)) ?? 0;
+      if (toId === nodeId && segmentStage.has(String(fromId))) best = segmentStage.get(String(fromId)) ?? 0;
+    });
+    if (best !== null) return best;
+    return pipeline.segmentIds.length;
+  };
+
+  graph.forEachNode((nodeId, attributes) => {
+    const raw = attributes.raw as GraphNode | undefined;
+    const stage = stageOf(String(nodeId));
+    if (!stageBuckets.has(stage)) stageBuckets.set(stage, []);
+    stageBuckets.get(stage)?.push(String(nodeId));
+
+    const isSegment = segmentStage.has(String(nodeId));
+    const isHandoff = incomingSinkStage.has(String(nodeId));
+    graph.setNodeAttribute(nodeId, 'size', isSegment ? 12 : isHandoff ? 8 : 4.5);
+    graph.setNodeAttribute(nodeId, 'label', isSegment || isHandoff ? displayLabel(raw) : '');
+  });
+
+  for (const [stage, nodeIds] of stageBuckets) {
+    const ordered = nodeIds.sort((a, b) => nodeRank(graph, a) - nodeRank(graph, b) || a.localeCompare(b));
+    const spread = Math.max(8, Math.min(40, ordered.length * 2.2));
+    ordered.forEach((nodeId, index) => {
+      const centered = index - (ordered.length - 1) / 2;
+      const raw = graph.getNodeAttribute(nodeId, 'raw') as GraphNode | undefined;
+      const isSegment = segmentStage.has(nodeId);
+      const isHandoff = incomingSinkStage.has(nodeId);
+      graph.setNodeAttribute(nodeId, 'x', stage * 34);
+      graph.setNodeAttribute(nodeId, 'y', isSegment ? 0 : isHandoff ? 0 : centered * Math.min(5, spread / Math.max(1, ordered.length)));
+      if (raw?.label === 'Component') graph.setNodeAttribute(nodeId, 'y', (centered + 0.5) * 5);
+    });
+  }
+}
+
 export function buildGraph(nodes: GraphNode[], edges: GraphEdge[], labels: string[]): Graph {
   const graph = new Graph({ multi: true, type: 'directed' });
   const positions = packedGridPositions(nodes);
@@ -76,7 +132,7 @@ export function buildGraph(nodes: GraphNode[], edges: GraphEdge[], labels: strin
   for (const node of nodes) {
     const position = positions.get(node.id) ?? { x: 0, y: 0 };
     graph.addNode(node.id, {
-      label: node.name || node.id,
+      label: displayLabel(node),
       x: position.x,
       y: position.y,
       size: 5,
@@ -112,4 +168,45 @@ function offsets(sizes: number[], gap: number): number[] {
 function labelColor(label: string, labels: string[]): string {
   const colors = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#dc2626', '#0891b2', '#4b5563', '#be123c'];
   return colors[Math.max(0, [...labels].sort().indexOf(label)) % colors.length];
+}
+
+function nodeRank(graph: Graph, nodeId: string): number {
+  const raw = graph.getNodeAttribute(nodeId, 'raw') as GraphNode | undefined;
+  if (!raw) return 99;
+  if (raw.label === 'DataFlowPath') return 0;
+  if (raw.label === 'DataFlowSink') return 1;
+  if (raw.label === 'Entrypoint') return 2;
+  if (raw.label === 'Component') return 3;
+  return 10;
+}
+
+function displayLabel(node?: GraphNode): string {
+  if (!node) return '';
+  if (node.label === 'DataFlowPath') {
+    const entrypointId = stringProperty(node, 'entrypointId') || node.id.replace(/^df:/, '').split('#').slice(0, -1).join('#');
+    const param = stringProperty(node, 'trackedParam');
+    return [entrypointTitle(entrypointId), param ? `#${param}` : ''].filter(Boolean).join(' ');
+  }
+  if (node.label === 'Entrypoint') return entrypointTitle(node.id);
+  if (node.label === 'DataFlowSink') {
+    return [node.name, stringProperty(node, 'method'), stringProperty(node, 'channel')].filter(Boolean).join(' ');
+  }
+  return node.name || node.id.split('.').at(-1) || node.id;
+}
+
+function entrypointTitle(entrypointId: string): string {
+  const [ownerAndMethod, firstDetail, secondDetail, thirdDetail] = entrypointId.split(':');
+  const methodSeparator = ownerAndMethod.lastIndexOf('#');
+  const owner = methodSeparator >= 0 ? ownerAndMethod.slice(0, methodSeparator) : ownerAndMethod;
+  const method = methodSeparator >= 0 ? ownerAndMethod.slice(methodSeparator + 1) : '';
+  const simpleOwner = owner.split('.').at(-1) || owner;
+  if (firstDetail === 'spring-listener' && secondDetail) return `${simpleOwner}.${method} ${[secondDetail, thirdDetail].filter(Boolean).join(' ')}`;
+  if (firstDetail && secondDetail) return `${simpleOwner}.${method} ${firstDetail} ${secondDetail}`;
+  if (firstDetail) return `${simpleOwner}.${method} ${firstDetail}`;
+  return method ? `${simpleOwner}.${method}` : simpleOwner;
+}
+
+function stringProperty(item: GraphNode | GraphEdge, key: string): string {
+  const value = item.properties[key];
+  return typeof value === 'string' ? value : '';
 }

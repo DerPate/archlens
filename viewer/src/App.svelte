@@ -2,7 +2,7 @@
   import Sigma from 'sigma';
   import { onMount, tick } from 'svelte';
   import { applyPreset, createInitialFilterState, visibleGraph } from './graph/filters';
-  import { assignForceAtlasLayout, buildGraph } from './graph/layout';
+  import { assignForceAtlasLayout, assignPipelineLayout, buildGraph } from './graph/layout';
   import { loadGraphFromFile, loadGraphFromUrl } from './graph/loadGraph';
   import { pipelineSummaries, selectedPipelineGraph } from './graph/pipelines';
   import { GRAPH_PRESETS } from './graph/presets';
@@ -137,7 +137,11 @@
     const graphSlice = selectedPipelineId ? selectedPipelineGraph(payload, selectedPipelineId) : visibleGraph(payload, state);
     const graph = buildGraph(graphSlice.nodes, graphSlice.edges, nodeLabels);
     layoutName = 'packed grid';
-    if (forceLayout || graph.order <= 1200) {
+    const selectedPipeline = selectedPipelineId ? pipelines.find((pipeline) => pipeline.id === selectedPipelineId) : null;
+    if (selectedPipeline) {
+      assignPipelineLayout(graph, selectedPipeline);
+      layoutName = 'pipeline stages';
+    } else if (forceLayout || graph.order <= 1200) {
       assignForceAtlasLayout(graph);
       layoutName = graph.order <= 1600 ? 'ForceAtlas2' : 'packed grid';
     }
