@@ -91,7 +91,9 @@ describe('pipeline explorer model', () => {
               {
                 id: 'df:serviceRequest#serviceRequest',
                 index: 0,
-                title: 'Exported segment'
+                title: 'Exported segment',
+                startNodeId: 'df:serviceRequest#serviceRequest',
+                endNodeIds: ['sink:serviceRequest:3']
               }
             ],
             segmentIds: ['df:serviceRequest#serviceRequest'],
