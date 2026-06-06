@@ -61,14 +61,19 @@ export function selectedPipelineGraph(payload: GraphPayload, chainId: string): P
   const nodeById = new Map(payload.snapshot.nodes.map((node) => [node.id, node]));
   const projectedPipeline = payload.projections?.pipelines.find((pipeline) => pipeline.id === chainId);
   if (projectedPipeline) {
-    const nodeIds = new Set(projectedPipeline.nodeIds);
-    const edgeKeys = new Set(projectedPipeline.edgeKeys);
+    const nodeIds = new Set<string>();
+    for (const segment of projectedPipeline.segments) {
+      nodeIds.add(segment.startNodeId ?? segment.id);
+      nodeIds.add(segment.id);
+      for (const endNodeId of segment.endNodeIds ?? []) nodeIds.add(endNodeId);
+    }
     return {
-      nodes: projectedPipeline.nodeIds
+      nodes: [...nodeIds]
         .map((id) => nodeById.get(id))
         .filter((node): node is GraphNode => Boolean(node)),
-      edges: payload.snapshot.edges.filter((edge, index) => edgeKeys.has(edgeKey(edge, index)))
+      edges: payload.snapshot.edges
         .filter((edge) => nodeIds.has(edge.fromId) && nodeIds.has(edge.toId))
+        .filter((edge) => ['REACHES', 'LINKS_TO', 'WORKFLOW_LINK'].includes(edge.label))
     };
   }
 
