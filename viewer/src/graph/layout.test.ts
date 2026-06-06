@@ -17,12 +17,14 @@ describe('pipeline layout', () => {
         'event'
       ),
       { id: 'sink:1', label: 'DataFlowSink', name: 'AddressMessage', properties: { channel: 'address' } },
+      { id: 'sink:side', label: 'DataFlowSink', name: 'KafkaJsonProducer', properties: { method: 'send' } },
       { id: 'de.example.KafkaJsonProducer', label: 'Component', name: 'KafkaJsonProducer', properties: {} }
     ];
     const edges: GraphEdge[] = [
       { fromId: 'chain:1', toId: nodes[0].id, label: 'HAS_SEGMENT', properties: { segmentIndex: 0 } },
       { fromId: 'chain:1', toId: nodes[1].id, label: 'HAS_SEGMENT', properties: { segmentIndex: 1, incomingSinkId: 'sink:1' } },
       { fromId: nodes[0].id, toId: 'sink:1', label: 'REACHES', properties: {} },
+      { fromId: nodes[0].id, toId: 'sink:side', label: 'REACHES', properties: {} },
       { fromId: 'sink:1', toId: nodes[1].id, label: 'LINKS_TO', properties: {} },
       { fromId: nodes[0].id, toId: 'de.example.KafkaJsonProducer', label: 'CALLS', properties: {} }
     ];
@@ -55,13 +57,16 @@ describe('pipeline layout', () => {
     const graph = buildGraph(nodes, edges, ['Component', 'DataFlowPath', 'DataFlowSink']);
     assignPipelineLayout(graph, pipeline);
 
-    expect(graph.order).toBe(4);
+    expect(graph.order).toBe(5);
     expect(graph.getNodeAttribute(nodes[0].id, 'label')).toBe('CustomerController.update PUT /customer/{id} #customer');
     expect(graph.getNodeAttribute('sink:1', 'label')).toBe('AddressMessage address');
+    expect(graph.getNodeAttribute('sink:side', 'label')).toBe('');
     expect(graph.getNodeAttribute('de.example.KafkaJsonProducer', 'label')).toBe('');
     expect(graph.getNodeAttribute(nodes[0].id, 'x')).toBeLessThan(graph.getNodeAttribute(nodes[1].id, 'x'));
     expect(graph.getNodeAttribute(nodes[0].id, 'x')).toBeLessThan(graph.getNodeAttribute('sink:1', 'x'));
     expect(graph.getNodeAttribute('sink:1', 'x')).toBeLessThan(graph.getNodeAttribute(nodes[1].id, 'x'));
+    expect(graph.getNodeAttribute('sink:side', 'x')).toBeGreaterThan(graph.getNodeAttribute(nodes[0].id, 'x'));
+    expect(graph.getNodeAttribute('sink:side', 'x')).toBeLessThan(graph.getNodeAttribute('sink:1', 'x'));
   });
 });
 

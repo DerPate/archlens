@@ -73,11 +73,11 @@ export function assignForceAtlasLayout(graph: Graph): void {
 export function assignPipelineLayout(graph: Graph, pipeline: PipelineSummary): void {
   const segmentStage = new Map(pipeline.segmentIds.map((id, index) => [id, index * 2]));
   const startStage = new Map<string, number>();
-  const endStage = new Map<string, number>();
+  const primaryEndStage = new Map<string, number>();
   for (const segment of pipeline.segments) {
     const stage = segment.index * 2;
     startStage.set(segment.startNodeId ?? segment.id, stage);
-    for (const endNodeId of segment.endNodeIds ?? []) endStage.set(endNodeId, stage + 1);
+    for (const endNodeId of segment.endNodeIds ?? []) primaryEndStage.set(endNodeId, stage + 1);
   }
 
   graph.forEachEdge((_key, attributes, fromId, toId) => {
@@ -86,20 +86,23 @@ export function assignPipelineLayout(graph: Graph, pipeline: PipelineSummary): v
     if (!raw || stage === undefined) return;
     if (raw.label === 'HAS_SEGMENT') {
       const incomingSinkId = stringProperty(raw, 'incomingSinkId');
-      if (incomingSinkId && !endStage.has(incomingSinkId)) endStage.set(incomingSinkId, stage - 1);
+      if (incomingSinkId && !primaryEndStage.has(incomingSinkId)) primaryEndStage.set(incomingSinkId, stage - 1);
     } else if (raw.label === 'LINKS_TO') {
-      if (!endStage.has(String(fromId))) endStage.set(String(fromId), stage - 1);
+      if (!primaryEndStage.has(String(fromId))) primaryEndStage.set(String(fromId), stage - 1);
     }
   });
 
   const stageBuckets = new Map<number, string[]>();
   const stageOf = (nodeId: string) => {
     if (startStage.has(nodeId)) return startStage.get(nodeId) ?? 0;
-    if (endStage.has(nodeId)) return endStage.get(nodeId) ?? 0;
+    if (primaryEndStage.has(nodeId)) return primaryEndStage.get(nodeId) ?? 0;
     let best: number | null = null;
-    graph.forEachEdge((_key, _attributes, fromId, toId) => {
+    graph.forEachEdge((_key, attributes, fromId, toId) => {
+      const raw = attributes.raw as GraphEdge | undefined;
       if (fromId === nodeId && segmentStage.has(String(toId))) best = segmentStage.get(String(toId)) ?? 0;
       if (toId === nodeId && segmentStage.has(String(fromId))) best = segmentStage.get(String(fromId)) ?? 0;
+      if (raw?.label === 'REACHES' && segmentStage.has(String(fromId))) best = (segmentStage.get(String(fromId)) ?? 0) + 0.7;
+      if (raw?.label === 'AT_COMPONENT' && primaryEndStage.has(String(fromId))) best = (primaryEndStage.get(String(fromId)) ?? 0) + 0.35;
     });
     if (best !== null) return best;
     return pipeline.segmentIds.length;
@@ -112,9 +115,9 @@ export function assignPipelineLayout(graph: Graph, pipeline: PipelineSummary): v
     stageBuckets.get(stage)?.push(String(nodeId));
 
     const isStart = startStage.has(String(nodeId));
-    const isEnd = endStage.has(String(nodeId));
-    graph.setNodeAttribute(nodeId, 'size', isStart ? 12 : isEnd ? 8 : 4.5);
-    graph.setNodeAttribute(nodeId, 'label', isStart || isEnd ? displayLabel(raw) : '');
+    const isPrimaryEnd = primaryEndStage.has(String(nodeId));
+    graph.setNodeAttribute(nodeId, 'size', isStart ? 12 : isPrimaryEnd ? 8 : 4.5);
+    graph.setNodeAttribute(nodeId, 'label', isStart || isPrimaryEnd ? displayLabel(raw) : '');
   });
 
   for (const [stage, nodeIds] of stageBuckets) {
@@ -124,9 +127,9 @@ export function assignPipelineLayout(graph: Graph, pipeline: PipelineSummary): v
       const centered = index - (ordered.length - 1) / 2;
       const raw = graph.getNodeAttribute(nodeId, 'raw') as GraphNode | undefined;
       const isStart = startStage.has(nodeId);
-      const isEnd = endStage.has(nodeId);
+      const isPrimaryEnd = primaryEndStage.has(nodeId);
       graph.setNodeAttribute(nodeId, 'x', stage * 18);
-      graph.setNodeAttribute(nodeId, 'y', isStart ? 0 : isEnd ? 0 : centered * Math.min(5, spread / Math.max(1, ordered.length)));
+      graph.setNodeAttribute(nodeId, 'y', isStart ? 0 : isPrimaryEnd ? 0 : centered * Math.min(5, spread / Math.max(1, ordered.length)));
       if (raw?.label === 'Component') graph.setNodeAttribute(nodeId, 'y', (centered + 0.5) * 5);
     });
   }
