@@ -60,7 +60,15 @@ class GraphDataProjectionTest {
                                 "chain:12",
                                 "df:address#event",
                                 "HAS_SEGMENT",
-                                Map.of("segmentIndex", 1, "linkKind", "messaging", "viaChannel", "address")),
+                                Map.of(
+                                        "segmentIndex",
+                                        1,
+                                        "linkKind",
+                                        "messaging",
+                                        "viaChannel",
+                                        "address",
+                                        "incomingSinkId",
+                                        "sink:serviceRequest:3")),
                         edge("df:serviceRequest#serviceRequest", "sink:serviceRequest:3", "REACHES", Map.of()),
                         edge(
                                 "sink:serviceRequest:3",
@@ -93,7 +101,18 @@ class GraphDataProjectionTest {
                     .extracting(GraphDataProjection.PipelineSegmentProjection::startNodeId)
                     .containsExactly("df:serviceRequest#serviceRequest", "df:address#event");
             assertThat(pipeline.segments().getFirst().endNodeIds()).containsExactly("sink:serviceRequest:3");
+            assertThat(pipeline.segments().getFirst().nodeIds())
+                    .containsExactly(
+                            "df:serviceRequest#serviceRequest",
+                            "sink:serviceRequest:3",
+                            "de.homeinstead.phoenix.inbound.AddressMessageListener");
+            assertThat(pipeline.segments().getFirst().edgeKeys())
+                    .containsExactly(
+                            "df:serviceRequest#serviceRequest->sink:serviceRequest:3:REACHES:2",
+                            "sink:serviceRequest:3->de.homeinstead.phoenix.inbound.AddressMessageListener:AT_COMPONENT:3");
             assertThat(pipeline.segments().get(1).endNodeIds()).isEmpty();
+            assertThat(pipeline.segments().get(1).nodeIds()).containsExactly("df:address#event");
+            assertThat(pipeline.segments().get(1).edgeKeys()).isEmpty();
         });
     }
 

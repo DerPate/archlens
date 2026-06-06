@@ -955,7 +955,10 @@ The JSON shape is:
   cache layer. Each entry keeps the synthetic chain ID but also includes
   human-facing titles, segment titles, segment node IDs, and the node/edge IDs to
   render for a focused pipeline slice. This avoids forcing viewers to parse raw
-  IDs such as `chain:12`.
+  IDs such as `chain:12`. Segment `endNodeIds` are the primary handoff endpoints
+  to the next pipeline segment; segment `nodeIds` and `edgeKeys` keep the raw
+  side evidence such as stores, state reads/writes, components, and messaging
+  sinks without turning every touched sink into the pipeline endpoint.
 - `generatedAt`: export timestamp.
 
 Arguments:

@@ -40,7 +40,8 @@ public final class GraphDataProjection {
         String rootEntrypointId = chain.rootEntrypointId();
         List<SegmentEdge> segmentEdges = segmentEdges(snapshot, chainId);
         List<PipelineSegmentProjection> segments = segmentEdges.stream()
-                .map(segmentEdge -> segmentProjection(snapshot, nodeById, segmentEdge))
+                .map(segmentEdge -> segmentProjection(
+                        snapshot, nodeById, segmentEdge, primaryEndNodeIds(segmentEdges, segmentEdge.index())))
                 .filter(segment -> segment != null)
                 .toList();
 
@@ -67,30 +68,32 @@ public final class GraphDataProjection {
     private static PipelineSegmentProjection segmentProjection(
             ArchitectureGraph.GraphSnapshot snapshot,
             Map<GraphNodeId, ArchitectureGraph.GraphNode> nodeById,
-            SegmentEdge segmentEdge) {
+            SegmentEdge segmentEdge,
+            List<String> endNodeIds) {
         ArchitectureGraph.GraphNode node = nodeById.get(segmentEdge.edge().toId());
         if (!(node instanceof ArchitectureGraph.DataFlowPathNode pathNode)) return null;
         String linkKind = stringProperty(segmentEdge.edge().properties(), "linkKind", "");
         String viaChannel = stringProperty(segmentEdge.edge().properties(), "viaChannel", "");
-        List<String> endNodeIds = segmentEndNodeIds(snapshot, pathNode.id());
+        GraphSlice slice = graphSlice(snapshot, Set.of(pathNode.id()));
         return new PipelineSegmentProjection(
                 pathNode.id().serialize(),
                 segmentEdge.index(),
                 dataFlowPathTitle(pathNode),
                 pathNode.id().serialize(),
                 endNodeIds,
+                slice.nodeIds(),
+                slice.edgeKeys(),
                 blankToNull(linkKind),
                 blankToNull(viaChannel));
     }
 
-    private static List<String> segmentEndNodeIds(ArchitectureGraph.GraphSnapshot snapshot, GraphNodeId segmentId) {
-        LinkedHashSet<String> endNodeIds = new LinkedHashSet<>();
-        for (ArchitectureGraph.GraphEdge edge : snapshot.edges()) {
-            if (segmentId.equals(edge.fromId()) && ("REACHES".equals(edge.label()) || "WORKFLOW_LINK".equals(edge.label()))) {
-                endNodeIds.add(edge.toId().serialize());
-            }
+    private static List<String> primaryEndNodeIds(List<SegmentEdge> segmentEdges, int segmentIndex) {
+        for (SegmentEdge edge : segmentEdges) {
+            if (edge.index() != segmentIndex + 1) continue;
+            String incomingSinkId = stringProperty(edge.edge().properties(), "incomingSinkId", "");
+            if (!incomingSinkId.isBlank()) return List.of(incomingSinkId);
         }
-        return List.copyOf(endNodeIds);
+        return List.of();
     }
 
     private static List<SegmentEdge> segmentEdges(ArchitectureGraph.GraphSnapshot snapshot, GraphNodeId chainId) {
@@ -215,6 +218,8 @@ public final class GraphDataProjection {
             String title,
             String startNodeId,
             List<String> endNodeIds,
+            List<String> nodeIds,
+            List<String> edgeKeys,
             String linkKind,
             String viaChannel) {}
 
