@@ -61,25 +61,23 @@ export function selectedPipelineGraph(payload: GraphPayload, chainId: string): P
   const nodeById = new Map(payload.snapshot.nodes.map((node) => [node.id, node]));
   const projectedPipeline = payload.projections?.pipelines.find((pipeline) => pipeline.id === chainId);
   if (projectedPipeline) {
-    const nodeIds = new Set(projectedPipeline.nodeIds);
-    const edgeKeys = new Set(projectedPipeline.edgeKeys);
-    return {
-      nodes: projectedPipeline.nodeIds
-        .map((id) => nodeById.get(id))
-        .filter((node): node is GraphNode => Boolean(node)),
-      edges: payload.snapshot.edges
-        .filter((edge, index) => edgeKeys.has(edgeKey(edge, index)))
-        .filter((edge) => nodeIds.has(edge.fromId) && nodeIds.has(edge.toId))
-    };
+    const boundarySinkIds = new Set(projectedPipeline.segments.flatMap((segment) => segment.endNodeIds ?? []));
+    return pipelineSpine(payload, new Set(projectedPipeline.segmentIds), boundarySinkIds);
   }
 
-  const segmentIds = new Set(segmentEdgesFor(payload, chainId).map((edge) => edge.toId));
+  const segmentEdges = segmentEdgesFor(payload, chainId);
+  const boundarySinkIds = new Set(segmentEdges.map((edge) => stringProperty(edge, 'incomingSinkId')).filter(Boolean));
+  return pipelineSpine(payload, new Set(segmentEdges.map((edge) => edge.toId)), boundarySinkIds);
+}
+
+function pipelineSpine(payload: GraphPayload, segmentIds: Set<string>, boundarySinkIds: Set<string>): PipelineGraph {
+  const nodeById = new Map(payload.snapshot.nodes.map((node) => [node.id, node]));
   const selectedIds = new Set(segmentIds);
   const selectedEdges: GraphEdge[] = [];
 
   for (const edge of payload.snapshot.edges) {
     if (edge.label === 'HAS_SEGMENT') continue;
-    if (selectedIds.has(edge.fromId) || selectedIds.has(edge.toId)) {
+    if (isPipelineSpineEdge(edge, segmentIds, boundarySinkIds)) {
       selectedEdges.push(edge);
       selectedIds.add(edge.fromId);
       selectedIds.add(edge.toId);
@@ -87,7 +85,16 @@ export function selectedPipelineGraph(payload: GraphPayload, chainId: string): P
   }
 
   for (const edge of payload.snapshot.edges) {
-    if (selectedIds.has(edge.fromId) && selectedIds.has(edge.toId) && !selectedEdges.includes(edge)) {
+    if (selectedEdges.includes(edge)) continue;
+    if (isBoundarySinkTargetEdge(edge, nodeById, boundarySinkIds)) {
+      selectedEdges.push(edge);
+      selectedIds.add(edge.fromId);
+      selectedIds.add(edge.toId);
+    }
+  }
+
+  for (const edge of payload.snapshot.edges) {
+    if (edge.label !== 'HAS_SEGMENT' && selectedIds.has(edge.fromId) && selectedIds.has(edge.toId) && !selectedEdges.includes(edge)) {
       selectedEdges.push(edge);
     }
   }
@@ -99,6 +106,20 @@ export function selectedPipelineGraph(payload: GraphPayload, chainId: string): P
   const visibleIds = new Set(nodes.map((node) => node.id));
   const edges = selectedEdges.filter((edge) => visibleIds.has(edge.fromId) && visibleIds.has(edge.toId));
   return { nodes, edges };
+}
+
+function isBoundarySinkTargetEdge(edge: GraphEdge, nodeById: Map<string, GraphNode>, boundarySinkIds: Set<string>): boolean {
+  if (!boundarySinkIds.has(edge.fromId)) return false;
+  if (nodeById.get(edge.fromId)?.label !== 'DataFlowSink') return false;
+  return edge.label === 'AT_COMPONENT' || edge.label === 'ON_FIELD';
+}
+
+function isPipelineSpineEdge(edge: GraphEdge, segmentIds: Set<string>, boundarySinkIds: Set<string>): boolean {
+  if (edge.label === 'ORIGINATES') return segmentIds.has(edge.toId);
+  if (edge.label === 'REACHES') return segmentIds.has(edge.fromId) && boundarySinkIds.has(edge.toId);
+  if (edge.label === 'LINKS_TO') return boundarySinkIds.has(edge.fromId) && segmentIds.has(edge.toId);
+  if (edge.label === 'WORKFLOW_LINK') return segmentIds.has(edge.fromId) && segmentIds.has(edge.toId);
+  return false;
 }
 
 function edgeKey(edge: GraphEdge, index: number): string {
