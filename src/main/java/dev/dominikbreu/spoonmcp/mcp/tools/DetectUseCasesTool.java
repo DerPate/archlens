@@ -84,7 +84,8 @@ public class DetectUseCasesTool {
                     Entrypoint ep = uc.entrypointId != null ? index.entrypoint(uc.entrypointId) : null;
                     if (ep == null) return false;
                     Component comp = index.component(ep.componentId);
-                    return comp != null && comp.module != null
+                    return comp != null
+                            && comp.module != null
                             && (module.equals(comp.module.serialize())
                                     || comp.module.serialize().contains(module));
                 })

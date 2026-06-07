@@ -252,8 +252,10 @@ class LikeC4WorkspaceProjectorTest {
         model.applications.add(app);
         model.components.addAll(List.of(listener, notifier));
 
-        Entrypoint consumer = messagingEntrypoint("onOrder", EntrypointType.MESSAGING_CONSUMER, MessagingBroker.KAFKA, "orders", listener.id);
-        Entrypoint producer = messagingEntrypoint("sendPayment", EntrypointType.MESSAGING_PRODUCER, MessagingBroker.KAFKA, "payments", notifier.id);
+        Entrypoint consumer = messagingEntrypoint(
+                "onOrder", EntrypointType.MESSAGING_CONSUMER, MessagingBroker.KAFKA, "orders", listener.id);
+        Entrypoint producer = messagingEntrypoint(
+                "sendPayment", EntrypointType.MESSAGING_PRODUCER, MessagingBroker.KAFKA, "payments", notifier.id);
         model.entrypoints.addAll(List.of(consumer, producer));
 
         ArchitectureGraph graph = new ArchitectureGraph();
@@ -270,7 +272,9 @@ class LikeC4WorkspaceProjectorTest {
 
         assertFalse(kafkaFlow.steps().isEmpty(), "expected steps in kafka dynamic view");
 
-        assertTrue(document.elementKinds().contains("queue"), "expected queue kind for topic elements: " + document.elementKinds());
+        assertTrue(
+                document.elementKinds().contains("queue"),
+                "expected queue kind for topic elements: " + document.elementKinds());
 
         boolean hasQueueElement = document.elements().stream().anyMatch(e -> "queue".equals(e.kind()));
         assertTrue(hasQueueElement, "expected queue element in document elements");
@@ -295,7 +299,8 @@ class LikeC4WorkspaceProjectorTest {
         app.componentIds.add(controller.id);
         model.applications.add(app);
         model.components.add(controller);
-        model.entrypoints.add(entrypoint("createOrder", EntrypointType.REST_ENDPOINT, "POST", "/orders", controller.id));
+        model.entrypoints.add(
+                entrypoint("createOrder", EntrypointType.REST_ENDPOINT, "POST", "/orders", controller.id));
 
         ArchitectureGraph graph = new ArchitectureGraph();
         graph.rebuild(model);

@@ -72,8 +72,7 @@ public class MermaidPipelineRenderer {
         st.previousSinkLabel = linkOut != null && linkOut.method != null ? linkOut.method : "";
     }
 
-    private void renderBoundary(
-            RenderState st, Segment seg, Entrypoint ep, int segIdx, ToolModelIndex index) {
+    private void renderBoundary(RenderState st, Segment seg, Entrypoint ep, int segIdx, ToolModelIndex index) {
         st.boundaryCounter++;
         String boundaryId = "B" + st.boundaryCounter;
         String boundaryLabel = boundaryLabel(seg.incomingSink, index);
@@ -109,8 +108,7 @@ public class MermaidPipelineRenderer {
                 .append("\n");
     }
 
-    private String renderHeader(
-            RenderState st, Segment seg, Entrypoint ep, int segIdx, ToolModelIndex index) {
+    private String renderHeader(RenderState st, Segment seg, Entrypoint ep, int segIdx, ToolModelIndex index) {
         String headerNodeId = "S" + segIdx + "_0";
         Component headerComp = (ep != null && ep.componentId != null) ? index.component(ep.componentId) : null;
         String headerComponentName;
@@ -131,8 +129,7 @@ public class MermaidPipelineRenderer {
         return headerNodeId;
     }
 
-    private String renderSteps(
-            RenderState st, Segment seg, int segIdx, String headerNodeId, ToolModelIndex index) {
+    private String renderSteps(RenderState st, Segment seg, int segIdx, String headerNodeId, ToolModelIndex index) {
         String previousNodeInSeg = headerNodeId;
         for (int i = 1; i < seg.path.steps.size(); i++) {
             DataFlowStep step = seg.path.steps.get(i);

@@ -8,9 +8,7 @@ class GraphViewerHtmlRendererTest {
 
     @Test
     void rendersSelfContainedHtmlWithEmbeddedGraphData() {
-        String html = new GraphViewerHtmlRenderer()
-                .render(
-                        """
+        String html = new GraphViewerHtmlRenderer().render("""
                         {"snapshot":{"nodes":[{"id":"PaymentService"}],"edges":[{"label":"DEPENDS_ON"}]},"projections":{"pipelines":[]}}
                         """);
 

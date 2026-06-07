@@ -219,16 +219,21 @@ class LikeC4ModelRendererTest {
         LikeC4Document document = new LikeC4Document(
                 List.of("component", "queue"),
                 List.of(
-                        new LikeC4Element("comp:OrderService", "component", "OrderService", "comp:OrderService", Map.of()),
-                        new LikeC4Element("topic:KAFKA:orders", "queue", "orders", "topic:KAFKA:orders", Map.of("broker", "KAFKA"))),
+                        new LikeC4Element(
+                                "comp:OrderService", "component", "OrderService", "comp:OrderService", Map.of()),
+                        new LikeC4Element(
+                                "topic:KAFKA:orders",
+                                "queue",
+                                "orders",
+                                "topic:KAFKA:orders",
+                                Map.of("broker", "KAFKA"))),
                 List.of(),
                 List.of(new LikeC4View("component", "Component", List.of("comp:OrderService"), List.of())),
                 List.of(),
                 List.of(new LikeC4DynamicView(
                         "kafka_flow",
                         "KAFKA Message Flow",
-                        List.of(new LikeC4DynamicStep(
-                                "topic:KAFKA:orders", "comp:OrderService", "consumes orders")))));
+                        List.of(new LikeC4DynamicStep("topic:KAFKA:orders", "comp:OrderService", "consumes orders")))));
 
         String likec4 = new LikeC4ModelRenderer().render(document);
 

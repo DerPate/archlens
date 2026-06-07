@@ -34,11 +34,7 @@ public final class ToolModelIndex {
 
     public static ToolModelIndex from(ArchitectureModel model) {
         if (model == null) {
-            return new ToolModelIndex(
-                    ComponentIndex.build(List.of()),
-                    Map.of(),
-                    Map.of(),
-                    null);
+            return new ToolModelIndex(ComponentIndex.build(List.of()), Map.of(), Map.of(), null);
         }
         Map<EntrypointId, Entrypoint> byEp = new HashMap<>();
         for (Entrypoint ep : model.entrypoints) {
@@ -48,11 +44,7 @@ public final class ToolModelIndex {
         for (AppEntry app : model.applications) {
             if (app.id != null) byApp.put(app.id, app);
         }
-        return new ToolModelIndex(
-                ComponentIndex.build(model.components),
-                byEp,
-                byApp,
-                model);
+        return new ToolModelIndex(ComponentIndex.build(model.components), byEp, byApp, model);
     }
 
     /** O(1) lookup by typed ComponentId. */
