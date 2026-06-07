@@ -62,12 +62,12 @@ public final class LikeC4WorkspaceProjector {
         // Also force in direct injection targets of entrypoint-owning components so that
         // services wired to a listener/controller always appear alongside their owner.
         Set<GraphNodeId> candidateIds = ids(primaryCandidates);
-        Set<GraphNodeId> injectionTargets = graph.findEdgesBetween(
-                        union(entrypointComponentIds, candidateIds), Set.of("DEPENDS_ON")).stream()
-                .filter(edge -> entrypointComponentIds.contains(edge.fromId()))
-                .map(ArchitectureGraph.GraphEdge::toId)
-                .filter(candidateIds::contains)
-                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+        Set<GraphNodeId> injectionTargets =
+                graph.findEdgesBetween(union(entrypointComponentIds, candidateIds), Set.of("DEPENDS_ON")).stream()
+                        .filter(edge -> entrypointComponentIds.contains(edge.fromId()))
+                        .map(ArchitectureGraph.GraphEdge::toId)
+                        .filter(candidateIds::contains)
+                        .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
         Set<GraphNodeId> allForcedIds = union(entrypointComponentIds, injectionTargets);
         List<ArchitectureGraph.GraphNode> primaryComponents =
                 selectPrimaryComponents(primaryCandidates, allForcedIds, componentLimit);
@@ -99,11 +99,19 @@ public final class LikeC4WorkspaceProjector {
 
         List<LikeC4Element> components = selectedComponents.stream()
                 .map(node -> new LikeC4Element(
-                        node.id().value(), "component", title(node.name(), node.id().value()), node.id().value(), metadata(node.properties())))
+                        node.id().value(),
+                        "component",
+                        title(node.name(), node.id().value()),
+                        node.id().value(),
+                        metadata(node.properties())))
                 .toList();
         List<LikeC4Element> entrypointElements = entrypoints.stream()
                 .map(node -> new LikeC4Element(
-                        node.id().value(), "entrypoint", entrypointTitle(node), node.id().value(), metadata(node.properties())))
+                        node.id().value(),
+                        "entrypoint",
+                        entrypointTitle(node),
+                        node.id().value(),
+                        metadata(node.properties())))
                 .toList();
 
         Set<GraphNodeId> componentIdSet = ids(selectedComponents);
@@ -187,8 +195,7 @@ public final class LikeC4WorkspaceProjector {
         }
 
         Map<String, List<ArchitectureGraph.GraphNode>> byBroker = messagingNodes.stream()
-                .collect(Collectors.groupingBy(
-                        node -> brokerOf(node), LinkedHashMap::new, Collectors.toList()));
+                .collect(Collectors.groupingBy(node -> brokerOf(node), LinkedHashMap::new, Collectors.toList()));
 
         List<LikeC4DynamicView> views = new ArrayList<>();
         for (Map.Entry<String, List<ArchitectureGraph.GraphNode>> entry : byBroker.entrySet()) {
@@ -251,12 +258,14 @@ public final class LikeC4WorkspaceProjector {
     }
 
     private static String brokerOf(ArchitectureGraph.GraphNode node) {
-        String broker = String.valueOf(node.properties().getOrDefault("broker", "")).trim();
+        String broker =
+                String.valueOf(node.properties().getOrDefault("broker", "")).trim();
         return broker.isBlank() ? "UNKNOWN" : broker;
     }
 
     private static String channelOf(ArchitectureGraph.GraphNode node) {
-        String channel = String.valueOf(node.properties().getOrDefault("channelName", "")).trim();
+        String channel = String.valueOf(node.properties().getOrDefault("channelName", ""))
+                .trim();
         if (!channel.isBlank()) {
             return channel;
         }
@@ -269,7 +278,8 @@ public final class LikeC4WorkspaceProjector {
             return graph.nodesByComponentIds(app.componentIds);
         }
         if (model != null && model.components != null && !model.components.isEmpty()) {
-            return graph.nodesByComponentIds(model.components.stream().map(c -> c.id).toList());
+            return graph.nodesByComponentIds(
+                    model.components.stream().map(c -> c.id).toList());
         }
         if (app != null) {
             return graph.componentNodesOwnedBy(app.id);
@@ -282,9 +292,8 @@ public final class LikeC4WorkspaceProjector {
         if (model == null || model.entrypoints == null || model.entrypoints.isEmpty()) {
             return List.of();
         }
-        Set<ComponentId> scope = app != null && !app.componentIds.isEmpty()
-                ? new HashSet<>(app.componentIds)
-                : Set.of();
+        Set<ComponentId> scope =
+                app != null && !app.componentIds.isEmpty() ? new HashSet<>(app.componentIds) : Set.of();
         List<EntrypointId> ids = model.entrypoints.stream()
                 .filter(ep -> scope.isEmpty() || scope.contains(ep.componentId))
                 .map(ep -> ep.id)
@@ -390,7 +399,8 @@ public final class LikeC4WorkspaceProjector {
                 .thenComparing(ArchitectureGraph.GraphNode::name);
     }
 
-    private static int primaryConnectionCount(ArchitectureGraph graph, GraphNodeId nodeId, Set<GraphNodeId> primaryIds) {
+    private static int primaryConnectionCount(
+            ArchitectureGraph graph, GraphNodeId nodeId, Set<GraphNodeId> primaryIds) {
         Set<GraphNodeId> ids = new HashSet<>(primaryIds);
         ids.add(nodeId);
         return (int) graph.findEdgesBetween(ids, VIEW_RELATIONSHIPS).stream()
@@ -491,7 +501,11 @@ public final class LikeC4WorkspaceProjector {
     private static LikeC4Element systemElement(ArchitectureModel model, AppEntry app) {
         if (app != null) {
             return new LikeC4Element(
-                    app.id.serialize(), "system", title(app.name, app.id.serialize()), app.id.serialize(), appMetadata(app));
+                    app.id.serialize(),
+                    "system",
+                    title(app.name, app.id.serialize()),
+                    app.id.serialize(),
+                    appMetadata(app));
         }
         String workspace = model != null ? model.workspacePath : null;
         return new LikeC4Element(

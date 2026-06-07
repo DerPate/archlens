@@ -46,7 +46,8 @@ public class FindEntrypointsTool {
             List<Entrypoint> eps = graph.findNodes("Entrypoint", null, Map.of(), 5000).stream()
                     .map(n -> index.entrypoint(EntrypointId.deserialize(n.id().value())))
                     .filter(ep -> ep != null)
-                    .filter(ep -> appId == null || ep.componentId.qualifiedName().contains(appId))
+                    .filter(ep ->
+                            appId == null || ep.componentId.qualifiedName().contains(appId))
                     .filter(ep -> typeFilter == null || matchesType(ep.type, typeFilter))
                     .filter(ep -> methodFilter == null || methodFilter.equalsIgnoreCase(ep.httpMethod))
                     .filter(ep -> pathFilter == null || pathPrefixMatchesForDiscovery(ep.path, pathFilter))

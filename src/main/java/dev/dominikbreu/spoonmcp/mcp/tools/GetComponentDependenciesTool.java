@@ -52,15 +52,13 @@ public class GetComponentDependenciesTool {
             if (root == null) return "Component not found: " + ref;
 
             ArchitectureModel model = index.rawModel();
-            List<Dependency> allDeps = condensed
-                    ? condenser.condense(model.dependencies, model.components)
-                    : model.dependencies;
+            List<Dependency> allDeps =
+                    condensed ? condenser.condense(model.dependencies, model.components) : model.dependencies;
 
             // BFS over DEPENDS_ON edges in the graph, then hydrate deps from the model
             Set<GraphNodeId> reachable = new LinkedHashSet<>();
             reachable.add(rootNodeId);
-            graph.reachable(rootNodeId, "out", "DEPENDS_ON", depth, 1000)
-                    .forEach(n -> reachable.add(n.id()));
+            graph.reachable(rootNodeId, "out", "DEPENDS_ON", depth, 1000).forEach(n -> reachable.add(n.id()));
 
             List<Dependency> result = allDeps.stream()
                     .filter(d -> reachable.contains(GraphNodeId.of(d.fromId.serialize()))

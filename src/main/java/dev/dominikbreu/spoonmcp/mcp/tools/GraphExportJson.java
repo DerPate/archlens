@@ -22,18 +22,13 @@ final class GraphExportJson {
 
     static String write(ArchitectureGraph.GraphSnapshot snapshot, Instant generatedAt) throws Exception {
         return MAPPER.writerWithDefaultPrettyPrinter()
-                .writeValueAsString(new Payload(SnapshotJson.from(snapshot), GraphDataProjection.from(snapshot), generatedAt));
+                .writeValueAsString(
+                        new Payload(SnapshotJson.from(snapshot), GraphDataProjection.from(snapshot), generatedAt));
     }
 
-    record Payload(
-            SnapshotJson snapshot,
-            GraphDataProjection.ViewerProjections projections,
-            Instant generatedAt) {}
+    record Payload(SnapshotJson snapshot, GraphDataProjection.ViewerProjections projections, Instant generatedAt) {}
 
-    record SnapshotJson(
-            ArchitectureGraph.GraphSnapshotMetadata metadata,
-            List<NodeJson> nodes,
-            List<EdgeJson> edges) {
+    record SnapshotJson(ArchitectureGraph.GraphSnapshotMetadata metadata, List<NodeJson> nodes, List<EdgeJson> edges) {
         static SnapshotJson from(ArchitectureGraph.GraphSnapshot snapshot) {
             List<ArchitectureGraph.GraphNode> nodes = snapshot.nodes().stream()
                     .filter(GraphExportJson::isPublicSnapshotNode)
@@ -43,7 +38,8 @@ final class GraphExportJson {
                     .collect(Collectors.toCollection(LinkedHashSet::new));
             List<ArchitectureGraph.GraphEdge> edges = snapshot.edges().stream()
                     .filter(GraphExportJson::isPublicSnapshotEdge)
-                    .filter(edge -> nodeIds.contains(edge.fromId().serialize()) && nodeIds.contains(edge.toId().serialize()))
+                    .filter(edge -> nodeIds.contains(edge.fromId().serialize())
+                            && nodeIds.contains(edge.toId().serialize()))
                     .toList();
             return new SnapshotJson(
                     publicMetadata(snapshot.metadata(), nodes, edges),
@@ -100,11 +96,7 @@ final class GraphExportJson {
 
     record EdgeJson(String fromId, String toId, String label, Map<String, Object> properties) {
         static EdgeJson from(ArchitectureGraph.GraphEdge edge) {
-            return new EdgeJson(
-                    edge.fromId().serialize(),
-                    edge.toId().serialize(),
-                    edge.label(),
-                    edge.properties());
+            return new EdgeJson(edge.fromId().serialize(), edge.toId().serialize(), edge.label(), edge.properties());
         }
     }
 }

@@ -111,7 +111,8 @@ public class ExplainArchitectureTool {
         }
     }
 
-    private void appendDependencies(StringBuilder sb, List<AppEntry> apps, ArchitectureModel model, ToolModelIndex index) {
+    private void appendDependencies(
+            StringBuilder sb, List<AppEntry> apps, ArchitectureModel model, ToolModelIndex index) {
         List<Dependency> deps = model.dependencies.stream()
                 .filter(d -> {
                     boolean fromVisible =

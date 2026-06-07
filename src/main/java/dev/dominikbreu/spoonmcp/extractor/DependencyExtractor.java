@@ -68,7 +68,8 @@ public class DependencyExtractor {
             ComponentId id = ComponentId.of(type.getQualifiedName());
             if (!componentsById.containsKey(id)) continue;
             for (CtTypeReference<?> iface : type.getSuperInterfaces()) {
-                index.computeIfAbsent(iface.getQualifiedName(), k -> new ArrayList<>()).add(id);
+                index.computeIfAbsent(iface.getQualifiedName(), k -> new ArrayList<>())
+                        .add(id);
             }
         }
         return index;
@@ -108,12 +109,7 @@ public class DependencyExtractor {
     }
 
     private void addDep(
-            ArchitectureModel model,
-            ComponentId from,
-            ComponentId to,
-            String kind,
-            String derived,
-            double conf) {
+            ArchitectureModel model, ComponentId from, ComponentId to, String kind, String derived, double conf) {
         dev.dominikbreu.spoonmcp.model.ids.DependencyId id =
                 dev.dominikbreu.spoonmcp.model.ids.DependencyId.of(from, to);
         for (Dependency d : model.dependencies) {

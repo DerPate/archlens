@@ -115,81 +115,135 @@ public class QueryArchitectureGraphTool {
 
     private void appendNodeFields(StringBuilder sb, ArchitectureGraph.GraphNode node) {
         switch (node) {
-            case ArchitectureGraph.ComponentNode cn -> appendFields(sb,
-                    "type", cn.type(),
-                    "technology", cn.technology(),
-                    "module", cn.module(),
-                    "qualifiedName", cn.qualifiedName(),
-                    "packageName", cn.packageName(),
-                    "fanIn", cn.fanIn(),
-                    "fanOut", cn.fanOut(),
-                    "degree", cn.degree(),
-                    "architecturalWeight", cn.architecturalWeight(),
-                    "workflowRelevant", cn.workflowRelevant(),
-                    "businessRelevant", cn.businessRelevant(),
-                    "infrastructureRole", cn.infrastructureRole(),
-                    "noiseScore", cn.noiseScore(),
-                    "workflowBridgeScore", cn.workflowBridgeScore(),
-                    "entrypointReachable", cn.entrypointReachable());
-            case ArchitectureGraph.EntrypointNode en -> appendFields(sb,
-                    "type", en.type(),
-                    "httpMethod", en.httpMethod(),
-                    "path", en.path(),
-                    "channelName", en.channelName(),
-                    "broker", en.broker(),
-                    "topic", en.topic(),
-                    "protocol", en.protocol(),
-                    "componentId", en.componentId());
-            case ArchitectureGraph.ApplicationNode an -> appendFields(sb,
-                    "technology", an.technology(),
-                    "packagingType", an.packagingType(),
-                    "role", an.role());
-            case ArchitectureGraph.InterfaceNode in -> appendFields(sb,
-                    "type", in.type(),
-                    "path", in.path(),
-                    "technology", in.technology(),
-                    "broker", in.broker(),
-                    "topic", in.topic(),
-                    "componentId", in.componentId());
-            case ArchitectureGraph.ContainerNode cn -> appendFields(sb,
-                    "technology", cn.technology(),
-                    "derivedFrom", cn.derivedFrom(),
-                    "appId", cn.appId());
-            case ArchitectureGraph.ExternalSystemNode es -> appendFields(sb,
-                    "kind", es.kind(),
-                    "technology", es.technology());
-            case ArchitectureGraph.RuntimeFlowNode rf -> appendFields(sb,
-                    "entrypointId", rf.entrypointId(),
-                    "stepCount", rf.stepCount());
-            case ArchitectureGraph.RuntimeFlowStepNode rs -> appendFields(sb,
-                    "flowId", rs.flowId(),
-                    "order", rs.order(),
-                    "componentId", rs.componentId(),
-                    "componentType", rs.componentType(),
-                    "via", rs.via());
-            case ArchitectureGraph.DataFlowPathNode dp -> appendFields(sb,
-                    "entrypointId", dp.entrypointId(),
-                    "trackedParam", dp.trackedParam(),
-                    "stepCount", dp.stepCount(),
-                    "sinkCount", dp.sinkCount());
-            case ArchitectureGraph.DataFlowSinkNode ds -> appendFields(sb,
-                    "sinkKind", ds.sinkKind(),
-                    "method", ds.method(),
-                    "fieldName", ds.fieldName(),
-                    "channel", ds.channel(),
-                    "broker", ds.broker(),
-                    "topic", ds.topic(),
-                    "topicPropertyKey", ds.topicPropertyKey(),
-                    "payloadType", ds.payloadType(),
-                    "entityType", ds.entityType(),
-                    "repositoryOperation", ds.repositoryOperation(),
-                    "linkEvidence", ds.linkEvidence(),
-                    "calleeQualifiedName", ds.calleeQualifiedName());
-            case ArchitectureGraph.PipelineChainNode pc -> appendFields(sb,
-                    "segmentCount", pc.segmentCount(),
-                    "rootEntrypointId", pc.rootEntrypointId());
-            case ArchitectureGraph.DeploymentNode dn -> appendFields(sb,
-                    "type", dn.type());
+            case ArchitectureGraph.ComponentNode cn ->
+                appendFields(
+                        sb,
+                        "type",
+                        cn.type(),
+                        "technology",
+                        cn.technology(),
+                        "module",
+                        cn.module(),
+                        "qualifiedName",
+                        cn.qualifiedName(),
+                        "packageName",
+                        cn.packageName(),
+                        "fanIn",
+                        cn.fanIn(),
+                        "fanOut",
+                        cn.fanOut(),
+                        "degree",
+                        cn.degree(),
+                        "architecturalWeight",
+                        cn.architecturalWeight(),
+                        "workflowRelevant",
+                        cn.workflowRelevant(),
+                        "businessRelevant",
+                        cn.businessRelevant(),
+                        "infrastructureRole",
+                        cn.infrastructureRole(),
+                        "noiseScore",
+                        cn.noiseScore(),
+                        "workflowBridgeScore",
+                        cn.workflowBridgeScore(),
+                        "entrypointReachable",
+                        cn.entrypointReachable());
+            case ArchitectureGraph.EntrypointNode en ->
+                appendFields(
+                        sb,
+                        "type",
+                        en.type(),
+                        "httpMethod",
+                        en.httpMethod(),
+                        "path",
+                        en.path(),
+                        "channelName",
+                        en.channelName(),
+                        "broker",
+                        en.broker(),
+                        "topic",
+                        en.topic(),
+                        "protocol",
+                        en.protocol(),
+                        "componentId",
+                        en.componentId());
+            case ArchitectureGraph.ApplicationNode an ->
+                appendFields(sb, "technology", an.technology(), "packagingType", an.packagingType(), "role", an.role());
+            case ArchitectureGraph.InterfaceNode in ->
+                appendFields(
+                        sb,
+                        "type",
+                        in.type(),
+                        "path",
+                        in.path(),
+                        "technology",
+                        in.technology(),
+                        "broker",
+                        in.broker(),
+                        "topic",
+                        in.topic(),
+                        "componentId",
+                        in.componentId());
+            case ArchitectureGraph.ContainerNode cn ->
+                appendFields(sb, "technology", cn.technology(), "derivedFrom", cn.derivedFrom(), "appId", cn.appId());
+            case ArchitectureGraph.ExternalSystemNode es ->
+                appendFields(sb, "kind", es.kind(), "technology", es.technology());
+            case ArchitectureGraph.RuntimeFlowNode rf ->
+                appendFields(sb, "entrypointId", rf.entrypointId(), "stepCount", rf.stepCount());
+            case ArchitectureGraph.RuntimeFlowStepNode rs ->
+                appendFields(
+                        sb,
+                        "flowId",
+                        rs.flowId(),
+                        "order",
+                        rs.order(),
+                        "componentId",
+                        rs.componentId(),
+                        "componentType",
+                        rs.componentType(),
+                        "via",
+                        rs.via());
+            case ArchitectureGraph.DataFlowPathNode dp ->
+                appendFields(
+                        sb,
+                        "entrypointId",
+                        dp.entrypointId(),
+                        "trackedParam",
+                        dp.trackedParam(),
+                        "stepCount",
+                        dp.stepCount(),
+                        "sinkCount",
+                        dp.sinkCount());
+            case ArchitectureGraph.DataFlowSinkNode ds ->
+                appendFields(
+                        sb,
+                        "sinkKind",
+                        ds.sinkKind(),
+                        "method",
+                        ds.method(),
+                        "fieldName",
+                        ds.fieldName(),
+                        "channel",
+                        ds.channel(),
+                        "broker",
+                        ds.broker(),
+                        "topic",
+                        ds.topic(),
+                        "topicPropertyKey",
+                        ds.topicPropertyKey(),
+                        "payloadType",
+                        ds.payloadType(),
+                        "entityType",
+                        ds.entityType(),
+                        "repositoryOperation",
+                        ds.repositoryOperation(),
+                        "linkEvidence",
+                        ds.linkEvidence(),
+                        "calleeQualifiedName",
+                        ds.calleeQualifiedName());
+            case ArchitectureGraph.PipelineChainNode pc ->
+                appendFields(sb, "segmentCount", pc.segmentCount(), "rootEntrypointId", pc.rootEntrypointId());
+            case ArchitectureGraph.DeploymentNode dn -> appendFields(sb, "type", dn.type());
             case ArchitectureGraph.UnknownNode un -> appendProperties(sb, un.rawProperties());
         }
     }
@@ -200,7 +254,7 @@ public class QueryArchitectureGraphTool {
             Object val = keysAndValues[i + 1];
             if (val == null) continue;
             String s = val.toString();
-            if (s.isBlank() || s.equals("0") || s.equals("false")) continue;
+            if (s.isBlank() || "0".equals(s) || "false".equals(s)) continue;
             if (!fields.isEmpty()) fields.append(", ");
             fields.append(keysAndValues[i]).append("=").append(s);
         }
