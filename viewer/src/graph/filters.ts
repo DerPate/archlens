@@ -5,9 +5,19 @@ export interface VisibleGraph {
   edges: GraphEdge[];
 }
 
+const INTERPRETED_VIEW_NODE_LABELS = new Set([
+  'Container',
+  'DataFlowPath',
+  'DataFlowSink',
+  'PipelineChain',
+  'RuntimeFlow',
+  'RuntimeFlowStep'
+]);
+const COMPONENT_FLOW_EDGES = new Set(['CALLS', 'DEPENDS_ON']);
+
 export function createInitialFilterState(payload: GraphPayload): FilterState {
   return {
-    nodeLabels: new Set(Object.keys(payload.snapshot.metadata.labels)),
+    nodeLabels: new Set(Object.keys(payload.snapshot.metadata.labels).filter((label) => !INTERPRETED_VIEW_NODE_LABELS.has(label))),
     edgeLabels: new Set(Object.keys(payload.snapshot.metadata.edges)),
     search: '',
     visibleLimit: 350,
@@ -32,7 +42,7 @@ export function applyPreset(state: FilterState, preset: Preset): FilterState {
 export function visibleGraph(payload: GraphPayload, state: FilterState): VisibleGraph {
   const nodeById = new Map(payload.snapshot.nodes.map((node) => [node.id, node]));
   const incidentEdges = incidentEdgeMap(payload.snapshot.edges);
-  const passesNode = (node: GraphNode) => state.nodeLabels.has(node.label);
+  const passesNode = (node: GraphNode) => state.nodeLabels.has(node.label) && isPublicInterpretedNode(node);
   const passesEdge = (edge: GraphEdge) => state.edgeLabels.has(edge.label);
   const limit = Math.max(1, state.visibleLimit);
 
@@ -63,6 +73,12 @@ export function visibleGraph(payload: GraphPayload, state: FilterState): Visible
   }
 
   return { nodes, edges };
+}
+
+function isPublicInterpretedNode(node: GraphNode): boolean {
+  if (INTERPRETED_VIEW_NODE_LABELS.has(node.label)) return false;
+  if (node.label === 'Interface' && node.properties.interfaceType === 'rest_endpoint') return false;
+  return true;
 }
 
 export function matchesText(node: GraphNode, search: string): boolean {
@@ -103,5 +119,30 @@ function neighborhood(
     frontier = next;
   }
 
+  const selected = nodeById.get(nodeId);
+  if (selected?.label === 'Entrypoint') {
+    for (const edge of incidentEdges.get(nodeId) ?? []) {
+      if (!passesEdge(edge) || edge.label !== 'STARTS_AT') continue;
+      const componentId = edge.fromId === nodeId ? edge.toId : edge.fromId;
+      seen.add(componentId);
+      addComponentFlowNeighbors(componentId, seen, incidentEdges, passesEdge);
+    }
+  } else if (selected?.label === 'Component') {
+    addComponentFlowNeighbors(nodeId, seen, incidentEdges, passesEdge);
+  }
+
   return [...seen].map((id) => nodeById.get(id)).filter((node): node is GraphNode => Boolean(node));
+}
+
+function addComponentFlowNeighbors(
+  componentId: string,
+  seen: Set<string>,
+  incidentEdges: Map<string, GraphEdge[]>,
+  passesEdge: (edge: GraphEdge) => boolean
+) {
+  for (const edge of incidentEdges.get(componentId) ?? []) {
+    if (!passesEdge(edge) || !COMPONENT_FLOW_EDGES.has(edge.label)) continue;
+    seen.add(edge.fromId);
+    seen.add(edge.toId);
+  }
 }

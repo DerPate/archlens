@@ -1,8 +1,8 @@
 <script lang="ts">
-  import Sigma from 'sigma';
-  import { onMount, tick } from 'svelte';
+  import cytoscape from 'cytoscape';
+  import { onDestroy, onMount, tick } from 'svelte';
   import { applyPreset, createInitialFilterState, visibleGraph } from './graph/filters';
-  import { assignForceAtlasLayout, assignPipelineLayout, buildGraph } from './graph/layout';
+  import { buildElements, cytoscapeStyle, forceLayout, pipelineLayout } from './graph/layout';
   import { loadGraphFromFile, loadGraphFromUrl } from './graph/loadGraph';
   import { pipelineSummaries, selectedPipelineGraph } from './graph/pipelines';
   import { GRAPH_PRESETS } from './graph/presets';
@@ -10,16 +10,16 @@
   import type { FilterState, GraphEdge, GraphNode, GraphPayload, Preset } from './graph/types';
 
   let container: HTMLElement;
-  let renderer: Sigma | null = null;
+  let cy: cytoscape.Core | null = null;
   let payload: GraphPayload | null = null;
   let state: FilterState | null = null;
   let selected: GraphNode | GraphEdge | null = null;
   let status = 'Load an exported graph JSON file.';
+  let tooltip: { x: number; y: number; text: string } | null = null;
   let exploreClickedNode = false;
   let edgeOpacity = 0.26;
   let renderLabels = true;
   let renderEdgeLabels = false;
-  let layoutName = 'packed grid';
   let selectedPipelineId: string | null = null;
   let pipelineSearch = '';
   let showAllGraphData = false;
@@ -101,18 +101,17 @@
   function clearPipelineSelection() {
     if (!payload || !state) return;
     selectedPipelineId = null;
-    showAllGraphData = true;
+    showAllGraphData = false;
     selected = null;
     state = {
       ...state,
       nodeLabels: new Set(Object.keys(payload.snapshot.metadata.labels)),
       edgeLabels: new Set(Object.keys(payload.snapshot.metadata.edges)),
       search: '',
-      visibleLimit: payload.snapshot.metadata.includedNodeCount,
       selectedNodeId: null,
       mode: 'overview'
     };
-    void renderGraph(true);
+    void renderGraph();
   }
 
   function toggleNodeLabel(label: string, checked: boolean) {
@@ -135,11 +134,17 @@
     void renderGraph();
   }
 
+  let searchDebounce: ReturnType<typeof setTimeout> | null = null;
   function updateSearch(search: string) {
     if (!state) return;
     showAllGraphData = false;
     state = { ...state, search, mode: search.trim() ? 'search' : 'overview' };
-    void renderGraph();
+    if (searchDebounce) clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => void renderGraph(), 300);
+  }
+
+  function runForceLayout() {
+    void renderGraph(true);
   }
 
   function updateLimit(visibleLimit: number) {
@@ -163,7 +168,7 @@
     void renderGraph();
   }
 
-  async function renderGraph(forceLayout = false) {
+  async function renderGraph(useForceLayout = false) {
     if (!payload || !state || !container) return;
     await tick();
     const graphSlice = selectedPipelineId
@@ -171,44 +176,67 @@
       : showAllGraphData
         ? { nodes: payload.snapshot.nodes, edges: payload.snapshot.edges }
         : visibleGraph(payload, state);
-    const graph = buildGraph(graphSlice.nodes, graphSlice.edges, nodeLabels);
-    layoutName = 'packed grid';
-    const selectedPipeline = selectedPipelineId ? pipelines.find((pipeline) => pipeline.id === selectedPipelineId) : null;
-    if (selectedPipeline) {
-      assignPipelineLayout(graph, selectedPipeline);
-      layoutName = 'pipeline stages';
-    } else if (forceLayout || graph.order <= 1200) {
-      assignForceAtlasLayout(graph);
-      layoutName = graph.order <= 1600 ? 'ForceAtlas2' : 'packed grid';
+
+    const elements = buildElements(graphSlice.nodes, graphSlice.edges, nodeLabels);
+    const isNeighborhood = !selectedPipelineId && state.mode === 'neighborhood';
+
+    if (!cy) {
+      // Create once — handlers live on this instance forever.
+      cy = cytoscape({
+        container,
+        elements,
+        style: cytoscapeStyle(edgeOpacity, renderEdgeLabels, renderLabels),
+        layout: { name: 'preset', animate: false }
+      });
+      cy.on('tap', 'node', (event) => {
+        const nodeId = event.target.id() as string;
+        selected = event.target.data('raw') as GraphNode;
+        if (state?.mode === 'neighborhood' || exploreClickedNode) {
+          state = { ...state!, selectedNodeId: nodeId, mode: 'neighborhood' };
+          selectedPipelineId = null;
+          showAllGraphData = false;
+          void renderGraph();
+        }
+      });
+      cy.on('tap', 'edge', (event) => {
+        selected = event.target.data('raw') as GraphEdge;
+      });
+      cy.on('mouseover', 'node', (event) => {
+        const orig = event.originalEvent as MouseEvent;
+        tooltip = { x: orig.clientX + 14, y: orig.clientY + 14, text: event.target.data('tooltip') as string };
+      });
+      cy.on('mousemove', 'node', (event) => {
+        if (!tooltip) return;
+        const orig = event.originalEvent as MouseEvent;
+        tooltip = { ...tooltip, x: orig.clientX + 14, y: orig.clientY + 14 };
+      });
+      cy.on('mouseout', 'node', () => { tooltip = null; });
+    } else {
+      cy.style(cytoscapeStyle(edgeOpacity, renderEdgeLabels, renderLabels));
+      cy.batch(() => {
+        cy!.elements().remove();
+        cy!.add(elements);
+      });
     }
 
-    const focusedView =
-      Boolean(selectedPipelineId) || forceLayout || state.mode === 'search' || state.mode === 'neighborhood' || graph.order <= 450;
-    renderer?.kill();
-    renderer = new Sigma(graph, container, {
-      allowInvalidContainer: true,
-      defaultEdgeColor: `rgba(116, 130, 143, ${edgeOpacity})`,
-      defaultEdgeType: 'line',
-      labelRenderedSizeThreshold: focusedView ? 0 : 4,
-      renderEdgeLabels,
-      renderLabels
-    });
-    renderer.on('clickNode', (event) => selectNode(String(event.node)));
-    renderer.on('clickEdge', (event) => selectEdge(String(event.edge)));
+    let layoutName = 'fcose';
+    if (selectedPipelineId) {
+      cy.layout(pipelineLayout()).run();
+      layoutName = 'dagre LR';
+    } else if (graphSlice.nodes.length <= 1000) {
+      // fast=true on routine renders (filter, search), full quality on explicit button
+      cy.layout(forceLayout(graphSlice.nodes.length, !useForceLayout)).run();
+      layoutName = 'fcose';
+    } else {
+      cy.layout({ name: 'preset', animate: false }).run();
+      layoutName = 'grouped grid';
+    }
+    cy.fit(cy.nodes(), 24);
+
     status = `${graphSlice.nodes.length} visible nodes, ${graphSlice.edges.length} visible edges. Layout: ${layoutName}`;
   }
 
-  function selectNode(nodeId: string) {
-    if (!payload || !state || !renderer) return;
-    const raw = renderer.getGraph().getNodeAttribute(nodeId, 'raw') as GraphNode;
-    selected = raw;
-    if (exploreClickedNode) {
-      state = { ...state, selectedNodeId: nodeId, mode: 'neighborhood' };
-      selectedPipelineId = null;
-      showAllGraphData = false;
-      void renderGraph(true);
-    }
-  }
+  onDestroy(() => { cy?.destroy(); cy = null; });
 
   function exploreSelectedNode() {
     if (!state || !selected || !('id' in selected)) return;
@@ -216,11 +244,6 @@
     selectedPipelineId = null;
     showAllGraphData = false;
     void renderGraph(true);
-  }
-
-  function selectEdge(edgeId: string) {
-    if (!renderer) return;
-    selected = renderer.getGraph().getEdgeAttribute(edgeId, 'raw') as GraphEdge;
   }
 
   function soloNodeLabel(label: string) {
@@ -292,6 +315,7 @@
 
     <section>
       <h2>Explore</h2>
+      <button type="button" on:click={runForceLayout}>Relayout (high quality)</button>
       <label><input type="checkbox" bind:checked={exploreClickedNode} /> Auto-explore clicked node</label>
       <label><input type="checkbox" checked={state?.hideIsolated ?? false} on:change={(event) => updateHideIsolated((event.target as HTMLInputElement).checked)} /> Hide isolated</label>
       <label><input type="checkbox" bind:checked={renderLabels} on:change={() => void renderGraph()} /> Node names</label>
@@ -363,3 +387,7 @@
     <pre>{selected ? JSON.stringify(selected, null, 2) : 'Click a node or edge.'}</pre>
   </aside>
 </div>
+
+{#if tooltip}
+  <div class="node-tooltip" style="left:{tooltip.x}px;top:{tooltip.y}px">{tooltip.text}</div>
+{/if}

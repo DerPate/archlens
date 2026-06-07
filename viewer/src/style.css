@@ -1,6 +1,7 @@
 :root {
-  color: #172026;
-  background: #f4f4ef;
+  color-scheme: dark;
+  color: #e2e8f0;
+  background: #0f172a;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -27,21 +28,21 @@ select {
   box-sizing: border-box;
   overflow: auto;
   padding: 14px;
-  background: #f4f4ef;
+  background: #0f172a;
 }
 
 .sidebar {
-  border-right: 1px solid #d5d8d0;
+  border-right: 1px solid #1e3a5f;
 }
 
 .inspector {
-  border-left: 1px solid #d5d8d0;
+  border-left: 1px solid #1e3a5f;
 }
 
 .canvas {
   min-width: 0;
   height: 100vh;
-  background: #fbfbf7;
+  background: #0a1628;
 }
 
 h1 {
@@ -52,6 +53,7 @@ h1 {
 h2 {
   margin: 18px 0 8px;
   font-size: 13px;
+  color: #94a3b8;
 }
 
 section {
@@ -59,13 +61,14 @@ section {
 }
 
 .meta {
-  color: #5d6871;
+  color: #64748b;
   line-height: 1.45;
 }
 
 label {
   display: block;
   margin: 6px 0;
+  color: #cbd5e1;
 }
 
 input[type='search'],
@@ -74,29 +77,37 @@ select {
   box-sizing: border-box;
   width: 100%;
   padding: 7px;
-  border: 1px solid #b9c0c6;
-  background: white;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #e2e8f0;
 }
 
 input[type='file'] {
   max-width: 100%;
+  color: #94a3b8;
 }
 
 input[type='range'] {
   width: 100%;
+  accent-color: #3b82f6;
+}
+
+input[type='checkbox'] {
+  accent-color: #3b82f6;
 }
 
 button {
   width: 100%;
   padding: 8px;
-  border: 1px solid #a8b2bb;
-  background: white;
-  color: #172026;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #e2e8f0;
   cursor: pointer;
 }
 
 button:hover {
-  border-color: #2563eb;
+  border-color: #3b82f6;
+  background: #1e3a5f;
 }
 
 .button-grid {
@@ -132,20 +143,20 @@ button:hover {
 .pipeline-list span,
 .pipeline-detail span,
 .pipeline-detail p {
-  color: #5d6871;
+  color: #64748b;
   font-size: 12px;
 }
 
 .selected-row {
-  border-color: #2563eb;
-  box-shadow: inset 3px 0 0 #2563eb;
+  border-color: #3b82f6;
+  box-shadow: inset 3px 0 0 #3b82f6;
 }
 
 .pipeline-detail {
   margin-bottom: 12px;
   padding: 10px;
-  border: 1px solid #d5d8d0;
-  background: white;
+  border: 1px solid #1e3a5f;
+  background: #1e293b;
 }
 
 .pipeline-detail h3 {
@@ -184,8 +195,26 @@ pre {
   max-height: calc(100vh - 72px);
   overflow: auto;
   padding: 10px;
-  border: 1px solid #d5d8d0;
-  background: white;
+  border: 1px solid #1e3a5f;
+  background: #1e293b;
+  color: #e2e8f0;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.node-tooltip {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: ui-monospace, 'Cascadia Code', 'Fira Mono', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  white-space: pre;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+  max-width: 480px;
 }
