@@ -89,9 +89,10 @@ class GraphDataProjectionTest {
                             "df:address#event",
                             "sink:serviceRequest:3",
                             "de.homeinstead.phoenix.inbound.AddressMessageListener");
-            assertThat(pipeline.edgeKeys()).containsExactly(
-                    "df:serviceRequest#serviceRequest->sink:serviceRequest:3:REACHES:2",
-                    "sink:serviceRequest:3->de.homeinstead.phoenix.inbound.AddressMessageListener:AT_COMPONENT:3");
+            assertThat(pipeline.edgeKeys())
+                    .containsExactly(
+                            "df:serviceRequest#serviceRequest->sink:serviceRequest:3:REACHES:2",
+                            "sink:serviceRequest:3->de.homeinstead.phoenix.inbound.AddressMessageListener:AT_COMPONENT:3");
             assertThat(pipeline.segments())
                     .extracting(GraphDataProjection.PipelineSegmentProjection::title)
                     .containsExactly(
@@ -116,9 +117,79 @@ class GraphDataProjectionTest {
         });
     }
 
+    @Test
+    void doesNotExpandSelectedPipelineThroughSharedSinkComponents() {
+        ArchitectureGraph.GraphSnapshot snapshot = new ArchitectureGraph.GraphSnapshot(
+                new ArchitectureGraph.GraphSnapshotMetadata(
+                        7,
+                        8,
+                        7,
+                        8,
+                        false,
+                        Map.of("PipelineChain", 1, "DataFlowPath", 3, "DataFlowSink", 2, "Component", 1),
+                        Map.of("HAS_SEGMENT", 2, "REACHES", 2, "AT_COMPONENT", 2, "LINKS_TO", 1, "WORKFLOW_LINK", 1)),
+                List.of(
+                        new ArchitectureGraph.PipelineChainNode(
+                                GraphNodeId.of("chain:selected"),
+                                "chain:selected",
+                                2,
+                                "example.CustomerController#update:PUT:/customer/{id}",
+                                List.of("messaging")),
+                        path(
+                                "df:customer#customer",
+                                "example.CustomerController#update:PUT:/customer/{id}",
+                                "customer"),
+                        path(
+                                "df:address#event",
+                                "example.AddressMessageListener#listenCustomer:spring-listener:KAFKA:address",
+                                "event"),
+                        path("df:other#customer", "example.OtherController#update:PUT:/other/{id}", "customer"),
+                        node("sink:customer:0", "DataFlowSink", "KafkaJsonProducer", Map.of()),
+                        node("sink:other:0", "DataFlowSink", "KafkaJsonProducer", Map.of()),
+                        node("example.KafkaJsonProducer", "Component", "KafkaJsonProducer", Map.of())),
+                List.of(
+                        edge("chain:selected", "df:customer#customer", "HAS_SEGMENT", Map.of("segmentIndex", 0)),
+                        edge(
+                                "chain:selected",
+                                "df:address#event",
+                                "HAS_SEGMENT",
+                                Map.of(
+                                        "segmentIndex",
+                                        1,
+                                        "incomingSinkId",
+                                        "sink:customer:0",
+                                        "linkKind",
+                                        "messaging",
+                                        "viaChannel",
+                                        "address")),
+                        edge("df:customer#customer", "sink:customer:0", "REACHES", Map.of()),
+                        edge("sink:customer:0", "example.KafkaJsonProducer", "AT_COMPONENT", Map.of()),
+                        edge("sink:customer:0", "df:address#event", "LINKS_TO", Map.of("linkKind", "messaging")),
+                        edge("df:other#customer", "sink:other:0", "REACHES", Map.of()),
+                        edge("sink:other:0", "example.KafkaJsonProducer", "AT_COMPONENT", Map.of()),
+                        edge("df:other#customer", "df:address#event", "WORKFLOW_LINK", Map.of())));
+
+        GraphDataProjection.PipelineProjection pipeline =
+                GraphDataProjection.from(snapshot).pipelines().getFirst();
+
+        assertThat(pipeline.nodeIds())
+                .containsExactly(
+                        "df:customer#customer", "df:address#event", "sink:customer:0", "example.KafkaJsonProducer");
+        assertThat(pipeline.edgeKeys())
+                .containsExactly(
+                        "df:customer#customer->sink:customer:0:REACHES:2",
+                        "sink:customer:0->df:address#event:LINKS_TO:4",
+                        "sink:customer:0->example.KafkaJsonProducer:AT_COMPONENT:3");
+    }
+
     private static ArchitectureGraph.GraphNode node(
             String id, String label, String name, Map<String, Object> properties) {
         return new ArchitectureGraph.UnknownNode(GraphNodeId.of(id), label, name, properties);
+    }
+
+    private static ArchitectureGraph.DataFlowPathNode path(String id, String entrypointId, String trackedParam) {
+        return new ArchitectureGraph.DataFlowPathNode(
+                GraphNodeId.of(id), id, EntrypointId.deserialize(entrypointId), trackedParam, 1, 1);
     }
 
     private static ArchitectureGraph.GraphEdge edge(

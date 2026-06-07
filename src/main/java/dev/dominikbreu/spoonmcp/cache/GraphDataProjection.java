@@ -48,7 +48,11 @@ public final class GraphDataProjection {
         Set<GraphNodeId> segmentIds = segments.stream()
                 .map(segment -> GraphNodeId.of(segment.id()))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
-        GraphSlice slice = graphSlice(snapshot, segmentIds);
+        Set<GraphNodeId> boundarySinkIds = segments.stream()
+                .flatMap(segment -> segment.endNodeIds().stream())
+                .map(GraphNodeId::of)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        GraphSlice slice = graphSlice(snapshot, nodeById, segmentIds, boundarySinkIds);
         String linkKinds = String.join(",", chain.linkKinds());
         int segmentCount = chain.segmentCount() > 0 ? chain.segmentCount() : segments.size();
 
@@ -74,7 +78,10 @@ public final class GraphDataProjection {
         if (!(node instanceof ArchitectureGraph.DataFlowPathNode pathNode)) return null;
         String linkKind = stringProperty(segmentEdge.edge().properties(), "linkKind", "");
         String viaChannel = stringProperty(segmentEdge.edge().properties(), "viaChannel", "");
-        GraphSlice slice = graphSlice(snapshot, Set.of(pathNode.id()));
+        Set<GraphNodeId> boundarySinkIds = endNodeIds.stream()
+                .map(GraphNodeId::of)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        GraphSlice slice = graphSlice(snapshot, nodeById, Set.of(pathNode.id()), boundarySinkIds);
         return new PipelineSegmentProjection(
                 pathNode.id().serialize(),
                 segmentEdge.index(),
@@ -105,14 +112,18 @@ public final class GraphDataProjection {
                 .toList();
     }
 
-    private static GraphSlice graphSlice(ArchitectureGraph.GraphSnapshot snapshot, Set<GraphNodeId> segmentIds) {
+    private static GraphSlice graphSlice(
+            ArchitectureGraph.GraphSnapshot snapshot,
+            Map<GraphNodeId, ArchitectureGraph.GraphNode> nodeById,
+            Set<GraphNodeId> segmentIds,
+            Set<GraphNodeId> boundarySinkIds) {
         Set<GraphNodeId> selectedIds = new LinkedHashSet<>(segmentIds);
         List<IndexedEdge> selectedEdges = new ArrayList<>();
 
         for (int i = 0; i < snapshot.edges().size(); i++) {
             ArchitectureGraph.GraphEdge edge = snapshot.edges().get(i);
             if ("HAS_SEGMENT".equals(edge.label())) continue;
-            if (selectedIds.contains(edge.fromId()) || selectedIds.contains(edge.toId())) {
+            if (isPipelineSpineEdge(edge, segmentIds, boundarySinkIds)) {
                 selectedEdges.add(new IndexedEdge(i, edge));
                 selectedIds.add(edge.fromId());
                 selectedIds.add(edge.toId());
@@ -122,7 +133,19 @@ public final class GraphDataProjection {
         for (int i = 0; i < snapshot.edges().size(); i++) {
             ArchitectureGraph.GraphEdge edge = snapshot.edges().get(i);
             if (containsEdge(selectedEdges, edge)) continue;
-            if (selectedIds.contains(edge.fromId()) && selectedIds.contains(edge.toId())) {
+            if (isBoundarySinkTargetEdge(edge, nodeById, boundarySinkIds)) {
+                selectedEdges.add(new IndexedEdge(i, edge));
+                selectedIds.add(edge.fromId());
+                selectedIds.add(edge.toId());
+            }
+        }
+
+        for (int i = 0; i < snapshot.edges().size(); i++) {
+            ArchitectureGraph.GraphEdge edge = snapshot.edges().get(i);
+            if (containsEdge(selectedEdges, edge)) continue;
+            if (!"HAS_SEGMENT".equals(edge.label())
+                    && selectedIds.contains(edge.fromId())
+                    && selectedIds.contains(edge.toId())) {
                 selectedEdges.add(new IndexedEdge(i, edge));
             }
         }
@@ -143,6 +166,30 @@ public final class GraphDataProjection {
 
     private static boolean containsEdge(List<IndexedEdge> edges, ArchitectureGraph.GraphEdge edge) {
         return edges.stream().anyMatch(indexed -> indexed.edge().equals(edge));
+    }
+
+    private static boolean isPipelineSpineEdge(
+            ArchitectureGraph.GraphEdge edge, Set<GraphNodeId> segmentIds, Set<GraphNodeId> boundarySinkIds) {
+        if ("ORIGINATES".equals(edge.label())) return segmentIds.contains(edge.toId());
+        if ("REACHES".equals(edge.label())) return segmentIds.contains(edge.fromId()) && boundarySinkIds.contains(edge.toId());
+        if ("LINKS_TO".equals(edge.label())) return boundarySinkIds.contains(edge.fromId()) && segmentIds.contains(edge.toId());
+        if ("WORKFLOW_LINK".equals(edge.label())) {
+            return segmentIds.contains(edge.fromId()) && segmentIds.contains(edge.toId());
+        }
+        return false;
+    }
+
+    private static boolean isBoundarySinkTargetEdge(
+            ArchitectureGraph.GraphEdge edge,
+            Map<GraphNodeId, ArchitectureGraph.GraphNode> nodeById,
+            Set<GraphNodeId> boundarySinkIds) {
+        if (!boundarySinkIds.contains(edge.fromId())) return false;
+        if (!isDataFlowSink(nodeById.get(edge.fromId()))) return false;
+        return "AT_COMPONENT".equals(edge.label()) || "ON_FIELD".equals(edge.label());
+    }
+
+    private static boolean isDataFlowSink(ArchitectureGraph.GraphNode node) {
+        return node instanceof ArchitectureGraph.DataFlowSinkNode || (node != null && "DataFlowSink".equals(node.label()));
     }
 
     private static String edgeKey(ArchitectureGraph.GraphEdge edge, int index) {
