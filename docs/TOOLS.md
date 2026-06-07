@@ -763,6 +763,15 @@ Useful graph properties include:
 - Interface nodes: `interfaceType`, `path`, `module`, `technology`. Messaging interfaces
   additionally expose `broker` (incl. `IN_MEMORY`) and `topic`, so separate inbound
   and outbound channels remain queryable even when no pipeline link connects them.
+  REST interface nodes (`interfaceType=rest_endpoint`) are queryable through
+  `query_architecture_graph`, but public graph exports omit them from
+  `snapshot.nodes` because executable `Entrypoint` nodes already represent the
+  same HTTP surface.
+- Container nodes (label `Container`): inferred application layer buckets such as
+  `api`, `service`, `repository`, `domain`, or `scheduling`. Properties:
+  `appId`, `technology`, `derivedFrom`. These nodes are queryable through
+  `query_architecture_graph`, but public graph exports omit them from
+  `snapshot.nodes` because they are synthetic grouping hints.
 - ExternalSystem nodes: `externalSystemKind`, `technology`.
 - DataFlowPath nodes (label `DataFlowPath`): `entrypointId`, `trackedParam`,
   `stepCount`, `sinkCount`.
@@ -774,10 +783,19 @@ Useful graph properties include:
   `payloadType`, `entityType`, `repositoryOperation`, `linkEvidence`, and
   `calleeQualifiedName` (fully-qualified declaring type of the outbound callee, e.g.
   `java.nio.file.Files`; absent for non-outbound kinds).
-- PipelineChain nodes (label `PipelineChain`): one vertex per end-to-end pipeline
+- RuntimeFlow and RuntimeFlowStep nodes (labels `RuntimeFlow`, `RuntimeFlowStep`):
+  internal call-trace scaffolding generated from runtime-flow inference. They are
+  queryable through `query_architecture_graph` and dedicated runtime-flow tools,
+  but public graph exports omit them from `snapshot.nodes`; source-level
+  components, entrypoints, call edges, and data-flow paths carry the visual
+  semantics instead.
+- PipelineChain nodes (label `PipelineChain`): one internal graph vertex per end-to-end pipeline
   produced by stitching typed workflow links forward across entrypoint
   boundaries. Properties: `segmentCount`, `rootEntrypointId`, `linkKinds`
   (comma-separated handoff kinds in traversal order, e.g. `store,messaging`).
+  These nodes are queryable through `query_architecture_graph`, but public graph
+  exports move them into `projections.pipelines` rather than serializing them as
+  ordinary `snapshot.nodes`.
 - Dependency edges: `kind`, `derivedFrom`, `confidence`, `isRuntimeRelevant`,
   `isCondensable`, `isCrossModule`, `fromModule`, `toModule`, `weight`.
 - State edges: `WRITES_STATE` / `READS_STATE` carry `fieldName`,
@@ -789,8 +807,12 @@ Edge labels:
 
 - `OWNS` — Application → Component
 - `STARTS_AT` — Entrypoint → Component
-- `EXPOSES` — Interface → Component
-- `CONTAINS` — Container → Component
+- `EXPOSES` — Interface → Component. Public viewer exports retain this for
+  non-REST interfaces such as messaging channels; REST interface duplicates are
+  omitted with their `rest_endpoint` interface nodes.
+- `CONTAINS` — inferred Container → Component grouping edge. Queryable via
+  `query_architecture_graph`; public viewer exports omit it from `snapshot.edges`
+  because it is a synthetic grouping helper rather than source-level behavior.
 - `DEPLOYS` — Deployment → Application
 - `DEPENDS_ON` — Component → Component (or Component → ExternalSystem)
 - `CALLS` — Component → Component method-call evidence from source invocations.
@@ -809,7 +831,10 @@ Edge labels:
 - `STATE_HANDOFF` — writer Component → reader Component when a write and read touch
   the same `(fieldOwnerComponentId, fieldName)` shared state. This makes
   consumer/cache/scheduler handoffs queryable without matching field names manually.
-- `STARTED_BY` / `HAS_STEP` / `VISITS` — RuntimeFlow / RuntimeFlowStep relationships
+- `STARTED_BY` / `HAS_STEP` / `VISITS` — internal RuntimeFlow / RuntimeFlowStep
+  relationships. Queryable via `query_architecture_graph`; public viewer exports
+  omit them from `snapshot.edges` because they are trace scaffolding rather than
+  source-level behavior.
 - `ORIGINATES` — Entrypoint → DataFlowPath (carries `trackedParam`)
 - `REACHES` — DataFlowPath → DataFlowSink (carries `sinkKind`)
 - `ON_FIELD` — DataFlowSink (`store`) → Component (the field's declaring component;
@@ -827,13 +852,15 @@ Edge labels:
   or `fieldName` / `viaField` / `fieldOwnerComponentId`. `PERSISTENCE_HANDOFF` links
   additionally carry `entityType`, `repositoryOperation`, and `evidence`. Prefer this
   over reconstructing pipelines from raw `DataFlowSink.linkedPathIds`.
-- `HAS_SEGMENT` — PipelineChain → DataFlowPath, one edge per segment.  Carries
+- `HAS_SEGMENT` — internal PipelineChain → DataFlowPath helper edge, one edge per segment. Carries
   `segmentIndex` (0-based traversal order). For non-root segments it also carries
   `linkKind`, `incomingSinkId` (the upstream `DataFlowSink` vertex that bridged into
   this segment), and either `viaField` + `fieldOwnerComponentId` (STORE handoff) or
   `viaChannel` (MESSAGING / EVENT_BUS handoff). Together with `WORKFLOW_LINK` and
   lower-level `LINKS_TO` sink edges, this lets a graph consumer reconstruct the full
-  chain without calling `render_pipeline`.
+  chain without calling `render_pipeline`. Public graph exports omit this helper edge
+  from `snapshot.edges` and expose equivalent segment metadata under
+  `projections.pipelines`.
 
 Example — graph summary:
 
@@ -948,17 +975,21 @@ The JSON shape is:
 
 - `snapshot.metadata`: total and included node/edge counts, truncation flag, and
   node/edge label counts.
-- `snapshot.nodes`: raw graph nodes with `id`, `label`, `name`, and `properties`.
-- `snapshot.edges`: raw graph edges with `fromId`, `toId`, `label`, and
-  `properties`.
+- `snapshot.nodes`: public graph nodes with `id`, `label`, `name`, and
+  `properties`. Internal/helper nodes such as `PipelineChain`, inferred
+  `Container` layer buckets, `RuntimeFlow`, and `RuntimeFlowStep` are omitted
+  from the exported snapshot. REST `Interface` nodes are also omitted because
+  `Entrypoint` nodes already expose the same HTTP route semantics; non-REST
+  interfaces remain public.
+- `snapshot.edges`: public graph edges with `fromId`, `toId`, `label`, and
+  `properties`. Internal/helper edges such as `HAS_SEGMENT`, inferred
+  `CONTAINS` grouping edges, `STARTED_BY`, `HAS_STEP`, and `VISITS` are omitted
+  from the exported snapshot.
 - `projections.pipelines`: viewer-ready pipeline summaries derived in the graph
-  cache layer. Each entry keeps the synthetic chain ID but also includes
-  human-facing titles, segment titles, segment node IDs, and the node/edge IDs to
-  render for a focused pipeline slice. This avoids forcing viewers to parse raw
-  IDs such as `chain:12`. Segment `endNodeIds` are the primary handoff endpoints
-  to the next pipeline segment; segment `nodeIds` and `edgeKeys` keep the raw
-  side evidence such as stores, state reads/writes, components, and messaging
-  sinks without turning every touched sink into the pipeline endpoint.
+  cache layer. Each entry keeps the synthetic chain ID as projection metadata and
+  includes human-facing titles, segment titles, segment node IDs, and the node/edge
+  IDs to render for a focused pipeline slice. Segment `endNodeIds` are the primary
+  handoff endpoints to the next pipeline segment.
 - `generatedAt`: export timestamp.
 
 Arguments:
