@@ -21,8 +21,7 @@ public record DataFlowPathId(EntrypointId entrypoint, String trackedParam) {
         if (value == null) return null;
         int hash = value.lastIndexOf('#');
         if (hash < 0) return new DataFlowPathId(EntrypointId.deserialize(value), "");
-        return new DataFlowPathId(
-                EntrypointId.deserialize(value.substring(0, hash)), value.substring(hash + 1));
+        return new DataFlowPathId(EntrypointId.deserialize(value.substring(0, hash)), value.substring(hash + 1));
     }
 
     @JsonValue
