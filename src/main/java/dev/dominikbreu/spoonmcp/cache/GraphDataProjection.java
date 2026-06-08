@@ -230,7 +230,6 @@ public final class GraphDataProjection {
 
     private static String fallbackEntrypointId(GraphNodeId id) {
         String value = id.serialize();
-        if (value.startsWith("df:")) value = value.substring(3);
         int lastHash = value.lastIndexOf('#');
         return lastHash >= 0 ? value.substring(0, lastHash) : value;
     }

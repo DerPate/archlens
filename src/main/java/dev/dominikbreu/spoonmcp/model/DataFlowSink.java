@@ -3,6 +3,7 @@ package dev.dominikbreu.spoonmcp.model;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId;
 
 /**
  * Terminal point in a data-flow path where a tracked value leaves the component or is persisted.
@@ -86,7 +87,7 @@ public class DataFlowSink {
      * For {@code store} sinks: ids of {@link DataFlowPath}s that read this same field and
      * therefore form the downstream half of a two-phase pipeline (consumer → cache → producer).
      */
-    public java.util.List<String> linkedPathIds = new java.util.ArrayList<>();
+    public java.util.List<DataFlowPathId> linkedPathIds = new java.util.ArrayList<>();
     /** For {@code messaging} / {@code event-bus} sinks: the channel/topic name, or null. */
     public String channel;
     /** Messaging broker for messaging/event-bus sinks when known. */
