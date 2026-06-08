@@ -42,6 +42,18 @@ class TypedIdContractTest {
     }
 
     @Test
+    void dataFlowPathIdSerializesWithoutPrefixAndRoundTrips() {
+        EntrypointId ep = EntrypointId.of(ComponentId.of("com.acme.OrderResource"), "create", "POST:/orders");
+        DataFlowPathId id = DataFlowPathId.of(ep, "order");
+        assertThat(id.serialize()).isEqualTo("com.acme.OrderResource#create:POST:/orders#order");
+        assertThat(id.serialize()).doesNotContain("df:");
+        DataFlowPathId round = DataFlowPathId.deserialize(id.serialize());
+        assertThat(round).isEqualTo(id);
+        assertThat(round.entrypoint()).isEqualTo(ep);
+        assertThat(round.trackedParam()).isEqualTo("order");
+    }
+
+    @Test
     void fieldAccessIdWrapsCompositeValueAndRoundTrips() {
         FieldAccessId id = FieldAccessId.of("field:com.acme.A#m@cache:write");
         assertThat(id.serialize()).isEqualTo("field:com.acme.A#m@cache:write");
