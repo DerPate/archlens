@@ -1,5 +1,6 @@
 package dev.dominikbreu.spoonmcp.model;
 
+import dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId;
 import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.ArrayList;
 import java.util.List;
@@ -11,8 +12,8 @@ import java.util.List;
  * does not reach any classified sink — it may flow into unanalyzed code or be dropped.
  */
 public class DataFlowPath {
-    /** Stable identifier: {@code df:<entrypointId>#<trackedParam>}. */
-    public String id;
+    /** Stable identifier derived from the entrypoint id and tracked parameter. */
+    public DataFlowPathId id;
     /** Entrypoint from which this path originates. */
     public EntrypointId entrypointId;
     /** Name of the entrypoint method parameter being tracked. */

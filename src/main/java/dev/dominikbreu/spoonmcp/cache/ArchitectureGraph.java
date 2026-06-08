@@ -637,7 +637,7 @@ public class ArchitectureGraph {
     }
 
     private void addDataFlowPath(DataFlowPath path) {
-        Vertex vertex = addVertex(path.id, "DataFlowPath", path.id);
+        Vertex vertex = addVertex(path.id.serialize(), "DataFlowPath", path.id.serialize());
         set(vertex, "kind", "dataFlowPath");
         set(vertex, "entrypointId", path.entrypointId != null ? path.entrypointId.serialize() : null);
         set(vertex, "trackedParam", path.trackedParam);
@@ -680,13 +680,13 @@ public class ArchitectureGraph {
 
     private void addDataFlowEdges(DataFlowPath path) {
         String epVertexId = path.entrypointId != null ? path.entrypointId.serialize() : "";
-        addEdge(epVertexId, path.id, "ORIGINATES", Map.of("trackedParam", Objects.toString(path.trackedParam, "")));
+        addEdge(epVertexId, path.id.serialize(), "ORIGINATES", Map.of("trackedParam", Objects.toString(path.trackedParam, "")));
 
         for (int i = 0; i < path.sinks.size(); i++) {
             DataFlowSink sink = path.sinks.get(i);
-            String sinkId = path.id + SINK_MARKER + i;
+            String sinkId = path.id.serialize() + SINK_MARKER + i;
             addSinkVertex(sinkId, path, sink);
-            addEdge(path.id, sinkId, "REACHES", Map.of("sinkKind", sink.kind != null ? sink.kind.value() : ""));
+            addEdge(path.id.serialize(), sinkId, "REACHES", Map.of("sinkKind", sink.kind != null ? sink.kind.value() : ""));
             addSinkTargetEdge(sinkId, sink);
         }
     }
@@ -695,7 +695,7 @@ public class ArchitectureGraph {
         Vertex sinkVertex = addVertex(sinkId, "DataFlowSink", sink.componentName);
         set(sinkVertex, "kind", "dataFlowSink");
         set(sinkVertex, "sinkKind", sink.kind != null ? sink.kind.value() : null);
-        set(sinkVertex, "pathId", path.id);
+        set(sinkVertex, "pathId", path.id.serialize());
         set(sinkVertex, COMPONENT_ID, sink.componentId != null ? sink.componentId.serialize() : null);
         set(sinkVertex, METHOD, sink.method);
         set(sinkVertex, FIELD_NAME, sink.fieldName);
@@ -753,7 +753,7 @@ public class ArchitectureGraph {
         if (sink.kind != DataFlowSink.Kind.STORE
                 && sink.kind != DataFlowSink.Kind.MESSAGING
                 && sink.kind != DataFlowSink.Kind.EVENT_BUS) return;
-        String sinkId = path.id + SINK_MARKER + sinkIndex;
+        String sinkId = path.id.serialize() + SINK_MARKER + sinkIndex;
         Map<String, Object> props = new HashMap<>();
         props.put("linkKind", sink.kind.value());
         if (sink.kind == DataFlowSink.Kind.STORE) {
@@ -764,8 +764,8 @@ public class ArchitectureGraph {
         } else {
             props.put(VIA_CHANNEL, Objects.toString(sink.channel, ""));
         }
-        for (String downstreamPathId : sink.linkedPathIds) {
-            addEdge(sinkId, downstreamPathId, "LINKS_TO", props);
+        for (dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId downstreamPathId : sink.linkedPathIds) {
+            addEdge(sinkId, downstreamPathId.serialize(), "LINKS_TO", props);
         }
     }
 

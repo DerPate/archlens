@@ -100,7 +100,7 @@ public class DataFlowTracer {
         Map<String, String> currentToOriginal = new LinkedHashMap<>();
         for (String tracked : trackedNames) {
             DataFlowPath path = new DataFlowPath();
-            path.id = "df:" + ep.id.serialize() + "#" + tracked;
+            path.id = dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId.of(ep.id, tracked);
             path.entrypointId = ep.id;
             path.trackedParam = tracked;
             pathsByOriginal.put(tracked, path);
@@ -146,7 +146,7 @@ public class DataFlowTracer {
         }
 
         // Index reader paths by FieldRef → pathIds.
-        Map<dev.dominikbreu.spoonmcp.model.ids.FieldRef, List<String>> readerPathsByKey = new HashMap<>();
+        Map<dev.dominikbreu.spoonmcp.model.ids.FieldRef, List<dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId>> readerPathsByKey = new HashMap<>();
         for (DataFlowPath p : paths) {
             Set<dev.dominikbreu.spoonmcp.model.ids.FieldRef> keys = readsByEntrypoint.get(p.entrypointId);
             if (keys == null) continue;
@@ -158,7 +158,7 @@ public class DataFlowTracer {
         // Build a one-time index of pathId → entrypointId to guard against same-entrypoint linking.
         // Two paths from the same entrypoint must not be stitched together via a STORE sink —
         // that would create phantom loops back to the same entrypoint in the pipeline diagram.
-        Map<String, String> pathIdToEpId = new HashMap<>();
+        Map<dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId, String> pathIdToEpId = new HashMap<>();
         for (DataFlowPath p2 : paths) {
             pathIdToEpId.put(p2.id, p2.entrypointId != null ? p2.entrypointId.serialize() : null);
         }
@@ -175,15 +175,15 @@ public class DataFlowTracer {
             DataFlowSink s,
             DataFlowPath p,
             String pEpIdStr,
-            Map<dev.dominikbreu.spoonmcp.model.ids.FieldRef, List<String>> readerPathsByKey,
-            Map<String, String> pathIdToEpId) {
+            Map<dev.dominikbreu.spoonmcp.model.ids.FieldRef, List<dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId>> readerPathsByKey,
+            Map<dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId, String> pathIdToEpId) {
         if (s.kind != DataFlowSink.Kind.STORE) return;
         if (s.fieldOwnerComponentId == null || s.fieldName == null) return;
         dev.dominikbreu.spoonmcp.model.ids.FieldRef key =
                 new dev.dominikbreu.spoonmcp.model.ids.FieldRef(s.fieldOwnerComponentId, s.fieldName);
-        List<String> readerIds = readerPathsByKey.get(key);
+        List<dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId> readerIds = readerPathsByKey.get(key);
         if (readerIds == null) return;
-        for (String rid : readerIds) {
+        for (dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId rid : readerIds) {
             String readerEpId = pathIdToEpId.get(rid);
             if (!rid.equals(p.id)
                     && (readerEpId == null || !readerEpId.equals(pEpIdStr))
@@ -199,11 +199,11 @@ public class DataFlowTracer {
      * Matching is normalized by broker and topic so KAFKA:orders.created ≠ RABBITMQ:orders.created.
      */
     private void linkMessagingSinksToChannelConsumers(List<DataFlowPath> paths, ArchitectureModel model) {
-        Map<String, List<String>> consumerPathsByDestination = new HashMap<>();
+        Map<String, List<dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId>> consumerPathsByDestination = new HashMap<>();
         // Broker-agnostic index: channel name → paths. Used as a fallback when the sink's
         // broker is null (Emitter-field sites where the broker cannot be determined at
         // extraction time, e.g. SmallRye in-memory channels via @Channel-injected Emitter).
-        Map<String, List<String>> consumerPathsByChannel = new HashMap<>();
+        Map<String, List<dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId>> consumerPathsByChannel = new HashMap<>();
         Map<dev.dominikbreu.spoonmcp.model.ids.EntrypointId, Entrypoint> entrypointById = new HashMap<>();
         for (Entrypoint ep : model.entrypoints) {
             entrypointById.put(ep.id, ep);
@@ -222,8 +222,8 @@ public class DataFlowTracer {
     private void indexConsumerPath(
             DataFlowPath path,
             Map<dev.dominikbreu.spoonmcp.model.ids.EntrypointId, Entrypoint> entrypointById,
-            Map<String, List<String>> consumerPathsByDestination,
-            Map<String, List<String>> consumerPathsByChannel) {
+            Map<String, List<dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId>> consumerPathsByDestination,
+            Map<String, List<dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId>> consumerPathsByChannel) {
         Entrypoint ep = entrypointById.get(path.entrypointId);
         if (ep == null) return;
         if (ep.type != EntrypointType.MESSAGING_CONSUMER && ep.type != EntrypointType.JMS_CONSUMER) return;
@@ -242,8 +242,8 @@ public class DataFlowTracer {
     private void linkMessagingSink(
             DataFlowSink sink,
             DataFlowPath path,
-            Map<String, List<String>> consumerPathsByDestination,
-            Map<String, List<String>> consumerPathsByChannel) {
+            Map<String, List<dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId>> consumerPathsByDestination,
+            Map<String, List<dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId>> consumerPathsByChannel) {
         if (sink.kind != DataFlowSink.Kind.MESSAGING && sink.kind != DataFlowSink.Kind.EVENT_BUS) return;
         String dest = firstNonBlank(sink.topic, sink.channel);
         String key = destinationKey(sink.broker, dest);
@@ -251,13 +251,13 @@ public class DataFlowTracer {
         // Exact broker:channel match first; fall back to channel-only when the sink's
         // broker is unresolved (null) — covers Emitter-field sites whose broker cannot
         // be determined statically (e.g. SmallRye IN_MEMORY vs null mismatch).
-        List<String> candidates = consumerPathsByDestination.getOrDefault(key, List.of());
+        List<dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId> candidates = consumerPathsByDestination.getOrDefault(key, List.of());
         // dest is guaranteed non-null here: destinationKey() returns null (→ early return above)
         // for a null/blank destination.
         if (candidates.isEmpty() && sink.broker == null) {
             candidates = consumerPathsByChannel.getOrDefault(dest.trim(), List.of());
         }
-        for (String targetPathId : candidates) {
+        for (dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId targetPathId : candidates) {
             if (!targetPathId.equals(path.id) && !sink.linkedPathIds.contains(targetPathId)) {
                 sink.linkedPathIds.add(targetPathId);
             }
@@ -558,7 +558,7 @@ public class DataFlowTracer {
             entrypointById.put(ep.id, ep);
         }
 
-        Map<String, List<String>> readPathsByEntity = indexPersistenceReadPaths(paths, entrypointById);
+        Map<String, List<dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId>> readPathsByEntity = indexPersistenceReadPaths(paths, entrypointById);
         for (DataFlowPath path : paths) {
             for (DataFlowSink sink : path.sinks) {
                 linkPersistenceWriteSink(sink, path, readPathsByEntity);
@@ -566,9 +566,9 @@ public class DataFlowTracer {
         }
     }
 
-    private Map<String, List<String>> indexPersistenceReadPaths(
+    private Map<String, List<dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId>> indexPersistenceReadPaths(
             List<DataFlowPath> paths, Map<dev.dominikbreu.spoonmcp.model.ids.EntrypointId, Entrypoint> entrypointById) {
-        Map<String, List<String>> readPathsByEntity = new HashMap<>();
+        Map<String, List<dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId>> readPathsByEntity = new HashMap<>();
         for (DataFlowPath path : paths) {
             Entrypoint ep = entrypointById.get(path.entrypointId);
             if (ep != null && PERSISTENCE_HANDOFF_EXCLUDED_TARGETS.contains(ep.type)) continue;
@@ -577,7 +577,7 @@ public class DataFlowTracer {
         return readPathsByEntity;
     }
 
-    private void indexReadPathSinks(DataFlowPath path, Map<String, List<String>> readPathsByEntity) {
+    private void indexReadPathSinks(DataFlowPath path, Map<String, List<dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId>> readPathsByEntity) {
         for (DataFlowSink sink : path.sinks) {
             if (sink.kind != DataFlowSink.Kind.PERSISTENCE) continue;
             if (!isReadOperation(sink.repositoryOperation)) continue;
@@ -589,11 +589,11 @@ public class DataFlowTracer {
     }
 
     private void linkPersistenceWriteSink(
-            DataFlowSink sink, DataFlowPath path, Map<String, List<String>> readPathsByEntity) {
+            DataFlowSink sink, DataFlowPath path, Map<String, List<dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId>> readPathsByEntity) {
         if (sink.kind != DataFlowSink.Kind.PERSISTENCE) return;
         if (!isWriteOperation(sink.repositoryOperation)) return;
         if (sink.entityType == null) return;
-        for (String targetPathId : readPathsByEntity.getOrDefault(sink.entityType, List.of())) {
+        for (dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId targetPathId : readPathsByEntity.getOrDefault(sink.entityType, List.of())) {
             if (!targetPathId.equals(path.id) && !sink.linkedPathIds.contains(targetPathId)) {
                 sink.linkedPathIds.add(targetPathId);
                 sink.linkEvidence = "repository-entity-match";
