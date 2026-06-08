@@ -36,7 +36,8 @@ class TypedIdContractTest {
     void useCaseIdSerializesFromEntrypointAndRoundTrips() {
         EntrypointId ep = EntrypointId.of(ComponentId.of("com.acme.OrderResource"), "create", "POST:/orders");
         UseCaseId id = UseCaseId.of(ep);
-        assertThat(id.serialize()).isEqualTo("usecase:com.acme.OrderResource#create:POST:/orders");
+        assertThat(id.serialize()).isEqualTo("com.acme.OrderResource#create:POST:/orders");
+        assertThat(id.serialize()).doesNotContain("usecase:");
         assertThat(UseCaseId.deserialize(id.serialize())).isEqualTo(id);
         assertThat(UseCaseId.deserialize(id.serialize()).entrypoint()).isEqualTo(ep);
     }
