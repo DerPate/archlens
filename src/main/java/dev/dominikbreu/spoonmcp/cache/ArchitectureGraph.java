@@ -680,13 +680,21 @@ public class ArchitectureGraph {
 
     private void addDataFlowEdges(DataFlowPath path) {
         String epVertexId = path.entrypointId != null ? path.entrypointId.serialize() : "";
-        addEdge(epVertexId, path.id.serialize(), "ORIGINATES", Map.of("trackedParam", Objects.toString(path.trackedParam, "")));
+        addEdge(
+                epVertexId,
+                path.id.serialize(),
+                "ORIGINATES",
+                Map.of("trackedParam", Objects.toString(path.trackedParam, "")));
 
         for (int i = 0; i < path.sinks.size(); i++) {
             DataFlowSink sink = path.sinks.get(i);
             String sinkId = path.id.serialize() + SINK_MARKER + i;
             addSinkVertex(sinkId, path, sink);
-            addEdge(path.id.serialize(), sinkId, "REACHES", Map.of("sinkKind", sink.kind != null ? sink.kind.value() : ""));
+            addEdge(
+                    path.id.serialize(),
+                    sinkId,
+                    "REACHES",
+                    Map.of("sinkKind", sink.kind != null ? sink.kind.value() : ""));
             addSinkTargetEdge(sinkId, sink);
         }
     }
@@ -851,7 +859,7 @@ public class ArchitectureGraph {
                     edgeProps.put(VIA_CHANNEL, Objects.toString(in.channel, ""));
                 }
             }
-            addEdge(chainId, seg.path.id, "HAS_SEGMENT", edgeProps);
+            addEdge(chainId, seg.path.id.serialize(), "HAS_SEGMENT", edgeProps);
         }
     }
 
@@ -860,7 +868,7 @@ public class ArchitectureGraph {
         Segment prev = chain.segments.get(segmentIndex - 1);
         DataFlowSink target = chain.segments.get(segmentIndex).incomingSink;
         for (int i = 0; i < prev.path.sinks.size(); i++) {
-            if (prev.path.sinks.get(i) == target) return prev.path.id + SINK_MARKER + i;
+            if (prev.path.sinks.get(i) == target) return prev.path.id.serialize() + SINK_MARKER + i;
         }
         return "";
     }

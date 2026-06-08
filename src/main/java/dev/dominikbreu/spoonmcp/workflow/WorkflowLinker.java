@@ -57,7 +57,7 @@ public final class WorkflowLinker {
     private static Map<String, DataFlowPath> indexPathsById(ArchitectureModel model) {
         Map<String, DataFlowPath> pathById = new HashMap<>();
         for (DataFlowPath path : model.dataFlowPaths) {
-            pathById.put(path.id, path);
+            pathById.put(path.id.serialize(), path);
         }
         return pathById;
     }
@@ -105,8 +105,8 @@ public final class WorkflowLinker {
             if (kind == null) {
                 continue;
             }
-            for (String targetPathId : sink.linkedPathIds) {
-                WorkflowLink link = tryBuildLink(fromPath, fromEntrypoint, sink, kind, targetPathId, index);
+            for (dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId targetPathId : sink.linkedPathIds) {
+                WorkflowLink link = tryBuildLink(fromPath, fromEntrypoint, sink, kind, targetPathId.serialize(), index);
                 if (link != null) {
                     links.add(link);
                 }
@@ -142,8 +142,8 @@ public final class WorkflowLinker {
         }
         return new WorkflowLink(
                 kind,
-                fromPath.id,
-                toPath.id,
+                fromPath.id.serialize(),
+                toPath.id.serialize(),
                 fromPath.entrypointId != null ? fromPath.entrypointId.serialize() : null,
                 toPath.entrypointId != null ? toPath.entrypointId.serialize() : null,
                 sink.channel,
