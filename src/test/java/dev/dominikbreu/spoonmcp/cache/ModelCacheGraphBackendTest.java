@@ -22,7 +22,7 @@ class ModelCacheGraphBackendTest {
 
         assertThat(tempDir.resolve("active-workspace.txt")).exists();
         assertThat(Files.walk(tempDir.resolve("workspaces"))
-                        .filter(path -> "architecture-model.json"
+                        .filter(path -> "architecture-model.v2.json"
                                 .equals(path.getFileName().toString())))
                 .hasSize(1);
         assertThat(cache.getBackend()).isEqualTo(ModelCache.CacheBackend.GRAPH);
@@ -41,7 +41,7 @@ class ModelCacheGraphBackendTest {
         cache.store(second);
 
         assertThat(Files.walk(tempDir.resolve("workspaces"))
-                        .filter(path -> "architecture-model.json"
+                        .filter(path -> "architecture-model.v2.json"
                                 .equals(path.getFileName().toString())))
                 .hasSize(2);
 
@@ -65,7 +65,7 @@ class ModelCacheGraphBackendTest {
         assertThat(new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON).load())
                 .isNull();
         assertThat(Files.walk(tempDir.resolve("workspaces"))
-                        .filter(path -> "architecture-model.json"
+                        .filter(path -> "architecture-model.v2.json"
                                 .equals(path.getFileName().toString())))
                 .hasSize(1);
     }

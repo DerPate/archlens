@@ -10,7 +10,7 @@ import java.util.List;
  * A named business operation derived from a runtime entrypoint and its call chain.
  */
 public class UseCase {
-    /** Stable identifier: {@code usecase:<entrypointId>}. */
+    /** Stable identifier: the bare originating entrypoint id. */
     public UseCaseId id;
     /** Human-readable name, either auto-derived or supplied via naming config. */
     public String name;

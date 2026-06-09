@@ -29,16 +29,16 @@ class GraphDataProjectionTest {
                                 "de.homeinstead.phoenix.controller.ServiceRequestController#update:PUT:/serviceRequest/{id}",
                                 List.of("messaging")),
                         new ArchitectureGraph.DataFlowPathNode(
-                                GraphNodeId.of("df:serviceRequest#serviceRequest"),
-                                "df:serviceRequest#serviceRequest",
+                                GraphNodeId.of("serviceRequest#serviceRequest"),
+                                "serviceRequest#serviceRequest",
                                 EntrypointId.deserialize(
                                         "de.homeinstead.phoenix.controller.ServiceRequestController#update:PUT:/serviceRequest/{id}"),
                                 "serviceRequest",
                                 1,
                                 1),
                         new ArchitectureGraph.DataFlowPathNode(
-                                GraphNodeId.of("df:address#event"),
-                                "df:address#event",
+                                GraphNodeId.of("address#event"),
+                                "address#event",
                                 EntrypointId.deserialize(
                                         "de.homeinstead.phoenix.inbound.AddressMessageListener#listenCustomer:spring-listener:KAFKA:address"),
                                 "event",
@@ -55,10 +55,10 @@ class GraphDataProjectionTest {
                                 "AddressMessageListener",
                                 Map.of())),
                 List.of(
-                        edge("chain:12", "df:serviceRequest#serviceRequest", "HAS_SEGMENT", Map.of("segmentIndex", 0)),
+                        edge("chain:12", "serviceRequest#serviceRequest", "HAS_SEGMENT", Map.of("segmentIndex", 0)),
                         edge(
                                 "chain:12",
-                                "df:address#event",
+                                "address#event",
                                 "HAS_SEGMENT",
                                 Map.of(
                                         "segmentIndex",
@@ -69,7 +69,7 @@ class GraphDataProjectionTest {
                                         "address",
                                         "incomingSinkId",
                                         "sink:serviceRequest:3")),
-                        edge("df:serviceRequest#serviceRequest", "sink:serviceRequest:3", "REACHES", Map.of()),
+                        edge("serviceRequest#serviceRequest", "sink:serviceRequest:3", "REACHES", Map.of()),
                         edge(
                                 "sink:serviceRequest:3",
                                 "de.homeinstead.phoenix.inbound.AddressMessageListener",
@@ -82,16 +82,16 @@ class GraphDataProjectionTest {
             assertThat(pipeline.id()).isEqualTo("chain:12");
             assertThat(pipeline.title()).isEqualTo("ServiceRequestController.update PUT /serviceRequest/{id}");
             assertThat(pipeline.subtitle()).isEqualTo("messaging, 2 segments");
-            assertThat(pipeline.segmentIds()).containsExactly("df:serviceRequest#serviceRequest", "df:address#event");
+            assertThat(pipeline.segmentIds()).containsExactly("serviceRequest#serviceRequest", "address#event");
             assertThat(pipeline.nodeIds())
                     .containsExactly(
-                            "df:serviceRequest#serviceRequest",
-                            "df:address#event",
+                            "serviceRequest#serviceRequest",
+                            "address#event",
                             "sink:serviceRequest:3",
                             "de.homeinstead.phoenix.inbound.AddressMessageListener");
             assertThat(pipeline.edgeKeys())
                     .containsExactly(
-                            "df:serviceRequest#serviceRequest->sink:serviceRequest:3:REACHES:2",
+                            "serviceRequest#serviceRequest->sink:serviceRequest:3:REACHES:2",
                             "sink:serviceRequest:3->de.homeinstead.phoenix.inbound.AddressMessageListener:AT_COMPONENT:3");
             assertThat(pipeline.segments())
                     .extracting(GraphDataProjection.PipelineSegmentProjection::title)
@@ -100,19 +100,19 @@ class GraphDataProjectionTest {
                             "AddressMessageListener.listenCustomer KAFKA address #event");
             assertThat(pipeline.segments())
                     .extracting(GraphDataProjection.PipelineSegmentProjection::startNodeId)
-                    .containsExactly("df:serviceRequest#serviceRequest", "df:address#event");
+                    .containsExactly("serviceRequest#serviceRequest", "address#event");
             assertThat(pipeline.segments().getFirst().endNodeIds()).containsExactly("sink:serviceRequest:3");
             assertThat(pipeline.segments().getFirst().nodeIds())
                     .containsExactly(
-                            "df:serviceRequest#serviceRequest",
+                            "serviceRequest#serviceRequest",
                             "sink:serviceRequest:3",
                             "de.homeinstead.phoenix.inbound.AddressMessageListener");
             assertThat(pipeline.segments().getFirst().edgeKeys())
                     .containsExactly(
-                            "df:serviceRequest#serviceRequest->sink:serviceRequest:3:REACHES:2",
+                            "serviceRequest#serviceRequest->sink:serviceRequest:3:REACHES:2",
                             "sink:serviceRequest:3->de.homeinstead.phoenix.inbound.AddressMessageListener:AT_COMPONENT:3");
             assertThat(pipeline.segments().get(1).endNodeIds()).isEmpty();
-            assertThat(pipeline.segments().get(1).nodeIds()).containsExactly("df:address#event");
+            assertThat(pipeline.segments().get(1).nodeIds()).containsExactly("address#event");
             assertThat(pipeline.segments().get(1).edgeKeys()).isEmpty();
         });
     }
@@ -135,23 +135,20 @@ class GraphDataProjectionTest {
                                 2,
                                 "example.CustomerController#update:PUT:/customer/{id}",
                                 List.of("messaging")),
+                        path("customer#customer", "example.CustomerController#update:PUT:/customer/{id}", "customer"),
                         path(
-                                "df:customer#customer",
-                                "example.CustomerController#update:PUT:/customer/{id}",
-                                "customer"),
-                        path(
-                                "df:address#event",
+                                "address#event",
                                 "example.AddressMessageListener#listenCustomer:spring-listener:KAFKA:address",
                                 "event"),
-                        path("df:other#customer", "example.OtherController#update:PUT:/other/{id}", "customer"),
+                        path("other#customer", "example.OtherController#update:PUT:/other/{id}", "customer"),
                         node("sink:customer:0", "DataFlowSink", "KafkaJsonProducer", Map.of()),
                         node("sink:other:0", "DataFlowSink", "KafkaJsonProducer", Map.of()),
                         node("example.KafkaJsonProducer", "Component", "KafkaJsonProducer", Map.of())),
                 List.of(
-                        edge("chain:selected", "df:customer#customer", "HAS_SEGMENT", Map.of("segmentIndex", 0)),
+                        edge("chain:selected", "customer#customer", "HAS_SEGMENT", Map.of("segmentIndex", 0)),
                         edge(
                                 "chain:selected",
-                                "df:address#event",
+                                "address#event",
                                 "HAS_SEGMENT",
                                 Map.of(
                                         "segmentIndex",
@@ -162,23 +159,22 @@ class GraphDataProjectionTest {
                                         "messaging",
                                         "viaChannel",
                                         "address")),
-                        edge("df:customer#customer", "sink:customer:0", "REACHES", Map.of()),
+                        edge("customer#customer", "sink:customer:0", "REACHES", Map.of()),
                         edge("sink:customer:0", "example.KafkaJsonProducer", "AT_COMPONENT", Map.of()),
-                        edge("sink:customer:0", "df:address#event", "LINKS_TO", Map.of("linkKind", "messaging")),
-                        edge("df:other#customer", "sink:other:0", "REACHES", Map.of()),
+                        edge("sink:customer:0", "address#event", "LINKS_TO", Map.of("linkKind", "messaging")),
+                        edge("other#customer", "sink:other:0", "REACHES", Map.of()),
                         edge("sink:other:0", "example.KafkaJsonProducer", "AT_COMPONENT", Map.of()),
-                        edge("df:other#customer", "df:address#event", "WORKFLOW_LINK", Map.of())));
+                        edge("other#customer", "address#event", "WORKFLOW_LINK", Map.of())));
 
         GraphDataProjection.PipelineProjection pipeline =
                 GraphDataProjection.from(snapshot).pipelines().getFirst();
 
         assertThat(pipeline.nodeIds())
-                .containsExactly(
-                        "df:customer#customer", "df:address#event", "sink:customer:0", "example.KafkaJsonProducer");
+                .containsExactly("customer#customer", "address#event", "sink:customer:0", "example.KafkaJsonProducer");
         assertThat(pipeline.edgeKeys())
                 .containsExactly(
-                        "df:customer#customer->sink:customer:0:REACHES:2",
-                        "sink:customer:0->df:address#event:LINKS_TO:4",
+                        "customer#customer->sink:customer:0:REACHES:2",
+                        "sink:customer:0->address#event:LINKS_TO:4",
                         "sink:customer:0->example.KafkaJsonProducer:AT_COMPONENT:3");
     }
 
