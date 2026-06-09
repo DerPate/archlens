@@ -18,7 +18,8 @@ import tools.jackson.databind.json.JsonMapper;
 public class ModelCache {
 
     private static final String DEFAULT_CACHE_DIR = ".spoon-mcp-cache";
-    private static final String MODEL_FILE = "architecture-model.json";
+    private static final String MODEL_SCHEMA_VERSION = "v2";
+    private static final String MODEL_FILE = "architecture-model." + MODEL_SCHEMA_VERSION + ".json";
     private static final String WORKSPACES_DIR = "workspaces";
     private static final String ACTIVE_WORKSPACE_FILE = "active-workspace.txt";
     private static final String BACKEND_PROPERTY = "spoonmcp.cache.backend";
