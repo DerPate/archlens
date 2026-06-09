@@ -47,7 +47,7 @@ public final class WorkflowGraphBuilder {
                 entrypoint = null;
             }
             if (policy.isWorkflowRoot(entrypoint)) {
-                pathById.put(path.id, path);
+                pathById.put(path.id.serialize(), path);
             }
         }
 
@@ -66,8 +66,10 @@ public final class WorkflowGraphBuilder {
         }
 
         List<DataFlowPath> roots = pathById.values().stream()
-                .filter(path -> !hasIncoming.contains(path.id))
-                .filter(path -> !linksBySource.getOrDefault(path.id, List.of()).isEmpty())
+                .filter(path -> !hasIncoming.contains(path.id.serialize()))
+                .filter(path -> !linksBySource
+                        .getOrDefault(path.id.serialize(), List.of())
+                        .isEmpty())
                 .toList();
 
         return new WorkflowGraph(roots, pathById, entrypointById, linksBySource);

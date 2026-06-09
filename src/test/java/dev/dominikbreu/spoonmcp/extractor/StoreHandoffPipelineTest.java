@@ -128,7 +128,8 @@ class StoreHandoffPipelineTest extends ExtractorTestBase {
                 .as("RuleEngineA and RuleEngineB must each have a data-flow path")
                 .hasSizeGreaterThanOrEqualTo(2);
 
-        List<String> ruleEnginePathIds = ruleEnginePaths.stream().map(p -> p.id).toList();
+        List<dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId> ruleEnginePathIds =
+                ruleEnginePaths.stream().map(p -> p.id).toList();
 
         assertThat(model.dataFlowPaths)
                 .as("publishAll MESSAGING sinks must link to RuleEngine consumer paths (issue #16)")

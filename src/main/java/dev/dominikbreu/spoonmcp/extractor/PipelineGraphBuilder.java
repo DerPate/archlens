@@ -181,7 +181,7 @@ public class PipelineGraphBuilder {
 
     private List<String> segmentPathIds(Chain c) {
         List<String> ids = new ArrayList<>(c.segments.size());
-        for (Segment s : c.segments) ids.add(s.path.id);
+        for (Segment s : c.segments) ids.add(s.path.id.serialize());
         return ids;
     }
 
@@ -197,7 +197,7 @@ public class PipelineGraphBuilder {
             LinkedHashSet<String> stack,
             LinkedHashSet<String> epStack) {
         if (current == null) return;
-        if (stack.contains(current.id)) {
+        if (stack.contains(current.id.serialize())) {
             // path-level cycle — emit chain up to here
             emit(prefix, walk.out());
             return;
@@ -234,11 +234,11 @@ public class PipelineGraphBuilder {
             LinkedHashSet<String> stack,
             LinkedHashSet<String> epStack) {
         LinkedHashSet<String> nextStack = new LinkedHashSet<>(stack);
-        nextStack.add(current.id);
+        nextStack.add(current.id.serialize());
         LinkedHashSet<String> nextEpStack = new LinkedHashSet<>(epStack);
         if (epId != null) nextEpStack.add(epId);
         boolean fannedOut = false;
-        for (WorkflowLink link : walk.workflowGraph().linksFrom(current.id)) {
+        for (WorkflowLink link : walk.workflowGraph().linksFrom(current.id.serialize())) {
             DataFlowPath next = walk.workflowGraph().pathById().get(link.toPathId());
             if (next == null) continue;
             fannedOut = true;
@@ -251,7 +251,9 @@ public class PipelineGraphBuilder {
         DataFlowSink.Kind expected = expectedSinkKind(link.kind());
         if (expected == null) return null;
         for (DataFlowSink sink : current.sinks) {
-            if (sink.linkedPathIds == null || !sink.linkedPathIds.contains(link.toPathId())) continue;
+            if (sink.linkedPathIds == null
+                    || !sink.linkedPathIds.contains(
+                            dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId.deserialize(link.toPathId()))) continue;
             if (sink.kind == expected) return sink;
         }
         return null;

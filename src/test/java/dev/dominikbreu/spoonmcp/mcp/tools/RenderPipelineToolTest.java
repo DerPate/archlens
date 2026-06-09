@@ -15,6 +15,7 @@ import dev.dominikbreu.spoonmcp.model.DataFlowStep;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId;
 import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.ArrayList;
 import java.util.List;
@@ -189,7 +190,7 @@ class RenderPipelineToolTest {
             public ArchitectureModel load() {
                 ArchitectureModel model = new ArchitectureModel("diagnostic");
                 DataFlowPath path = new DataFlowPath();
-                path.id = "df:publish";
+                path.id = DataFlowPathId.of(EntrypointId.deserialize("publish"), "*");
                 path.entrypointId = EntrypointId.deserialize("publish");
                 DataFlowSink sink = new DataFlowSink();
                 sink.kind = DataFlowSink.Kind.MESSAGING;
@@ -244,7 +245,7 @@ class RenderPipelineToolTest {
                 model.entrypoints.add(consumer);
 
                 DataFlowPath path = new DataFlowPath();
-                path.id = "df:write";
+                path.id = DataFlowPathId.of(EntrypointId.deserialize("write"), "*");
                 path.entrypointId = EntrypointId.deserialize("write");
                 DataFlowSink write = new DataFlowSink();
                 write.kind = DataFlowSink.Kind.PERSISTENCE;
@@ -272,11 +273,11 @@ class RenderPipelineToolTest {
     /** Builds a two-segment chain (root → terminal) rooted at the given entrypoint ID. */
     private Chain chain(String rootEpId) {
         DataFlowPath root = new DataFlowPath();
-        root.id = "df:" + rootEpId + ":" + System.nanoTime();
+        root.id = DataFlowPathId.of(EntrypointId.deserialize(rootEpId), String.valueOf(System.nanoTime()));
         root.entrypointId = EntrypointId.deserialize(rootEpId);
 
         DataFlowPath downstream = new DataFlowPath();
-        downstream.id = "df:downstream:" + System.nanoTime();
+        downstream.id = DataFlowPathId.of(EntrypointId.deserialize("downstream"), String.valueOf(System.nanoTime()));
         downstream.entrypointId = EntrypointId.deserialize("downstream");
 
         DataFlowSink link = new DataFlowSink();
@@ -295,11 +296,11 @@ class RenderPipelineToolTest {
     /** Chain where path.entrypointId is null but the Segment carries a resolved Entrypoint. */
     private Chain chainWithResolvedEp(String epId) {
         DataFlowPath root = new DataFlowPath();
-        root.id = "df:path:" + epId + ":" + System.nanoTime();
+        root.id = DataFlowPathId.of(EntrypointId.deserialize(epId), "path:" + System.nanoTime());
         // entrypointId intentionally left null to exercise the resolved-entrypoint branch
 
         DataFlowPath downstream = new DataFlowPath();
-        downstream.id = "df:downstream:" + System.nanoTime();
+        downstream.id = DataFlowPathId.of(EntrypointId.deserialize("downstream"), String.valueOf(System.nanoTime()));
         downstream.entrypointId = EntrypointId.deserialize("downstream");
 
         DataFlowSink link = new DataFlowSink();
@@ -331,12 +332,12 @@ class RenderPipelineToolTest {
     private Chain chainWithDepth(String rootEpId, int totalSegments) {
         Chain c = new Chain();
         DataFlowPath root = new DataFlowPath();
-        root.id = "df:" + rootEpId + ":root:" + System.nanoTime();
+        root.id = DataFlowPathId.of(EntrypointId.deserialize(rootEpId), "root:" + System.nanoTime());
         root.entrypointId = EntrypointId.deserialize(rootEpId);
         c.segments.add(new Segment(root, null, null));
         for (int i = 1; i < totalSegments; i++) {
             DataFlowPath p = new DataFlowPath();
-            p.id = "df:" + rootEpId + ":seg" + i + ":" + System.nanoTime();
+            p.id = DataFlowPathId.of(EntrypointId.deserialize("downstream" + i), "seg" + i + ":" + System.nanoTime());
             p.entrypointId = EntrypointId.deserialize("downstream" + i);
             DataFlowSink link = new DataFlowSink();
             link.kind = DataFlowSink.Kind.MESSAGING;
@@ -394,35 +395,38 @@ class RenderPipelineToolTest {
         epDs.componentId = ComponentId.of("ds");
         m.entrypoints.addAll(List.of(ep1, ep2, epDs));
 
+        DataFlowPathId ds1Id = DataFlowPathId.of(EntrypointId.deserialize("ds"), "ds1");
+        DataFlowPathId ds2Id = DataFlowPathId.of(EntrypointId.deserialize("ds"), "ds2");
+
         // chain 1: root1 → MESSAGING → downstream
         DataFlowPath p1 = new DataFlowPath();
-        p1.id = "df:root1";
+        p1.id = DataFlowPathId.of(EntrypointId.deserialize(rootEpId1), "root1");
         p1.entrypointId = EntrypointId.deserialize(rootEpId1);
         p1.steps.add(new DataFlowStep(0, ComponentId.of("src1"), "Src1", "method1", "x"));
         DataFlowSink s1 = new DataFlowSink();
         s1.kind = DataFlowSink.Kind.MESSAGING;
         s1.channel = "ch1";
-        s1.linkedPathIds.add("df:ds1");
+        s1.linkedPathIds.add(ds1Id);
         p1.sinks.add(s1);
 
         // chain 2: root2 → MESSAGING → downstream
         DataFlowPath p2 = new DataFlowPath();
-        p2.id = "df:root2";
+        p2.id = DataFlowPathId.of(EntrypointId.deserialize(rootEpId2), "root2");
         p2.entrypointId = EntrypointId.deserialize(rootEpId2);
         p2.steps.add(new DataFlowStep(0, ComponentId.of("src2"), "Src2", "method2", "x"));
         DataFlowSink s2 = new DataFlowSink();
         s2.kind = DataFlowSink.Kind.MESSAGING;
         s2.channel = "ch2";
-        s2.linkedPathIds.add("df:ds2");
+        s2.linkedPathIds.add(ds2Id);
         p2.sinks.add(s2);
 
         // shared downstream paths (terminal)
         DataFlowPath ds1 = new DataFlowPath();
-        ds1.id = "df:ds1";
+        ds1.id = ds1Id;
         ds1.entrypointId = EntrypointId.deserialize("ds");
         ds1.steps.add(new DataFlowStep(0, ComponentId.of("ds"), "Downstream", "handle", "x"));
         DataFlowPath ds2 = new DataFlowPath();
-        ds2.id = "df:ds2";
+        ds2.id = ds2Id;
         ds2.entrypointId = EntrypointId.deserialize("ds");
         ds2.steps.add(new DataFlowStep(0, ComponentId.of("ds"), "Downstream", "handle", "x"));
 

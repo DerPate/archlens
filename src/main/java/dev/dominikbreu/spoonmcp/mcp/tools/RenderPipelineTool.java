@@ -187,7 +187,7 @@ public class RenderPipelineTool {
         if (root.entrypointId != null) {
             return root.entrypointId.serialize();
         } else {
-            return root.id;
+            return root.id.serialize();
         }
     }
 

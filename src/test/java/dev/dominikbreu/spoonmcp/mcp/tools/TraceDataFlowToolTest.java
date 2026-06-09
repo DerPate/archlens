@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId;
 import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.List;
 import java.util.Map;
@@ -40,9 +41,9 @@ class TraceDataFlowToolTest {
         edge.callKind = "direct";
         model.callEdges.add(edge);
 
-        DataFlowPath customerPath = dataFlowPath("df:ep:CustomerController#get:GET#id", customerEp.id, "id");
+        DataFlowPath customerPath = dataFlowPath("ep:CustomerController#get:GET#id", customerEp.id, "id");
         DataFlowPath budgetPath =
-                dataFlowPath("df:ep:BudgetControlController#get:GET#customerId", budgetEp.id, "customerId");
+                dataFlowPath("ep:BudgetControlController#get:GET#customerId", budgetEp.id, "customerId");
         model.dataFlowPaths.addAll(List.of(customerPath, budgetPath));
 
         ModelCache cache = new ModelCache(null, ModelCache.CacheBackend.JSON) {
@@ -127,7 +128,7 @@ class TraceDataFlowToolTest {
     void format_entrypointMissing_fallsBackToSerializedId() {
         ArchitectureModel model = richModel();
         // path referencing an entrypoint id not present in model.entrypoints
-        DataFlowPath orphan = dataFlowPath("df:ep:Ghost#run#x", EntrypointId.deserialize("Ghost#run"), "x");
+        DataFlowPath orphan = dataFlowPath("ep:Ghost#run#x", EntrypointId.deserialize("Ghost#run"), "x");
         model.dataFlowPaths.add(orphan);
         String result = tool(model).execute(Map.of("param", "x"));
         assertThat(result).contains("Ghost#run");
@@ -163,7 +164,7 @@ class TraceDataFlowToolTest {
         edge.callKind = "direct";
         model.callEdges.add(edge);
 
-        DataFlowPath path = dataFlowPath("df:ep:CustomerController#get:GET#id", ep.id, "id");
+        DataFlowPath path = dataFlowPath("ep:CustomerController#get:GET#id", ep.id, "id");
         path.steps.add(new DataFlowStep(0, ctrl.id, "CustomerController", "get", "id"));
         DataFlowSink sink = new DataFlowSink(
                 DataFlowSink.Kind.STORE,
@@ -199,7 +200,7 @@ class TraceDataFlowToolTest {
 
     private static DataFlowPath dataFlowPath(String id, EntrypointId entrypointId, String param) {
         DataFlowPath p = new DataFlowPath();
-        p.id = id;
+        p.id = DataFlowPathId.deserialize(id);
         p.entrypointId = entrypointId;
         p.trackedParam = param;
         p.steps = new java.util.ArrayList<>();

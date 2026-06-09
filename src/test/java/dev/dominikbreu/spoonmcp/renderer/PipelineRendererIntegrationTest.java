@@ -14,6 +14,7 @@ import dev.dominikbreu.spoonmcp.model.DataFlowStep;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId;
 import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -71,7 +72,7 @@ class PipelineRendererIntegrationTest {
     void emitsNoChainWhenNoLinks() {
         ArchitectureModel model = new ArchitectureModel("synthetic");
         DataFlowPath orphan = new DataFlowPath();
-        orphan.id = "df:orphan";
+        orphan.id = DataFlowPathId.of(EntrypointId.deserialize("orphan"), "*");
         orphan.entrypointId = EntrypointId.deserialize("orphan");
         model.dataFlowPaths.add(orphan);
 
@@ -128,7 +129,7 @@ class PipelineRendererIntegrationTest {
                 ep("process", "process", EntrypointType.MESSAGING_CONSUMER, "internal", "Processor")));
 
         // Path 1: ingestor → STORE(Cache.records)
-        DataFlowPath p1 = path("df:ingest", "ingest", "snapshot");
+        DataFlowPath p1 = path("ingest", "ingest", "snapshot");
         p1.steps.add(new DataFlowStep(0, ComponentId.of("Ingestor"), "Ingestor", "consume", "snapshot"));
         DataFlowSink storeSink = new DataFlowSink();
         storeSink.kind = DataFlowSink.Kind.STORE;
@@ -137,11 +138,11 @@ class PipelineRendererIntegrationTest {
         storeSink.method = "records";
         storeSink.fieldName = "records";
         storeSink.fieldOwnerComponentId = ComponentId.of("Cache");
-        storeSink.linkedPathIds.add("df:schedule");
+        storeSink.linkedPathIds.add(DataFlowPathId.deserialize("schedule"));
         p1.sinks.add(storeSink);
 
         // Path 2: scheduler → MESSAGING(internal) (also a non-linking HTTP_OUTBOUND terminal)
-        DataFlowPath p2 = path("df:schedule", "schedule", "*");
+        DataFlowPath p2 = path("schedule", "schedule", "*");
         p2.steps.add(new DataFlowStep(0, ComponentId.of("Scheduler"), "Scheduler", "tick", "*"));
         DataFlowSink msgSink = new DataFlowSink();
         msgSink.kind = DataFlowSink.Kind.MESSAGING;
@@ -149,7 +150,7 @@ class PipelineRendererIntegrationTest {
         msgSink.componentName = "Scheduler";
         msgSink.method = "send";
         msgSink.channel = "internal";
-        msgSink.linkedPathIds.add("df:process");
+        msgSink.linkedPathIds.add(DataFlowPathId.deserialize("process"));
         p2.sinks.add(msgSink);
         DataFlowSink httpSink = new DataFlowSink();
         httpSink.kind = DataFlowSink.Kind.HTTP_OUTBOUND;
@@ -159,7 +160,7 @@ class PipelineRendererIntegrationTest {
         p2.sinks.add(httpSink);
 
         // Path 3: processor (terminal segment, no links forward)
-        DataFlowPath p3 = path("df:process", "process", "entry");
+        DataFlowPath p3 = path("process", "process", "entry");
         p3.steps.add(new DataFlowStep(0, ComponentId.of("Processor"), "Processor", "process", "entry"));
 
         m.dataFlowPaths.addAll(List.of(p1, p2, p3));
@@ -186,7 +187,7 @@ class PipelineRendererIntegrationTest {
 
     private DataFlowPath path(String id, String entrypointId, String trackedParam) {
         DataFlowPath p = new DataFlowPath();
-        p.id = id;
+        p.id = DataFlowPathId.deserialize(id);
         p.entrypointId = EntrypointId.deserialize(entrypointId);
         p.trackedParam = trackedParam;
         return p;
@@ -200,7 +201,7 @@ class PipelineRendererIntegrationTest {
 
         model.entrypoints.add(ep("tick", "tick", EntrypointType.SCHEDULER, null, "Scheduler"));
 
-        DataFlowPath p1 = path("df:tick", "tick", "*");
+        DataFlowPath p1 = path("tick", "tick", "*");
         p1.steps.add(new DataFlowStep(0, ComponentId.of("Scheduler"), "Scheduler", "tick", "*"));
         p1.steps.add(new DataFlowStep(1, ComponentId.of("Repo"), "Repo", "save", "*"));
         DataFlowSink terminal = new DataFlowSink();
@@ -236,7 +237,7 @@ class PipelineRendererIntegrationTest {
         persistence.entityType = "com.example.Order";
         persistence.repositoryOperation = "save";
         persistence.linkEvidence = "repository-entity-match";
-        persistence.linkedPathIds.add("df:schedule");
+        persistence.linkedPathIds.add(DataFlowPathId.deserialize("schedule"));
         model.dataFlowPaths.get(0).sinks.clear();
         model.dataFlowPaths.get(0).sinks.add(persistence);
 

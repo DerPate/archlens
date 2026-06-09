@@ -594,12 +594,18 @@ class DataFlowTracerTest {
                         p.entrypointId.equals(EntrypointId.deserialize("EP1")) && "cacheField".equals(p.trackedParam))
                 .findFirst()
                 .ifPresent(pathA -> {
-                    String pathBId = "df:ep:EP1#machineId";
-                    pathA.sinks.stream()
-                            .filter(s -> s.kind == DataFlowSink.Kind.STORE)
-                            .forEach(storeSink -> assertThat(storeSink.linkedPathIds)
-                                    .as("STORE sink on path A must not link to path B (same entrypoint)")
-                                    .doesNotContain(pathBId));
+                    DataFlowPath pathB = paths.stream()
+                            .filter(p -> p.entrypointId.equals(EntrypointId.deserialize("EP1"))
+                                    && "machineId".equals(p.trackedParam))
+                            .findFirst()
+                            .orElse(null);
+                    if (pathB != null) {
+                        pathA.sinks.stream()
+                                .filter(s -> s.kind == DataFlowSink.Kind.STORE)
+                                .forEach(storeSink -> assertThat(storeSink.linkedPathIds)
+                                        .as("STORE sink on path A must not link to path B (same entrypoint)")
+                                        .doesNotContain(pathB.id));
+                    }
                 });
     }
 
@@ -885,7 +891,7 @@ class DataFlowTracerTest {
         assertThat(storeSinks).as("consumer must produce a stateMap STORE sink").isNotEmpty();
         storeSinks.forEach(storeSink -> assertThat(storeSink.linkedPathIds)
                 .as("STORE sink must not link to scheduler that only reaches 'stateMap' via messaging boundary")
-                .noneMatch(id -> id.contains("scheduler")));
+                .noneMatch(id -> id.serialize().contains("scheduler")));
     }
 
     @Test
