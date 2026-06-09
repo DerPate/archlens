@@ -10,6 +10,7 @@ import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.MessagingBroker;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId;
 import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.nio.file.Path;
 import java.util.Map;
@@ -98,7 +99,7 @@ class QueryArchitectureGraphToolTest {
         ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON);
         ArchitectureModel model = model();
         DataFlowPath path = new DataFlowPath();
-        path.id = "df:payment#payload";
+        path.id = DataFlowPathId.of(EntrypointId.deserialize("payment"), "payload");
         path.entrypointId = EntrypointId.deserialize("payment");
         path.trackedParam = "payload";
         DataFlowSink sink = new DataFlowSink(

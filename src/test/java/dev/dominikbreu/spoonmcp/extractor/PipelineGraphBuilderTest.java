@@ -10,6 +10,7 @@ import dev.dominikbreu.spoonmcp.model.DataFlowStep;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId;
 import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -36,10 +37,10 @@ class PipelineGraphBuilderTest {
                 .as("prefix chain (R,B,A) suppressed; only (R,B,C,D) remains")
                 .hasSize(1);
         assertThat(chains.get(0).segments).hasSize(4);
-        assertThat(chains.get(0).segments.get(0).path.id).isEqualTo("df:R");
-        assertThat(chains.get(0).segments.get(1).path.id).isEqualTo("df:B");
-        assertThat(chains.get(0).segments.get(2).path.id).isEqualTo("df:C");
-        assertThat(chains.get(0).segments.get(3).path.id).isEqualTo("df:D");
+        assertThat(chains.get(0).segments.get(0).path.id.serialize()).isEqualTo("R##");
+        assertThat(chains.get(0).segments.get(1).path.id.serialize()).isEqualTo("B##");
+        assertThat(chains.get(0).segments.get(2).path.id.serialize()).isEqualTo("C##");
+        assertThat(chains.get(0).segments.get(3).path.id.serialize()).isEqualTo("D##");
     }
 
     @Test
@@ -79,23 +80,23 @@ class PipelineGraphBuilderTest {
         }
 
         // R → B
-        DataFlowPath pR = path("df:R", "R");
-        sink(pR, "df:B");
+        DataFlowPath pR = path("R", "R");
+        sink(pR, "B");
 
         // B fans out to A and C
-        DataFlowPath pB = path("df:B", "B");
-        sink(pB, "df:A");
-        sink(pB, "df:C");
+        DataFlowPath pB = path("B", "B");
+        sink(pB, "A");
+        sink(pB, "C");
 
         // A: terminal (no links)
-        DataFlowPath pA = path("df:A", "A");
+        DataFlowPath pA = path("A", "A");
 
         // C → D
-        DataFlowPath pC = path("df:C", "C");
-        sink(pC, "df:D");
+        DataFlowPath pC = path("C", "C");
+        sink(pC, "D");
 
         // D: terminal
-        DataFlowPath pD = path("df:D", "D");
+        DataFlowPath pD = path("D", "D");
 
         m.dataFlowPaths.addAll(List.of(pR, pB, pA, pC, pD));
         return m;
@@ -112,18 +113,18 @@ class PipelineGraphBuilderTest {
             m.entrypoints.add(ep(id, EntrypointType.MESSAGING_CONSUMER));
         }
 
-        DataFlowPath pR = path("df:R", "R");
-        sink(pR, "df:A");
-        sink(pR, "df:B");
+        DataFlowPath pR = path("R", "R");
+        sink(pR, "A");
+        sink(pR, "B");
 
-        DataFlowPath pA = path("df:A", "A");
-        sink(pA, "df:C");
+        DataFlowPath pA = path("A", "A");
+        sink(pA, "C");
 
-        DataFlowPath pB = path("df:B", "B");
-        sink(pB, "df:D");
+        DataFlowPath pB = path("B", "B");
+        sink(pB, "D");
 
-        DataFlowPath pC = path("df:C", "C");
-        DataFlowPath pD = path("df:D", "D");
+        DataFlowPath pC = path("C", "C");
+        DataFlowPath pD = path("D", "D");
 
         m.dataFlowPaths.addAll(List.of(pR, pA, pB, pC, pD));
         return m;
@@ -135,13 +136,13 @@ class PipelineGraphBuilderTest {
         m.entrypoints.add(ep("EP2", EntrypointType.MESSAGING_CONSUMER));
 
         // Two paths from same entrypoint, different trackedName — both link to same downstream
-        DataFlowPath pA = path("df:EP1#a", "EP1");
-        sink(pA, "df:EP2");
+        DataFlowPath pA = path("EP1#a", "EP1");
+        sink(pA, "EP2");
 
-        DataFlowPath pB = path("df:EP1#b", "EP1");
-        sink(pB, "df:EP2");
+        DataFlowPath pB = path("EP1#b", "EP1");
+        sink(pB, "EP2");
 
-        DataFlowPath pEP2 = path("df:EP2", "EP2");
+        DataFlowPath pEP2 = path("EP2", "EP2");
         // terminal: no outgoing sinks
 
         m.dataFlowPaths.addAll(List.of(pA, pB, pEP2));
@@ -158,7 +159,7 @@ class PipelineGraphBuilderTest {
 
     private DataFlowPath path(String id, String entrypointId) {
         DataFlowPath p = new DataFlowPath();
-        p.id = id;
+        p.id = DataFlowPathId.deserialize(id);
         p.entrypointId = EntrypointId.deserialize(entrypointId);
         p.steps.add(new DataFlowStep(0, ComponentId.of("x"), "X", "m", "x"));
         return p;
@@ -167,7 +168,7 @@ class PipelineGraphBuilderTest {
     private void sink(DataFlowPath from, String toPathId) {
         DataFlowSink s = new DataFlowSink();
         s.kind = DataFlowSink.Kind.MESSAGING;
-        s.linkedPathIds.add(toPathId);
+        s.linkedPathIds.add(DataFlowPathId.deserialize(toPathId));
         from.sinks.add(s);
     }
 
@@ -186,20 +187,20 @@ class PipelineGraphBuilderTest {
         m.entrypoints.add(ep("A", EntrypointType.MESSAGING_CONSUMER));
 
         // Two paths from ep:A, different tracked params
-        DataFlowPath pA1 = path("df:A#star", "A");
-        DataFlowPath pA2 = path("df:A#field", "A");
+        DataFlowPath pA1 = path("A#star", "A");
+        DataFlowPath pA2 = path("A#field", "A");
 
         // pS → stateCache → pA1
-        DataFlowPath pS = path("df:S", "S");
+        DataFlowPath pS = path("S", "S");
         DataFlowSink storeSinkS = new DataFlowSink();
         storeSinkS.kind = DataFlowSink.Kind.STORE;
-        storeSinkS.linkedPathIds.add("df:A#star");
+        storeSinkS.linkedPathIds.add(DataFlowPathId.deserialize("A#star"));
         pS.sinks.add(storeSinkS);
 
         // pA1 → stateCache → pA2 (same entrypoint as pA1 → loop)
         DataFlowSink storeSinkA = new DataFlowSink();
         storeSinkA.kind = DataFlowSink.Kind.STORE;
-        storeSinkA.linkedPathIds.add("df:A#field");
+        storeSinkA.linkedPathIds.add(DataFlowPathId.deserialize("A#field"));
         pA1.sinks.add(storeSinkA);
 
         m.dataFlowPaths.addAll(List.of(pS, pA1, pA2));
@@ -213,13 +214,13 @@ class PipelineGraphBuilderTest {
         assertThat(chains.get(0).segments)
                 .as("chain must be (S, A) — entrypoint-level cycle stops at the second A")
                 .hasSize(2);
-        assertThat(chains.get(0).segments.get(1).path.id).isEqualTo("df:A#star");
+        assertThat(chains.get(0).segments.get(1).path.id.serialize()).isEqualTo("A##star");
     }
 
     /**
      * When the model's entrypoints list does NOT contain the CDI observer (e.g. stale JSON cache),
      * the path ID string itself must still be enough to classify the path as lifecycle and exclude it.
-     * Path ID pattern: "df:ep:...#onShutdown:observer#trackedParam"
+     * Path ID pattern: "ep:...#onShutdown:observer#trackedParam"
      */
     @Test
     void build_excludesLifecyclePathsByIdStringWhenEntrypointObjectIsMissing() {
@@ -229,23 +230,23 @@ class PipelineGraphBuilderTest {
         m.entrypoints.add(ep("scheduler", EntrypointType.SCHEDULER));
         m.entrypoints.add(ep("consumer", EntrypointType.MESSAGING_CONSUMER));
 
-        DataFlowPath schedulerPath = path("df:scheduler", "scheduler");
+        DataFlowPath schedulerPath = path("scheduler", "scheduler");
         // Scheduler links to both: a lifecycle path (whose ep is absent) and a real consumer path
         DataFlowSink toObserver = new DataFlowSink();
         toObserver.kind = DataFlowSink.Kind.STORE;
-        toObserver.linkedPathIds.add("df:ep:com.example.Svc#onShutdown:observer#*");
+        toObserver.linkedPathIds.add(DataFlowPathId.deserialize("ep:com.example.Svc#onShutdown:observer#*"));
         schedulerPath.sinks.add(toObserver);
 
         DataFlowSink toConsumer = new DataFlowSink();
         toConsumer.kind = DataFlowSink.Kind.MESSAGING;
-        toConsumer.linkedPathIds.add("df:consumer");
+        toConsumer.linkedPathIds.add(DataFlowPathId.deserialize("consumer"));
         schedulerPath.sinks.add(toConsumer);
 
         // Lifecycle path — entrypointId absent from model.entrypoints
         DataFlowPath observerPath =
-                path("df:ep:com.example.Svc#onShutdown:observer#*", "com.example.Svc#onShutdown:observer");
+                path("ep:com.example.Svc#onShutdown:observer#*", "com.example.Svc#onShutdown:observer");
 
-        DataFlowPath consumerPath = path("df:consumer", "consumer");
+        DataFlowPath consumerPath = path("consumer", "consumer");
 
         m.dataFlowPaths.addAll(List.of(schedulerPath, observerPath, consumerPath));
 
@@ -254,9 +255,9 @@ class PipelineGraphBuilderTest {
         assertThat(chains)
                 .as("lifecycle path excluded even without registered entrypoint")
                 .hasSize(1);
-        assertThat(chains.get(0).segments.get(1).path.id)
+        assertThat(chains.get(0).segments.get(1).path.id.serialize())
                 .as("only the consumer chain survives")
-                .isEqualTo("df:consumer");
+                .isEqualTo("consumer##");
     }
 
     @Test
@@ -283,31 +284,31 @@ class PipelineGraphBuilderTest {
 
         // Scheduler path links to both the shutdown observer and the data observer
         DataFlowPath schedulerPath = new DataFlowPath();
-        schedulerPath.id = "df:scheduler";
+        schedulerPath.id = DataFlowPathId.deserialize("scheduler");
         schedulerPath.entrypointId = EntrypointId.deserialize("scheduler");
         schedulerPath.steps.add(new DataFlowStep(0, ComponentId.of("x"), "X", "run", "*"));
 
         DataFlowSink sinkToShutdown = new DataFlowSink();
         sinkToShutdown.kind = DataFlowSink.Kind.STORE;
-        sinkToShutdown.linkedPathIds.add("df:shutdown-observer");
+        sinkToShutdown.linkedPathIds.add(DataFlowPathId.deserialize("shutdown-observer"));
 
         DataFlowSink sinkToData = new DataFlowSink();
         sinkToData.kind = DataFlowSink.Kind.MESSAGING;
         sinkToData.channel = "orders";
-        sinkToData.linkedPathIds.add("df:data-observer");
+        sinkToData.linkedPathIds.add(DataFlowPathId.deserialize("data-observer"));
 
         schedulerPath.sinks.add(sinkToShutdown);
         schedulerPath.sinks.add(sinkToData);
         m.dataFlowPaths.add(schedulerPath);
 
         DataFlowPath shutdownPath = new DataFlowPath();
-        shutdownPath.id = "df:shutdown-observer";
+        shutdownPath.id = DataFlowPathId.deserialize("shutdown-observer");
         shutdownPath.entrypointId = EntrypointId.deserialize("shutdown-observer");
         shutdownPath.steps.add(new DataFlowStep(0, ComponentId.of("x"), "X", "onShutdown", "*"));
         m.dataFlowPaths.add(shutdownPath);
 
         DataFlowPath dataObserverPath = new DataFlowPath();
-        dataObserverPath.id = "df:data-observer";
+        dataObserverPath.id = DataFlowPathId.deserialize("data-observer");
         dataObserverPath.entrypointId = EntrypointId.deserialize("data-observer");
         dataObserverPath.steps.add(new DataFlowStep(0, ComponentId.of("x"), "X", "onOrderCreated", "*"));
         m.dataFlowPaths.add(dataObserverPath);
