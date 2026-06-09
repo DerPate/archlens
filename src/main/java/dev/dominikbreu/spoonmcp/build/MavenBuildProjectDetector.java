@@ -15,7 +15,11 @@ import org.apache.maven.model.Plugin;
 import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 
+/** {@link BuildProjectDetector} implementation that recognises Maven projects. */
 public class MavenBuildProjectDetector implements BuildProjectDetector {
+
+    /** Creates a detector with default settings. */
+    public MavenBuildProjectDetector() {}
 
     private static final String POM_XML = "pom.xml";
 
@@ -32,10 +36,22 @@ public class MavenBuildProjectDetector implements BuildProjectDetector {
         return Optional.of(new BuildProject(BuildSystem.MAVEN, root, modules, POM_XML, 0.95));
     }
 
+    /**
+     * Reads the declared sub-module names from the POM at the given root.
+     *
+     * @param root the module root directory
+     * @return the module names, or an empty list if the POM is absent or has none
+     */
     public List<String> readModules(File root) {
         return readModel(root).map(model -> List.copyOf(model.getModules())).orElseGet(List::of);
     }
 
+    /**
+     * Reads the packaging type from the POM at the given root.
+     *
+     * @param root the module root directory
+     * @return the packaging type, defaulting to {@code "jar"} if absent or blank
+     */
     public String readPackaging(File root) {
         return readModel(root)
                 .map(Model::getPackaging)

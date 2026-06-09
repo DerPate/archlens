@@ -8,6 +8,11 @@ import java.util.Map;
 
 /**
  * Canonical workflow view over data-flow paths and typed continuation links.
+ *
+ * @param rootPaths data-flow paths not targeted by any workflow link (chain entry points)
+ * @param pathById all data-flow paths indexed by their string id
+ * @param entrypointById all entrypoints indexed by their id
+ * @param linksBySourcePathId outgoing workflow links indexed by source path id
  */
 public record WorkflowGraph(
         List<DataFlowPath> rootPaths,
@@ -24,10 +29,21 @@ public record WorkflowGraph(
                         Map.Entry::getKey, entry -> List.copyOf(entry.getValue())));
     }
 
+    /**
+     * Returns all outgoing workflow links for the given path id.
+     *
+     * @param pathId the source data-flow path id
+     * @return the outgoing links, or an empty list if none
+     */
     public List<WorkflowLink> linksFrom(String pathId) {
         return linksBySourcePathId.getOrDefault(pathId, List.of());
     }
 
+    /**
+     * Returns the total number of workflow links across all paths.
+     *
+     * @return the sum of all link list sizes
+     */
     public int totalLinks() {
         return linksBySourcePathId.values().stream().mapToInt(List::size).sum();
     }

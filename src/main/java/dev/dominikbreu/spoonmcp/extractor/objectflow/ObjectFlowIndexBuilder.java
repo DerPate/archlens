@@ -36,19 +36,38 @@ import spoon.reflect.visitor.filter.TypeFilter;
 /**
  * Builds the object-flow index from source and architecture metadata.
  */
+/** Builds the object-flow index from source and architecture metadata. */
 public class ObjectFlowIndexBuilder {
 
     private static final String PROJECT_TYPES = "project-types";
     private static final String IMPLEMENTATION_GROUPS = "implementation-groups";
 
+    /** Creates a builder with default settings. */
+    public ObjectFlowIndexBuilder() {}
+
     private static Tracer tracer() {
         return GlobalOpenTelemetry.getTracer("dev.dominikbreu.spoonmcp");
     }
 
+    /**
+     * Builds an object-flow index from the given Spoon model and architecture metadata.
+     *
+     * @param ctModel the Spoon CT model to analyse
+     * @param architecture the extracted architecture model
+     * @return the populated object-flow index
+     */
     public ObjectFlowIndex build(CtModel ctModel, ArchitectureModel architecture) {
         return build(ctModel, architecture, null);
     }
 
+    /**
+     * Builds an object-flow index with an optional source-fact index for enhanced resolution.
+     *
+     * @param ctModel the Spoon CT model to analyse
+     * @param architecture the extracted architecture model
+     * @param sourceFacts the source-fact index, or {@code null} to skip source-fact lookups
+     * @return the populated object-flow index
+     */
     public ObjectFlowIndex build(CtModel ctModel, ArchitectureModel architecture, SourceFactIndex sourceFacts) {
         Span span = tracer().spanBuilder("objectflow.build").startSpan();
         try (var _ = span.makeCurrent()) {

@@ -227,8 +227,7 @@
                 <version>3.11.2</version>
                 <configuration>
                     <release>${maven.compiler.release}</release>
-                    <doclint>all,-missing</doclint>
-                </configuration>
+</configuration>
                 <executions>
                     <execution>
                         <id>attach-javadocs</id>

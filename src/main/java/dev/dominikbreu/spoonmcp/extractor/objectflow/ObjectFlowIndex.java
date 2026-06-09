@@ -14,6 +14,7 @@ import spoon.reflect.code.CtInvocation;
  * Index for resolving object receiver flows discovered from a Spoon model.
  */
 public class ObjectFlowIndex {
+    /** Maximum number of polymorphic receiver targets returned before capping expansion. */
     public static final int DEFAULT_POLYMORPHIC_TARGET_CAP = 25;
 
     record TypeFact(String qualifiedName, String componentId, boolean abstractOrInterface) {}
@@ -23,11 +24,24 @@ public class ObjectFlowIndex {
     private final Map<CtInvocation<?>, List<ReceiverTarget>> receiverTargetsByInvocation;
     private final Set<String> diagnostics = new LinkedHashSet<>();
 
+    /**
+     * Creates an index with type and implementation maps but no pre-resolved receiver targets.
+     *
+     * @param typesByQualifiedName all known types keyed by qualified name
+     * @param implementationsByQualifiedName concrete implementations keyed by their interface/supertype name
+     */
     public ObjectFlowIndex(
             Map<String, TypeFact> typesByQualifiedName, Map<String, List<TypeFact>> implementationsByQualifiedName) {
         this(typesByQualifiedName, implementationsByQualifiedName, Map.of());
     }
 
+    /**
+     * Creates an index with pre-resolved receiver targets for specific invocations.
+     *
+     * @param typesByQualifiedName all known types keyed by qualified name
+     * @param implementationsByQualifiedName concrete implementations keyed by their interface/supertype name
+     * @param receiverTargetsByInvocation pre-resolved receiver targets keyed by invocation site
+     */
     public ObjectFlowIndex(
             Map<String, TypeFact> typesByQualifiedName,
             Map<String, List<TypeFact>> implementationsByQualifiedName,
@@ -37,14 +51,32 @@ public class ObjectFlowIndex {
         this.receiverTargetsByInvocation = copyReceiverTargetMap(receiverTargetsByInvocation);
     }
 
+    /**
+     * Returns an empty index with no type or receiver target information.
+     *
+     * @return an empty {@code ObjectFlowIndex}
+     */
     public static ObjectFlowIndex empty() {
         return new ObjectFlowIndex(Map.of(), Map.of());
     }
 
+    /**
+     * Returns pre-resolved receiver targets for the given invocation site, or an empty list.
+     *
+     * @param invocation the call site to look up
+     * @return the receiver targets, or an empty list if none are pre-resolved
+     */
     public List<ReceiverTarget> resolveReceiver(CtInvocation<?> invocation) {
         return receiverTargetsByInvocation.getOrDefault(invocation, List.of());
     }
 
+    /**
+     * Expands a declared type to concrete receiver targets by resolving implementations.
+     *
+     * @param declaredType the fully-qualified declared type name
+     * @param methodName the method being invoked on the receiver
+     * @return the resolved receiver targets, capped at {@link #DEFAULT_POLYMORPHIC_TARGET_CAP}
+     */
     public List<ReceiverTarget> expandDeclaredType(String declaredType, String methodName) {
         List<TypeFact> implementations = implementationsByQualifiedName.getOrDefault(declaredType, List.of());
         TypeFact declaredTypeFact = typesByQualifiedName.get(declaredType);
@@ -87,6 +119,11 @@ public class ObjectFlowIndex {
         return List.of();
     }
 
+    /**
+     * Returns the diagnostics collected during receiver expansion (e.g. capping warnings).
+     *
+     * @return an unmodifiable list of diagnostic messages
+     */
     public List<String> diagnostics() {
         return List.copyOf(diagnostics);
     }

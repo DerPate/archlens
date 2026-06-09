@@ -36,6 +36,42 @@ export function buildElements(nodes: GraphNode[], edges: GraphEdge[], labels: st
   ];
 }
 
+export function syncElements(cy: cytoscape.Core, elements: cytoscape.ElementDefinition[]): boolean {
+  const nextIds = new Set(elements.map((element) => stringData(element, 'id')).filter(Boolean));
+  const selectedIds = new Set(cy.$(':selected').map((element) => element.id()));
+  let topologyChanged = false;
+
+  cy.batch(() => {
+    cy.elements().forEach((element) => {
+      if (!nextIds.has(element.id())) {
+        element.remove();
+        topologyChanged = true;
+      }
+    });
+
+    for (const element of elements) {
+      const id = stringData(element, 'id');
+      if (!id) continue;
+
+      const existing = cy.getElementById(id);
+      if (existing.nonempty()) {
+        existing.data(element.data ?? {});
+        if (existing.isNode() && element.position) existing.position(element.position);
+      } else {
+        cy.add(element);
+        topologyChanged = true;
+      }
+    }
+  });
+
+  for (const id of selectedIds) {
+    const element = cy.getElementById(id);
+    if (element.nonempty()) element.select();
+  }
+
+  return topologyChanged;
+}
+
 export function cytoscapeStyle(edgeOpacity: number, showEdgeLabels: boolean, showNodeLabels: boolean): cytoscape.StylesheetStyle[] {
   return [
     {
@@ -164,6 +200,11 @@ function groupedGridPositions(nodes: GraphNode[]): Map<string, { x: number; y: n
   for (const [id, pos] of positions) positions.set(id, { x: pos.x - cx, y: pos.y - cy });
 
   return positions;
+}
+
+function stringData(element: cytoscape.ElementDefinition, key: string): string {
+  const value = element.data?.[key];
+  return typeof value === 'string' ? value : '';
 }
 
 function deduplicateEdges(edges: GraphEdge[]): GraphEdge[] {

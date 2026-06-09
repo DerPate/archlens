@@ -16,6 +16,12 @@ public final class GraphDataProjection {
 
     private GraphDataProjection() {}
 
+    /**
+     * Builds viewer projections from a graph snapshot.
+     *
+     * @param snapshot the graph snapshot to project
+     * @return the viewer-ready projections
+     */
     public static ViewerProjections from(ArchitectureGraph.GraphSnapshot snapshot) {
         return new ViewerProjections(pipelineProjections(snapshot));
     }
@@ -248,12 +254,30 @@ public final class GraphDataProjection {
         return value == null || value.isBlank() ? null : value;
     }
 
+    /**
+     * Top-level viewer projections derived from a graph snapshot.
+     *
+     * @param pipelines the pipeline projections sorted by title
+     */
     public record ViewerProjections(List<PipelineProjection> pipelines) {
+        /** Defensively copies the pipeline list. */
         public ViewerProjections {
             pipelines = List.copyOf(pipelines);
         }
     }
 
+    /**
+     * Viewer-ready projection of a pipeline chain.
+     *
+     * @param id the chain id (e.g. {@code "chain:12"})
+     * @param title the human-readable pipeline title
+     * @param subtitle a short description (link kinds and segment count)
+     * @param rootEntrypointId the entrypoint id of the first segment
+     * @param segments the ordered segment projections
+     * @param segmentIds the ordered data-flow path ids for the segments
+     * @param nodeIds all node ids to include in a focused pipeline view
+     * @param edgeKeys all edge keys to include in a focused pipeline view
+     */
     public record PipelineProjection(
             String id,
             String title,
@@ -263,6 +287,7 @@ public final class GraphDataProjection {
             List<String> segmentIds,
             List<String> nodeIds,
             List<String> edgeKeys) {
+        /** Defensively copies all list fields. */
         public PipelineProjection {
             segments = List.copyOf(segments);
             segmentIds = List.copyOf(segmentIds);
@@ -271,6 +296,19 @@ public final class GraphDataProjection {
         }
     }
 
+    /**
+     * Viewer-ready projection of a single pipeline segment (one data-flow path).
+     *
+     * @param id the data-flow path id
+     * @param index the zero-based segment position within the pipeline
+     * @param title the human-readable segment title
+     * @param startNodeId the data-flow path node id where this segment begins
+     * @param endNodeIds the boundary sink node ids that link to the next segment
+     * @param nodeIds all node ids to include in a focused segment view
+     * @param edgeKeys all edge keys to include in a focused segment view
+     * @param linkKind the handoff kind connecting this segment to the next (null for the last segment)
+     * @param viaChannel the messaging channel used for the handoff (null for non-messaging handoffs)
+     */
     public record PipelineSegmentProjection(
             String id,
             int index,
@@ -281,6 +319,7 @@ public final class GraphDataProjection {
             List<String> edgeKeys,
             String linkKind,
             String viaChannel) {
+        /** Defensively copies all list fields. */
         public PipelineSegmentProjection {
             endNodeIds = List.copyOf(endNodeIds);
             nodeIds = List.copyOf(nodeIds);

@@ -32,7 +32,12 @@ public class SpoonScanner {
         return scanModules(modules);
     }
 
-    /** Scans normalized build modules into a single Spoon model. */
+    /**
+     * Scans normalized build modules into a single Spoon model.
+     *
+     * @param modules the build modules to scan
+     * @return the Spoon model built from all module source roots
+     */
     public CtModel scanModules(List<BuildModule> modules) {
         Launcher launcher = new Launcher();
         launcher.getEnvironment().setNoClasspath(true);
@@ -77,7 +82,12 @@ public class SpoonScanner {
         }
     }
 
-    /** Adds all source roots declared for a normalized module. */
+    /**
+     * Adds all source roots declared for a normalized module to the Spoon launcher.
+     *
+     * @param launcher the Spoon launcher to configure
+     * @param module the build module whose source roots should be added
+     */
     public void addSourceRoots(Launcher launcher, BuildModule module) {
         if (module == null) return;
         if (module.sourceRoots().isEmpty()) {

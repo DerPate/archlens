@@ -3,6 +3,9 @@ package dev.dominikbreu.spoonmcp.renderer;
 /** Renders a self-contained visual debugger for the architecture graph. */
 public class GraphViewerHtmlRenderer {
 
+    /** Creates a renderer with default settings. */
+    public GraphViewerHtmlRenderer() {}
+
     /**
      * Renders a complete HTML document with a serialized graph export payload.
      *
