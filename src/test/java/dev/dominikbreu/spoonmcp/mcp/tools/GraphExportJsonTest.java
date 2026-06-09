@@ -128,15 +128,15 @@ class GraphExportJsonTest {
                                 "example.CustomerController#update:PUT:/customer/{id}",
                                 List.of("messaging")),
                         new ArchitectureGraph.DataFlowPathNode(
-                                GraphNodeId.of("df:customer#customer"),
-                                "df:customer#customer",
+                                GraphNodeId.of("customer#customer"),
+                                "customer#customer",
                                 EntrypointId.deserialize("example.CustomerController#update:PUT:/customer/{id}"),
                                 "customer",
                                 1,
                                 1),
                         new ArchitectureGraph.DataFlowPathNode(
-                                GraphNodeId.of("df:address#event"),
-                                "df:address#event",
+                                GraphNodeId.of("address#event"),
+                                "address#event",
                                 EntrypointId.deserialize(
                                         "example.AddressMessageListener#listenCustomer:spring-listener:KAFKA:address"),
                                 "event",
@@ -173,19 +173,19 @@ class GraphExportJsonTest {
                                 "example.CustomerController",
                                 "EXPOSES",
                                 Map.of("source", "interface.componentId")),
-                        edge("chain:1", "df:customer#customer", "HAS_SEGMENT", Map.of("segmentIndex", 0)),
+                        edge("chain:1", "customer#customer", "HAS_SEGMENT", Map.of("segmentIndex", 0)),
                         edge(
                                 "chain:1",
-                                "df:address#event",
+                                "address#event",
                                 "HAS_SEGMENT",
                                 Map.of(
                                         "segmentIndex",
                                         1,
                                         "incomingSinkId",
-                                        "df:customer#customer:sink:0",
+                                        "customer#customer:sink:0",
                                         "linkKind",
                                         "messaging")),
-                        edge("df:customer#customer", "example.CustomerController", "REACHES", Map.of())));
+                        edge("customer#customer", "example.CustomerController", "REACHES", Map.of())));
 
         String json = GraphExportJson.write(snapshot, Instant.parse("2026-06-07T00:00:00Z"));
 

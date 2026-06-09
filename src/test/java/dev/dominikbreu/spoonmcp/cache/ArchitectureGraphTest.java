@@ -19,6 +19,7 @@ import dev.dominikbreu.spoonmcp.model.MessagingBroker;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
 import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId;
 import dev.dominikbreu.spoonmcp.model.ids.DependencyId;
 import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import dev.dominikbreu.spoonmcp.model.ids.FieldAccessId;
@@ -280,8 +281,11 @@ class ArchitectureGraphTest {
         producerEp.componentId = ComponentId.of("OrderService");
         model.entrypoints.add(producerEp);
 
+        DataFlowPathId consumerPathId = DataFlowPathId.of(EntrypointId.deserialize("orders"), "order");
+        DataFlowPathId producerPathId = DataFlowPathId.of(EntrypointId.deserialize("tick"), "snapshots");
+
         DataFlowPath consumerPath = new DataFlowPath();
-        consumerPath.id = "df:entry:orders#order";
+        consumerPath.id = consumerPathId;
         consumerPath.entrypointId = EntrypointId.deserialize("orders");
         consumerPath.trackedParam = "order";
 
@@ -293,12 +297,12 @@ class ArchitectureGraphTest {
                 null,
                 "snapshots",
                 ComponentId.of("OrderService"));
-        storeSink.linkedPathIds.add("df:ep:tick#snapshots");
+        storeSink.linkedPathIds.add(producerPathId);
         consumerPath.sinks.add(storeSink);
         model.dataFlowPaths.add(consumerPath);
 
         DataFlowPath producerPath = new DataFlowPath();
-        producerPath.id = "df:ep:tick#snapshots";
+        producerPath.id = producerPathId;
         producerPath.entrypointId = EntrypointId.deserialize("tick");
         producerPath.trackedParam = "snapshots";
         DataFlowSink msgSink = new DataFlowSink(
@@ -319,15 +323,16 @@ class ArchitectureGraphTest {
 
         List<ArchitectureGraph.GraphEdge> linkEdges = graph.findEdges("LINKS_TO", Map.of(), 10);
         assertThat(linkEdges).hasSize(1);
-        assertThat(linkEdges.getFirst().toId().serialize()).isEqualTo("df:ep:tick#snapshots");
+        assertThat(linkEdges.getFirst().toId().serialize()).isEqualTo(producerPathId.serialize());
         assertThat(linkEdges.getFirst().properties())
                 .containsEntry("viaField", "snapshots")
                 .containsEntry("fieldOwnerComponentId", "OrderService");
         assertThat(graph.findEdges("WORKFLOW_LINK", Map.of("kind", "STATE_HANDOFF"), 10))
-                .anyMatch(edge -> "df:entry:orders#order".equals(edge.fromId().serialize())
-                        && "df:ep:tick#snapshots".equals(edge.toId().serialize())
-                        && "snapshots".equals(edge.properties().get("fieldName"))
-                        && "OrderService".equals(edge.properties().get("fieldOwnerComponentId")));
+                .anyMatch(
+                        edge -> consumerPathId.serialize().equals(edge.fromId().serialize())
+                                && producerPathId.serialize().equals(edge.toId().serialize())
+                                && "snapshots".equals(edge.properties().get("fieldName"))
+                                && "OrderService".equals(edge.properties().get("fieldOwnerComponentId")));
     }
 
     @Test
@@ -350,19 +355,22 @@ class ArchitectureGraphTest {
         consumerEp.componentId = ComponentId.of("OrderRepository");
         model.entrypoints.add(consumerEp);
 
+        DataFlowPathId producerPathId2 = DataFlowPathId.of(EntrypointId.deserialize("tick"), "snap");
+        DataFlowPathId consumerPathId2 = DataFlowPathId.of(EntrypointId.deserialize("process"), "entry");
+
         DataFlowPath producerPath = new DataFlowPath();
-        producerPath.id = "df:ep:tick#snap";
+        producerPath.id = producerPathId2;
         producerPath.entrypointId = EntrypointId.deserialize("tick");
         producerPath.trackedParam = "snap";
         DataFlowSink msgSink = new DataFlowSink(
                 DataFlowSink.Kind.MESSAGING, ComponentId.of("OrderService"), "OrderService", "send", null);
         msgSink.channel = "internal";
-        msgSink.linkedPathIds.add("df:ep:process#entry");
+        msgSink.linkedPathIds.add(consumerPathId2);
         producerPath.sinks.add(msgSink);
         model.dataFlowPaths.add(producerPath);
 
         DataFlowPath consumerPath = new DataFlowPath();
-        consumerPath.id = "df:ep:process#entry";
+        consumerPath.id = consumerPathId2;
         consumerPath.entrypointId = EntrypointId.deserialize("process");
         consumerPath.trackedParam = "entry";
         model.dataFlowPaths.add(consumerPath);
@@ -373,11 +381,11 @@ class ArchitectureGraphTest {
         // 1. MESSAGING LINKS_TO edge with viaChannel + linkKind
         List<ArchitectureGraph.GraphEdge> linkEdges = graph.findEdges("LINKS_TO", Map.of(), 10);
         assertThat(linkEdges)
-                .anyMatch(e -> "df:ep:process#entry".equals(e.toId().serialize())
+                .anyMatch(e -> consumerPathId2.serialize().equals(e.toId().serialize())
                         && "messaging".equals(e.properties().get("linkKind"))
                         && "internal".equals(e.properties().get("viaChannel")));
         assertThat(graph.findEdges("WORKFLOW_LINK", Map.of("kind", "MESSAGING"), 10))
-                .anyMatch(e -> "df:ep:process#entry".equals(e.toId().serialize())
+                .anyMatch(e -> consumerPathId2.serialize().equals(e.toId().serialize())
                         && "internal".equals(e.properties().get("channel")));
 
         // 2. PipelineChain node materialised with segmentCount and rootEntrypointId
@@ -394,9 +402,9 @@ class ArchitectureGraphTest {
         List<ArchitectureGraph.GraphEdge> segEdges = graph.findEdges("HAS_SEGMENT", Map.of(), 10);
         assertThat(segEdges).hasSize(2);
         assertThat(segEdges)
-                .anyMatch(e -> "df:ep:tick#snap".equals(e.toId().serialize())
+                .anyMatch(e -> producerPathId2.serialize().equals(e.toId().serialize())
                         && Integer.valueOf(0).equals(e.properties().get("segmentIndex")))
-                .anyMatch(e -> "df:ep:process#entry".equals(e.toId().serialize())
+                .anyMatch(e -> consumerPathId2.serialize().equals(e.toId().serialize())
                         && Integer.valueOf(1).equals(e.properties().get("segmentIndex"))
                         && "messaging".equals(e.properties().get("linkKind"))
                         && "internal".equals(e.properties().get("viaChannel")));
@@ -414,7 +422,7 @@ class ArchitectureGraphTest {
         model.entrypoints.add(ep);
 
         DataFlowPath path = new DataFlowPath();
-        path.id = "df:ep:create#order";
+        path.id = DataFlowPathId.of(EntrypointId.deserialize("create"), "order");
         path.entrypointId = EntrypointId.deserialize("create");
         path.trackedParam = "order";
         DataFlowSink sink = new DataFlowSink(
@@ -541,7 +549,7 @@ class ArchitectureGraphTest {
     void exposesPersistenceSinkMetadataOnGraphNode() {
         ArchitectureModel model = new ArchitectureModel("test");
         DataFlowPath path = new DataFlowPath();
-        path.id = "df:ep:create#order";
+        path.id = DataFlowPathId.of(EntrypointId.deserialize("create"), "order");
         path.entrypointId = EntrypointId.deserialize("create");
         path.trackedParam = "order";
         DataFlowSink sink = new DataFlowSink(
@@ -724,18 +732,20 @@ class ArchitectureGraphTest {
     @Test
     void workflowLinkEdgesExposePersistenceHandoffMetadata() {
         ArchitectureModel model = new ArchitectureModel("test");
+        DataFlowPathId writerPathId = DataFlowPathId.of(EntrypointId.deserialize("writer"), "param");
+        DataFlowPathId readerPathId = DataFlowPathId.of(EntrypointId.deserialize("reader"), "param");
         DataFlowPath writer = new DataFlowPath();
-        writer.id = "df:writer";
+        writer.id = writerPathId;
         writer.entrypointId = EntrypointId.deserialize("writer");
         DataFlowSink sink = new DataFlowSink();
         sink.kind = DataFlowSink.Kind.PERSISTENCE;
         sink.entityType = "com.example.Order";
         sink.repositoryOperation = "save";
         sink.linkEvidence = "repository-entity-match";
-        sink.linkedPathIds.add("df:reader");
+        sink.linkedPathIds.add(readerPathId);
         writer.sinks.add(sink);
         DataFlowPath reader = new DataFlowPath();
-        reader.id = "df:reader";
+        reader.id = readerPathId;
         reader.entrypointId = EntrypointId.deserialize("reader");
         model.dataFlowPaths.add(writer);
         model.dataFlowPaths.add(reader);
@@ -760,7 +770,7 @@ class ArchitectureGraphTest {
         model.entrypoints.add(ep);
 
         DataFlowPath path = new DataFlowPath();
-        path.id = "df:ep:upload#file";
+        path.id = DataFlowPathId.of(EntrypointId.deserialize("upload"), "file");
         path.entrypointId = EntrypointId.deserialize("upload");
         path.trackedParam = "file";
 

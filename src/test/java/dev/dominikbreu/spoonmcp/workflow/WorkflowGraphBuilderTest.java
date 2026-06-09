@@ -8,6 +8,7 @@ import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId;
 import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -20,22 +21,22 @@ class WorkflowGraphBuilderTest {
         model.entrypoints.add(ep("A", "consume", EntrypointType.MESSAGING_CONSUMER));
         model.entrypoints.add(ep("B", "publish", EntrypointType.SCHEDULER));
 
-        DataFlowPath a = path("df:A", "A");
+        DataFlowPath a = path("A", "payload");
+        DataFlowPath b = path("B", "payload");
         DataFlowSink sink = new DataFlowSink();
         sink.kind = DataFlowSink.Kind.STORE;
         sink.fieldOwnerComponentId = ComponentId.of("Store");
         sink.fieldName = "cache";
-        sink.linkedPathIds.add("df:B");
+        sink.linkedPathIds.add(b.id);
         a.sinks.add(sink);
 
-        DataFlowPath b = path("df:B", "B");
         model.dataFlowPaths.addAll(List.of(a, b));
 
         WorkflowGraph graph = new WorkflowGraphBuilder().build(model);
 
-        assertThat(graph.rootPaths()).extracting(path -> path.id).containsExactly("df:A");
-        assertThat(graph.linksFrom("df:A")).hasSize(1);
-        assertThat(graph.linksFrom("df:A").getFirst().toPathId()).isEqualTo("df:B");
+        assertThat(graph.rootPaths()).extracting(path -> path.id.serialize()).containsExactly(a.id.serialize());
+        assertThat(graph.linksFrom(a.id.serialize())).hasSize(1);
+        assertThat(graph.linksFrom(a.id.serialize()).getFirst().toPathId()).isEqualTo(b.id.serialize());
     }
 
     @Test
@@ -45,25 +46,27 @@ class WorkflowGraphBuilderTest {
         model.entrypoints.add(ep("shutdown", "onShutdown", EntrypointType.CDI_EVENT_OBSERVER));
         model.entrypoints.add(ep("data", "onOrderCreated", EntrypointType.CDI_EVENT_OBSERVER));
 
-        DataFlowPath scheduler = path("df:scheduler", "scheduler");
+        DataFlowPath shutdown = path("shutdown", "payload");
+        DataFlowPath data = path("data", "payload");
+        DataFlowPath scheduler = path("scheduler", "payload");
         DataFlowSink toShutdown = new DataFlowSink();
         toShutdown.kind = DataFlowSink.Kind.STORE;
-        toShutdown.linkedPathIds.add("df:shutdown");
+        toShutdown.linkedPathIds.add(shutdown.id);
         scheduler.sinks.add(toShutdown);
         DataFlowSink toData = new DataFlowSink();
         toData.kind = DataFlowSink.Kind.EVENT_BUS;
-        toData.linkedPathIds.add("df:data");
+        toData.linkedPathIds.add(data.id);
         scheduler.sinks.add(toData);
 
-        model.dataFlowPaths.addAll(List.of(scheduler, path("df:shutdown", "shutdown"), path("df:data", "data")));
+        model.dataFlowPaths.addAll(List.of(scheduler, shutdown, data));
 
         WorkflowGraph graph = new WorkflowGraphBuilder().build(model);
 
-        assertThat(graph.pathById()).containsKeys("df:scheduler", "df:data");
-        assertThat(graph.pathById()).doesNotContainKey("df:shutdown");
-        assertThat(graph.linksFrom("df:scheduler"))
+        assertThat(graph.pathById()).containsKeys(scheduler.id.serialize(), data.id.serialize());
+        assertThat(graph.pathById()).doesNotContainKey(shutdown.id.serialize());
+        assertThat(graph.linksFrom(scheduler.id.serialize()))
                 .extracting(WorkflowLink::toPathId)
-                .containsExactly("df:data");
+                .containsExactly(data.id.serialize());
     }
 
     private static Entrypoint ep(String id, String name, EntrypointType type) {
@@ -74,10 +77,11 @@ class WorkflowGraphBuilderTest {
         return ep;
     }
 
-    private static DataFlowPath path(String id, String entrypointId) {
+    private static DataFlowPath path(String entrypointId, String trackedParam) {
         DataFlowPath path = new DataFlowPath();
-        path.id = id;
-        path.entrypointId = EntrypointId.deserialize(entrypointId);
+        EntrypointId ep = EntrypointId.deserialize(entrypointId);
+        path.id = DataFlowPathId.of(ep, trackedParam);
+        path.entrypointId = ep;
         return path;
     }
 }

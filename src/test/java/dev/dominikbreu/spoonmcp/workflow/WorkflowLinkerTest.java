@@ -8,6 +8,7 @@ import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId;
 import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -23,23 +24,23 @@ class WorkflowLinkerTest {
         model.entrypoints.add(
                 entrypoint("comp.Publisher#publishAll:scheduled", "publishAll", EntrypointType.SCHEDULER));
 
-        DataFlowPath writer = path("df:ingest#payload", "comp.DataService#ingest:msg-in:snapshots");
+        DataFlowPath reader = path("comp.Publisher#publishAll:scheduled", "cache");
+        DataFlowPath writer = path("comp.DataService#ingest:msg-in:snapshots", "payload");
         DataFlowSink store = new DataFlowSink();
         store.kind = DataFlowSink.Kind.STORE;
         store.fieldOwnerComponentId = ComponentId.of("comp.DataService"); // same as writer component
         store.fieldName = "cache";
-        store.linkedPathIds.add("df:publishAll#cache");
+        store.linkedPathIds.add(reader.id);
         writer.sinks.add(store);
 
-        DataFlowPath reader = path("df:publishAll#cache", "comp.Publisher#publishAll:scheduled");
         model.dataFlowPaths.addAll(List.of(writer, reader));
 
         List<WorkflowLink> links = new WorkflowLinker().link(model);
 
         assertThat(links).anySatisfy(link -> {
             assertThat(link.kind()).isEqualTo(WorkflowLink.Kind.STATE_HANDOFF);
-            assertThat(link.fromPathId()).isEqualTo("df:ingest#payload");
-            assertThat(link.toPathId()).isEqualTo("df:publishAll#cache");
+            assertThat(link.fromPathId()).isEqualTo(writer.id.serialize());
+            assertThat(link.toPathId()).isEqualTo(reader.id.serialize());
             assertThat(link.fieldOwnerComponentId()).isEqualTo("comp.DataService");
             assertThat(link.fieldName()).isEqualTo("cache");
         });
@@ -58,31 +59,32 @@ class WorkflowLinkerTest {
         model.entrypoints.add(
                 entrypoint("comp.Publisher#publishAll:scheduled", "publishAll", EntrypointType.SCHEDULER));
 
+        DataFlowPath reader = path("comp.Publisher#publishAll:scheduled", "cache");
+
         // cross-component write: EventService → DataService.cache
-        DataFlowPath sideEffectWriter = path("df:handleEvent#event", "comp.EventService#handleEvent:msg-in:events");
+        DataFlowPath sideEffectWriter = path("comp.EventService#handleEvent:msg-in:events", "event");
         DataFlowSink foreignStore = new DataFlowSink();
         foreignStore.kind = DataFlowSink.Kind.STORE;
         foreignStore.fieldOwnerComponentId = ComponentId.of("comp.DataService");
         foreignStore.fieldName = "cache";
-        foreignStore.linkedPathIds.add("df:publishAll#cache");
+        foreignStore.linkedPathIds.add(reader.id);
         sideEffectWriter.sinks.add(foreignStore);
 
         // direct owner write: DataService → DataService.cache (establishes directOwnerWrittenFields)
-        DataFlowPath directWriter = path("df:ingest#payload", "comp.DataService#ingest:msg-in:data");
+        DataFlowPath directWriter = path("comp.DataService#ingest:msg-in:data", "payload");
         DataFlowSink ownerStore = new DataFlowSink();
         ownerStore.kind = DataFlowSink.Kind.STORE;
         ownerStore.fieldOwnerComponentId = ComponentId.of("comp.DataService");
         ownerStore.fieldName = "cache";
         directWriter.sinks.add(ownerStore);
 
-        model.dataFlowPaths.addAll(List.of(
-                sideEffectWriter, directWriter, path("df:publishAll#cache", "comp.Publisher#publishAll:scheduled")));
+        model.dataFlowPaths.addAll(List.of(sideEffectWriter, directWriter, reader));
 
         List<WorkflowLink> links = new WorkflowLinker().link(model);
 
         assertThat(links)
-                .noneMatch(link -> "df:handleEvent#event".equals(link.fromPathId())
-                        && "df:publishAll#cache".equals(link.toPathId()));
+                .noneMatch(link -> sideEffectWriter.id.serialize().equals(link.fromPathId())
+                        && reader.id.serialize().equals(link.toPathId()));
     }
 
     @Test
@@ -94,20 +96,20 @@ class WorkflowLinkerTest {
         model.entrypoints.add(entrypoint(
                 "comp.DataService#onShutdown:cdi-event:PreDestroy", "onShutdown", EntrypointType.CDI_EVENT_OBSERVER));
 
-        DataFlowPath writer = path("df:consumer#payload", "comp.DataService#consume:msg-in:orders");
+        DataFlowPath reader = path("comp.DataService#onShutdown:cdi-event:PreDestroy", "cache");
+        DataFlowPath writer = path("comp.DataService#consume:msg-in:orders", "payload");
         DataFlowSink store = new DataFlowSink();
         store.kind = DataFlowSink.Kind.STORE;
         store.fieldOwnerComponentId = ComponentId.of("comp.DataService"); // same component
         store.fieldName = "cache";
-        store.linkedPathIds.add("df:shutdown#cache");
+        store.linkedPathIds.add(reader.id);
         writer.sinks.add(store);
 
-        model.dataFlowPaths.addAll(
-                List.of(writer, path("df:shutdown#cache", "comp.DataService#onShutdown:cdi-event:PreDestroy")));
+        model.dataFlowPaths.addAll(List.of(writer, reader));
 
         List<WorkflowLink> links = new WorkflowLinker().link(model);
 
-        assertThat(links).noneMatch(link -> "df:shutdown#cache".equals(link.toPathId()));
+        assertThat(links).noneMatch(link -> reader.id.serialize().equals(link.toPathId()));
     }
 
     @Test
@@ -116,14 +118,15 @@ class WorkflowLinkerTest {
         model.entrypoints.add(entrypoint("producer", "send", EntrypointType.MESSAGING_PRODUCER));
         model.entrypoints.add(entrypoint("consumer", "receive", EntrypointType.MESSAGING_CONSUMER));
 
-        DataFlowPath producer = path("df:producer#payload", "producer");
+        DataFlowPath consumer = path("consumer", "payload");
+        DataFlowPath producer = path("producer", "payload");
         DataFlowSink messaging = new DataFlowSink();
         messaging.kind = DataFlowSink.Kind.MESSAGING;
         messaging.channel = "orders";
-        messaging.linkedPathIds.add("df:consumer#payload");
+        messaging.linkedPathIds.add(consumer.id);
         producer.sinks.add(messaging);
 
-        model.dataFlowPaths.addAll(List.of(producer, path("df:consumer#payload", "consumer")));
+        model.dataFlowPaths.addAll(List.of(producer, consumer));
 
         List<WorkflowLink> links = new WorkflowLinker().link(model);
 
@@ -142,10 +145,11 @@ class WorkflowLinkerTest {
         return entrypoint;
     }
 
-    private static DataFlowPath path(String id, String entrypointId) {
+    private static DataFlowPath path(String entrypointId, String trackedParam) {
         DataFlowPath path = new DataFlowPath();
-        path.id = id;
-        path.entrypointId = EntrypointId.deserialize(entrypointId);
+        EntrypointId ep = EntrypointId.deserialize(entrypointId);
+        path.id = DataFlowPathId.of(ep, trackedParam);
+        path.entrypointId = ep;
         return path;
     }
 }
