@@ -45,6 +45,11 @@ public class DataFlowTracer {
         this(new WorkflowTraversalPolicy());
     }
 
+    /**
+     * Creates a tracer with the given traversal policy.
+     *
+     * @param traversalPolicy the policy controlling which call edges are followed
+     */
     public DataFlowTracer(WorkflowTraversalPolicy traversalPolicy) {
         this.traversalPolicy = traversalPolicy;
     }
@@ -63,6 +68,13 @@ public class DataFlowTracer {
         return trace(model, ModelIndex.build(model));
     }
 
+    /**
+     * Traces data-flow paths through the given model using a pre-built index.
+     *
+     * @param model the architecture model to trace
+     * @param index the pre-built model index for efficient lookups
+     * @return the list of discovered data-flow paths
+     */
     public List<DataFlowPath> trace(ArchitectureModel model, ModelIndex index) {
         Span span = tracer().spanBuilder("dataflow.trace").startSpan();
         try (var _ = span.makeCurrent()) {

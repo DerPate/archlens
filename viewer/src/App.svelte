@@ -2,7 +2,7 @@
   import cytoscape from 'cytoscape';
   import { onDestroy, onMount, tick } from 'svelte';
   import { applyPreset, createInitialFilterState, visibleGraph } from './graph/filters';
-  import { buildElements, cytoscapeStyle, forceLayout, pipelineLayout } from './graph/layout';
+  import { buildElements, cytoscapeStyle, forceLayout, pipelineLayout, syncElements } from './graph/layout';
   import { loadGraphFromFile, loadGraphFromUrl } from './graph/loadGraph';
   import { pipelineSummaries, selectedPipelineGraph } from './graph/pipelines';
   import { GRAPH_PRESETS } from './graph/presets';
@@ -180,6 +180,7 @@
     const elements = buildElements(graphSlice.nodes, graphSlice.edges, nodeLabels);
     const isNeighborhood = !selectedPipelineId && state.mode === 'neighborhood';
 
+    let topologyChanged = true;
     if (!cy) {
       // Create once — handlers live on this instance forever.
       cy = cytoscape({
@@ -213,14 +214,13 @@
       cy.on('mouseout', 'node', () => { tooltip = null; });
     } else {
       cy.style(cytoscapeStyle(edgeOpacity, renderEdgeLabels, renderLabels));
-      cy.batch(() => {
-        cy!.elements().remove();
-        cy!.add(elements);
-      });
+      topologyChanged = syncElements(cy, elements);
     }
 
     let layoutName = 'fcose';
-    if (selectedPipelineId) {
+    if (!topologyChanged && !useForceLayout) {
+      layoutName = 'preserved';
+    } else if (selectedPipelineId) {
       cy.layout(pipelineLayout()).run();
       layoutName = 'dagre LR';
     } else if (graphSlice.nodes.length <= 1000) {
@@ -231,7 +231,7 @@
       cy.layout({ name: 'preset', animate: false }).run();
       layoutName = 'grouped grid';
     }
-    cy.fit(cy.nodes(), 24);
+    if (topologyChanged || useForceLayout) cy.fit(cy.nodes(), 24);
 
     status = `${graphSlice.nodes.length} visible nodes, ${graphSlice.edges.length} visible edges. Layout: ${layoutName}`;
   }

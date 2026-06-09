@@ -9,10 +9,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/** Adjacency index for outgoing call edges, keyed by caller component and method. */
 public final class CallAdjacency {
 
     private final Map<MethodRef, List<CallEdge>> index;
 
+    /**
+     * Builds a call adjacency index from a collection of call edges.
+     *
+     * @param edges the call edges to index
+     * @return the adjacency index
+     */
     public static CallAdjacency build(Collection<CallEdge> edges) {
         Map<MethodRef, List<CallEdge>> index = new HashMap<>();
         for (CallEdge edge : edges) {
@@ -26,6 +33,13 @@ public final class CallAdjacency {
         this.index = index;
     }
 
+    /**
+     * Returns all outgoing call edges from the given component method.
+     *
+     * @param componentId the calling component
+     * @param method the calling method name
+     * @return the outgoing edges, or an empty list if none
+     */
     public List<CallEdge> edges(ComponentId componentId, String method) {
         return index.getOrDefault(new MethodRef(componentId, method), List.of());
     }

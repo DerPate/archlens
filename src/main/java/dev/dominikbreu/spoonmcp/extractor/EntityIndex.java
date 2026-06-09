@@ -6,10 +6,17 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+/** Lookup index for entity components, keyed by base package and simple name. */
 public final class EntityIndex {
 
     private final Map<String, Map<String, String>> byBasePackage;
 
+    /**
+     * Builds an entity index from a collection of components, indexing only those of type {@code ENTITY}.
+     *
+     * @param components the components to scan
+     * @return the populated entity index
+     */
     public static EntityIndex build(Collection<Component> components) {
         Map<String, Map<String, String>> byBasePackage = new HashMap<>();
         for (Component component : components) {
@@ -29,6 +36,14 @@ public final class EntityIndex {
         this.byBasePackage = byBasePackage;
     }
 
+    /**
+     * Resolves the fully-qualified name of an entity by base package and simple name.
+     * Falls back to appending {@code "Entity"} to the simple name if not found directly.
+     *
+     * @param basePackage the package prefix up to and excluding {@code ".model."}
+     * @param entitySimpleName the simple entity class name
+     * @return the fully-qualified class name, or {@code null} if not found
+     */
     public String resolve(String basePackage, String entitySimpleName) {
         Map<String, String> inPackage = byBasePackage.get(basePackage);
         if (inPackage == null) return null;
