@@ -15,6 +15,7 @@ called in the `else` branch can both appear in the same path as if they ran sequ
 
 - Represent data-flow as a branch-aware graph, not only as a flat step list.
 - Make branch points explicit for agents, renderers, and graph consumers.
+- Treat graph metadata as the canonical middleware layer for agent consumption.
 - Keep Spoon-specific AST logic inside extraction code.
 - Keep `DataFlowTracer` consuming neutral model metadata, not Spoon classes.
 - Preserve backward compatibility for existing tools that read `DataFlowPath.steps`.
@@ -161,16 +162,81 @@ The renderer may still fall back to `steps` for old cached models.
 
 ## Graph Projection
 
-`ArchitectureGraph` should project branch topology into property graph nodes and edges:
+`ArchitectureGraph` should project branch topology into property graph nodes and edges as
+first-class metadata. This is not a secondary export concern: the graph is the middleware
+layer agents should use when they need structured architecture facts.
 
-- Optional `DataFlowNode` vertices.
-- Optional `DataFlowBranch` vertices.
-- `DATA_FLOW_EDGE` or specific typed edges for `UNCONDITIONAL`, `CONDITIONAL`, and
-  `EXCEPTION`.
-- Properties for branch id, arm id, branch label, source file, and source line.
+Add graph labels:
+
+- `DataFlowNode`: one vertex per `DataFlowNode`.
+- `DataFlowBranch`: one vertex per branch group.
+- `DataFlowBranchArm`: one vertex per branch arm when explicit arm traversal is useful.
+
+Add graph edges:
+
+- `HAS_FLOW_NODE`: `DataFlowPath` → `DataFlowNode`, carries `nodeIndex` and `nodeKind`.
+- `FLOW_EDGE`: `DataFlowNode` → `DataFlowNode`, carries `kind`, `branchId`,
+  `branchArmId`, `branchLabel`, `sourceFile`, and `sourceLine`.
+- `HAS_BRANCH`: `DataFlowPath` → `DataFlowBranch`.
+- `HAS_BRANCH_ARM`: `DataFlowBranch` → `DataFlowBranchArm`.
+- `ARM_STARTS_AT`: `DataFlowBranchArm` → `DataFlowNode`.
+- `REACHES_NODE`: `DataFlowNode` → `DataFlowSink` for sink nodes that correspond to
+  existing `DataFlowSink` vertices.
+
+Use properties, not Java-specific object references, so graph-only consumers can operate
+without deserializing the full `ArchitectureModel`.
+
+Recommended properties:
+
+- On `DataFlowNode`: `pathId`, `nodeKind`, `componentId`, `componentName`, `method`,
+  `localName`, `sourceFile`, `sourceLine`.
+- On `DataFlowBranch`: `pathId`, `branchKind`, `sourceFile`, `sourceLine`, and a
+  stable `branchGroupId`.
+- On `DataFlowBranchArm`: `pathId`, `branchGroupId`, `branchArmId`, `branchLabel`.
+- On `FLOW_EDGE`: `edgeKind`, `branchGroupId`, `branchArmId`, `branchLabel`,
+  `sourceFile`, `sourceLine`.
 
 This makes `query_architecture_graph` useful for agents that need to inspect branch
 structure without calling `trace_data_flow`.
+
+### TinkerPop Traversal Support
+
+Branch topology should be queryable through existing `ArchitectureGraph` traversal
+methods and `query_architecture_graph` actions.
+
+Extend graph support so agents can:
+
+- Find all branch points for a data-flow path:
+  `DataFlowPath -> HAS_BRANCH -> DataFlowBranch`.
+- Follow an arm from a branch to its first node:
+  `DataFlowBranch -> HAS_BRANCH_ARM -> DataFlowBranchArm -> ARM_STARTS_AT -> DataFlowNode`.
+- Walk path topology:
+  `DataFlowNode -> FLOW_EDGE -> DataFlowNode`.
+- Find sinks reached only through a branch:
+  `DataFlowBranchArm -> ARM_STARTS_AT -> DataFlowNode -> FLOW_EDGE* -> REACHES_NODE -> DataFlowSink`.
+- Compare unconditional and conditional portions of a path by filtering `FLOW_EDGE.edgeKind`.
+
+`query_architecture_graph` should expose the labels and properties in the public catalog.
+If new helper actions are added, keep them graph-shaped rather than renderer-shaped. Good
+candidate actions:
+
+- `data_flow_topology`: return nodes, flow edges, branches, and sinks for one path id.
+- `branch_neighborhood`: return a branch group, its arms, entry nodes, and reached sinks.
+
+These helpers should be thin TinkerPop-backed views over the property graph. They should
+not duplicate branch reconstruction logic in MCP tool formatters.
+
+### Graph Projection Parity
+
+Graph consumers should have parity with text and Mermaid tools:
+
+- `trace_data_flow` text output explains the same topology stored in graph metadata.
+- `render_pipeline` renders from the same topology when available.
+- `export_graph_data` and viewer projections can expose branch topology as an optional
+  projection, while public viewer edge filtering can still hide internal scaffolding when
+  needed.
+- `WORKFLOW_LINK` remains the canonical cross-entrypoint continuation edge; branch
+  topology explains what happens inside each `DataFlowPath` segment.
 
 ## Compatibility And Cache
 
