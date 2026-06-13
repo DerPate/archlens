@@ -235,14 +235,19 @@ class PipelineRendererIntegrationTest {
         model.components.add(comp("DeviceStateDataService", "DeviceStateDataService", ComponentType.SERVICE));
         model.components.add(comp("KafkaMessageSender", "KafkaMessageSender", ComponentType.SERVICE));
         model.components.add(comp("Repo", "Repo", ComponentType.REPOSITORY));
-        model.entrypoints.add(ep("ingest", "ingest", EntrypointType.MESSAGING_CONSUMER, "in", "DeviceStateDataService"));
+        model.entrypoints.add(
+                ep("ingest", "ingest", EntrypointType.MESSAGING_CONSUMER, "in", "DeviceStateDataService"));
 
         DataFlowPath p = path("ingest", "ingest", "*");
         // Steps as recorded by DFS backtracking: sendTombstone appears twice (non-consecutive)
-        p.steps.add(new DataFlowStep(0, ComponentId.of("DeviceStateDataService"), "DeviceStateDataService", "ingest", "*"));
-        p.steps.add(new DataFlowStep(1, ComponentId.of("KafkaMessageSender"), "KafkaMessageSender", "sendTombstone", "*"));
-        p.steps.add(new DataFlowStep(2, ComponentId.of("DeviceStateDataService"), "DeviceStateDataService", "processNonNullValue", "*"));
-        p.steps.add(new DataFlowStep(3, ComponentId.of("KafkaMessageSender"), "KafkaMessageSender", "sendTombstone", "*")); // DFS artifact
+        p.steps.add(
+                new DataFlowStep(0, ComponentId.of("DeviceStateDataService"), "DeviceStateDataService", "ingest", "*"));
+        p.steps.add(
+                new DataFlowStep(1, ComponentId.of("KafkaMessageSender"), "KafkaMessageSender", "sendTombstone", "*"));
+        p.steps.add(new DataFlowStep(
+                2, ComponentId.of("DeviceStateDataService"), "DeviceStateDataService", "processNonNullValue", "*"));
+        p.steps.add(new DataFlowStep(
+                3, ComponentId.of("KafkaMessageSender"), "KafkaMessageSender", "sendTombstone", "*")); // DFS artifact
         p.steps.add(new DataFlowStep(4, ComponentId.of("Repo"), "Repo", "save", "*"));
         DataFlowSink sink = new DataFlowSink();
         sink.kind = DataFlowSink.Kind.PERSISTENCE;

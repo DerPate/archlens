@@ -434,13 +434,7 @@ public class DataFlowTracer {
                 String fieldName = fw.fieldBinding.fieldName();
                 DataFlowPath path = ctx.pathsByOriginal().get(e.getValue());
                 DataFlowSink sink = new DataFlowSink(
-                        DataFlowSink.Kind.STORE,
-                        fieldOwner,
-                        compName,
-                        fieldName,
-                        fw.source,
-                        fieldName,
-                        fieldOwner);
+                        DataFlowSink.Kind.STORE, fieldOwner, compName, fieldName, fw.source, fieldName, fieldOwner);
                 path.sinks.add(sink);
                 recordSinkNode(ctx, path, e.getValue(), currentNodeByOriginal.get(e.getValue()), sink, null);
             }
@@ -492,10 +486,7 @@ public class DataFlowTracer {
     }
 
     private boolean canEnter(
-            DfsContext ctx,
-            dev.dominikbreu.spoonmcp.model.ids.ComponentId compId,
-            String method,
-            int depth) {
+            DfsContext ctx, dev.dominikbreu.spoonmcp.model.ids.ComponentId compId, String method, int depth) {
         dev.dominikbreu.spoonmcp.model.ids.MethodRef nodeKey =
                 new dev.dominikbreu.spoonmcp.model.ids.MethodRef(compId, method);
         return !ctx.onCurrentPath().contains(nodeKey) && depth <= MAX_DEPTH;
