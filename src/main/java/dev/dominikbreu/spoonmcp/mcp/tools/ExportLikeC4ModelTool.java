@@ -10,6 +10,7 @@ import dev.dominikbreu.spoonmcp.renderer.LikeC4ModelRenderer;
 import dev.dominikbreu.spoonmcp.view.ArchitectureViewProjector;
 import java.util.Map;
 
+/** MCP tool that exports a LikeC4 model document from the indexed workspace. */
 public final class ExportLikeC4ModelTool {
 
     private final ModelCache cache;
@@ -17,10 +18,21 @@ public final class ExportLikeC4ModelTool {
     private final LikeC4WorkspaceProjector workspaceProjector = new LikeC4WorkspaceProjector();
     private final LikeC4ModelRenderer renderer = new LikeC4ModelRenderer();
 
+    /**
+     * Creates the tool backed by the given model cache.
+     *
+     * @param cache the shared model cache
+     */
     public ExportLikeC4ModelTool(ModelCache cache) {
         this.cache = cache;
     }
 
+    /**
+     * Executes the tool with the given arguments.
+     *
+     * @param args the tool arguments ({@code view}, {@code app}, {@code maxNodes})
+     * @return the rendered LikeC4 document or an error message
+     */
     public String call(Map<String, Object> args) {
         try {
             ToolModelIndex index = cache.index();

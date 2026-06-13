@@ -4,8 +4,18 @@ import dev.dominikbreu.spoonmcp.view.ArchitectureViewProjection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/** Renders an {@link ArchitectureViewProjection} as a Mermaid {@code flowchart LR} diagram. */
 public final class ArchitectureViewMermaidRenderer {
 
+    /** Creates a renderer with default settings. */
+    public ArchitectureViewMermaidRenderer() {}
+
+    /**
+     * Renders the given projection as a Mermaid flowchart string.
+     *
+     * @param projection the projection to render
+     * @return a Mermaid {@code flowchart LR} diagram string
+     */
     public String render(ArchitectureViewProjection projection) {
         StringBuilder sb = new StringBuilder();
         sb.append("flowchart LR\n");

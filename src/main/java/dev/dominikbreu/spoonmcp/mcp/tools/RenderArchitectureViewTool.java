@@ -10,16 +10,28 @@ import dev.dominikbreu.spoonmcp.view.ArchitectureViewProjector;
 import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 
+/** MCP tool that renders an architecture view as a Mermaid diagram. */
 public final class RenderArchitectureViewTool {
 
     private final ModelCache cache;
     private final ArchitectureViewProjector projector = new ArchitectureViewProjector();
     private final ArchitectureViewMermaidRenderer renderer = new ArchitectureViewMermaidRenderer();
 
+    /**
+     * Creates the tool backed by the given model cache.
+     *
+     * @param cache the shared model cache
+     */
     public RenderArchitectureViewTool(ModelCache cache) {
         this.cache = cache;
     }
 
+    /**
+     * Executes the tool with the given arguments.
+     *
+     * @param args the tool arguments ({@code view}, {@code app}, {@code maxNodes}, {@code scopeId})
+     * @return the rendered Mermaid diagram string or an error message
+     */
     public String call(Map<String, Object> args) {
         try {
             ToolModelIndex index = cache.index();

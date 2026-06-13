@@ -20,10 +20,25 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 })
 public sealed interface FieldBinding permits FieldBinding.Own, FieldBinding.CrossComponent {
 
+    /**
+     * Returns the simple name of the accessed field.
+     *
+     * @return the field name
+     */
     String fieldName();
 
+    /**
+     * Binding where the accessing component reads or writes its own field.
+     *
+     * @param fieldName the simple name of the field
+     */
     record Own(String fieldName) implements FieldBinding {}
 
+    /**
+     * Binding where the accessing component reads a field owned by a different injected component.
+     *
+     * @param ref reference to the owning component and field name
+     */
     record CrossComponent(FieldRef ref) implements FieldBinding {
         @Override
         public String fieldName() {

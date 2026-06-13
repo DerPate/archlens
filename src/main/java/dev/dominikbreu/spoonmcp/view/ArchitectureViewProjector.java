@@ -10,11 +10,24 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 
+/** Projects architecture graph data into a display-ready {@link ArchitectureViewProjection}. */
 public final class ArchitectureViewProjector {
+
+    /** Creates a projector with default settings. */
+    public ArchitectureViewProjector() {}
 
     private static final Set<String> VIEW_RELATIONSHIPS =
             Set.of("DEPENDS_ON", "STATE_HANDOFF", "READS_STATE", "WRITES_STATE", "STARTS_AT", "STARTED_BY");
 
+    /**
+     * Projects a component view for the given scope.
+     *
+     * @param graph the architecture graph to project from
+     * @param scopeId the application or module id to restrict the view to (blank for global)
+     * @param title the title for the resulting view
+     * @param maxNodes the maximum number of nodes to include
+     * @return the projected component view
+     */
     public ArchitectureViewProjection projectComponentView(
             ArchitectureGraph graph, String scopeId, String title, int maxNodes) {
 

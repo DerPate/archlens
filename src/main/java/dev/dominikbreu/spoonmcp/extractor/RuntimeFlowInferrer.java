@@ -24,6 +24,11 @@ public class RuntimeFlowInferrer {
         this(new WorkflowTraversalPolicy());
     }
 
+    /**
+     * Creates an inferrer with the given traversal policy.
+     *
+     * @param traversalPolicy the policy controlling which call edges are followed
+     */
     public RuntimeFlowInferrer(WorkflowTraversalPolicy traversalPolicy) {
         this.traversalPolicy = traversalPolicy;
     }
@@ -40,6 +45,15 @@ public class RuntimeFlowInferrer {
         return infer(entrypointRef, maxDepth, model, ModelIndex.build(model));
     }
 
+    /**
+     * Infers a runtime flow for the given entrypoint reference using a pre-built index.
+     *
+     * @param entrypointRef entrypoint id, name, path, or partial identifier
+     * @param maxDepth maximum traversal depth
+     * @param model architecture model to search
+     * @param index pre-built model index for efficient lookups
+     * @return inferred runtime flow, or null when the entrypoint is not found
+     */
     public RuntimeFlow infer(String entrypointRef, int maxDepth, ArchitectureModel model, ModelIndex index) {
         Entrypoint ep = findEntrypoint(entrypointRef, model);
         if (ep == null) return null;
@@ -217,6 +231,9 @@ public class RuntimeFlowInferrer {
     /**
      * Extracts the HTTP method from a ref of the form {@code "GET /path"}.
      * Returns null for plain paths or name-based refs.
+     *
+     * @param ref the entrypoint ref string
+     * @return the HTTP method string, or {@code null} if not an HTTP method ref
      */
     public static String extractMethodFromRef(String ref) {
         if (ref == null) return null;
@@ -230,6 +247,9 @@ public class RuntimeFlowInferrer {
     /**
      * Strips the leading {@code "METHOD "} prefix from a ref, returning the bare path.
      * Returns the original ref unchanged when no HTTP method prefix is present.
+     *
+     * @param ref the entrypoint ref string
+     * @return the path portion, or the original ref if no HTTP method prefix is present
      */
     public static String extractPathFromRef(String ref) {
         String method = extractMethodFromRef(ref);
@@ -240,6 +260,13 @@ public class RuntimeFlowInferrer {
         }
     }
 
+    /**
+     * Returns true if the entrypoint path starts with the given ref path.
+     *
+     * @param epPath the entrypoint URL path
+     * @param ref the ref path to match against
+     * @return true if the entrypoint path begins with the ref (case-insensitive prefix match)
+     */
     public static boolean pathPrefixMatches(String epPath, String ref) {
         if (epPath == null || ref == null) return false;
         if (!ref.startsWith("/")) return false;

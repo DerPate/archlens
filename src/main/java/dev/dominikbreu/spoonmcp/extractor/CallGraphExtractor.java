@@ -131,10 +131,21 @@ public class CallGraphExtractor {
         this(ObjectFlowIndex.empty(), null);
     }
 
+    /**
+     * Creates an extractor with the given object-flow index and no source-fact index.
+     *
+     * @param objectFlowIndex the object-flow index for receiver resolution
+     */
     public CallGraphExtractor(ObjectFlowIndex objectFlowIndex) {
         this(objectFlowIndex, null);
     }
 
+    /**
+     * Creates an extractor with explicit object-flow and source-fact indices.
+     *
+     * @param objectFlowIndex the object-flow index for receiver resolution
+     * @param sourceFacts the source-fact index, or {@code null} to skip source-fact lookups
+     */
     public CallGraphExtractor(ObjectFlowIndex objectFlowIndex, SourceFactIndex sourceFacts) {
         this.objectFlowIndex = objectFlowIndex == null ? ObjectFlowIndex.empty() : objectFlowIndex;
         this.sourceFacts = sourceFacts;

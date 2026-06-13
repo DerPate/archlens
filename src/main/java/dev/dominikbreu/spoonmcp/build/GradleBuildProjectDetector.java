@@ -10,7 +10,11 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/** {@link BuildProjectDetector} implementation that recognises Gradle projects. */
 public class GradleBuildProjectDetector implements BuildProjectDetector {
+
+    /** Creates a detector with default settings. */
+    public GradleBuildProjectDetector() {}
 
     private static final String JAVA_LIBRARY = "java-library";
 

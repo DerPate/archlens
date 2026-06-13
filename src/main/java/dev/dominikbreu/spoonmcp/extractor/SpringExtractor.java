@@ -25,6 +25,7 @@ import spoon.reflect.declaration.CtType;
 import spoon.reflect.reference.CtFieldReference;
 import spoon.reflect.reference.CtTypeReference;
 
+/** Extracts Spring-specific architecture components, entrypoints, and interfaces from a Spoon model. */
 public class SpringExtractor {
 
     private static final String ANNOTATION = "annotation";
@@ -57,10 +58,16 @@ public class SpringExtractor {
 
     private final SpringConfigResolver.Config config;
 
+    /** Creates an extractor with no config properties (no placeholder resolution). */
     public SpringExtractor() {
         this(new SpringConfigResolver().emptyConfig());
     }
 
+    /**
+     * Creates an extractor with the given resolved Spring config.
+     *
+     * @param config the resolved config for placeholder expansion
+     */
     public SpringExtractor(SpringConfigResolver.Config config) {
         this.config = config;
     }
@@ -69,6 +76,13 @@ public class SpringExtractor {
         return GlobalOpenTelemetry.getTracer("dev.dominikbreu.spoonmcp");
     }
 
+    /**
+     * Extracts Spring components, entrypoints, and interfaces from the given types into the model.
+     *
+     * @param types the Spoon types to analyse
+     * @param model the architecture model to populate
+     * @param appId the application id to assign to extracted components
+     */
     public void extract(Collection<CtType<?>> types, ArchitectureModel model, AppId appId) {
         Span span = tracer().spanBuilder("spring.extract").startSpan();
         try (var _ = span.makeCurrent()) {
@@ -374,6 +388,17 @@ public class SpringExtractor {
         return config.resolve(path);
     }
 
+    /**
+     * Adds an interface entry for the given component, deduplicating by id.
+     *
+     * @param element the AST element providing source location
+     * @param component the owning component
+     * @param type the interface type string (e.g. {@code "rest_endpoint"})
+     * @param name the interface name (route or channel)
+     * @param path the URL path or channel topic
+     * @param model the architecture model to add the interface to
+     * @return the created interface entry, or {@code null} if it already exists
+     */
     protected InterfaceEntry addInterface(
             CtElement element, Component component, String type, String name, String path, ArchitectureModel model) {
         String id = "iface:" + component.id.qualifiedName() + ":" + type + ":" + name;
@@ -391,6 +416,13 @@ public class SpringExtractor {
         return entry;
     }
 
+    /**
+     * Returns true if the given element carries any annotation matching one of the given qualified names.
+     *
+     * @param element the AST element to check
+     * @param names the fully-qualified annotation type names to match
+     * @return true if a matching annotation is present
+     */
     protected boolean hasAnnotation(CtElement element, Set<String> names) {
         Set<String> simpleNames = simpleNames(names);
         return element.getAnnotations().stream()
@@ -399,6 +431,14 @@ public class SpringExtractor {
                         || simpleNames.contains(annotation.getAnnotationType().getSimpleName()));
     }
 
+    /**
+     * Returns the string value of an annotation attribute, or an empty string if not found.
+     *
+     * @param element the AST element bearing the annotation
+     * @param names the fully-qualified annotation type names to match
+     * @param attribute the attribute name to read
+     * @return the attribute value, or {@code ""} if absent
+     */
     protected String annotationAttribute(CtElement element, Set<String> names, String attribute) {
         for (CtAnnotation<?> annotation : element.getAnnotations()) {
             if (!annotationMatches(annotation, names)) continue;
@@ -457,6 +497,12 @@ public class SpringExtractor {
                 || simpleNames(names).contains(annotation.getAnnotationType().getSimpleName());
     }
 
+    /**
+     * Returns the simple (unqualified) name for each name in the given set.
+     *
+     * @param qualifiedNames the fully-qualified names to convert
+     * @return a set of simple names
+     */
     protected Set<String> simpleNames(Set<String> qualifiedNames) {
         return qualifiedNames.stream()
                 .map(name -> name.substring(name.lastIndexOf('.') + 1))
@@ -494,6 +540,12 @@ public class SpringExtractor {
         return normalizePath(base + child);
     }
 
+    /**
+     * Returns the absolute source file path for the given element, or {@code "unknown"} if unavailable.
+     *
+     * @param element the AST element
+     * @return the absolute file path, or {@code "unknown"}
+     */
     protected String getFile(CtElement element) {
         var position = element.getPosition();
         if (position.isValidPosition()) {
@@ -503,6 +555,12 @@ public class SpringExtractor {
         }
     }
 
+    /**
+     * Returns the source line number for the given element, or {@code -1} if unavailable.
+     *
+     * @param element the AST element
+     * @return the line number, or {@code -1}
+     */
     protected int getLine(CtElement element) {
         var position = element.getPosition();
         if (position.isValidPosition()) {
