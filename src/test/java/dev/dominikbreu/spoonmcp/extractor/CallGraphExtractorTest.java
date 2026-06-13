@@ -593,6 +593,47 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                 .extracting(edge -> edge.branchGroupId)
                 .containsOnly(processEdges.getFirst().branchGroupId);
         assertThat(processEdges).extracting(edge -> edge.branchArmId).doesNotHaveDuplicates();
+        assertThat(processEdges).extracting(edge -> edge.id).doesNotHaveDuplicates();
+    }
+
+    @Test
+    void callEdgesKeepSeparateSwitchCasesWhenSanitizedLabelsCollide() {
+        ArchitectureModel fixture = extractBranchFixture(
+                "SwitchCollisionBranchFixture.java",
+                """
+                package example;
+                class BranchController {
+                    private final BranchService service = new BranchService();
+                    void handle(String status) {
+                        switch (status) {
+                            case "A B" -> service.process(status);
+                            case "A-B" -> service.process(status);
+                            default -> {
+                            }
+                        }
+                    }
+                }
+                class BranchService {
+                    void process(String status) {
+                    }
+                }
+                """,
+                "example.BranchController",
+                "example.BranchService");
+
+        List<CallEdge> processEdges = fixture.callEdges.stream()
+                .filter(edge -> "process".equals(edge.toMethod))
+                .toList();
+
+        assertThat(processEdges).hasSize(2);
+        assertThat(processEdges)
+                .extracting(edge -> edge.branchLabel)
+                .containsExactlyInAnyOrder("\"A B\"", "\"A-B\"");
+        assertThat(processEdges)
+                .extracting(edge -> edge.branchGroupId)
+                .containsOnly(processEdges.getFirst().branchGroupId);
+        assertThat(processEdges).extracting(edge -> edge.branchArmId).doesNotHaveDuplicates();
+        assertThat(processEdges).extracting(edge -> edge.id).doesNotHaveDuplicates();
     }
 
     @Test
@@ -707,6 +748,8 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         assertThat(recover.branchGroupId).contains(":try:");
         assertThat(recover.branchArmId).contains(":catch:");
         assertThat(cleanup.branchArmId).endsWith(":finally");
+        assertThat(cleanup.controlSource.file).isEqualTo(recover.controlSource.file);
+        assertThat(cleanup.controlSource.line).isGreaterThan(recover.controlSource.line);
     }
 
     private static CallEdge edgeTo(ArchitectureModel model, String toMethod) {
