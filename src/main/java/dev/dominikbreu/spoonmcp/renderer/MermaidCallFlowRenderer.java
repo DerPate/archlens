@@ -92,6 +92,7 @@ public class MermaidCallFlowRenderer {
             String fromPid = pidMap.get(edge.fromId.serialize());
             String toPid = pidMap.get(edge.toId.serialize());
             if (fromPid == null || toPid == null) continue;
+            if (fromPid.equals(toPid)) continue; // skip intra-component self-edges
             String label = StringUtils.isNotBlank(edge.label) ? edge.label : "call";
             sb.append("    ")
                     .append(fromPid)

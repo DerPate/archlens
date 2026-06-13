@@ -7,6 +7,8 @@ import java.util.*;
 import spoon.reflect.CtModel;
 import spoon.reflect.declaration.CtElement;
 import spoon.reflect.declaration.CtField;
+import spoon.reflect.declaration.CtMethod;
+import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.declaration.CtType;
 import spoon.reflect.reference.CtTypeReference;
 
@@ -52,6 +54,12 @@ public class DependencyExtractor {
             for (CtField<?> field : type.getFields()) {
                 extractFieldDependency(model, componentsById, implementorsByInterface, fromId, field);
             }
+            for (CtMethod<?> method : type.getMethods()) {
+                extractTypeRefDeps(model, componentsById, fromId, method.getType());
+                for (CtParameter<?> param : method.getParameters()) {
+                    extractTypeRefDeps(model, componentsById, fromId, param.getType());
+                }
+            }
         }
 
         dedup(model);
@@ -73,6 +81,25 @@ public class DependencyExtractor {
             }
         }
         return index;
+    }
+
+    /**
+     * Adds a type-usage dependency for each known component referenced by {@code typeRef},
+     * including generic type arguments (e.g. {@code List<Order>} → {@code Order}).
+     */
+    private void extractTypeRefDeps(
+            ArchitectureModel model,
+            Map<ComponentId, dev.dominikbreu.spoonmcp.model.Component> componentsById,
+            ComponentId fromId,
+            CtTypeReference<?> typeRef) {
+        if (typeRef == null) return;
+        ComponentId toId = ComponentId.of(typeRef.getQualifiedName());
+        if (componentsById.containsKey(toId) && !fromId.equals(toId)) {
+            addDep(model, fromId, toId, "type-usage", "method-signature", 0.5);
+        }
+        for (CtTypeReference<?> arg : typeRef.getActualTypeArguments()) {
+            extractTypeRefDeps(model, componentsById, fromId, arg);
+        }
     }
 
     private void extractFieldDependency(

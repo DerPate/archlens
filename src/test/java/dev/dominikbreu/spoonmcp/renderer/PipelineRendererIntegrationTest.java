@@ -194,6 +194,82 @@ class PipelineRendererIntegrationTest {
     }
 
     @Test
+    void intraComponentStepsAreCondensed() {
+        ArchitectureModel model = new ArchitectureModel("condense-test");
+        model.components.add(comp("Service", "Service", ComponentType.SERVICE));
+        model.components.add(comp("Repo", "Repo", ComponentType.REPOSITORY));
+        model.entrypoints.add(ep("handle", "handle", EntrypointType.MESSAGING_CONSUMER, "in", "Service"));
+
+        DataFlowPath p = path("handle", "handle", "*");
+        // Three steps within Service (intra-component), then one on Repo
+        p.steps.add(new DataFlowStep(0, ComponentId.of("Service"), "Service", "handle", "*"));
+        p.steps.add(new DataFlowStep(1, ComponentId.of("Service"), "Service", "validate", "*"));
+        p.steps.add(new DataFlowStep(2, ComponentId.of("Service"), "Service", "transform", "*"));
+        p.steps.add(new DataFlowStep(3, ComponentId.of("Repo"), "Repo", "save", "*"));
+        DataFlowSink sink = new DataFlowSink();
+        sink.kind = DataFlowSink.Kind.PERSISTENCE;
+        sink.componentId = ComponentId.of("Repo");
+        sink.componentName = "Repo";
+        sink.method = "save";
+        p.sinks.add(sink);
+        model.dataFlowPaths.add(p);
+
+        PipelineGraphBuilder.Chain chain = new PipelineGraphBuilder.Chain();
+        chain.segments.add(new PipelineGraphBuilder.Segment(p, null, model.entrypoints.get(0)));
+
+        String mermaid = new MermaidPipelineRenderer().render(chain, ToolModelIndex.from(model));
+
+        // validate and transform are intra-component — must not appear as separate nodes
+        assertThat(mermaid).doesNotContain("Service.validate");
+        assertThat(mermaid).doesNotContain("Service.transform");
+        // header and the cross-component step must still be present
+        assertThat(mermaid).contains("Service.handle");
+        assertThat(mermaid).contains("Repo.save");
+    }
+
+    @Test
+    void duplicateComponentFromDfsBacktrackingIsDeduplicatedInSegment() {
+        // Simulates the DFS artifact: DataFlowTracer visits sendTombstone from two branches
+        // (once from ingest directly, once from processNonNullValue), recording it twice.
+        ArchitectureModel model = new ArchitectureModel("dedup-test");
+        model.components.add(comp("DeviceStateDataService", "DeviceStateDataService", ComponentType.SERVICE));
+        model.components.add(comp("KafkaMessageSender", "KafkaMessageSender", ComponentType.SERVICE));
+        model.components.add(comp("Repo", "Repo", ComponentType.REPOSITORY));
+        model.entrypoints.add(ep("ingest", "ingest", EntrypointType.MESSAGING_CONSUMER, "in", "DeviceStateDataService"));
+
+        DataFlowPath p = path("ingest", "ingest", "*");
+        // Steps as recorded by DFS backtracking: sendTombstone appears twice (non-consecutive)
+        p.steps.add(new DataFlowStep(0, ComponentId.of("DeviceStateDataService"), "DeviceStateDataService", "ingest", "*"));
+        p.steps.add(new DataFlowStep(1, ComponentId.of("KafkaMessageSender"), "KafkaMessageSender", "sendTombstone", "*"));
+        p.steps.add(new DataFlowStep(2, ComponentId.of("DeviceStateDataService"), "DeviceStateDataService", "processNonNullValue", "*"));
+        p.steps.add(new DataFlowStep(3, ComponentId.of("KafkaMessageSender"), "KafkaMessageSender", "sendTombstone", "*")); // DFS artifact
+        p.steps.add(new DataFlowStep(4, ComponentId.of("Repo"), "Repo", "save", "*"));
+        DataFlowSink sink = new DataFlowSink();
+        sink.kind = DataFlowSink.Kind.PERSISTENCE;
+        sink.componentId = ComponentId.of("Repo");
+        sink.componentName = "Repo";
+        sink.method = "save";
+        p.sinks.add(sink);
+        model.dataFlowPaths.add(p);
+
+        PipelineGraphBuilder.Chain chain = new PipelineGraphBuilder.Chain();
+        chain.segments.add(new PipelineGraphBuilder.Segment(p, null, model.entrypoints.get(0)));
+
+        String mermaid = new MermaidPipelineRenderer().render(chain, ToolModelIndex.from(model));
+
+        // KafkaMessageSender.sendTombstone must appear at most once as a node
+        long sendTombstoneCount = java.util.Arrays.stream(mermaid.split("\n"))
+                .filter(line -> line.contains("sendTombstone") && line.contains("["))
+                .count();
+        assertThat(sendTombstoneCount)
+                .as("KafkaMessageSender.sendTombstone must not be duplicated in the pipeline")
+                .isLessThanOrEqualTo(1);
+        // Main flow nodes must still appear
+        assertThat(mermaid).contains("processNonNullValue");
+        assertThat(mermaid).contains("Repo.save");
+    }
+
+    @Test
     void renderedSegmentDoesNotStartWithSelfReferentialEdge() {
         ArchitectureModel model = new ArchitectureModel("self-call-test");
         model.components.add(comp("Scheduler", "Scheduler", ComponentType.SCHEDULER));
