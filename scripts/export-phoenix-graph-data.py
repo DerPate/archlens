@@ -4,8 +4,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path("/home/dominik/spoon-mcp-server")
-PHOENIX = Path("/home/dominik/phoenix_backend")
+ROOT = Path("/home/dominik/git/spoon-mcp-server")
+PHOENIX = Path("/home/dominik/git/g-net-device-state-bizzlogic")
 JAR = ROOT / "target" / "spoon-mcp-server.jar"
 OUT = ROOT / "viewer" / "public" / "phoenix-graph.json"
 

@@ -43,15 +43,31 @@ class DependencyExtractorTest extends ExtractorTestBase {
     }
 
     @Test
+    void detectsEntityTypeUsageThroughMethodReturnType() {
+        // OrderService.find() returns Order (entity) — no @Inject field, so type-usage evidence
+        assertHasDependency(quarkusModel, "OrderService", "com.example.model.Order");
+        quarkusModel.dependencies.stream()
+                .filter(d -> d.fromId.serialize().contains("OrderService")
+                        && d.toId.serialize().equals("com.example.model.Order"))
+                .forEach(d -> assertThat(d.kind).isEqualTo("type-usage"));
+    }
+
+    @Test
     void quarkusDependenciesAreAnnotationDerived() {
-        quarkusModel.dependencies.forEach(
-                d -> assertThat(d.derivedFrom).as("derivedFrom for %s", d.id).isEqualTo("annotation"));
+        quarkusModel.dependencies.stream()
+                .filter(d -> "injection".equals(d.kind))
+                .forEach(
+                        d -> assertThat(d.derivedFrom).as("derivedFrom for %s", d.id).isEqualTo("annotation"));
     }
 
     @Test
     void quarkusDependenciesHaveHighConfidence() {
-        quarkusModel.dependencies.forEach(
-                d -> assertThat(d.confidence).as("confidence for %s", d.id).isGreaterThanOrEqualTo(0.9));
+        quarkusModel.dependencies.stream()
+                .filter(d -> "injection".equals(d.kind))
+                .forEach(
+                        d -> assertThat(d.confidence)
+                                .as("confidence for %s", d.id)
+                                .isGreaterThanOrEqualTo(0.9));
     }
 
     @Test
@@ -62,9 +78,11 @@ class DependencyExtractorTest extends ExtractorTestBase {
     }
 
     @Test
-    void dependencyKindIsInjection() {
+    void dependencyKindIsInjectionOrTypeUsage() {
         quarkusModel.dependencies.forEach(
-                d -> assertThat(d.kind).as("kind for %s", d.id).isEqualTo("injection"));
+                d -> assertThat(d.kind)
+                        .as("kind for %s", d.id)
+                        .isIn("injection", "type-usage"));
     }
 
     // ── javaee ejb/resource injection ────────────────────────────────────────

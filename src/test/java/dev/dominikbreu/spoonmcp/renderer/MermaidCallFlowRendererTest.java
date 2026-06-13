@@ -118,6 +118,29 @@ class MermaidCallFlowRendererTest {
     }
 
     @Test
+    void selfEdgesAreNotRendered() {
+        RuntimeFlow f = new RuntimeFlow();
+        f.id = "flow:test";
+        f.entrypointId = EntrypointId.deserialize("test");
+        RuntimeFlowStep s0 = new RuntimeFlowStep();
+        s0.componentId = ComponentId.of("Comp0");
+        s0.componentName = "Comp0";
+        f.steps.add(s0);
+        RuntimeFlowStep s1 = new RuntimeFlowStep();
+        s1.componentId = ComponentId.of("Comp1");
+        s1.componentName = "Comp1";
+        f.steps.add(s1);
+        // intra-component self-edge — must be suppressed
+        f.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of("Comp0"), ComponentId.of("Comp0"), "helper"));
+        // cross-component edge — must be kept
+        f.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of("Comp0"), ComponentId.of("Comp1"), "process"));
+
+        String out = renderer.render(f, index(2));
+        assertThat(out).doesNotContain("Comp0 -->|helper| Comp0");
+        assertThat(out).contains("-->|process| Comp1");
+    }
+
+    @Test
     void noReturnArrowsRendered() {
         String out = renderer.render(flow(4), index(4));
         assertThat(out).doesNotContain("-->>");

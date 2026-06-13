@@ -8,6 +8,8 @@ import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.DataFlowStep;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Renders a single pipeline {@link Chain} as a Mermaid {@code flowchart TD}.
@@ -131,8 +133,25 @@ public class MermaidPipelineRenderer {
 
     private String renderSteps(RenderState st, Segment seg, int segIdx, String headerNodeId, ToolModelIndex index) {
         String previousNodeInSeg = headerNodeId;
+        // Track last rendered component to collapse intra-component step chains.
+        // Also deduplicate DFS back-tracking artifacts: DataFlowTracer records every visited
+        // node including dead-end conditional branches, so the same component+method can
+        // appear multiple times non-consecutively. Key = compId#method to allow different
+        // methods on the same class (e.g. ingest vs processNonNullValue) to be distinct.
+        String prevComponentKey = seg.path.steps.isEmpty() ? null : compKey(seg.path.steps.getFirst());
+        Set<String> renderedStepKeys = new HashSet<>();
+        if (seg.path.steps.size() > 0) {
+            DataFlowStep first = seg.path.steps.getFirst();
+            renderedStepKeys.add(compKey(first) + "#" + first.method);
+        }
         for (int i = 1; i < seg.path.steps.size(); i++) {
             DataFlowStep step = seg.path.steps.get(i);
+            String stepKey = compKey(step);
+            // Skip steps that stay within the same component (private/helper method calls).
+            if (stepKey != null && stepKey.equals(prevComponentKey)) continue;
+            // Skip exact (component+method) revisits — DFS backtracking artifact.
+            String dedupKey = stepKey + "#" + step.method;
+            if (!renderedStepKeys.add(dedupKey)) continue;
             String nodeId = "S" + segIdx + "_" + i;
             Component stepComp = step.componentId != null ? index.component(step.componentId) : null;
             ComponentType type = stepComp != null ? stepComp.type : null;
@@ -151,8 +170,13 @@ public class MermaidPipelineRenderer {
                     .append(nodeId)
                     .append("\n");
             previousNodeInSeg = nodeId;
+            prevComponentKey = stepKey;
         }
         return previousNodeInSeg;
+    }
+
+    private static String compKey(DataFlowStep step) {
+        return step.componentId != null ? step.componentId.serialize() : step.componentName;
     }
 
     private void renderTerminalSinks(RenderState st, Chain chain, Segment seg, int segIdx, String previousNodeInSeg) {
