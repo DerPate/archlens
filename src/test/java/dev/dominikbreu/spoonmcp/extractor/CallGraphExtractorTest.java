@@ -560,6 +560,41 @@ class CallGraphExtractorTest extends ExtractorTestBase {
     }
 
     @Test
+    void intraComponentCallEdgesRecordBranchMetadata() {
+        ArchitectureModel fixture = extractBranchFixture(
+                "IntraComponentBranchFixture.java",
+                """
+                package example;
+                class BranchController {
+                    void handle(String value) {
+                        if (value == null) {
+                            reject(value);
+                        } else {
+                            accept(value);
+                        }
+                    }
+                    private void reject(String value) {
+                    }
+                    private void accept(String value) {
+                    }
+                }
+                """,
+                "example.BranchController");
+
+        CallEdge reject = edgeTo(fixture, "reject");
+        CallEdge accept = edgeTo(fixture, "accept");
+
+        assertThat(reject.fromComponentId).isEqualTo(reject.toComponentId);
+        assertThat(accept.fromComponentId).isEqualTo(accept.toComponentId);
+        assertThat(reject.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.IF_THEN);
+        assertThat(reject.branchLabel).isEqualTo("then");
+        assertThat(accept.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.IF_ELSE);
+        assertThat(accept.branchLabel).isEqualTo("else");
+        assertThat(accept.branchGroupId).isEqualTo(reject.branchGroupId);
+        assertThat(accept.branchArmId).isNotEqualTo(reject.branchArmId);
+    }
+
+    @Test
     void callEdgesKeepSeparateArmsWhenBothBranchesCallSameMethod() {
         ArchitectureModel fixture = extractBranchFixture(
                 "DuplicateBranchCallFixture.java",
@@ -669,6 +704,44 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         assertThat(ignore.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.SWITCH_DEFAULT);
         assertThat(ignore.branchLabel).isEqualTo("default");
         assertThat(ignore.branchGroupId).isEqualTo(activate.branchGroupId);
+    }
+
+    @Test
+    void callEdgesRecordSwitchExpressionBranches() {
+        ArchitectureModel fixture = extractBranchFixture(
+                "SwitchExpressionBranchFixture.java",
+                """
+                package example;
+                class BranchController {
+                    private final BranchService service = new BranchService();
+                    String handle(String status) {
+                        return switch (status) {
+                            case "ACTIVE" -> service.activate(status);
+                            default -> service.ignore(status);
+                        };
+                    }
+                }
+                class BranchService {
+                    String activate(String status) {
+                        return status;
+                    }
+                    String ignore(String status) {
+                        return status;
+                    }
+                }
+                """,
+                "example.BranchController",
+                "example.BranchService");
+
+        CallEdge activate = edgeTo(fixture, "activate");
+        CallEdge ignore = edgeTo(fixture, "ignore");
+
+        assertThat(activate.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.SWITCH_CASE);
+        assertThat(activate.branchLabel).contains("ACTIVE");
+        assertThat(ignore.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.SWITCH_DEFAULT);
+        assertThat(ignore.branchLabel).isEqualTo("default");
+        assertThat(ignore.branchGroupId).isEqualTo(activate.branchGroupId);
+        assertThat(ignore.branchArmId).isNotEqualTo(activate.branchArmId);
     }
 
     @Test
