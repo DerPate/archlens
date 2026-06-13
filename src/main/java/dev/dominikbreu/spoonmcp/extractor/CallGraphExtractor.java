@@ -776,7 +776,7 @@ public class CallGraphExtractor {
         if (branch == null) {
             return edgeId;
         }
-        return edgeId + "@branch:" + sanitizeIdSegment(branch.branchArmId());
+        return edgeId + "@arm:" + sanitizeIdSegment(branch.branchArmId());
     }
 
     private void applyBranchContext(CallEdge edge, BranchContext branch) {
@@ -815,7 +815,7 @@ public class CallGraphExtractor {
 
     private BranchContext ifBranchContext(CtInvocation<?> invocation, CtIf ctIf) {
         SourceInfo source = buildControlSource(ctIf);
-        String groupId = branchId("if", source);
+        String groupId = branchId("if", ctIf);
         if (isWithin(invocation, ctIf.getThenStatement())) {
             return new BranchContext(
                     CallEdge.ControlFlowKind.IF_THEN, groupId, groupId + ":then", "then", source);
@@ -829,7 +829,7 @@ public class CallGraphExtractor {
 
     private BranchContext ternaryBranchContext(CtInvocation<?> invocation, CtConditional<?> conditional) {
         SourceInfo source = buildControlSource(conditional);
-        String groupId = branchId("ternary", source);
+        String groupId = branchId("ternary", conditional);
         if (isWithin(invocation, conditional.getThenExpression())) {
             return new BranchContext(
                     CallEdge.ControlFlowKind.TERNARY_THEN, groupId, groupId + ":then", "then", source);
@@ -845,43 +845,102 @@ public class CallGraphExtractor {
         CtSwitch<?> ctSwitch = parentOf(ctCase, CtSwitch.class);
         CtElement control = ctSwitch != null ? ctSwitch : ctCase;
         SourceInfo source = buildControlSource(control);
-        String groupId = branchId("switch", source);
+        String groupId = branchId("switch", control);
         String label = caseLabel(ctCase);
         CallEdge.ControlFlowKind kind = "default".equals(label)
                 ? CallEdge.ControlFlowKind.SWITCH_DEFAULT
                 : CallEdge.ControlFlowKind.SWITCH_CASE;
         String armKind = kind == CallEdge.ControlFlowKind.SWITCH_DEFAULT ? "default" : "case";
+        int ordinal = caseOrdinal(ctSwitch, ctCase);
         return new BranchContext(
-                kind, groupId, groupId + ":" + armKind + ":" + sanitizeIdSegment(label), label, source);
+                kind,
+                groupId,
+                groupId + ":" + armKind + ":" + ordinal + ":" + sanitizeIdSegment(label),
+                label,
+                source);
     }
 
     private BranchContext catchBranchContext(CtCatch ctCatch) {
         CtTry owner = parentOf(ctCatch, CtTry.class);
-        SourceInfo groupSource = buildControlSource(owner != null ? owner : ctCatch);
         SourceInfo source = buildControlSource(ctCatch);
-        String groupId = branchId("try", groupSource);
+        String groupId = branchId("try", owner != null ? owner : ctCatch);
         String exceptionName = UNKNOWN;
         if (ctCatch.getParameter() != null && ctCatch.getParameter().getType() != null) {
             exceptionName = ctCatch.getParameter().getType().getSimpleName();
         }
         String label = "catch " + exceptionName;
+        int ordinal = catchOrdinal(owner, ctCatch);
         return new BranchContext(
                 CallEdge.ControlFlowKind.CATCH,
                 groupId,
-                groupId + ":catch:" + sanitizeIdSegment(exceptionName),
+                groupId + ":catch:" + ordinal + ":" + sanitizeIdSegment(exceptionName),
                 label,
                 source);
     }
 
     private BranchContext finallyBranchContext(CtTry ctTry) {
-        SourceInfo source = buildControlSource(ctTry);
-        String groupId = branchId("try", source);
+        CtBlock<?> finalizer = ctTry.getFinalizer();
+        SourceInfo source = buildControlSource(finalizer != null ? finalizer : ctTry);
+        String groupId = branchId("try", ctTry);
         return new BranchContext(
                 CallEdge.ControlFlowKind.FINALLY, groupId, groupId + ":finally", "finally", source);
     }
 
-    private static String branchId(String kind, SourceInfo source) {
-        return "branch:" + sanitizeIdSegment(kind) + ":" + stableFileSegment(source.file) + ":" + source.line;
+    private static String branchId(String kind, CtElement element) {
+        CtType<?> ownerType = parentOf(element, CtType.class);
+        CtMethod<?> ownerMethod = parentOf(element, CtMethod.class);
+        var pos = element.getPosition();
+        return "branch:" + sanitizeIdSegment(kind) + ":" + sanitizeIdSegment(ownerTypeName(ownerType)) + "#"
+                + sanitizeIdSegment(ownerMethodName(ownerMethod)) + ":" + stableFileSegment(sourceFileOf(pos)) + ":"
+                + sourceCoordinates(pos);
+    }
+
+    private static String ownerTypeName(CtType<?> ownerType) {
+        if (ownerType == null || ownerType.getQualifiedName() == null || ownerType.getQualifiedName().isBlank()) {
+            return UNKNOWN;
+        }
+        return ownerType.getQualifiedName();
+    }
+
+    private static String ownerMethodName(CtMethod<?> ownerMethod) {
+        if (ownerMethod == null || ownerMethod.getSimpleName() == null || ownerMethod.getSimpleName().isBlank()) {
+            return UNKNOWN;
+        }
+        return ownerMethod.getSimpleName();
+    }
+
+    private static String sourceCoordinates(spoon.reflect.cu.SourcePosition pos) {
+        if (pos == null || !pos.isValidPosition()) {
+            return "L0C0-L0C0";
+        }
+        return "L" + pos.getLine() + "C" + pos.getColumn() + "-L" + pos.getEndLine() + "C" + pos.getEndColumn()
+                + "@" + pos.getSourceStart() + "-" + pos.getSourceEnd();
+    }
+
+    private static int caseOrdinal(CtSwitch<?> ctSwitch, CtCase<?> ctCase) {
+        if (ctSwitch == null || ctSwitch.getCases() == null) {
+            return 0;
+        }
+        List<? extends CtCase<?>> cases = ctSwitch.getCases();
+        for (int i = 0; i < cases.size(); i++) {
+            if (cases.get(i) == ctCase) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    private static int catchOrdinal(CtTry owner, CtCatch ctCatch) {
+        if (owner == null || owner.getCatchers() == null) {
+            return 0;
+        }
+        List<CtCatch> catchers = owner.getCatchers();
+        for (int i = 0; i < catchers.size(); i++) {
+            if (catchers.get(i) == ctCatch) {
+                return i;
+            }
+        }
+        return 0;
     }
 
     private static String stableFileSegment(String file) {
