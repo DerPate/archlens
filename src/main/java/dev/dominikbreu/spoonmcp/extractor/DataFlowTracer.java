@@ -346,6 +346,8 @@ public class DataFlowTracer {
             Set<dev.dominikbreu.spoonmcp.model.ids.MethodRef> onCurrentPath,
             Map<String, Integer> nodeCounters) {}
 
+    private record BranchTopologyMetadata(String branchId, String armId, String label) {}
+
     private void dfs(
             DfsContext ctx,
             dev.dominikbreu.spoonmcp.model.ids.ComponentId compId,
@@ -472,7 +474,8 @@ public class DataFlowTracer {
                 recordCallSinks(ctx, edge, target, currentToOriginal, currentNodeByOriginal);
             } else if (traversalPolicy.canTraverseInline(edge)) {
                 Map<String, String> nextMapping = buildNextMapping(edge, currentToOriginal);
-                if (!nextMapping.isEmpty()) {
+                int nextDepth = depth + 1;
+                if (!nextMapping.isEmpty() && canEnter(ctx, edge.toComponentId, edge.toMethod, nextDepth)) {
                     Map<String, String> nextNodeByOriginal =
                             createMethodNodes(ctx, edge, target, nextMapping, currentNodeByOriginal);
                     dfs(
@@ -481,11 +484,21 @@ public class DataFlowTracer {
                             edge.toMethod,
                             nextMapping,
                             nextNodeByOriginal,
-                            depth + 1,
+                            nextDepth,
                             edge.resolvedLiteralArgs);
                 }
             }
         }
+    }
+
+    private boolean canEnter(
+            DfsContext ctx,
+            dev.dominikbreu.spoonmcp.model.ids.ComponentId compId,
+            String method,
+            int depth) {
+        dev.dominikbreu.spoonmcp.model.ids.MethodRef nodeKey =
+                new dev.dominikbreu.spoonmcp.model.ids.MethodRef(compId, method);
+        return !ctx.onCurrentPath().contains(nodeKey) && depth <= MAX_DEPTH;
     }
 
     private void recordCallSinks(
@@ -564,36 +577,44 @@ public class DataFlowTracer {
 
     private void addTopologyEdge(DataFlowPath path, String fromNodeId, String toNodeId, CallEdge edge) {
         if (fromNodeId == null) return;
-        if (edge != null) {
-            ensureBranch(path, edge, toNodeId);
+        BranchTopologyMetadata branch = branchTopologyMetadata(edge);
+        if (branch != null) {
+            ensureBranch(path, edge, branch, toNodeId);
         }
         path.flowEdges.add(new DataFlowEdge(
                 fromNodeId,
                 toNodeId,
                 edgeKind(edge),
-                edge != null ? edge.branchGroupId : null,
-                edge != null ? edge.branchArmId : null,
-                edge != null ? edge.branchLabel : null));
+                branch != null ? branch.branchId : null,
+                branch != null ? branch.armId : null,
+                branch != null ? branch.label : null));
     }
 
-    private void ensureBranch(DataFlowPath path, CallEdge edge, String entryNodeId) {
-        if (StringUtils.isBlank(edge.branchGroupId)) return;
+    private BranchTopologyMetadata branchTopologyMetadata(CallEdge edge) {
+        if (edge == null || StringUtils.isBlank(edge.branchGroupId)) return null;
+        String label = branchLabel(edge);
+        return new BranchTopologyMetadata(
+                edge.branchGroupId, firstNonBlank(edge.branchArmId, edge.branchGroupId + ":" + label), label);
+    }
+
+    private void ensureBranch(
+            DataFlowPath path, CallEdge edge, BranchTopologyMetadata branchMetadata, String entryNodeId) {
         DataFlowBranch branch = path.branches.stream()
-                .filter(existing -> edge.branchGroupId.equals(existing.id))
+                .filter(existing -> branchMetadata.branchId.equals(existing.id))
                 .findFirst()
                 .orElseGet(() -> {
                     DataFlowBranch created = new DataFlowBranch();
-                    created.id = edge.branchGroupId;
+                    created.id = branchMetadata.branchId;
                     created.kind = branchKind(edge.controlFlowKind);
                     created.source = edge.controlSource;
                     path.branches.add(created);
                     return created;
                 });
 
-        String armId = firstNonBlank(edge.branchArmId, edge.branchGroupId + ":" + branchLabel(edge));
-        boolean armExists = branch.arms.stream().anyMatch(arm -> armId.equals(arm.id));
+        boolean armExists = branch.arms.stream().anyMatch(arm -> branchMetadata.armId.equals(arm.id));
         if (!armExists) {
-            branch.arms.add(new DataFlowBranchArm(armId, edge.branchGroupId, branchLabel(edge), entryNodeId));
+            branch.arms.add(new DataFlowBranchArm(
+                    branchMetadata.armId, branchMetadata.branchId, branchMetadata.label, entryNodeId));
         }
     }
 
