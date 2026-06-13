@@ -16,19 +16,26 @@ import java.util.*;
 import java.util.stream.Collectors;
 import spoon.reflect.CtModel;
 import spoon.reflect.code.CtAssignment;
+import spoon.reflect.code.CtBlock;
+import spoon.reflect.code.CtCase;
+import spoon.reflect.code.CtCatch;
 import spoon.reflect.code.CtConditional;
 import spoon.reflect.code.CtConstructorCall;
 import spoon.reflect.code.CtExpression;
 import spoon.reflect.code.CtFieldAccess;
 import spoon.reflect.code.CtFieldRead;
 import spoon.reflect.code.CtFieldWrite;
+import spoon.reflect.code.CtIf;
 import spoon.reflect.code.CtInvocation;
 import spoon.reflect.code.CtLiteral;
 import spoon.reflect.code.CtLocalVariable;
 import spoon.reflect.code.CtReturn;
+import spoon.reflect.code.CtSwitch;
+import spoon.reflect.code.CtTry;
 import spoon.reflect.code.CtTypeAccess;
 import spoon.reflect.code.CtVariableRead;
 import spoon.reflect.code.CtVariableWrite;
+import spoon.reflect.declaration.CtElement;
 import spoon.reflect.declaration.CtField;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtParameter;
@@ -166,6 +173,13 @@ public class CallGraphExtractor {
             Map<CtInvocation<?>, Set<String>> killedSnapshots,
             List<CtAssignment<?, ?>> assignments,
             List<CtFieldRead<?>> fieldReads) {}
+
+    private record BranchContext(
+            CallEdge.ControlFlowKind kind,
+            String branchGroupId,
+            String branchArmId,
+            String branchLabel,
+            SourceInfo controlSource) {}
 
     private static MethodScan scanMethod(CtMethod<?> method) {
         List<CtInvocation<?>> invocations = new ArrayList<>();
@@ -555,6 +569,7 @@ public class CallGraphExtractor {
             edge.toMethod = toMethod;
             edge.callKind = "intra";
             edge.source = buildSource(inv);
+            applyBranchContext(edge, inv);
             model.callEdges.add(edge);
             buildParamMapping(inv, edge);
         }
@@ -740,6 +755,7 @@ public class CallGraphExtractor {
         edge.toMethod = toMethod;
         edge.callKind = callKind;
         edge.source = buildSource(inv);
+        applyBranchContext(edge, inv);
         edge.receiverEvidence = receiverEvidence;
         edge.receiverLocalName = resolveReceiverLocalName(inv);
         edge.receiverConfidence = receiverConfidence;
@@ -751,6 +767,134 @@ public class CallGraphExtractor {
         if (killedSnapshot != null) edge.killedTrackedNames.addAll(killedSnapshot);
         model.callEdges.add(edge);
         emitCallerSideFieldReadIfGetter(inv, fromComp, fromMethod, toComp, model, ctx);
+    }
+
+    private void applyBranchContext(CallEdge edge, CtInvocation<?> inv) {
+        BranchContext branch = branchContext(inv);
+        if (branch == null) return;
+        edge.controlFlowKind = branch.kind();
+        edge.branchGroupId = branch.branchGroupId();
+        edge.branchArmId = branch.branchArmId();
+        edge.branchLabel = branch.branchLabel();
+        edge.controlSource = branch.controlSource();
+    }
+
+    private BranchContext branchContext(CtInvocation<?> invocation) {
+        CtElement cursor = invocation;
+        while (cursor != null) {
+            CtElement parent = cursor.getParent();
+            if (parent instanceof CtIf ctIf) {
+                BranchContext context = ifBranchContext(invocation, ctIf);
+                if (context != null) return context;
+            } else if (parent instanceof CtConditional<?> conditional) {
+                BranchContext context = ternaryBranchContext(invocation, conditional);
+                if (context != null) return context;
+            } else if (parent instanceof CtCase<?> ctCase) {
+                return switchBranchContext(ctCase);
+            } else if (parent instanceof CtCatch ctCatch) {
+                return catchBranchContext(ctCatch);
+            } else if (parent instanceof CtTry ctTry) {
+                CtBlock<?> finalizer = ctTry.getFinalizer();
+                if (isWithin(invocation, finalizer)) {
+                    return finallyBranchContext(ctTry);
+                }
+            }
+            cursor = parent;
+        }
+        return null;
+    }
+
+    private BranchContext ifBranchContext(CtInvocation<?> invocation, CtIf ctIf) {
+        SourceInfo source = buildControlSource(ctIf);
+        String groupId = branchId("if", source);
+        if (isWithin(invocation, ctIf.getThenStatement())) {
+            return new BranchContext(
+                    CallEdge.ControlFlowKind.IF_THEN, groupId, groupId + ":then", "then", source);
+        }
+        if (isWithin(invocation, ctIf.getElseStatement())) {
+            return new BranchContext(
+                    CallEdge.ControlFlowKind.IF_ELSE, groupId, groupId + ":else", "else", source);
+        }
+        return null;
+    }
+
+    private BranchContext ternaryBranchContext(CtInvocation<?> invocation, CtConditional<?> conditional) {
+        SourceInfo source = buildControlSource(conditional);
+        String groupId = branchId("ternary", source);
+        if (isWithin(invocation, conditional.getThenExpression())) {
+            return new BranchContext(
+                    CallEdge.ControlFlowKind.TERNARY_THEN, groupId, groupId + ":then", "then", source);
+        }
+        if (isWithin(invocation, conditional.getElseExpression())) {
+            return new BranchContext(
+                    CallEdge.ControlFlowKind.TERNARY_ELSE, groupId, groupId + ":else", "else", source);
+        }
+        return null;
+    }
+
+    private BranchContext switchBranchContext(CtCase<?> ctCase) {
+        CtSwitch<?> ctSwitch = parentOf(ctCase, CtSwitch.class);
+        CtElement control = ctSwitch != null ? ctSwitch : ctCase;
+        SourceInfo source = buildControlSource(control);
+        String groupId = branchId("switch", source);
+        String label = caseLabel(ctCase);
+        CallEdge.ControlFlowKind kind = "default".equals(label)
+                ? CallEdge.ControlFlowKind.SWITCH_DEFAULT
+                : CallEdge.ControlFlowKind.SWITCH_CASE;
+        String armKind = kind == CallEdge.ControlFlowKind.SWITCH_DEFAULT ? "default" : "case";
+        return new BranchContext(kind, groupId, groupId + ":" + armKind + ":" + label, label, source);
+    }
+
+    private BranchContext catchBranchContext(CtCatch ctCatch) {
+        SourceInfo source = buildControlSource(ctCatch);
+        String groupId = branchId("catch", source);
+        String exceptionName = UNKNOWN;
+        if (ctCatch.getParameter() != null && ctCatch.getParameter().getType() != null) {
+            exceptionName = ctCatch.getParameter().getType().getSimpleName();
+        }
+        String label = "catch " + exceptionName;
+        return new BranchContext(CallEdge.ControlFlowKind.CATCH, groupId, groupId + ":" + exceptionName, label, source);
+    }
+
+    private BranchContext finallyBranchContext(CtTry ctTry) {
+        SourceInfo source = buildControlSource(ctTry);
+        String groupId = branchId("finally", source);
+        return new BranchContext(
+                CallEdge.ControlFlowKind.FINALLY, groupId, groupId + ":finally", "finally", source);
+    }
+
+    private static String branchId(String kind, SourceInfo source) {
+        return "branch:" + kind + ":" + source.file + ":" + source.line;
+    }
+
+    private static String caseLabel(CtCase<?> ctCase) {
+        List<? extends CtExpression<?>> expressions = ctCase.getCaseExpressions();
+        if (expressions == null || expressions.isEmpty()) {
+            return "default";
+        }
+        return expressions.stream().map(Object::toString).collect(Collectors.joining(", "));
+    }
+
+    private static boolean isWithin(CtElement candidate, CtElement possibleAncestor) {
+        if (candidate == null || possibleAncestor == null) return false;
+        CtElement cursor = candidate;
+        while (cursor != null) {
+            if (cursor == possibleAncestor) return true;
+            cursor = cursor.getParent();
+        }
+        return false;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends CtElement> T parentOf(CtElement element, Class<T> type) {
+        CtElement cursor = element == null ? null : element.getParent();
+        while (cursor != null) {
+            if (type.isInstance(cursor)) {
+                return (T) cursor;
+            }
+            cursor = cursor.getParent();
+        }
+        return null;
     }
 
     private String resolveReceiverLocalName(CtInvocation<?> inv) {
@@ -1110,5 +1254,10 @@ public class CallGraphExtractor {
             line = 0;
         }
         return new SourceInfo(file, line, "invocation", 0.95);
+    }
+
+    private SourceInfo buildControlSource(CtElement element) {
+        var pos = element.getPosition();
+        return new SourceInfo(sourceFileOf(pos), sourceLineOf(pos), "control-flow", 0.95);
     }
 }
