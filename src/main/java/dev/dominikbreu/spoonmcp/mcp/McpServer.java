@@ -15,6 +15,7 @@ import java.util.function.Function;
 
 /** Stdio MCP server exposing architecture-analysis tools via the official MCP Java SDK. */
 public class McpServer {
+    static final String SERVER_VERSION = "1.2.0";
 
     private final IndexWorkspaceTool indexTool;
     private final ListAppsTool listAppsTool;
@@ -90,7 +91,7 @@ public class McpServer {
         StdioServerTransportProvider transport = new StdioServerTransportProvider(McpJsonDefaults.getMapper());
 
         io.modelcontextprotocol.server.McpServer.sync(transport)
-                .serverInfo("spoon-mcp-server", "1.1.0")
+                .serverInfo("spoon-mcp-server", SERVER_VERSION)
                 .capabilities(McpSchema.ServerCapabilities.builder()
                         .prompts(false)
                         .tools(false)

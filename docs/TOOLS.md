@@ -397,7 +397,7 @@ Sample output:
 Detected 4 use case(s):
 
 ## POST Create Order
-  id:           usecase:com.example.api.OrderResource#createOrder
+  id:           com.example.api.OrderResource#createOrder
   type:         REST_ENDPOINT
   channel/path: /orders
   components:   OrderResource, OrderService, OrderRepository
@@ -406,7 +406,7 @@ Detected 4 use case(s):
     - OrderService.create → OrderRepository.save
 
 ## Process order-events
-  id:           usecase:com.example.messaging.OrderConsumer#handle:msg-in:order-events
+  id:           com.example.messaging.OrderConsumer#handle:msg-in:order-events
   type:         MESSAGING_CONSUMER
   channel/path: order-events
   components:   OrderConsumer, OrderService
@@ -545,7 +545,7 @@ Sample output — REST entrypoints:
 3 data-flow path(s):
 
 ## POST /orders → param: order
-  id: df:com.example.api.OrderResource#createOrder#order
+  id: com.example.api.OrderResource#createOrder#order
   flow:
     1. OrderResource.createOrder (as 'order')
     2. OrderService.create (as 'dto')
@@ -555,7 +555,7 @@ Sample output — REST entrypoints:
     - [messaging] emitter.send  (OrderService.java:27)
 
 ## GET /orders/{id} → param: id
-  id: df:com.example.api.OrderResource#getOrder#id
+  id: com.example.api.OrderResource#getOrder#id
   flow:
     1. OrderResource.getOrder (as 'id')
     2. OrderService.find (as 'id')
@@ -569,7 +569,7 @@ Sample output — two-phase pipeline (`MESSAGING_CONSUMER` → cache → `SCHEDU
 2 data-flow path(s):
 
 ## handle (device-snapshots) → param: snapshot
-  id: df:com.example.DeviceConsumer#handle:msg-in:device-snapshots#snapshot
+  id: com.example.DeviceConsumer#handle:msg-in:device-snapshots#snapshot
   flow:
     1. DeviceConsumer.handle (as 'snapshot')
     2. StateCache.put (as 'snapshot')
@@ -577,7 +577,7 @@ Sample output — two-phase pipeline (`MESSAGING_CONSUMER` → cache → `SCHEDU
     - [store] stateCache  field owner: StateCache  (DeviceConsumer.java:42)
 
 ## processSnapshots → param: stateCache
-  id: df:com.example.scheduler.SnapshotProcessor#processSnapshots#stateCache
+  id: com.example.scheduler.SnapshotProcessor#processSnapshots#stateCache
   flow:
     1. SnapshotProcessor.processSnapshots (as 'stateCache')
     2. StateCalculator.calculate (as 'entry')
@@ -588,7 +588,7 @@ Sample output — two-phase pipeline (`MESSAGING_CONSUMER` → cache → `SCHEDU
 
 The matching field name (`stateCache`) in both paths identifies the shared state linking the
 two phases. The consumer's `store` sink also carries
-`linkedPathIds: ["df:com.example.scheduler.SnapshotProcessor#processSnapshots#stateCache"]`,
+`linkedPathIds: ["com.example.scheduler.SnapshotProcessor#processSnapshots#stateCache"]`,
 so agents can stitch the cross-phase pipeline without name matching.
 
 ---

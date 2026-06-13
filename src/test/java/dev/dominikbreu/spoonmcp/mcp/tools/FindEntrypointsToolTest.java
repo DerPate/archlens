@@ -53,6 +53,8 @@ class FindEntrypointsToolTest {
         assertThat(result).contains("getAll [GET] /customer");
         assertThat(result).contains("get [GET] /customer/{id}");
         assertThat(result).contains("getAll [GET] /account");
+        assertThat(result).contains("Component: CustomerController");
+        assertThat(result).doesNotContain("ComponentId[");
         assertThat(result).doesNotContain("[POST]");
         assertThat(result).doesNotContain("[PUT]");
     }

@@ -14,6 +14,11 @@ import org.junit.jupiter.api.Test;
 class McpServerTest {
 
     @Test
+    void serverVersion_matchesProjectVersion() {
+        assertThat(McpServer.SERVER_VERSION).isEqualTo("1.2.0");
+    }
+
+    @Test
     void buildToolSpecifications_registersEveryTool() {
         List<McpServerFeatures.SyncToolSpecification> specs = new McpServer().buildToolSpecifications();
 

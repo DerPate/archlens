@@ -45,7 +45,9 @@ class UntestedToolsCoverageTest {
 
     @Test
     void listApps_returnsApplications() {
-        assertOk(new ListAppsTool(cache).execute(Map.of()));
+        String result = new ListAppsTool(cache).execute(Map.of());
+        assertOk(result);
+        assertNoTypedIdNoise(result);
     }
 
     @Test
@@ -60,7 +62,9 @@ class UntestedToolsCoverageTest {
 
     @Test
     void inferContainers_runs() {
-        assertOk(new InferContainersTool(cache).execute(Map.of()));
+        String result = new InferContainersTool(cache).execute(Map.of());
+        assertOk(result);
+        assertNoTypedIdNoise(result);
     }
 
     @Test
@@ -95,6 +99,7 @@ class UntestedToolsCoverageTest {
         assertThat(entrypointId).isNotNull();
         String result = new GetRuntimeFlowTool(cache).execute(Map.of("entrypointId", entrypointId));
         assertThat(result).doesNotStartWith("Error");
+        assertNoTypedIdNoise(result);
     }
 
     @Test
@@ -160,6 +165,14 @@ class UntestedToolsCoverageTest {
         assertThat(result).isNotBlank();
         assertThat(result).doesNotStartWith("Error");
         assertThat(result).doesNotContain("No workspace indexed");
+    }
+
+    private static void assertNoTypedIdNoise(String result) {
+        assertThat(result)
+                .doesNotContain("AppId[")
+                .doesNotContain("ComponentId[")
+                .doesNotContain("EntrypointId[")
+                .doesNotContain("DataFlowPathId[");
     }
 
     private static ModelCache cacheReturning(ArchitectureModel m) {

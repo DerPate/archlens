@@ -241,7 +241,9 @@ public class ExportGraphArchitecturePocTool {
         }
         for (RuntimeFlow flow : model.runtimeFlows) {
             sb.append("### ").append(flow.id).append("\n\n");
-            sb.append("- Entrypoint: `").append(flow.entrypointId).append("`\n");
+            sb.append("- Entrypoint: `")
+                    .append(flow.entrypointId != null ? flow.entrypointId.serialize() : "")
+                    .append("`\n");
             sb.append("- Steps: ").append(flow.steps.size()).append("\n");
             for (RuntimeFlowStep step : flow.steps) {
                 appendFlowStep(sb, step);
@@ -254,7 +256,7 @@ public class ExportGraphArchitecturePocTool {
         sb.append("- ")
                 .append(step.order)
                 .append(". `")
-                .append(step.componentId)
+                .append(step.componentId != null ? step.componentId.serialize() : "")
                 .append("`");
         if (StringUtils.isNotBlank(step.componentName)) {
             sb.append(" ").append(step.componentName);
