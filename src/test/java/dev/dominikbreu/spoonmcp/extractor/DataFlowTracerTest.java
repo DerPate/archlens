@@ -1550,10 +1550,11 @@ class DataFlowTracerTest {
         addCallEdge(model, "BranchService", "validate", "OrderRepository", "save", Map.of("value", "entity"));
         model.callEdges.add(branchEdge);
 
-        DataFlowPath path = new DataFlowTracer().trace(model).stream()
-                .filter(p -> "value".equals(p.trackedParam))
-                .findFirst()
-                .orElseThrow();
+        DataFlowPath path = new DataFlowTracer()
+                .trace(model).stream()
+                        .filter(p -> "value".equals(p.trackedParam))
+                        .findFirst()
+                        .orElseThrow();
 
         DataFlowBranchArm arm = path.branches.stream()
                 .flatMap(branch -> branch.arms.stream())
@@ -1603,17 +1604,17 @@ class DataFlowTracerTest {
         CallEdge save = callEdge("B", "work", "Repo", "save", Map.of("value", "entity"));
         model.callEdges.addAll(List.of(toB, cycle, save));
 
-        DataFlowPath path = new DataFlowTracer().trace(model).stream()
-                .filter(p -> "value".equals(p.trackedParam))
-                .findFirst()
-                .orElseThrow();
+        DataFlowPath path = new DataFlowTracer()
+                .trace(model).stream()
+                        .filter(p -> "value".equals(p.trackedParam))
+                        .findFirst()
+                        .orElseThrow();
 
-        assertThat(path.flowNodes)
-                .anySatisfy(node -> {
-                    assertThat(node.kind).isEqualTo(DataFlowNode.Kind.METHOD);
-                    assertThat(node.componentId).isEqualTo(ComponentId.of("B"));
-                    assertThat(node.method).isEqualTo("work");
-                });
+        assertThat(path.flowNodes).anySatisfy(node -> {
+            assertThat(node.kind).isEqualTo(DataFlowNode.Kind.METHOD);
+            assertThat(node.componentId).isEqualTo(ComponentId.of("B"));
+            assertThat(node.method).isEqualTo("work");
+        });
         assertThat(path.flowNodes)
                 .noneMatch(node -> node.kind == DataFlowNode.Kind.METHOD
                         && ComponentId.of("A").equals(node.componentId)

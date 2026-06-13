@@ -521,9 +521,8 @@ class CallGraphExtractorTest extends ExtractorTestBase {
 
     @Test
     void callEdgesRecordIfThenAndElseBranches() {
-        ArchitectureModel fixture = extractBranchFixture(
-                "IfBranchFixture.java",
-                """
+        ArchitectureModel fixture =
+                extractBranchFixture("IfBranchFixture.java", """
                 package example;
                 class BranchController {
                     private final BranchService service = new BranchService();
@@ -541,9 +540,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                     void accept(String value) {
                     }
                 }
-                """,
-                "example.BranchController",
-                "example.BranchService");
+                """, "example.BranchController", "example.BranchService");
 
         CallEdge reject = edgeTo(fixture, "reject");
         CallEdge accept = edgeTo(fixture, "accept");
@@ -561,9 +558,8 @@ class CallGraphExtractorTest extends ExtractorTestBase {
 
     @Test
     void intraComponentCallEdgesRecordBranchMetadata() {
-        ArchitectureModel fixture = extractBranchFixture(
-                "IntraComponentBranchFixture.java",
-                """
+        ArchitectureModel fixture =
+                extractBranchFixture("IntraComponentBranchFixture.java", """
                 package example;
                 class BranchController {
                     void handle(String value) {
@@ -578,8 +574,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                     private void accept(String value) {
                     }
                 }
-                """,
-                "example.BranchController");
+                """, "example.BranchController");
 
         CallEdge reject = edgeTo(fixture, "reject");
         CallEdge accept = edgeTo(fixture, "accept");
@@ -597,8 +592,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
     @Test
     void callEdgesKeepSeparateArmsWhenBothBranchesCallSameMethod() {
         ArchitectureModel fixture = extractBranchFixture(
-                "DuplicateBranchCallFixture.java",
-                """
+                "DuplicateBranchCallFixture.java", """
                 package example;
                 class BranchController {
                     private final BranchService service = new BranchService();
@@ -614,9 +608,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                     void process(String value) {
                     }
                 }
-                """,
-                "example.BranchController",
-                "example.BranchService");
+                """, "example.BranchController", "example.BranchService");
 
         List<CallEdge> processEdges = fixture.callEdges.stream()
                 .filter(edge -> "process".equals(edge.toMethod))
@@ -634,8 +626,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
     @Test
     void callEdgesKeepSeparateSwitchCasesWhenSanitizedLabelsCollide() {
         ArchitectureModel fixture = extractBranchFixture(
-                "SwitchCollisionBranchFixture.java",
-                """
+                "SwitchCollisionBranchFixture.java", """
                 package example;
                 class BranchController {
                     private final BranchService service = new BranchService();
@@ -652,18 +643,14 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                     void process(String status) {
                     }
                 }
-                """,
-                "example.BranchController",
-                "example.BranchService");
+                """, "example.BranchController", "example.BranchService");
 
         List<CallEdge> processEdges = fixture.callEdges.stream()
                 .filter(edge -> "process".equals(edge.toMethod))
                 .toList();
 
         assertThat(processEdges).hasSize(2);
-        assertThat(processEdges)
-                .extracting(edge -> edge.branchLabel)
-                .containsExactlyInAnyOrder("\"A B\"", "\"A-B\"");
+        assertThat(processEdges).extracting(edge -> edge.branchLabel).containsExactlyInAnyOrder("\"A B\"", "\"A-B\"");
         assertThat(processEdges)
                 .extracting(edge -> edge.branchGroupId)
                 .containsOnly(processEdges.getFirst().branchGroupId);
@@ -674,8 +661,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
     @Test
     void callEdgesRecordSwitchCaseAndDefaultBranches() {
         ArchitectureModel fixture = extractBranchFixture(
-                "SwitchBranchFixture.java",
-                """
+                "SwitchBranchFixture.java", """
                 package example;
                 class BranchController {
                     private final BranchService service = new BranchService();
@@ -692,9 +678,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                     void ignore(String status) {
                     }
                 }
-                """,
-                "example.BranchController",
-                "example.BranchService");
+                """, "example.BranchController", "example.BranchService");
 
         CallEdge activate = edgeTo(fixture, "activate");
         CallEdge ignore = edgeTo(fixture, "ignore");
@@ -709,8 +693,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
     @Test
     void callEdgesRecordSwitchExpressionBranches() {
         ArchitectureModel fixture = extractBranchFixture(
-                "SwitchExpressionBranchFixture.java",
-                """
+                "SwitchExpressionBranchFixture.java", """
                 package example;
                 class BranchController {
                     private final BranchService service = new BranchService();
@@ -729,9 +712,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                         return status;
                     }
                 }
-                """,
-                "example.BranchController",
-                "example.BranchService");
+                """, "example.BranchController", "example.BranchService");
 
         CallEdge activate = edgeTo(fixture, "activate");
         CallEdge ignore = edgeTo(fixture, "ignore");
@@ -747,8 +728,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
     @Test
     void callEdgesRecordTernaryBranches() {
         ArchitectureModel fixture = extractBranchFixture(
-                "TernaryBranchFixture.java",
-                """
+                "TernaryBranchFixture.java", """
                 package example;
                 class BranchController {
                     private final BranchService service = new BranchService();
@@ -764,9 +744,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                         return value;
                     }
                 }
-                """,
-                "example.BranchController",
-                "example.BranchService");
+                """, "example.BranchController", "example.BranchService");
 
         CallEdge accept = edgeTo(fixture, "accept");
         CallEdge reject = edgeTo(fixture, "reject");
@@ -780,9 +758,8 @@ class CallGraphExtractorTest extends ExtractorTestBase {
 
     @Test
     void callEdgesRecordCatchAndFinallyBranches() {
-        ArchitectureModel fixture = extractBranchFixture(
-                "TryBranchFixture.java",
-                """
+        ArchitectureModel fixture =
+                extractBranchFixture("TryBranchFixture.java", """
                 package example;
                 class BranchController {
                     private final BranchService service = new BranchService();
@@ -804,9 +781,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                     void cleanup(String value) {
                     }
                 }
-                """,
-                "example.BranchController",
-                "example.BranchService");
+                """, "example.BranchController", "example.BranchService");
 
         CallEdge work = edgeTo(fixture, "work");
         CallEdge recover = edgeTo(fixture, "recover");

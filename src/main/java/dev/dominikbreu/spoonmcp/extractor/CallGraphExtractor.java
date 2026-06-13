@@ -817,12 +817,10 @@ public class CallGraphExtractor {
         SourceInfo source = buildControlSource(ctIf);
         String groupId = branchId("if", ctIf);
         if (isWithin(invocation, ctIf.getThenStatement())) {
-            return new BranchContext(
-                    CallEdge.ControlFlowKind.IF_THEN, groupId, groupId + ":then", "then", source);
+            return new BranchContext(CallEdge.ControlFlowKind.IF_THEN, groupId, groupId + ":then", "then", source);
         }
         if (isWithin(invocation, ctIf.getElseStatement())) {
-            return new BranchContext(
-                    CallEdge.ControlFlowKind.IF_ELSE, groupId, groupId + ":else", "else", source);
+            return new BranchContext(CallEdge.ControlFlowKind.IF_ELSE, groupId, groupId + ":else", "else", source);
         }
         return null;
     }
@@ -831,12 +829,10 @@ public class CallGraphExtractor {
         SourceInfo source = buildControlSource(conditional);
         String groupId = branchId("ternary", conditional);
         if (isWithin(invocation, conditional.getThenExpression())) {
-            return new BranchContext(
-                    CallEdge.ControlFlowKind.TERNARY_THEN, groupId, groupId + ":then", "then", source);
+            return new BranchContext(CallEdge.ControlFlowKind.TERNARY_THEN, groupId, groupId + ":then", "then", source);
         }
         if (isWithin(invocation, conditional.getElseExpression())) {
-            return new BranchContext(
-                    CallEdge.ControlFlowKind.TERNARY_ELSE, groupId, groupId + ":else", "else", source);
+            return new BranchContext(CallEdge.ControlFlowKind.TERNARY_ELSE, groupId, groupId + ":else", "else", source);
         }
         return null;
     }
@@ -853,11 +849,7 @@ public class CallGraphExtractor {
         String armKind = kind == CallEdge.ControlFlowKind.SWITCH_DEFAULT ? "default" : "case";
         int ordinal = caseOrdinal(ctSwitch, ctCase);
         return new BranchContext(
-                kind,
-                groupId,
-                groupId + ":" + armKind + ":" + ordinal + ":" + sanitizeIdSegment(label),
-                label,
-                source);
+                kind, groupId, groupId + ":" + armKind + ":" + ordinal + ":" + sanitizeIdSegment(label), label, source);
     }
 
     private BranchContext catchBranchContext(CtCatch ctCatch) {
@@ -882,8 +874,7 @@ public class CallGraphExtractor {
         CtBlock<?> finalizer = ctTry.getFinalizer();
         SourceInfo source = buildControlSource(finalizer != null ? finalizer : ctTry);
         String groupId = branchId("try", ctTry);
-        return new BranchContext(
-                CallEdge.ControlFlowKind.FINALLY, groupId, groupId + ":finally", "finally", source);
+        return new BranchContext(CallEdge.ControlFlowKind.FINALLY, groupId, groupId + ":finally", "finally", source);
     }
 
     private static String branchId(String kind, CtElement element) {
@@ -896,14 +887,18 @@ public class CallGraphExtractor {
     }
 
     private static String ownerTypeName(CtType<?> ownerType) {
-        if (ownerType == null || ownerType.getQualifiedName() == null || ownerType.getQualifiedName().isBlank()) {
+        if (ownerType == null
+                || ownerType.getQualifiedName() == null
+                || ownerType.getQualifiedName().isBlank()) {
             return UNKNOWN;
         }
         return ownerType.getQualifiedName();
     }
 
     private static String ownerMethodName(CtMethod<?> ownerMethod) {
-        if (ownerMethod == null || ownerMethod.getSimpleName() == null || ownerMethod.getSimpleName().isBlank()) {
+        if (ownerMethod == null
+                || ownerMethod.getSimpleName() == null
+                || ownerMethod.getSimpleName().isBlank()) {
             return UNKNOWN;
         }
         return ownerMethod.getSimpleName();
@@ -913,8 +908,8 @@ public class CallGraphExtractor {
         if (pos == null || !pos.isValidPosition()) {
             return "L0C0-L0C0";
         }
-        return "L" + pos.getLine() + "C" + pos.getColumn() + "-L" + pos.getEndLine() + "C" + pos.getEndColumn()
-                + "@" + pos.getSourceStart() + "-" + pos.getSourceEnd();
+        return "L" + pos.getLine() + "C" + pos.getColumn() + "-L" + pos.getEndLine() + "C" + pos.getEndColumn() + "@"
+                + pos.getSourceStart() + "-" + pos.getSourceEnd();
     }
 
     private static int caseOrdinal(CtAbstractSwitch<?> ctSwitch, CtCase<?> ctCase) {
