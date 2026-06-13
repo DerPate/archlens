@@ -16,11 +16,21 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.commons.lang3.StringUtils;
 
+/** Renders a {@link LikeC4Document} or {@link ArchitectureViewProjection} as LikeC4 DSL text. */
 public final class LikeC4ModelRenderer {
 
     private static final String BLOCK_END = "}\n\n";
     private static final String INDENT_BLOCK_END = "  }\n";
 
+    /** Creates a renderer with default settings. */
+    public LikeC4ModelRenderer() {}
+
+    /**
+     * Renders the given LikeC4 document as a DSL string.
+     *
+     * @param document the document to render
+     * @return the LikeC4 DSL text
+     */
     public String render(LikeC4Document document) {
         StringBuilder sb = new StringBuilder();
         Map<String, String> aliases = elementAliases(document);
@@ -125,6 +135,12 @@ public final class LikeC4ModelRenderer {
         sb.append(INDENT_BLOCK_END);
     }
 
+    /**
+     * Renders the given architecture view projection as a LikeC4 view block.
+     *
+     * @param projection the view projection to render
+     * @return the LikeC4 DSL text
+     */
     public String render(ArchitectureViewProjection projection) {
         StringBuilder sb = new StringBuilder();
         Map<String, String> aliases = projectionAliases(projection);

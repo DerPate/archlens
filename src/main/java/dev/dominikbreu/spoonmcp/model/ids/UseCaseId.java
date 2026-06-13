@@ -6,6 +6,8 @@ import com.fasterxml.jackson.annotation.JsonValue;
 /**
  * Typed identity for a use case, derived from its originating entrypoint.
  * Serializes as its bare entrypoint id (no prefix).
+ *
+ * @param entrypoint the originating entrypoint from which this use case derives
  */
 public record UseCaseId(EntrypointId entrypoint) {
 

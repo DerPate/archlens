@@ -248,6 +248,12 @@ public class ArchitectureGraph {
                 .toList();
     }
 
+    /**
+     * Returns nodes for the given component ids in the order provided, skipping duplicates and nulls.
+     *
+     * @param ids the component ids to look up
+     * @return the matching graph nodes
+     */
     public synchronized List<GraphNode> nodesByComponentIds(Iterable<ComponentId> ids) {
         List<GraphNode> nodes = new ArrayList<>();
         Set<ComponentId> seen = new HashSet<>();
@@ -259,6 +265,12 @@ public class ArchitectureGraph {
         return nodes;
     }
 
+    /**
+     * Returns nodes for the given entrypoint ids in the order provided, skipping duplicates and nulls.
+     *
+     * @param ids the entrypoint ids to look up
+     * @return the matching graph nodes
+     */
     public synchronized List<GraphNode> nodesByEntrypointIds(Iterable<EntrypointId> ids) {
         List<GraphNode> nodes = new ArrayList<>();
         Set<EntrypointId> seen = new HashSet<>();
@@ -270,6 +282,12 @@ public class ArchitectureGraph {
         return nodes;
     }
 
+    /**
+     * Returns all component nodes owned by the given application via {@code OWNS} edges.
+     *
+     * @param appId the application id
+     * @return the owned component nodes
+     */
     public synchronized List<GraphNode> componentNodesOwnedBy(AppId appId) {
         String appKey = appId.serialize();
         List<GraphNode> nodes = new ArrayList<>();
@@ -1559,14 +1577,40 @@ public class ArchitectureGraph {
                     DataFlowSinkNode,
                     PipelineChainNode,
                     UnknownNode {
+        /**
+         * Returns the unique node id in the architecture graph.
+         *
+         * @return the node id
+         */
         GraphNodeId id();
 
+        /**
+         * Returns the human-readable node name.
+         *
+         * @return the node name
+         */
         String name();
 
+        /**
+         * Returns the graph label (node type) for this node.
+         *
+         * @return the label string (e.g. {@code "Component"}, {@code "Entrypoint"})
+         */
         String label();
-        /** Property map for serialisation and generic display — derived from typed fields. */
+
+        /**
+         * Property map for serialisation and generic display — derived from typed fields.
+         *
+         * @return an unmodifiable map of property key-value pairs
+         */
         Map<String, Object> properties();
 
+        /**
+         * Returns true if this node matches the given free-text query.
+         *
+         * @param query the search string (case-insensitive substring match)
+         * @return true if any searchable field contains the query
+         */
         boolean matches(String query);
 
         private static Map<String, Object> propsOf(Object... keysAndValues) {
@@ -1585,6 +1629,17 @@ public class ArchitectureGraph {
         }
     }
 
+    /**
+     * Graph node representing a detected application or Maven module.
+     *
+     * @param id the node id
+     * @param name the application or module name
+     * @param technology the primary technology stack (e.g. {@code "spring"})
+     * @param packagingType the Maven packaging type (e.g. {@code "jar"}, {@code "pom"})
+     * @param role the application role (e.g. {@code "service"}, {@code "library"})
+     * @param rootPath the filesystem root path of this module
+     * @param parentAppId the parent application id for multi-module projects, or {@code null}
+     */
     public record ApplicationNode(
             GraphNodeId id,
             String name,
@@ -1623,6 +1678,30 @@ public class ArchitectureGraph {
         }
     }
 
+    /**
+     * Graph node representing a detected application component (class or interface).
+     *
+     * @param id the node id
+     * @param name the simple class name
+     * @param type the component type (REST_RESOURCE, SERVICE, REPOSITORY, etc.)
+     * @param qualifiedName the fully-qualified class name
+     * @param packageName the package name
+     * @param module the application module that owns this component
+     * @param technology the technology stack (e.g. {@code "spring"})
+     * @param stereotypes the detected stereotype labels
+     * @param source source location and derivation metadata
+     * @param fanIn the number of incoming dependency edges
+     * @param fanOut the number of outgoing dependency edges
+     * @param degree the total edge degree (fanIn + fanOut)
+     * @param ownedEntrypointCount the number of entrypoints owned by this component
+     * @param architecturalWeight a composite weight reflecting structural importance
+     * @param workflowRelevant true if this component participates in a data-flow workflow
+     * @param businessRelevant true if this component has business-level significance
+     * @param infrastructureRole the infrastructure role label if applicable
+     * @param noiseScore a score reflecting how likely the component is low-signal infrastructure
+     * @param workflowBridgeScore a score reflecting how many workflows this component bridges
+     * @param entrypointReachable true if this component is reachable from at least one entrypoint
+     */
     public record ComponentNode(
             GraphNodeId id,
             String name,
@@ -1695,6 +1774,22 @@ public class ArchitectureGraph {
         }
     }
 
+    /**
+     * Graph node representing a detected entrypoint (REST, messaging listener, scheduler, etc.).
+     *
+     * @param id the node id
+     * @param name the human-readable entrypoint name
+     * @param type the entrypoint type (REST, MESSAGING, SCHEDULED, etc.)
+     * @param httpMethod the HTTP method for REST entrypoints
+     * @param path the URL path for REST entrypoints
+     * @param channelName the channel or queue name for messaging entrypoints
+     * @param broker the messaging broker for messaging entrypoints
+     * @param topic the topic name for messaging entrypoints
+     * @param parameters the list of tracked parameter names
+     * @param protocol the transport protocol
+     * @param componentId the component that owns this entrypoint
+     * @param source source location where the entrypoint was detected
+     */
     public record EntrypointNode(
             GraphNodeId id,
             String name,
@@ -1750,6 +1845,21 @@ public class ArchitectureGraph {
         }
     }
 
+    /**
+     * Graph node representing a messaging or REST interface boundary on a component.
+     *
+     * @param id the node id
+     * @param name the interface name (route or channel)
+     * @param type the interface type (e.g. {@code "rest_endpoint"}, {@code "messaging_producer"})
+     * @param path the URL path for REST interfaces
+     * @param componentId the component that exposes this interface
+     * @param module the application module that owns this interface
+     * @param technology the technology stack (e.g. {@code "spring"}, {@code "kafka"})
+     * @param broker the messaging broker for messaging interfaces
+     * @param topic the topic name for messaging interfaces
+     * @param externalServiceName the external service name for client interfaces
+     * @param source source location where the interface was detected
+     */
     public record InterfaceNode(
             GraphNodeId id,
             String name,
@@ -1800,6 +1910,15 @@ public class ArchitectureGraph {
         }
     }
 
+    /**
+     * Graph node representing an inferred application-layer container (api, service, repository, etc.).
+     *
+     * @param id the node id
+     * @param name the container layer name (e.g. {@code "api"}, {@code "service"})
+     * @param appId the application that owns this container
+     * @param technology the technology stack for this layer
+     * @param derivedFrom the inference rule that produced this container
+     */
     public record ContainerNode(GraphNodeId id, String name, AppId appId, String technology, String derivedFrom)
             implements GraphNode {
         @Override
@@ -1824,6 +1943,17 @@ public class ArchitectureGraph {
         }
     }
 
+    /**
+     * Graph node representing a deployment unit (Docker service, k8s deployment, etc.).
+     *
+     * @param id the node id
+     * @param name the deployment unit name
+     * @param type the deployment type (e.g. {@code "docker-compose"}, {@code "kubernetes"})
+     * @param ports the exposed ports
+     * @param dependsOn the names of deployment units this unit depends on
+     * @param roles the roles assigned to this deployment unit
+     * @param hosts the hostnames or image references for this unit
+     */
     public record DeploymentNode(
             GraphNodeId id,
             String name,
@@ -1861,6 +1991,14 @@ public class ArchitectureGraph {
         }
     }
 
+    /**
+     * Graph node representing an external system dependency (third-party service, database, etc.).
+     *
+     * @param id the node id
+     * @param name the external system name
+     * @param kind the external system kind (e.g. {@code "database"}, {@code "http-client"})
+     * @param technology the technology used to interact with the external system
+     */
     public record ExternalSystemNode(GraphNodeId id, String name, String kind, String technology) implements GraphNode {
         @Override
         public String label() {
@@ -1882,6 +2020,14 @@ public class ArchitectureGraph {
         }
     }
 
+    /**
+     * Graph node representing an inferred runtime-flow trace for a specific entrypoint.
+     *
+     * @param id the node id
+     * @param name the serialized flow id used as the node name
+     * @param entrypointId the entrypoint that triggers this flow
+     * @param stepCount the number of steps in the trace
+     */
     public record RuntimeFlowNode(GraphNodeId id, String name, EntrypointId entrypointId, int stepCount)
             implements GraphNode {
         @Override
@@ -1903,6 +2049,17 @@ public class ArchitectureGraph {
         }
     }
 
+    /**
+     * Graph node representing a single visited component in a runtime-flow trace.
+     *
+     * @param id the node id
+     * @param name the human-readable step name
+     * @param flowId the id of the containing runtime-flow
+     * @param order the zero-based step index within the flow
+     * @param componentId the component visited at this step
+     * @param componentType the component type name at this step
+     * @param via the method or route via which the component was entered
+     */
     public record RuntimeFlowStepNode(
             GraphNodeId id,
             String name,
@@ -1938,6 +2095,16 @@ public class ArchitectureGraph {
         }
     }
 
+    /**
+     * Graph node representing a data-flow path tracked from a specific entrypoint parameter.
+     *
+     * @param id the node id
+     * @param name the serialized path id used as the node name
+     * @param entrypointId the entrypoint from which this path originates
+     * @param trackedParam the parameter being tracked along this path
+     * @param stepCount the number of propagation steps in the path
+     * @param sinkCount the number of sinks reached by this path
+     */
     public record DataFlowPathNode(
             GraphNodeId id, String name, EntrypointId entrypointId, String trackedParam, int stepCount, int sinkCount)
             implements GraphNode {
@@ -1965,6 +2132,28 @@ public class ArchitectureGraph {
         }
     }
 
+    /**
+     * Graph node representing a data-flow sink where a tracked parameter reaches a store or channel.
+     *
+     * @param id the node id
+     * @param name the human-readable sink name
+     * @param sinkKind the kind of sink (store, messaging, event-bus, etc.)
+     * @param pathId the id of the data-flow path that reaches this sink
+     * @param componentId the component where the sink occurs
+     * @param method the method where the sink occurs
+     * @param fieldName the target field name (store sinks)
+     * @param fieldOwnerComponentId the component owning the target field (store sinks)
+     * @param channel the messaging channel or topic (messaging/event-bus sinks)
+     * @param broker the messaging broker (messaging/event-bus sinks)
+     * @param topic the topic name (messaging/event-bus sinks)
+     * @param topicPropertyKey the Spring property key resolving to the topic (messaging sinks)
+     * @param payloadType the payload type name (messaging sinks)
+     * @param entityType the entity type (persistence sinks)
+     * @param repositoryOperation the repository operation (persistence sinks)
+     * @param linkEvidence human-readable evidence for the sink link
+     * @param calleeQualifiedName the fully-qualified declaring type of the outbound callee (outbound sinks)
+     * @param source source location where the sink was detected
+     */
     public record DataFlowSinkNode(
             GraphNodeId id,
             String name,
@@ -2035,6 +2224,15 @@ public class ArchitectureGraph {
         }
     }
 
+    /**
+     * Graph node representing an end-to-end pipeline chain stitched from multiple data-flow paths.
+     *
+     * @param id the node id
+     * @param name the serialized chain id used as the node name
+     * @param segmentCount the number of data-flow path segments in the chain
+     * @param rootEntrypointId the entrypoint id of the first segment
+     * @param linkKinds the ordered list of handoff kinds that connect adjacent segments
+     */
     public record PipelineChainNode(
             GraphNodeId id, String name, int segmentCount, String rootEntrypointId, List<String> linkKinds)
             implements GraphNode {
@@ -2060,7 +2258,14 @@ public class ArchitectureGraph {
         }
     }
 
-    /** Fallback for vertex labels without a dedicated typed record. */
+    /**
+     * Fallback for vertex labels without a dedicated typed record.
+     *
+     * @param id the node id
+     * @param label the raw vertex label
+     * @param name the human-readable node name
+     * @param rawProperties the raw property map as stored in the graph
+     */
     public record UnknownNode(GraphNodeId id, String label, String name, Map<String, Object> rawProperties)
             implements GraphNode {
         @Override

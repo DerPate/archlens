@@ -10,11 +10,21 @@ import java.util.Map;
 import java.util.Properties;
 import org.yaml.snakeyaml.Yaml;
 
+/** Reads and resolves Spring config properties from {@code application.properties} or {@code application.yaml}. */
 public class SpringConfigResolver {
+
+    /** Creates a resolver with default settings. */
+    public SpringConfigResolver() {}
 
     private static final List<String> RESOURCE_FILES =
             List.of("application.properties", "application.yaml", "application.yml");
 
+    /**
+     * Loads a merged {@link Config} from all recognised config files under the given module root.
+     *
+     * @param moduleRoot the module root directory
+     * @return the merged config (empty if no config files are found)
+     */
     public Config resolve(File moduleRoot) {
         Map<String, String> values = new LinkedHashMap<>();
         File resources = new File(moduleRoot, "src/main/resources");
@@ -37,12 +47,25 @@ public class SpringConfigResolver {
         return new Config(values);
     }
 
+    /**
+     * Returns an empty config with no properties.
+     *
+     * @return an empty {@link Config}
+     */
     public Config emptyConfig() {
         return new Config(Map.of());
     }
 
+    /**
+     * The result of resolving a Spring property placeholder expression.
+     *
+     * @param value the resolved value, or the original expression if unresolved
+     * @param propertyKey the property key that was matched, or {@code null}
+     * @param wasResolved true if the placeholder was resolved to a concrete value
+     */
     public record ResolvedValue(String value, String propertyKey, boolean wasResolved) {}
 
+    /** Immutable view of resolved Spring config properties. */
     public static final class Config {
         private final Map<String, String> values;
 
@@ -50,10 +73,22 @@ public class SpringConfigResolver {
             this.values = Map.copyOf(values);
         }
 
+        /**
+         * Returns the raw config value for the given key, or {@code null} if absent.
+         *
+         * @param key the property key
+         * @return the value, or {@code null}
+         */
         public String value(String key) {
             return values.get(key);
         }
 
+        /**
+         * Resolves a Spring placeholder expression to its concrete value, returning metadata.
+         *
+         * @param value the expression to resolve (e.g. {@code "${my.prop}"})
+         * @return the resolved value and resolution metadata
+         */
         public ResolvedValue resolveWithKey(String value) {
             if (value == null) return new ResolvedValue(null, null, false);
             if (value.startsWith("${") && value.endsWith("}") && value.indexOf("${", 2) == -1) {
@@ -78,6 +113,12 @@ public class SpringConfigResolver {
             return new ResolvedValue(value, null, false);
         }
 
+        /**
+         * Resolves a Spring placeholder expression to its concrete value.
+         *
+         * @param value the expression to resolve
+         * @return the resolved value, or the original expression if unresolved
+         */
         public String resolve(String value) {
             return resolveWithKey(value).value();
         }

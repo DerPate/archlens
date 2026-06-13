@@ -33,12 +33,24 @@ import spoon.reflect.declaration.CtTypeMember;
 import spoon.reflect.reference.CtTypeReference;
 import spoon.reflect.visitor.filter.TypeFilter;
 
+/** Builds a {@link SourceFactIndex} by scanning a Spoon {@link CtModel}. */
 public class SourceFactIndexBuilder {
+
+    /** Creates a builder with default settings. */
+    public SourceFactIndexBuilder() {}
 
     private static Tracer tracer() {
         return GlobalOpenTelemetry.getTracer("dev.dominikbreu.spoonmcp");
     }
 
+    /**
+     * Scans the given Spoon model and returns a populated source fact index.
+     *
+     * @param ctModel the Spoon CT model to scan
+     * @param moduleName the module name for tracing attribution
+     * @param sourceRootCount the number of source roots in this model (for tracing)
+     * @return the populated source fact index
+     */
     public SourceFactIndex build(CtModel ctModel, String moduleName, int sourceRootCount) {
         Span span = tracer().spanBuilder("sourcefacts.build")
                 .setAttribute("module", moduleName)
@@ -558,14 +570,34 @@ public class SourceFactIndexBuilder {
         span.setAttribute("ambiguous-receiver-count", 0L);
     }
 
+    /**
+     * Returns the canonical fact id for the given type.
+     *
+     * @param qualifiedName the fully-qualified type name
+     * @return the type fact id
+     */
     public static SourceFactId typeId(String qualifiedName) {
         return SourceFactId.of("type:" + qualifiedName);
     }
 
+    /**
+     * Returns the canonical fact id for the given method.
+     *
+     * @param qualifiedTypeName the fully-qualified declaring type name
+     * @param signature the method signature (name + parameter types)
+     * @return the method fact id
+     */
     public static SourceFactId methodId(String qualifiedTypeName, String signature) {
         return SourceFactId.of("method:" + qualifiedTypeName + "#" + signature);
     }
 
+    /**
+     * Returns the canonical fact id for the given field.
+     *
+     * @param qualifiedTypeName the fully-qualified declaring type name
+     * @param fieldName the simple field name
+     * @return the field fact id
+     */
     public static SourceFactId fieldId(String qualifiedTypeName, String fieldName) {
         return SourceFactId.of("field:" + qualifiedTypeName + "#" + fieldName);
     }
@@ -579,6 +611,12 @@ public class SourceFactIndexBuilder {
         }
     }
 
+    /**
+     * Returns the source location for the given Spoon element, or {@link SourceLocation#unknown()} if unavailable.
+     *
+     * @param element the Spoon AST element
+     * @return the source location
+     */
     public static SourceLocation location(CtElement element) {
         if (element == null
                 || element.getPosition() == null

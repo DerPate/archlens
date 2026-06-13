@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/** Projects an architecture graph into a {@link LikeC4Document} for workspace-level views. */
 public final class LikeC4WorkspaceProjector {
 
     private static final Set<String> VIEW_RELATIONSHIPS =
@@ -38,10 +39,18 @@ public final class LikeC4WorkspaceProjector {
     private static final Set<String> MESSAGING_ENTRYPOINT_TYPES =
             Set.of("MESSAGING_CONSUMER", "MESSAGING_PRODUCER", "JMS_CONSUMER");
 
-    public LikeC4WorkspaceProjector() {
-        // Public constructor for MCP tool wiring.
-    }
+    /** Creates a projector with default settings. */
+    public LikeC4WorkspaceProjector() {}
 
+    /**
+     * Projects a workspace-level LikeC4 document for the given application.
+     *
+     * @param graph the architecture graph
+     * @param model the raw architecture model
+     * @param app the application entry to scope the view to
+     * @param maxNodes the maximum number of component nodes to include
+     * @return the projected LikeC4 document
+     */
     public LikeC4Document projectWorkspace(
             ArchitectureGraph graph, ArchitectureModel model, AppEntry app, int maxNodes) {
         LikeC4Element system = systemElement(model, app);
