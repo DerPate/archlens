@@ -1479,6 +1479,24 @@ class DataFlowTracerTest {
             assertThat(branch.kind).isEqualTo(DataFlowBranch.Kind.IF);
             assertThat(branch.arms).extracting(a -> a.label).containsExactlyInAnyOrder("then", "else");
         });
+        DataFlowNode rejectNode = path.flowNodes.stream()
+                .filter(node -> node.kind == DataFlowNode.Kind.METHOD && "reject".equals(node.method))
+                .findFirst()
+                .orElseThrow();
+        DataFlowNode acceptNode = path.flowNodes.stream()
+                .filter(node -> node.kind == DataFlowNode.Kind.METHOD && "accept".equals(node.method))
+                .findFirst()
+                .orElseThrow();
+        DataFlowBranch branch = path.branches.getFirst();
+        assertThat(branch.arms)
+                .anySatisfy(arm -> {
+                    assertThat(arm.label).isEqualTo("then");
+                    assertThat(arm.entryNodeId).isEqualTo(rejectNode.id);
+                })
+                .anySatisfy(arm -> {
+                    assertThat(arm.label).isEqualTo("else");
+                    assertThat(arm.entryNodeId).isEqualTo(acceptNode.id);
+                });
         assertThat(path.flowEdges)
                 .anySatisfy(edge -> {
                     assertThat(edge.kind).isEqualTo(DataFlowEdge.Kind.CONDITIONAL);
@@ -1493,7 +1511,115 @@ class DataFlowTracerTest {
 
         assertThat(path.steps.stream().map(step -> step.method).toList()).contains("handle", "reject", "accept");
         assertThat(path.flowNodes).extracting(node -> node.method).contains("handle", "reject", "accept");
-        assertThat(path.flowNodes).anySatisfy(node -> assertThat(node.kind).isEqualTo(DataFlowNode.Kind.SINK));
+        DataFlowNode sinkNode = path.flowNodes.stream()
+                .filter(node -> node.kind == DataFlowNode.Kind.SINK && "save".equals(node.method))
+                .findFirst()
+                .orElseThrow();
+        assertThat(path.flowEdges).anySatisfy(edge -> {
+            assertThat(edge.fromNodeId).isEqualTo(acceptNode.id);
+            assertThat(edge.toNodeId).isEqualTo(sinkNode.id);
+        });
+        assertThat(path.flowEdges)
+                .noneMatch(edge -> rejectNode.id.equals(edge.fromNodeId) && sinkNode.id.equals(edge.toNodeId));
+    }
+
+    @Test
+    void topologyEdgesReferenceSynthesizedBranchArmIds() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        Component controller = comp("BranchController", ComponentType.REST_RESOURCE);
+        Component service = comp("BranchService", ComponentType.SERVICE);
+        Component repo = comp("OrderRepository", ComponentType.REPOSITORY);
+        model.components.addAll(List.of(controller, service, repo));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = EntrypointId.deserialize("BranchController#handle:POST:/branch");
+        ep.componentId = controller.id;
+        ep.name = "handle";
+        ep.httpMethod = "POST";
+        ep.path = "/branch";
+        ep.type = EntrypointType.REST_ENDPOINT;
+        ep.parameters.add("value");
+        model.entrypoints.add(ep);
+
+        CallEdge branchEdge =
+                callEdge("BranchController", "handle", "BranchService", "validate", Map.of("value", "value"));
+        branchEdge.controlFlowKind = CallEdge.ControlFlowKind.IF_THEN;
+        branchEdge.branchGroupId = "branch:if:BranchController#handle:BranchController.java:L12C9-L14C9@100-180";
+        branchEdge.branchArmId = "";
+        branchEdge.branchLabel = " ";
+        addCallEdge(model, "BranchService", "validate", "OrderRepository", "save", Map.of("value", "entity"));
+        model.callEdges.add(branchEdge);
+
+        DataFlowPath path = new DataFlowTracer().trace(model).stream()
+                .filter(p -> "value".equals(p.trackedParam))
+                .findFirst()
+                .orElseThrow();
+
+        DataFlowBranchArm arm = path.branches.stream()
+                .flatMap(branch -> branch.arms.stream())
+                .findFirst()
+                .orElseThrow();
+        DataFlowEdge conditionalEdge = path.flowEdges.stream()
+                .filter(edge -> edge.kind == DataFlowEdge.Kind.CONDITIONAL)
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(conditionalEdge.branchArmId).isNotBlank();
+        assertThat(conditionalEdge.branchArmId).isEqualTo(arm.id);
+        assertThat(conditionalEdge.label).isEqualTo(arm.label);
+        assertThat(conditionalEdge.label).isEqualTo("then");
+    }
+
+    @Test
+    void tracerDoesNotCreateTopologyNodesForCyclePrunedCalls() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        Component a = comp("A", ComponentType.REST_RESOURCE);
+        Component b = comp("B", ComponentType.SERVICE);
+        Component repo = comp("Repo", ComponentType.REPOSITORY);
+        model.components.addAll(List.of(a, b, repo));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = EntrypointId.deserialize("A#handle:POST:/a");
+        ep.componentId = a.id;
+        ep.name = "handle";
+        ep.httpMethod = "POST";
+        ep.path = "/a";
+        ep.type = EntrypointType.REST_ENDPOINT;
+        ep.parameters.add("value");
+        model.entrypoints.add(ep);
+
+        CallEdge toB = callEdge("A", "handle", "B", "work", Map.of("value", "value"));
+        toB.controlFlowKind = CallEdge.ControlFlowKind.IF_THEN;
+        toB.branchGroupId = "branch:if:A#handle:A.java:L5C9-L7C9@50-90";
+        toB.branchArmId = toB.branchGroupId + ":then";
+        toB.branchLabel = "then";
+
+        CallEdge cycle = callEdge("B", "work", "A", "handle", Map.of("value", "value"));
+        cycle.controlFlowKind = CallEdge.ControlFlowKind.IF_ELSE;
+        cycle.branchGroupId = "branch:if:B#work:B.java:L9C9-L11C9@120-180";
+        cycle.branchArmId = cycle.branchGroupId + ":else";
+        cycle.branchLabel = "else";
+
+        CallEdge save = callEdge("B", "work", "Repo", "save", Map.of("value", "entity"));
+        model.callEdges.addAll(List.of(toB, cycle, save));
+
+        DataFlowPath path = new DataFlowTracer().trace(model).stream()
+                .filter(p -> "value".equals(p.trackedParam))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(path.flowNodes)
+                .anySatisfy(node -> {
+                    assertThat(node.kind).isEqualTo(DataFlowNode.Kind.METHOD);
+                    assertThat(node.componentId).isEqualTo(ComponentId.of("B"));
+                    assertThat(node.method).isEqualTo("work");
+                });
+        assertThat(path.flowNodes)
+                .noneMatch(node -> node.kind == DataFlowNode.Kind.METHOD
+                        && ComponentId.of("A").equals(node.componentId)
+                        && "handle".equals(node.method));
+        assertThat(path.branches).extracting(branch -> branch.id).doesNotContain(cycle.branchGroupId);
+        assertThat(path.flowEdges).noneMatch(edge -> cycle.branchArmId.equals(edge.branchArmId));
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────────
