@@ -15,6 +15,7 @@ import io.opentelemetry.api.trace.Tracer;
 import java.util.*;
 import java.util.stream.Collectors;
 import spoon.reflect.CtModel;
+import spoon.reflect.code.CtAbstractSwitch;
 import spoon.reflect.code.CtAssignment;
 import spoon.reflect.code.CtBlock;
 import spoon.reflect.code.CtCase;
@@ -30,7 +31,6 @@ import spoon.reflect.code.CtInvocation;
 import spoon.reflect.code.CtLiteral;
 import spoon.reflect.code.CtLocalVariable;
 import spoon.reflect.code.CtReturn;
-import spoon.reflect.code.CtSwitch;
 import spoon.reflect.code.CtTry;
 import spoon.reflect.code.CtTypeAccess;
 import spoon.reflect.code.CtVariableRead;
@@ -842,7 +842,7 @@ public class CallGraphExtractor {
     }
 
     private BranchContext switchBranchContext(CtCase<?> ctCase) {
-        CtSwitch<?> ctSwitch = parentOf(ctCase, CtSwitch.class);
+        CtAbstractSwitch<?> ctSwitch = parentOf(ctCase, CtAbstractSwitch.class);
         CtElement control = ctSwitch != null ? ctSwitch : ctCase;
         SourceInfo source = buildControlSource(control);
         String groupId = branchId("switch", control);
@@ -917,7 +917,7 @@ public class CallGraphExtractor {
                 + "@" + pos.getSourceStart() + "-" + pos.getSourceEnd();
     }
 
-    private static int caseOrdinal(CtSwitch<?> ctSwitch, CtCase<?> ctCase) {
+    private static int caseOrdinal(CtAbstractSwitch<?> ctSwitch, CtCase<?> ctCase) {
         if (ctSwitch == null || ctSwitch.getCases() == null) {
             return 0;
         }
