@@ -1433,6 +1433,69 @@ class DataFlowTracerTest {
                 .contains(schedulerPath.id);
     }
 
+    @Test
+    void tracerBuildsBranchTopologyWithoutFlatteningBranchArms() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        Component controller = comp("BranchController", ComponentType.REST_RESOURCE);
+        Component service = comp("BranchService", ComponentType.SERVICE);
+        Component repo = comp("OrderRepository", ComponentType.REPOSITORY);
+        model.components.addAll(List.of(controller, service, repo));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = EntrypointId.deserialize("BranchController#handle:POST:/branch");
+        ep.componentId = controller.id;
+        ep.name = "handle";
+        ep.httpMethod = "POST";
+        ep.path = "/branch";
+        ep.type = EntrypointType.REST_ENDPOINT;
+        ep.parameters.add("value");
+        model.entrypoints.add(ep);
+
+        CallEdge reject = callEdge("BranchController", "handle", "BranchService", "reject", Map.of("value", "value"));
+        reject.controlFlowKind = CallEdge.ControlFlowKind.IF_THEN;
+        reject.branchGroupId = "branch:if:BranchController#handle:BranchController.java:L12C9-L16C9@100-200";
+        reject.branchArmId = reject.branchGroupId + ":then";
+        reject.branchLabel = "then";
+        reject.controlSource = new SourceInfo("BranchController.java", 12, "control-flow", 1.0);
+
+        CallEdge accept = callEdge("BranchController", "handle", "BranchService", "accept", Map.of("value", "value"));
+        accept.controlFlowKind = CallEdge.ControlFlowKind.IF_ELSE;
+        accept.branchGroupId = reject.branchGroupId;
+        accept.branchArmId = reject.branchGroupId + ":else";
+        accept.branchLabel = "else";
+        accept.controlSource = reject.controlSource;
+
+        CallEdge save = callEdge("BranchService", "accept", "OrderRepository", "save", Map.of("value", "value"));
+        model.callEdges.addAll(List.of(reject, accept, save));
+
+        List<DataFlowPath> paths = new DataFlowTracer().trace(model);
+        DataFlowPath path = paths.stream()
+                .filter(p -> "value".equals(p.trackedParam))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(path.branches).singleElement().satisfies(branch -> {
+            assertThat(branch.id).isEqualTo(reject.branchGroupId);
+            assertThat(branch.kind).isEqualTo(DataFlowBranch.Kind.IF);
+            assertThat(branch.arms).extracting(a -> a.label).containsExactlyInAnyOrder("then", "else");
+        });
+        assertThat(path.flowEdges)
+                .anySatisfy(edge -> {
+                    assertThat(edge.kind).isEqualTo(DataFlowEdge.Kind.CONDITIONAL);
+                    assertThat(edge.branchArmId).isEqualTo(reject.branchArmId);
+                    assertThat(edge.label).isEqualTo("then");
+                })
+                .anySatisfy(edge -> {
+                    assertThat(edge.kind).isEqualTo(DataFlowEdge.Kind.CONDITIONAL);
+                    assertThat(edge.branchArmId).isEqualTo(accept.branchArmId);
+                    assertThat(edge.label).isEqualTo("else");
+                });
+
+        assertThat(path.steps.stream().map(step -> step.method).toList()).contains("handle", "reject", "accept");
+        assertThat(path.flowNodes).extracting(node -> node.method).contains("handle", "reject", "accept");
+        assertThat(path.flowNodes).anySatisfy(node -> assertThat(node.kind).isEqualTo(DataFlowNode.Kind.SINK));
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────────
 
     private static ArchitectureModel buildModel() {
