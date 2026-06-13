@@ -115,7 +115,7 @@ public class TraceDataFlowTool {
                 .append(" → param: ")
                 .append(path.trackedParam)
                 .append("\n");
-        sb.append("  id: ").append(path.id).append("\n");
+        sb.append("  id: ").append(path.id.serialize()).append("\n");
         formatSteps(sb, path);
         formatSinks(sb, path);
         sb.append("\n");

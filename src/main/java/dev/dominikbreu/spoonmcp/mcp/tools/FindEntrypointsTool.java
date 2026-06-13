@@ -62,7 +62,7 @@ public class FindEntrypointsTool {
                 if (ep.httpMethod != null) sb.append(" [").append(ep.httpMethod).append("]");
                 if (ep.path != null && !ep.path.isEmpty()) sb.append(" ").append(ep.path);
                 sb.append("\n");
-                sb.append("  Component: ").append(ep.componentId).append("\n");
+                sb.append("  Component: ").append(ep.componentId.serialize()).append("\n");
                 if (ep.source != null) {
                     sb.append("  Source: ")
                             .append(ep.source.file)

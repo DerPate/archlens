@@ -64,7 +64,7 @@ public class GetRuntimeFlowTool {
                 if (ep.httpMethod != null)
                     sb.append(" [").append(ep.httpMethod).append("] ").append(ep.path);
             } else {
-                sb.append(flow.entrypointId);
+                sb.append(flow.entrypointId != null ? flow.entrypointId.serialize() : "");
             }
             sb.append("\n\n");
 
@@ -80,7 +80,7 @@ public class GetRuntimeFlowTool {
                             .append("] ")
                             .append(step.componentName)
                             .append(" (id=")
-                            .append(step.componentId)
+                            .append(step.componentId != null ? step.componentId.serialize() : "")
                             .append(")\n");
                 }
             }

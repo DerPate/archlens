@@ -42,7 +42,7 @@ public class ListAppsTool {
                 sb.append("- ")
                         .append(app.name)
                         .append("\n  id:          ")
-                        .append(app.id)
+                        .append(app.id.serialize())
                         .append("\n  technology:  ")
                         .append(app.technology)
                         .append("\n  packaging:   ")

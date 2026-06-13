@@ -27,7 +27,8 @@ public class ContainerInferrer {
 
         for (Component comp : components) {
             String containerName = containerNameFor(comp);
-            String key = comp.module + ":" + containerName;
+            String moduleId = comp.module == null ? "" : comp.module.serialize();
+            String key = moduleId + ":" + containerName;
 
             Container container = containers.computeIfAbsent(key, k -> {
                 Container c = new Container();

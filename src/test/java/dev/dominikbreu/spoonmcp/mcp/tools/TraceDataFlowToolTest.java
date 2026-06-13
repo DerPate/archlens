@@ -116,6 +116,8 @@ class TraceDataFlowToolTest {
         assertThat(result)
                 .contains("1 data-flow path(s):")
                 .contains("→ param: id")
+                .contains("id: ep:CustomerController#get:GET#id")
+                .doesNotContain("DataFlowPathId[")
                 .contains("flow:")
                 .contains("1. CustomerController.get (as 'id')")
                 .contains("sinks:")
