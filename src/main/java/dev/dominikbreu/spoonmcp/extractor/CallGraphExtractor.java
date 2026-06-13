@@ -558,8 +558,8 @@ public class CallGraphExtractor {
             String toMethod = inv.getExecutable().getSimpleName();
             if (!ownMethodNames.contains(toMethod)) continue;
             if (toMethod.equals(fromMethod)) continue; // ignore trivial self-call
-            String edgeId = "call:" + fromComp.id.serialize() + "#" + fromMethod + "->" + fromComp.id.serialize() + "#"
-                    + toMethod;
+            BranchContext branch = branchContext(inv);
+            String edgeId = callEdgeId(fromComp, fromMethod, fromComp, toMethod, branch);
             if (!ctx.addSeenId(edgeId)) continue;
             CallEdge edge = new CallEdge();
             edge.id = edgeId;
@@ -569,7 +569,7 @@ public class CallGraphExtractor {
             edge.toMethod = toMethod;
             edge.callKind = "intra";
             edge.source = buildSource(inv);
-            applyBranchContext(edge, inv);
+            applyBranchContext(edge, branch);
             model.callEdges.add(edge);
             buildParamMapping(inv, edge);
         }
@@ -744,8 +744,8 @@ public class CallGraphExtractor {
             ExtractionContext ctx,
             Set<String> killedSnapshot,
             String callKind) {
-        String edgeId =
-                "call:" + fromComp.id.serialize() + "#" + fromMethod + "->" + toComp.id.serialize() + "#" + toMethod;
+        BranchContext branch = branchContext(inv);
+        String edgeId = callEdgeId(fromComp, fromMethod, toComp, toMethod, branch);
         if (!ctx.addSeenId(edgeId)) return;
         CallEdge edge = new CallEdge();
         edge.id = edgeId;
@@ -755,7 +755,7 @@ public class CallGraphExtractor {
         edge.toMethod = toMethod;
         edge.callKind = callKind;
         edge.source = buildSource(inv);
-        applyBranchContext(edge, inv);
+        applyBranchContext(edge, branch);
         edge.receiverEvidence = receiverEvidence;
         edge.receiverLocalName = resolveReceiverLocalName(inv);
         edge.receiverConfidence = receiverConfidence;
@@ -769,8 +769,17 @@ public class CallGraphExtractor {
         emitCallerSideFieldReadIfGetter(inv, fromComp, fromMethod, toComp, model, ctx);
     }
 
-    private void applyBranchContext(CallEdge edge, CtInvocation<?> inv) {
-        BranchContext branch = branchContext(inv);
+    private static String callEdgeId(
+            Component fromComp, String fromMethod, Component toComp, String toMethod, BranchContext branch) {
+        String edgeId =
+                "call:" + fromComp.id.serialize() + "#" + fromMethod + "->" + toComp.id.serialize() + "#" + toMethod;
+        if (branch == null) {
+            return edgeId;
+        }
+        return edgeId + "@branch:" + sanitizeIdSegment(branch.branchArmId());
+    }
+
+    private void applyBranchContext(CallEdge edge, BranchContext branch) {
         if (branch == null) return;
         edge.controlFlowKind = branch.kind();
         edge.branchGroupId = branch.branchGroupId();
@@ -842,29 +851,58 @@ public class CallGraphExtractor {
                 ? CallEdge.ControlFlowKind.SWITCH_DEFAULT
                 : CallEdge.ControlFlowKind.SWITCH_CASE;
         String armKind = kind == CallEdge.ControlFlowKind.SWITCH_DEFAULT ? "default" : "case";
-        return new BranchContext(kind, groupId, groupId + ":" + armKind + ":" + label, label, source);
+        return new BranchContext(
+                kind, groupId, groupId + ":" + armKind + ":" + sanitizeIdSegment(label), label, source);
     }
 
     private BranchContext catchBranchContext(CtCatch ctCatch) {
+        CtTry owner = parentOf(ctCatch, CtTry.class);
+        SourceInfo groupSource = buildControlSource(owner != null ? owner : ctCatch);
         SourceInfo source = buildControlSource(ctCatch);
-        String groupId = branchId("catch", source);
+        String groupId = branchId("try", groupSource);
         String exceptionName = UNKNOWN;
         if (ctCatch.getParameter() != null && ctCatch.getParameter().getType() != null) {
             exceptionName = ctCatch.getParameter().getType().getSimpleName();
         }
         String label = "catch " + exceptionName;
-        return new BranchContext(CallEdge.ControlFlowKind.CATCH, groupId, groupId + ":" + exceptionName, label, source);
+        return new BranchContext(
+                CallEdge.ControlFlowKind.CATCH,
+                groupId,
+                groupId + ":catch:" + sanitizeIdSegment(exceptionName),
+                label,
+                source);
     }
 
     private BranchContext finallyBranchContext(CtTry ctTry) {
         SourceInfo source = buildControlSource(ctTry);
-        String groupId = branchId("finally", source);
+        String groupId = branchId("try", source);
         return new BranchContext(
                 CallEdge.ControlFlowKind.FINALLY, groupId, groupId + ":finally", "finally", source);
     }
 
     private static String branchId(String kind, SourceInfo source) {
-        return "branch:" + kind + ":" + source.file + ":" + source.line;
+        return "branch:" + sanitizeIdSegment(kind) + ":" + stableFileSegment(source.file) + ":" + source.line;
+    }
+
+    private static String stableFileSegment(String file) {
+        if (file == null || file.isBlank()) {
+            return UNKNOWN;
+        }
+        String normalized = file.replace('\\', '/');
+        int slash = normalized.lastIndexOf('/');
+        String name = slash >= 0 ? normalized.substring(slash + 1) : normalized;
+        return sanitizeIdSegment(name);
+    }
+
+    private static String sanitizeIdSegment(String value) {
+        if (value == null || value.isBlank()) {
+            return UNKNOWN;
+        }
+        String sanitized = value.trim()
+                .replaceAll("[^A-Za-z0-9._:-]+", "-")
+                .replaceAll("^-+", "")
+                .replaceAll("-+$", "");
+        return sanitized.isBlank() ? UNKNOWN : sanitized;
     }
 
     private static String caseLabel(CtCase<?> ctCase) {
