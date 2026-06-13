@@ -560,6 +560,42 @@ class CallGraphExtractorTest extends ExtractorTestBase {
     }
 
     @Test
+    void callEdgesKeepSeparateArmsWhenBothBranchesCallSameMethod() {
+        ArchitectureModel fixture = extractBranchFixture(
+                "DuplicateBranchCallFixture.java",
+                """
+                package example;
+                class BranchController {
+                    private final BranchService service = new BranchService();
+                    void handle(String value) {
+                        if (value == null) {
+                            service.process(value);
+                        } else {
+                            service.process(value);
+                        }
+                    }
+                }
+                class BranchService {
+                    void process(String value) {
+                    }
+                }
+                """,
+                "example.BranchController",
+                "example.BranchService");
+
+        List<CallEdge> processEdges = fixture.callEdges.stream()
+                .filter(edge -> "process".equals(edge.toMethod))
+                .toList();
+
+        assertThat(processEdges).hasSize(2);
+        assertThat(processEdges).extracting(edge -> edge.branchLabel).containsExactlyInAnyOrder("then", "else");
+        assertThat(processEdges)
+                .extracting(edge -> edge.branchGroupId)
+                .containsOnly(processEdges.getFirst().branchGroupId);
+        assertThat(processEdges).extracting(edge -> edge.branchArmId).doesNotHaveDuplicates();
+    }
+
+    @Test
     void callEdgesRecordSwitchCaseAndDefaultBranches() {
         ArchitectureModel fixture = extractBranchFixture(
                 "SwitchBranchFixture.java",
@@ -667,6 +703,10 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         assertThat(recover.branchLabel).contains("RuntimeException");
         assertThat(cleanup.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.FINALLY);
         assertThat(cleanup.branchLabel).isEqualTo("finally");
+        assertThat(cleanup.branchGroupId).isEqualTo(recover.branchGroupId);
+        assertThat(recover.branchGroupId).contains(":try:");
+        assertThat(recover.branchArmId).contains(":catch:");
+        assertThat(cleanup.branchArmId).endsWith(":finally");
     }
 
     private static CallEdge edgeTo(ArchitectureModel model, String toMethod) {
