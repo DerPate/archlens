@@ -127,6 +127,51 @@ class TraceDataFlowToolTest {
     }
 
     @Test
+    void format_prefersTopologyWhenPresent() {
+        ArchitectureModel model = richModel();
+        DataFlowPath path = model.dataFlowPaths.getFirst();
+        path.flowNodes.add(new DataFlowNode(
+                "n0", DataFlowNode.Kind.ROOT, path.entrypointId.component(), "CustomerController", "get", "id", null));
+        path.flowNodes.add(new DataFlowNode(
+                "n1",
+                DataFlowNode.Kind.METHOD,
+                ComponentId.of("Validator"),
+                "Validator",
+                "accept",
+                "id",
+                new SourceInfo("Validator.java", 12, "invocation", 0.9)));
+        path.flowNodes.add(new DataFlowNode(
+                "n2",
+                DataFlowNode.Kind.METHOD,
+                ComponentId.of("Validator"),
+                "Validator",
+                "reject",
+                "id",
+                new SourceInfo("Validator.java", 14, "invocation", 0.9)));
+        path.flowEdges.add(new DataFlowEdge("n0", "n1", DataFlowEdge.Kind.CONDITIONAL, "b0", "b0:then", "then"));
+        path.flowEdges.add(new DataFlowEdge("n0", "n2", DataFlowEdge.Kind.CONDITIONAL, "b0", "b0:else", "else"));
+        DataFlowBranch branch = new DataFlowBranch(
+                "b0", DataFlowBranch.Kind.IF, new SourceInfo("Validator.java", 11, "if", 1.0), List.of());
+        branch.arms.add(new DataFlowBranchArm("b0:then", "b0", "then", "n1"));
+        branch.arms.add(new DataFlowBranchArm("b0:else", "b0", "else", "n2"));
+        path.branches.add(branch);
+
+        String result = tool(model).execute(Map.of("entrypointId", "CustomerController#get"));
+
+        assertThat(result)
+                .contains("flow graph:")
+                .contains("n0 CustomerController.get [root]")
+                .contains("branches:")
+                .contains("b0 IF Validator.java:11")
+                .contains("then -> n1")
+                .contains("else -> n2")
+                .contains("edges:")
+                .contains("n0 -> n1 [then]")
+                .contains("n0 -> n2 [else]")
+                .doesNotContain("  flow:\n");
+    }
+
+    @Test
     void format_entrypointMissing_fallsBackToSerializedId() {
         ArchitectureModel model = richModel();
         // path referencing an entrypoint id not present in model.entrypoints

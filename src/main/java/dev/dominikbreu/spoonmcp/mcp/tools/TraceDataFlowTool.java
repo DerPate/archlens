@@ -116,7 +116,11 @@ public class TraceDataFlowTool {
                 .append(path.trackedParam)
                 .append("\n");
         sb.append("  id: ").append(path.id.serialize()).append("\n");
-        formatSteps(sb, path);
+        if (path.flowNodes.isEmpty()) {
+            formatSteps(sb, path);
+        } else {
+            formatTopology(sb, path);
+        }
         formatSinks(sb, path);
         sb.append("\n");
     }
@@ -143,6 +147,70 @@ public class TraceDataFlowTool {
                     .append(step.localName)
                     .append("')\n");
         }
+    }
+
+    private static void formatTopology(StringBuilder sb, DataFlowPath path) {
+        sb.append("  flow graph:\n");
+        for (DataFlowNode node : path.flowNodes) {
+            sb.append("    ")
+                    .append(node.id)
+                    .append(" ")
+                    .append(nodeLabel(node))
+                    .append(" [")
+                    .append(node.kind != null ? node.kind.name().toLowerCase() : "node")
+                    .append("]\n");
+        }
+        formatBranches(sb, path);
+        formatTopologyEdges(sb, path);
+    }
+
+    private static String nodeLabel(DataFlowNode node) {
+        String component = node.componentName != null ? node.componentName : "";
+        String method = node.method != null ? node.method : "";
+        if (!component.isBlank() && !method.isBlank()) return component + "." + method;
+        if (!component.isBlank()) return component;
+        return method;
+    }
+
+    private static void formatBranches(StringBuilder sb, DataFlowPath path) {
+        if (path.branches.isEmpty()) return;
+        sb.append("  branches:\n");
+        for (DataFlowBranch branch : path.branches) {
+            sb.append("    ")
+                    .append(branch.id)
+                    .append(" ")
+                    .append(branch.kind)
+                    .append(sourceLabel(branch.source))
+                    .append("\n");
+            for (DataFlowBranchArm arm : branch.arms) {
+                sb.append("      ")
+                        .append(arm.label)
+                        .append(" -> ")
+                        .append(arm.entryNodeId)
+                        .append("\n");
+            }
+        }
+    }
+
+    private static void formatTopologyEdges(StringBuilder sb, DataFlowPath path) {
+        if (path.flowEdges.isEmpty()) return;
+        sb.append("  edges:\n");
+        for (DataFlowEdge edge : path.flowEdges) {
+            sb.append("    ")
+                    .append(edge.fromNodeId)
+                    .append(" -> ")
+                    .append(edge.toNodeId)
+                    .append(" [")
+                    .append(edge.label != null ? edge.label : edge.kind)
+                    .append("]\n");
+        }
+    }
+
+    private static String sourceLabel(SourceInfo source) {
+        if (source == null || source.file == null || "unknown".equals(source.file)) return "";
+        String file = source.file;
+        int slash = file.lastIndexOf('/');
+        return " " + (slash >= 0 ? file.substring(slash + 1) : file) + ":" + source.line;
     }
 
     private static void formatSinks(StringBuilder sb, DataFlowPath path) {
