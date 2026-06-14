@@ -68,11 +68,6 @@ class UntestedToolsCoverageTest {
     }
 
     @Test
-    void explainArchitecture_runs() {
-        assertOk(new ExplainArchitectureTool(cache).execute(Map.of()));
-    }
-
-    @Test
     void renderDependencyMap_runs() {
         assertOk(new RenderDependencyMapTool(cache).execute(Map.of()));
     }
@@ -95,18 +90,11 @@ class UntestedToolsCoverageTest {
     }
 
     @Test
-    void getRuntimeFlow_byEntrypointId_runs() {
+    void callFlow_byEntrypointId_runs() {
         assertThat(entrypointId).isNotNull();
-        String result = new GetRuntimeFlowTool(cache).execute(Map.of("entrypointId", entrypointId));
+        String result = new CallFlowTool(cache).execute(Map.of("entrypointId", entrypointId));
         assertThat(result).doesNotStartWith("Error");
         assertNoTypedIdNoise(result);
-    }
-
-    @Test
-    void renderCallFlow_byEntrypointId_runs() {
-        assertThat(entrypointId).isNotNull();
-        String result = new RenderCallFlowTool(cache).execute(Map.of("entrypointId", entrypointId));
-        assertThat(result).doesNotStartWith("Error");
     }
 
     @Test
@@ -149,10 +137,7 @@ class UntestedToolsCoverageTest {
         assertThat(new FindComponentsTool(empty).execute(Map.of())).contains("No workspace indexed");
         assertThat(new DetectUseCasesTool(empty).execute(Map.of())).contains("No workspace indexed");
         assertThat(new InferContainersTool(empty).execute(Map.of())).contains("No workspace indexed");
-        assertThat(new ExplainArchitectureTool(empty).execute(Map.of())).contains("No workspace indexed");
-        assertThat(new GetRuntimeFlowTool(empty).execute(Map.of("entrypointId", "x")))
-                .contains("No workspace indexed");
-        assertThat(new RenderCallFlowTool(empty).execute(Map.of("entrypointId", "x")))
+        assertThat(new CallFlowTool(empty).execute(Map.of("entrypointId", "x")))
                 .contains("No workspace indexed");
         assertThat(new RenderUseCaseTimelineTool(empty).execute(Map.of())).contains("No workspace indexed");
         assertThat(new RenderComponentDependencyDiagramTool(empty).execute(Map.of("componentId", "x")))

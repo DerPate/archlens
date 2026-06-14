@@ -120,6 +120,46 @@ public class GraphQuery {
         return findNodes("Application", null, Map.of(), 0);
     }
 
+    /** Find the pre-computed runtime flow for the given entrypoint reference (id, name, path). */
+    public synchronized Optional<RuntimeFlowNode> runtimeFlowForEntrypoint(String ref) {
+        Optional<GraphNodeId> epNodeId = resolveEntrypoint(ref);
+        if (epNodeId.isEmpty()) return Optional.empty();
+        String epIdStr = epNodeId.get().value();
+        return store.g.V().hasLabel("RuntimeFlow").has("entrypointId", P.eq(epIdStr))
+                .tryNext()
+                .map(v -> toNode(v) instanceof RuntimeFlowNode rfn ? rfn : null);
+    }
+
+    /** Ordered steps for the given flow node. */
+    public synchronized List<RuntimeFlowStepNode> flowSteps(GraphNodeId flowId) {
+        if (flowId == null) return List.of();
+        Vertex flowVertex = store.verticesById.get(flowId);
+        if (flowVertex == null) return List.of();
+        List<RuntimeFlowStepNode> steps = new ArrayList<>();
+        Iterator<Edge> it = flowVertex.edges(Direction.OUT, "HAS_STEP");
+        while (it.hasNext()) {
+            GraphNode n = toNode(it.next().inVertex());
+            if (n instanceof RuntimeFlowStepNode rsn) steps.add(rsn);
+        }
+        steps.sort(Comparator.comparingInt(RuntimeFlowStepNode::order));
+        return steps;
+    }
+
+    /** FLOW_CALLS edges (step→step) for the given flow — carries fromComponentId/toComponentId/label. */
+    public synchronized List<GraphEdge> flowCallEdges(GraphNodeId flowId) {
+        if (flowId == null) return List.of();
+        Vertex flowVertex = store.verticesById.get(flowId);
+        if (flowVertex == null) return List.of();
+        List<GraphEdge> result = new ArrayList<>();
+        Iterator<Edge> stepIt = flowVertex.edges(Direction.OUT, "HAS_STEP");
+        while (stepIt.hasNext()) {
+            Vertex stepV = stepIt.next().inVertex();
+            Iterator<Edge> callIt = stepV.edges(Direction.OUT, "FLOW_CALLS");
+            while (callIt.hasNext()) result.add(toEdge(callIt.next()));
+        }
+        return result;
+    }
+
     // --- query methods ---
 
     public synchronized GraphSummary summary() {

@@ -222,6 +222,7 @@ class GraphProjector {
                 flow.entrypointId != null ? flow.entrypointId.serialize() : "",
                 "STARTED_BY",
                 Map.of(SOURCE, "runtimeFlow.entrypointId"));
+        Map<String, String> stepByCompId = new LinkedHashMap<>();
         for (RuntimeFlowStep step : flow.steps) {
             String stepId = flow.id + ":step:" + step.order;
             Vertex stepVertex = addVertex(stepId, "RuntimeFlowStep", step.componentName);
@@ -237,6 +238,22 @@ class GraphProjector {
                     step.componentId != null ? step.componentId.serialize() : "",
                     "VISITS",
                     Map.of("via", Objects.toString(step.via, "")));
+            if (step.componentId != null) {
+                stepByCompId.putIfAbsent(step.componentId.serialize(), stepId);
+            }
+        }
+        for (RuntimeFlow.FlowEdge edge : flow.edges) {
+            if (edge.fromId == null || edge.toId == null) continue;
+            String fromStep = stepByCompId.get(edge.fromId.serialize());
+            String toStep = stepByCompId.get(edge.toId.serialize());
+            if (fromStep != null && toStep != null && !fromStep.equals(toStep)) {
+                Map<String, Object> props = new HashMap<>();
+                props.put("label", Objects.toString(edge.label, ""));
+                props.put("flowId", flow.id);
+                props.put("fromComponentId", edge.fromId.serialize());
+                props.put("toComponentId", edge.toId.serialize());
+                addEdge(fromStep, toStep, "FLOW_CALLS", props);
+            }
         }
     }
 
