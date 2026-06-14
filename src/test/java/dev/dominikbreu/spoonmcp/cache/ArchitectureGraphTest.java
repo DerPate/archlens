@@ -7,6 +7,10 @@ import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.CallEdge;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
+import dev.dominikbreu.spoonmcp.model.DataFlowBranch;
+import dev.dominikbreu.spoonmcp.model.DataFlowBranchArm;
+import dev.dominikbreu.spoonmcp.model.DataFlowEdge;
+import dev.dominikbreu.spoonmcp.model.DataFlowNode;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Dependency;
@@ -568,6 +572,55 @@ class ArchitectureGraphTest {
                         .containsEntry("entityType", "com.example.Order")
                         .containsEntry("repositoryOperation", "save")
                         .containsEntry("linkEvidence", "repository-call"));
+    }
+
+    @Test
+    void projectsDataFlowBranchTopology() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        DataFlowPath path = new DataFlowPath();
+        path.id = DataFlowPathId.of(EntrypointId.deserialize("create"), "order");
+        path.entrypointId = EntrypointId.deserialize("create");
+        path.trackedParam = "order";
+        path.flowNodes.add(
+                new DataFlowNode("n0", DataFlowNode.Kind.ROOT, ComponentId.of("Api"), "Api", "create", "order", null));
+        path.flowNodes.add(new DataFlowNode(
+                "n1", DataFlowNode.Kind.METHOD, ComponentId.of("Svc"), "Svc", "accept", "order", null));
+        path.flowNodes.add(new DataFlowNode(
+                "n2", DataFlowNode.Kind.METHOD, ComponentId.of("Svc"), "Svc", "reject", "order", null));
+        path.flowNodes.add(
+                new DataFlowNode("n3", DataFlowNode.Kind.SINK, ComponentId.of("Repo"), "Repo", "save", null, null));
+        path.flowEdges.add(new DataFlowEdge("n0", "n1", DataFlowEdge.Kind.CONDITIONAL, "b0", "b0:then", "then"));
+        path.flowEdges.add(new DataFlowEdge("n0", "n2", DataFlowEdge.Kind.CONDITIONAL, "b0", "b0:else", "else"));
+        path.flowEdges.add(new DataFlowEdge("n1", "n3", DataFlowEdge.Kind.UNCONDITIONAL, null, null, "save"));
+        path.branches.add(new DataFlowBranch(
+                "b0",
+                DataFlowBranch.Kind.IF,
+                new SourceInfo("Api.java", 10, "control-flow", 0.95),
+                List.of(
+                        new DataFlowBranchArm("b0:then", "b0", "then", "n1"),
+                        new DataFlowBranchArm("b0:else", "b0", "else", "n2"))));
+        DataFlowSink sink =
+                new DataFlowSink(DataFlowSink.Kind.PERSISTENCE, ComponentId.of("Repo"), "Repo", "save", null);
+        path.sinks.add(sink);
+        model.dataFlowPaths.add(path);
+
+        ArchitectureGraph graph = new ArchitectureGraph();
+        graph.rebuild(model);
+
+        assertThat(graph.summary().labels())
+                .containsEntry("DataFlowNode", 4)
+                .containsEntry("DataFlowBranch", 1)
+                .containsEntry("DataFlowBranchArm", 2);
+        assertThat(graph.summary().edges())
+                .containsEntry("HAS_FLOW_NODE", 4)
+                .containsEntry("FLOW_EDGE", 3)
+                .containsEntry("HAS_BRANCH", 1)
+                .containsEntry("HAS_BRANCH_ARM", 2)
+                .containsEntry("ARM_STARTS_AT", 2)
+                .containsEntry("REACHES_NODE", 1);
+        assertThat(graph.findNodes("DataFlowBranchArm", null, Map.of("label", "then"), 10))
+                .singleElement()
+                .satisfies(node -> assertThat(node.properties()).containsEntry("entryNodeId", "n1"));
     }
 
     @Test
