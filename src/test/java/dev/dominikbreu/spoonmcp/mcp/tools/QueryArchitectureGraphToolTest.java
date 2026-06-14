@@ -68,6 +68,28 @@ class QueryArchitectureGraphToolTest {
     }
 
     @Test
+    void findNodesDefaultsToAllMatchesAndAcceptsLimit(@TempDir Path tempDir) throws Exception {
+        ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON);
+        ArchitectureModel model = new ArchitectureModel("test");
+        for (int i = 0; i < 125; i++) {
+            Component component = new Component();
+            component.id = ComponentId.of("Component" + i);
+            component.name = "Component" + i;
+            component.qualifiedName = "com.example.Component" + i;
+            component.type = ComponentType.SERVICE;
+            model.components.add(component);
+        }
+        cache.store(model);
+        QueryArchitectureGraphTool tool = new QueryArchitectureGraphTool(cache);
+
+        String all = tool.execute(Map.of("action", "find_nodes", "label", "Component"));
+        String limited = tool.execute(Map.of("action", "find_nodes", "label", "Component", "limit", 20));
+
+        assertThat(all.lines().filter(line -> line.startsWith("- "))).hasSize(125);
+        assertThat(limited.lines().filter(line -> line.startsWith("- "))).hasSize(20);
+    }
+
+    @Test
     void findsGraphEdgesWithPropertyFilters(@TempDir Path tempDir) throws Exception {
         ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.GRAPH);
         ArchitectureModel model = model();

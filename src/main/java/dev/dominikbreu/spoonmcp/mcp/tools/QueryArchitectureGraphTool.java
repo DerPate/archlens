@@ -44,7 +44,7 @@ public class QueryArchitectureGraphTool {
                             text(args, "label", null),
                             text(args, "query", null),
                             filters(args),
-                            integer(args, LIMIT, 256)));
+                            integer(args, LIMIT, 0)));
                 case "find_edges" ->
                     renderEdges(graph.findEdges(text(args, "label", null), filters(args), integer(args, LIMIT, 256)));
                 case "neighborhood" ->
