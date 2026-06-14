@@ -4,6 +4,7 @@ import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer;
 import dev.dominikbreu.spoonmcp.model.*;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -150,18 +151,26 @@ public class TraceDataFlowTool {
     }
 
     private static void formatTopology(StringBuilder sb, DataFlowPath path) {
+        Map<String, String> nodeAlias = new LinkedHashMap<>();
+        for (int i = 0; i < path.flowNodes.size(); i++) {
+            nodeAlias.put(path.flowNodes.get(i).id, "N" + i);
+        }
+        Map<String, String> branchAlias = new LinkedHashMap<>();
+        for (int i = 0; i < path.branches.size(); i++) {
+            branchAlias.put(path.branches.get(i).id, "B" + i);
+        }
         sb.append("  flow graph:\n");
         for (DataFlowNode node : path.flowNodes) {
             sb.append("    ")
-                    .append(node.id)
+                    .append(nodeAlias.get(node.id))
                     .append(" ")
                     .append(nodeLabel(node))
                     .append(" [")
                     .append(node.kind != null ? node.kind.name().toLowerCase() : "node")
                     .append("]\n");
         }
-        formatBranches(sb, path);
-        formatTopologyEdges(sb, path);
+        formatBranches(sb, path, branchAlias, nodeAlias);
+        formatTopologyEdges(sb, path, nodeAlias, branchAlias);
     }
 
     private static String nodeLabel(DataFlowNode node) {
@@ -172,12 +181,16 @@ public class TraceDataFlowTool {
         return method;
     }
 
-    private static void formatBranches(StringBuilder sb, DataFlowPath path) {
+    private static void formatBranches(
+            StringBuilder sb,
+            DataFlowPath path,
+            Map<String, String> branchAlias,
+            Map<String, String> nodeAlias) {
         if (path.branches.isEmpty()) return;
         sb.append("  branches:\n");
         for (DataFlowBranch branch : path.branches) {
             sb.append("    ")
-                    .append(branch.id)
+                    .append(branchAlias.getOrDefault(branch.id, branch.id))
                     .append(" ")
                     .append(branch.kind)
                     .append(sourceLabel(branch.source))
@@ -186,23 +199,34 @@ public class TraceDataFlowTool {
                 sb.append("      ")
                         .append(arm.label)
                         .append(" -> ")
-                        .append(arm.entryNodeId)
+                        .append(nodeAlias.getOrDefault(arm.entryNodeId, arm.entryNodeId))
                         .append("\n");
             }
         }
     }
 
-    private static void formatTopologyEdges(StringBuilder sb, DataFlowPath path) {
+    private static void formatTopologyEdges(
+            StringBuilder sb,
+            DataFlowPath path,
+            Map<String, String> nodeAlias,
+            Map<String, String> branchAlias) {
         if (path.flowEdges.isEmpty()) return;
         sb.append("  edges:\n");
         for (DataFlowEdge edge : path.flowEdges) {
             sb.append("    ")
-                    .append(edge.fromNodeId)
+                    .append(nodeAlias.getOrDefault(edge.fromNodeId, edge.fromNodeId))
                     .append(" -> ")
-                    .append(edge.toNodeId)
+                    .append(nodeAlias.getOrDefault(edge.toNodeId, edge.toNodeId))
                     .append(" [")
                     .append(edge.label != null ? edge.label : edge.kind)
-                    .append("]\n");
+                    .append("]");
+            if (edge.branchId != null) {
+                sb.append(" (")
+                        .append(branchAlias.getOrDefault(edge.branchId, edge.branchId));
+                if (edge.branchArmId != null) sb.append("/").append(edge.branchArmId);
+                sb.append(")");
+            }
+            sb.append("\n");
         }
     }
 
