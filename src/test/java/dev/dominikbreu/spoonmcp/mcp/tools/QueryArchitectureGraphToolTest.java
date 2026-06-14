@@ -68,6 +68,32 @@ class QueryArchitectureGraphToolTest {
     }
 
     @Test
+    void rendersAndFiltersAgentClassificationMetadata(@TempDir Path tempDir) throws Exception {
+        ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON);
+        ArchitectureModel model = new ArchitectureModel("test");
+        Component lock = new Component();
+        lock.id = ComponentId.of("RedisLock");
+        lock.name = "OwnerAwareRedisLockRegistry";
+        lock.qualifiedName = "de.homeinstead.phoenix.redis.OwnerAwareRedisLockRegistry";
+        lock.type = ComponentType.SERVICE;
+        model.components.add(lock);
+        cache.store(model);
+        QueryArchitectureGraphTool tool = new QueryArchitectureGraphTool(cache);
+
+        String result = tool.execute(Map.of(
+                "action", "find_nodes",
+                "label", "Component",
+                "agentCategory", "supporting-infrastructure"));
+
+        assertThat(result)
+                .contains("OwnerAwareRedisLockRegistry")
+                .contains("primaryRole=support")
+                .contains("supportRole=redis-lock")
+                .contains("agentCategory=supporting-infrastructure")
+                .contains("classificationEvidence=");
+    }
+
+    @Test
     void findNodesDefaultsToAllMatchesAndAcceptsLimit(@TempDir Path tempDir) throws Exception {
         ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON);
         ArchitectureModel model = new ArchitectureModel("test");

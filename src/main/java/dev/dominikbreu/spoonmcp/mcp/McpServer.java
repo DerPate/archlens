@@ -284,7 +284,10 @@ public class McpServer {
                         .opt("toId", TYPE_STRING, "Target node ID for paths")
                         .opt("direction", TYPE_STRING, "in | out | both for neighborhood")
                         .opt(MAX_DEPTH, TYPE_INTEGER, "Traversal depth for paths or impacted_by")
-                        .opt("limit", TYPE_INTEGER, "Maximum returned rows (default 256)")
+                        .opt(
+                                "limit",
+                                TYPE_INTEGER,
+                                "Maximum returned rows. find_nodes is unlimited by default; other actions default to 256")
                         .opt("type", TYPE_STRING, "Shorthand filter: node or edge type property")
                         .opt("technology", TYPE_STRING, "Shorthand filter: technology property (e.g. quarkus, jpa)")
                         .opt("module", TYPE_STRING, "Shorthand filter: module/app ID property")
@@ -305,6 +308,22 @@ public class McpServer {
                                 "infrastructureRole",
                                 TYPE_STRING,
                                 "Shorthand filter: component role such as scheduler, repository, utility")
+                        .opt(
+                                "primaryRole",
+                                TYPE_STRING,
+                                "Shorthand filter: entrypoint | business-service | data-access | domain-model | integration | support")
+                        .opt(
+                                "supportRole",
+                                TYPE_STRING,
+                                "Shorthand filter: configuration, mapper, converter, redis-lock, migration-initializer, security-configuration, utility, etc.")
+                        .opt(
+                                "agentCategory",
+                                TYPE_STRING,
+                                "Shorthand filter: core-workflow | boundary | data | integration | supporting-infrastructure | low-signal")
+                        .opt(
+                                "classificationEvidence",
+                                TYPE_STRING,
+                                "Shorthand filter: source evidence fragment such as package:redis or stereotype:configuration")
                         .opt("isCrossModule", TYPE_STRING, "Shorthand filter: true | false — only cross-module edges")
                         .opt(
                                 "isRuntimeRelevant",
