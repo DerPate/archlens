@@ -41,6 +41,7 @@ public class McpServer {
     private final RenderPipelineTool pipelineTool;
     private final RenderArchitectureViewTool renderArchitectureViewTool;
     private final ExportLikeC4ModelTool exportLikeC4ModelTool;
+    private final ToolGuidanceTool toolGuidanceTool;
 
     private static final String TYPE_STRING = "string";
     private static final String TYPE_INTEGER = "integer";
@@ -82,6 +83,7 @@ public class McpServer {
         this.pipelineTool = new RenderPipelineTool(cache);
         this.renderArchitectureViewTool = new RenderArchitectureViewTool(cache);
         this.exportLikeC4ModelTool = new ExportLikeC4ModelTool(cache);
+        this.toolGuidanceTool = new ToolGuidanceTool();
     }
 
     /**
@@ -331,6 +333,15 @@ public class McpServer {
                                 "Shorthand filter: true | false — only runtime-relevant edges")
                         .opt("isCondensable", TYPE_STRING, "Shorthand filter: true | false — only condensable edges"),
                 graphTool::execute));
+
+        specs.add(toolSpec(
+                "tool_guidance",
+                "Return compact task-to-tool recipes for agents, including graph classification filters that reduce support-code noise.",
+                schema().opt(
+                                "task",
+                                TYPE_STRING,
+                                "Optional task keyword such as business, component, pipeline, noise, or graph"),
+                toolGuidanceTool::execute));
 
         specs.add(toolSpec(
                 "trace_data_flow",
