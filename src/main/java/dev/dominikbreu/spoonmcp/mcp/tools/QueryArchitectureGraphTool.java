@@ -147,7 +147,15 @@ public class QueryArchitectureGraphTool {
                         "workflowBridgeScore",
                         cn.workflowBridgeScore(),
                         "entrypointReachable",
-                        cn.entrypointReachable());
+                        cn.entrypointReachable(),
+                        "primaryRole",
+                        cn.primaryRole(),
+                        "supportRole",
+                        cn.supportRole(),
+                        "agentCategory",
+                        cn.agentCategory(),
+                        "classificationEvidence",
+                        cn.classificationEvidence());
             case ArchitectureGraph.EntrypointNode en ->
                 appendFields(
                         sb,
@@ -368,6 +376,10 @@ public class QueryArchitectureGraphTool {
         addDirectFilter(args, filters, "workflowRelevant");
         addDirectFilter(args, filters, "businessRelevant");
         addDirectFilter(args, filters, "infrastructureRole");
+        addDirectFilter(args, filters, "primaryRole");
+        addDirectFilter(args, filters, "supportRole");
+        addDirectFilter(args, filters, "agentCategory");
+        addDirectFilter(args, filters, "classificationEvidence");
         addDirectFilter(args, filters, "isCrossModule");
         addDirectFilter(args, filters, "isRuntimeRelevant");
         addDirectFilter(args, filters, "isCondensable");
