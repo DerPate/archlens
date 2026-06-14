@@ -53,9 +53,10 @@ final class ComponentClassifier {
             case "entrypoint" -> "boundary";
             case "data-access", "domain-model" -> "data";
             case "integration" -> "integration";
-            case "business-service" -> metrics.fanOut() > 0 || metrics.ownedEntrypointCount() > 0
-                    ? "core-workflow"
-                    : "supporting-infrastructure";
+            case "business-service" ->
+                metrics.fanOut() > 0 || metrics.ownedEntrypointCount() > 0
+                        ? "core-workflow"
+                        : "supporting-infrastructure";
             case "support" -> "supporting-infrastructure";
             default -> "low-signal";
         };
@@ -133,7 +134,7 @@ final class ComponentClassifier {
         }
 
         boolean hasConfiguration() {
-            return reasons.stream().anyMatch(reason -> reason.equals("stereotype:configuration"))
+            return reasons.stream().anyMatch(reason -> "stereotype:configuration".equals(reason))
                     || packageName.contains("config")
                     || packageName.contains("configuration");
         }

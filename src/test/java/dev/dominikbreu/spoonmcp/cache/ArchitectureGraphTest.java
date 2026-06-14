@@ -151,8 +151,8 @@ class ArchitectureGraphTest {
         ArchitectureGraph graph = new ArchitectureGraph();
         graph.rebuild(model);
 
-        ArchitectureGraph.GraphNode lock =
-                graph.findNodes("Component", "OwnerAwareRedisLockRegistry", Map.of(), 10).getFirst();
+        ArchitectureGraph.GraphNode lock = graph.findNodes("Component", "OwnerAwareRedisLockRegistry", Map.of(), 10)
+                .getFirst();
 
         assertThat(lock.properties())
                 .containsEntry("primaryRole", "support")
