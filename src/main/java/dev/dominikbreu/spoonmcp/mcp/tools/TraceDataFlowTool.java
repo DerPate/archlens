@@ -1,181 +1,186 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery.DataFlowBranchArmNode;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery.DataFlowBranchNode;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery.DataFlowNodeNode;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery.DataFlowPathNode;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery.DataFlowSinkNode;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery.DataFlowStepNode;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery.EntrypointNode;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery.GraphEdge;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer;
-import dev.dominikbreu.spoonmcp.model.*;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * MCP tool that exposes pre-computed data-flow paths from entrypoint parameters to sinks.
- *
- * <p>Sinks are classified as {@code persistence}, {@code messaging}, {@code http-outbound},
- * {@code event-bus}, or {@code store}.  The tool requires the workspace to be indexed with
- * call-graph data; without it the paths list will be empty.
  */
 public class TraceDataFlowTool {
 
     private final ModelCache cache;
 
-    /**
-     * Creates the tool.
-     *
-     * @param cache shared model cache
-     */
     public TraceDataFlowTool(ModelCache cache) {
         this.cache = cache;
     }
 
-    /**
-     * Traces data-flow paths from the requested entrypoint.
-     *
-     * @param args tool arguments ({@code entrypointId} or {@code entrypointName})
-     * @return formatted data-flow report, or an error message
-     */
     public String execute(Map<String, Object> args) {
         try {
-            ToolModelIndex index = cache.index();
-            ArchitectureModel model = index.rawModel();
-            if (model == null) return "No workspace indexed yet. Call index_workspace first.";
+            GraphQuery graph = cache.graph();
+            if (!graph.isIndexed()) return "No workspace indexed yet. Call index_workspace first.";
 
-            if (model.callEdges.isEmpty()) {
+            if (!graph.hasCallGraph()) {
                 return "No call-graph data available. Re-index the workspace to enable data-flow tracing.";
             }
 
-            List<DataFlowPath> paths = model.dataFlowPaths;
+            List<DataFlowPathNode> paths = graph.allDataFlowPaths();
             paths = filterByEntrypointId(paths, ToolArgs.getString(args, "entrypointId"));
-            paths = filterByEntrypointName(paths, ToolArgs.getString(args, "entrypointName"), index);
+            paths = filterByEntrypointName(paths, ToolArgs.getString(args, "entrypointName"), graph);
             paths = filterByParam(paths, ToolArgs.getString(args, "param"));
-            paths = filterBySinkKind(paths, ToolArgs.getString(args, "sinkKind"));
+            paths = filterBySinkKind(paths, ToolArgs.getString(args, "sinkKind"), graph);
 
             if (paths.isEmpty()) return "No data-flow paths found for the given filters.";
 
-            return format(paths, index);
+            return format(paths, graph);
         } catch (Exception e) {
             return "Error tracing data flow: " + e.getMessage();
         }
     }
 
-    private static List<DataFlowPath> filterByEntrypointId(List<DataFlowPath> paths, String epFilter) {
+    private static List<DataFlowPathNode> filterByEntrypointId(List<DataFlowPathNode> paths, String epFilter) {
         if (epFilter == null) return paths;
         return paths.stream()
-                .filter(p -> p.entrypointId != null
-                        && (p.entrypointId.serialize().equals(epFilter)
-                                || p.entrypointId.serialize().contains(epFilter)))
+                .filter(p -> p.entrypointId() != null
+                        && (p.entrypointId().serialize().equals(epFilter)
+                                || p.entrypointId().serialize().contains(epFilter)))
                 .toList();
     }
 
-    private static List<DataFlowPath> filterByEntrypointName(
-            List<DataFlowPath> paths, String nameFilter, ToolModelIndex index) {
+    private static List<DataFlowPathNode> filterByEntrypointName(
+            List<DataFlowPathNode> paths, String nameFilter, GraphQuery graph) {
         if (nameFilter == null) return paths;
         String methodFilter = RuntimeFlowInferrer.extractMethodFromRef(nameFilter);
         String pathFilter = RuntimeFlowInferrer.extractPathFromRef(nameFilter);
         String lower = pathFilter.toLowerCase();
         return paths.stream()
-                .filter(p -> entrypointNameMatches(p, index, methodFilter, pathFilter, lower))
+                .filter(p -> entrypointNameMatches(p, graph, methodFilter, pathFilter, lower))
                 .toList();
     }
 
     private static boolean entrypointNameMatches(
-            DataFlowPath p, ToolModelIndex index, String methodFilter, String pathFilter, String lower) {
-        Entrypoint ep = p.entrypointId != null ? index.entrypoint(p.entrypointId) : null;
+            DataFlowPathNode p, GraphQuery graph, String methodFilter, String pathFilter, String lower) {
+        if (p.entrypointId() == null) return false;
+        EntrypointNode ep = graph.entrypoint(p.entrypointId()) instanceof EntrypointNode en ? en : null;
         if (ep == null) return false;
-        if (methodFilter != null && !methodFilter.equalsIgnoreCase(ep.httpMethod)) return false;
-        return ep.name.toLowerCase().contains(lower) || RuntimeFlowInferrer.pathPrefixMatches(ep.path, pathFilter);
+        if (methodFilter != null && !methodFilter.equalsIgnoreCase(ep.httpMethod())) return false;
+        return ep.name().toLowerCase().contains(lower) || RuntimeFlowInferrer.pathPrefixMatches(ep.path(), pathFilter);
     }
 
-    private static List<DataFlowPath> filterByParam(List<DataFlowPath> paths, String paramFilter) {
+    private static List<DataFlowPathNode> filterByParam(List<DataFlowPathNode> paths, String paramFilter) {
         if (paramFilter == null) return paths;
         return paths.stream()
-                .filter(p -> p.trackedParam.equals(paramFilter) || p.trackedParam.contains(paramFilter))
+                .filter(p -> p.trackedParam() != null
+                        && (p.trackedParam().equals(paramFilter) || p.trackedParam().contains(paramFilter)))
                 .toList();
     }
 
-    private static List<DataFlowPath> filterBySinkKind(List<DataFlowPath> paths, String sinkFilter) {
+    private static List<DataFlowPathNode> filterBySinkKind(
+            List<DataFlowPathNode> paths, String sinkFilter, GraphQuery graph) {
         if (sinkFilter == null) return paths;
-        DataFlowSink.Kind filterKind = DataFlowSink.Kind.from(sinkFilter);
+        String lower = sinkFilter.toLowerCase();
         return paths.stream()
-                .filter(p -> p.sinks.stream().anyMatch(s -> s.kind == filterKind))
+                .filter(p -> graph.pathSinks(p.id()).stream()
+                        .anyMatch(s -> s.sinkKind() != null && s.sinkKind().value().equalsIgnoreCase(lower)))
                 .toList();
     }
 
-    private String format(List<DataFlowPath> paths, ToolModelIndex index) {
+    private String format(List<DataFlowPathNode> paths, GraphQuery graph) {
         StringBuilder sb = new StringBuilder();
         sb.append(paths.size()).append(" data-flow path(s):\n\n");
-        for (DataFlowPath path : paths) {
-            formatPath(sb, path, index);
+        for (DataFlowPathNode path : paths) {
+            formatPath(sb, path, graph);
         }
         return sb.toString();
     }
 
-    private void formatPath(StringBuilder sb, DataFlowPath path, ToolModelIndex index) {
+    private void formatPath(StringBuilder sb, DataFlowPathNode path, GraphQuery graph) {
         sb.append("## ")
-                .append(entrypointLabel(path, index))
+                .append(entrypointLabel(path, graph))
                 .append(" → param: ")
-                .append(path.trackedParam)
+                .append(path.trackedParam())
                 .append("\n");
-        sb.append("  id: ").append(path.id.serialize()).append("\n");
-        if (path.flowNodes.isEmpty()) {
-            formatSteps(sb, path);
+        sb.append("  id: ").append(path.id().serialize()).append("\n");
+
+        List<DataFlowNodeNode> flowNodes = graph.pathFlowNodes(path.id());
+        if (flowNodes.isEmpty()) {
+            formatSteps(sb, path, graph);
         } else {
-            formatTopology(sb, path);
+            formatTopology(sb, path, flowNodes, graph);
         }
-        formatSinks(sb, path);
+        formatSinks(sb, path, graph);
         sb.append("\n");
     }
 
-    private static String entrypointLabel(DataFlowPath path, ToolModelIndex index) {
-        Entrypoint ep = path.entrypointId != null ? index.entrypoint(path.entrypointId) : null;
+    private static String entrypointLabel(DataFlowPathNode path, GraphQuery graph) {
+        if (path.entrypointId() == null) return "";
+        EntrypointNode ep = graph.entrypoint(path.entrypointId()) instanceof EntrypointNode en ? en : null;
         if (ep != null) {
-            return (ep.httpMethod != null ? ep.httpMethod + " " : "") + (ep.path != null ? ep.path : ep.name);
+            return (ep.httpMethod() != null ? ep.httpMethod() + " " : "") + (ep.path() != null ? ep.path() : ep.name());
         }
-        return path.entrypointId != null ? path.entrypointId.serialize() : "";
+        return path.entrypointId().serialize();
     }
 
-    private static void formatSteps(StringBuilder sb, DataFlowPath path) {
-        if (path.steps.isEmpty()) return;
+    private static void formatSteps(StringBuilder sb, DataFlowPathNode path, GraphQuery graph) {
+        List<DataFlowStepNode> steps = graph.pathDataFlowSteps(path.id());
+        if (steps.isEmpty()) return;
         sb.append("  flow:\n");
-        for (DataFlowStep step : path.steps) {
+        for (DataFlowStepNode step : steps) {
             sb.append("    ")
-                    .append(step.index + 1)
+                    .append(step.stepIndex() + 1)
                     .append(". ")
-                    .append(step.componentName)
+                    .append(step.componentName())
                     .append(".")
-                    .append(step.method)
+                    .append(step.method())
                     .append(" (as '")
-                    .append(step.localName)
+                    .append(step.localName())
                     .append("')\n");
         }
     }
 
-    private static void formatTopology(StringBuilder sb, DataFlowPath path) {
-        Map<String, String> nodeAlias = new LinkedHashMap<>();
-        for (int i = 0; i < path.flowNodes.size(); i++) {
-            nodeAlias.put(path.flowNodes.get(i).id, "N" + i);
+    private void formatTopology(
+            StringBuilder sb, DataFlowPathNode path, List<DataFlowNodeNode> flowNodes, GraphQuery graph) {
+        // alias by original flowNodeId (e.g. "n0") for branch-arm lookups, AND by graph vertex ID for edge lookups
+        Map<String, String> flowIdAlias = new LinkedHashMap<>();   // flowNodeId → "N0"
+        Map<String, String> vertexIdAlias = new LinkedHashMap<>(); // graphVertexId → "N0"
+        for (int i = 0; i < flowNodes.size(); i++) {
+            String alias = "N" + i;
+            flowIdAlias.put(flowNodes.get(i).flowNodeId(), alias);
+            vertexIdAlias.put(flowNodes.get(i).id().value(), alias);
         }
+        List<DataFlowBranchNode> branches = graph.pathBranches(path.id());
         Map<String, String> branchAlias = new LinkedHashMap<>();
-        for (int i = 0; i < path.branches.size(); i++) {
-            branchAlias.put(path.branches.get(i).id, "B" + i);
+        for (int i = 0; i < branches.size(); i++) {
+            branchAlias.put(branches.get(i).branchId(), "B" + i);
         }
         sb.append("  flow graph:\n");
-        for (DataFlowNode node : path.flowNodes) {
+        for (DataFlowNodeNode node : flowNodes) {
             sb.append("    ")
-                    .append(nodeAlias.get(node.id))
+                    .append(flowIdAlias.get(node.flowNodeId()))
                     .append(" ")
                     .append(nodeLabel(node))
                     .append(" [")
-                    .append(node.kind != null ? node.kind.name().toLowerCase() : "node")
+                    .append(node.nodeKind() != null ? node.nodeKind() : "node")
                     .append("]\n");
         }
-        formatBranches(sb, path, branchAlias, nodeAlias);
-        formatTopologyEdges(sb, path, nodeAlias, branchAlias);
+        formatBranches(sb, branches, branchAlias, flowIdAlias, graph);
+        formatTopologyEdges(sb, path, vertexIdAlias, branchAlias, graph);
     }
 
-    private static String nodeLabel(DataFlowNode node) {
-        String component = node.componentName != null ? node.componentName : "";
-        String method = node.method != null ? node.method : "";
+    private static String nodeLabel(DataFlowNodeNode node) {
+        String component = node.componentName() != null ? node.componentName() : "";
+        String method = node.method() != null ? node.method() : "";
         if (!component.isBlank() && !method.isBlank()) return component + "." + method;
         if (!component.isBlank()) return component;
         return method;
@@ -183,23 +188,24 @@ public class TraceDataFlowTool {
 
     private static void formatBranches(
             StringBuilder sb,
-            DataFlowPath path,
+            List<DataFlowBranchNode> branches,
             Map<String, String> branchAlias,
-            Map<String, String> nodeAlias) {
-        if (path.branches.isEmpty()) return;
+            Map<String, String> nodeAlias,
+            GraphQuery graph) {
+        if (branches.isEmpty()) return;
         sb.append("  branches:\n");
-        for (DataFlowBranch branch : path.branches) {
+        for (DataFlowBranchNode branch : branches) {
             sb.append("    ")
-                    .append(branchAlias.getOrDefault(branch.id, branch.id))
+                    .append(branchAlias.getOrDefault(branch.branchId(), branch.branchId()))
                     .append(" ")
-                    .append(branch.kind)
-                    .append(sourceLabel(branch.source))
+                    .append(branch.branchKind() != null ? branch.branchKind().toUpperCase() : "")
+                    .append(sourceLabel(branch))
                     .append("\n");
-            for (DataFlowBranchArm arm : branch.arms) {
+            for (DataFlowBranchArmNode arm : graph.branchArms(branch.id())) {
                 sb.append("      ")
-                        .append(arm.label)
+                        .append(arm.armLabel())
                         .append(" -> ")
-                        .append(nodeAlias.getOrDefault(arm.entryNodeId, arm.entryNodeId))
+                        .append(nodeAlias.getOrDefault(arm.entryNodeId(), arm.entryNodeId()))
                         .append("\n");
             }
         }
@@ -207,62 +213,71 @@ public class TraceDataFlowTool {
 
     private static void formatTopologyEdges(
             StringBuilder sb,
-            DataFlowPath path,
-            Map<String, String> nodeAlias,
-            Map<String, String> branchAlias) {
-        if (path.flowEdges.isEmpty()) return;
+            DataFlowPathNode path,
+            Map<String, String> vertexIdAlias,
+            Map<String, String> branchAlias,
+            GraphQuery graph) {
+        List<GraphEdge> edges = graph.pathFlowEdges(path.id());
+        if (edges.isEmpty()) return;
         sb.append("  edges:\n");
-        for (DataFlowEdge edge : path.flowEdges) {
-            sb.append("    ")
-                    .append(nodeAlias.getOrDefault(edge.fromNodeId, edge.fromNodeId))
-                    .append(" -> ")
-                    .append(nodeAlias.getOrDefault(edge.toNodeId, edge.toNodeId))
-                    .append(" [")
-                    .append(edge.label != null ? edge.label : edge.kind)
-                    .append("]");
-            if (edge.branchId != null) {
-                sb.append(" (")
-                        .append(branchAlias.getOrDefault(edge.branchId, edge.branchId));
-                if (edge.branchArmId != null) sb.append("/").append(edge.branchArmId);
+        for (GraphEdge edge : edges) {
+            Map<String, Object> p = edge.properties();
+            String fromAlias = vertexIdAlias.getOrDefault(edge.fromId().value(), edge.fromId().value());
+            String toAlias = vertexIdAlias.getOrDefault(edge.toId().value(), edge.toId().value());
+            Object labelVal = p.get("label");
+            String label = (labelVal != null && !String.valueOf(labelVal).isBlank())
+                    ? String.valueOf(labelVal) : String.valueOf(p.getOrDefault("edgeKind", ""));
+            sb.append("    ").append(fromAlias).append(" -> ").append(toAlias)
+                    .append(" [").append(label).append("]");
+            Object branchIdObj = p.get("branchId");
+            Object branchArmIdObj = p.get("branchArmId");
+            if (branchIdObj != null) {
+                String branchId = String.valueOf(branchIdObj);
+                sb.append(" (").append(branchAlias.getOrDefault(branchId, branchId));
+                if (branchArmIdObj != null) sb.append("/").append(branchArmIdObj);
                 sb.append(")");
             }
             sb.append("\n");
         }
     }
 
-    private static String sourceLabel(SourceInfo source) {
-        if (source == null || source.file == null || "unknown".equals(source.file)) return "";
-        String file = source.file;
-        int slash = file.lastIndexOf('/');
-        return " " + (slash >= 0 ? file.substring(slash + 1) : file) + ":" + source.line;
+    private static String sourceLabel(DataFlowBranchNode branch) {
+        Map<String, Object> props = branch.properties();
+        Object file = props.get("sourceFile");
+        if (file == null || "unknown".equals(file)) return "";
+        String f = String.valueOf(file);
+        int slash = f.lastIndexOf('/');
+        return " " + (slash >= 0 ? f.substring(slash + 1) : f) + ":" + props.get("sourceLine");
     }
 
-    private static void formatSinks(StringBuilder sb, DataFlowPath path) {
-        if (path.sinks.isEmpty()) return;
+    private static void formatSinks(StringBuilder sb, DataFlowPathNode path, GraphQuery graph) {
+        List<DataFlowSinkNode> sinks = graph.pathSinks(path.id());
+        if (sinks.isEmpty()) return;
         sb.append("  sinks:\n");
-        for (DataFlowSink sink : path.sinks) {
+        for (DataFlowSinkNode sink : sinks) {
             sb.append("    - [")
-                    .append(sink.kind)
+                    .append(sink.sinkKind() != null ? sink.sinkKind().value() : "?")
                     .append("] ")
-                    .append(sink.componentName)
+                    .append(sink.name())
                     .append(".")
-                    .append(sink.method);
-            if (sink.kind == DataFlowSink.Kind.STORE && sink.fieldName != null) {
-                sb.append("  field=").append(sink.fieldName);
+                    .append(sink.method());
+            if ("store".equals(sink.sinkKind() != null ? sink.sinkKind().value() : "") && sink.fieldName() != null) {
+                sb.append("  field=").append(sink.fieldName());
             }
             appendSinkSource(sb, sink);
             sb.append("\n");
         }
     }
 
-    private static void appendSinkSource(StringBuilder sb, DataFlowSink sink) {
-        if (sink.source == null || sink.source.file == null || "unknown".equals(sink.source.file)) return;
-        String file = sink.source.file;
-        int slash = file.lastIndexOf('/');
+    private static void appendSinkSource(StringBuilder sb, DataFlowSinkNode sink) {
+        var source = sink.source();
+        if (source == null || source.file == null || "unknown".equals(source.file)) return;
+        String f = source.file;
+        int slash = f.lastIndexOf('/');
         sb.append("  (")
-                .append(slash >= 0 ? file.substring(slash + 1) : file)
+                .append(slash >= 0 ? f.substring(slash + 1) : f)
                 .append(":")
-                .append(sink.source.line)
+                .append(source.line)
                 .append(")");
     }
 }
