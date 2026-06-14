@@ -12,22 +12,53 @@ Important paths:
 - `src/main/java/dev/dominikbreu/spoonmcp/mcp/McpServer.java`: JSON-RPC loop, MCP initialize response, tool registry, and dispatch.
 - `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/`: individual MCP tool adapters.
 - `src/main/java/dev/dominikbreu/spoonmcp/cache/`: data-access layer for tools.
-  - `ModelCache.java`: stores/loads the model; exposes `index()` and `graph()`.
-  - `ArchitectureGraph.java`: TinkerPop graph projection; `GraphNode` is a sealed interface with
-    12 typed per-label records. Traversal methods: `resolveComponent`, `resolveEntrypoint`,
-    `reachable`, `neighborhood`, `paths`, `impactedBy`.
-  - `ToolModelIndex.java`: O(1) lookup index (EntrypointId → Entrypoint, AppId → AppEntry,
-    ComponentId → Component). Built lazily via `cache.index()`, reset on `index_workspace`.
+  - `ModelCache.java`: stores/loads the graph; exposes `graph()` which returns a `GraphQuery`.
+  - `GraphStore.java`: owns the TinkerPop `TinkerGraph` instance. Low-level vertex/edge CRUD
+    and GraphSON serialization. Not referenced by tools or renderers.
+  - `GraphProjector.java`: projects an `ArchitectureModel` into `GraphStore` during
+    `index_workspace`. Not referenced by tools or renderers.
+  - `GraphQuery.java`: the only cache class tools and renderers import. Typed query methods
+    (`findNodes`, `findEdges`, `neighborhood`, `paths`, `impactedBy`, `summary`) plus typed
+    lookups `component(ComponentId)`, `entrypoint(EntrypointId)`, `app(AppId)`. Returns
+    `GraphNode` sealed records — no raw TinkerPop types leak out.
 - `src/main/java/dev/dominikbreu/spoonmcp/extractor/`: Java/Spoon architecture extraction.
 - `src/main/java/dev/dominikbreu/spoonmcp/extractor/objectflow/`: source-derived
   receiver and object-flow analysis used by call graph and field access extraction.
 - `src/main/java/dev/dominikbreu/spoonmcp/workflow/`: shared workflow traversal and
   linking semantics used by pipeline, use-case, runtime-flow, and graph projections.
-- `src/main/java/dev/dominikbreu/spoonmcp/model/`: extracted architecture data model.
+- `src/main/java/dev/dominikbreu/spoonmcp/model/`: extraction-side data model only.
+  Classes here are produced by extractors and consumed by `GraphProjector`. They are
+  never imported in `mcp/tools/` or `renderer/` (except `model/ids/` which are value types).
 - `src/main/java/dev/dominikbreu/spoonmcp/merger/`: deployment metadata merging from Docker Compose and Ansible files.
 - `src/main/java/dev/dominikbreu/spoonmcp/renderer/`: Mermaid rendering.
 - `src/test/java/`: unit tests.
 - `src/test/resources/testprojects/`: fixture projects used by tests.
+
+## Architectural Rules
+
+These rules encode the deliberate design of the runtime layer. Do not work around them.
+
+**TinkerPop is the single runtime source of truth.**
+After `index_workspace` completes, `ArchitectureModel` is discarded. The graph is the only
+thing that persists. Tools and renderers never see or hold a reference to `ArchitectureModel`,
+`Component`, `DataFlowPath`, `CallEdge`, or any other class from `model/` (except ID types).
+
+**The boundary is `GraphQuery`.**
+`cache.graph()` returns a `GraphQuery`. That is the only data-access call tools make.
+`cache.index()` does not exist. `rawModel()` does not exist. `ToolModelIndex` does not exist.
+If you find yourself wanting to call these, the right fix is to add a typed lookup or query
+method to `GraphQuery`, not to bypass the boundary.
+
+**`GraphProjector` writes once; everything else reads.**
+`GraphProjector` is called by `IndexWorkspaceTool` during indexing and then discarded.
+No other class instantiates or imports `GraphProjector`. Tools are read-only consumers
+of the graph via `GraphQuery`.
+
+**`model/` classes do not cross into the tool or renderer layer.**
+The import rule: files under `mcp/tools/` and `renderer/` may import from `model/ids/`
+(value types used as query parameters) and nothing else from `model/`. If a tool or renderer
+needs data that is currently only on a model class, the right fix is to ensure that data
+is projected as a graph property and queried through `GraphQuery`.
 
 ## Commands
 
@@ -53,19 +84,18 @@ java -jar target/spoon-mcp-server.jar
 - Prefer entity/model changes that are covered by focused tests.
 - Do not skip Spotless or SpotBugs to make `verify` pass. Fix formatting with
   `mvn spotless:apply` and address or explicitly justify SpotBugs findings.
-- **Tool data-access pattern**: MCP tools must not call `cache.load()` directly.
-  Use `cache.graph()` for graph traversal and resolution, `cache.index()` for O(1)
-  typed lookups, and `cache.index().rawModel()` only when a renderer or infrastructure
-  component genuinely requires the full `ArchitectureModel`. `IndexWorkspaceTool` is
-  the only writer and keeps its direct `ModelCache` reference.
+- **Tool data-access pattern**: MCP tools call `cache.graph()` only. `IndexWorkspaceTool`
+  is the only writer and keeps its direct `ModelCache` reference. No other tool calls
+  `cache.load()`, `cache.index()`, or `cache.store()`.
 - Update `docs/TOOLS.md` when adding or changing MCP tools.
 - Update `docs/ARCHITECTURE.md` when changing major package responsibilities.
-- When adding new graph vertex/edge labels in `cache/ArchitectureGraph.java`, also:
+- When adding new graph vertex/edge labels in `GraphProjector.java`, also:
   - extend the property/edge catalog in `docs/TOOLS.md` (`query_architecture_graph` section);
   - update `llms.txt` "Notes For Agents";
-  - extend `reachableFromEntrypoints` if the new edge should propagate
+  - extend the reachability propagation in `GraphProjector` if the new edge should carry
     `entrypointReachable=true` to the new vertices;
-  - add coverage in `cache/ArchitectureGraphTest.java`.
+  - add a typed record to the `GraphNode` sealed interface in `GraphQuery.java`;
+  - add coverage in `cache/GraphQueryTest.java`.
 - When changing workflow continuation semantics (`WORKFLOW_LINK`, state handoffs,
   messaging/event-bus chaining, or utility traversal boundaries), update
   `workflow/WorkflowTraversalPolicy.java`, `workflow/WorkflowLinker.java`, relevant
@@ -114,7 +144,7 @@ proc = subprocess.Popen(
     ["java", "-jar", JAR],
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
-    stderr=sys.stderr,   # ← never subprocess.PIPE
+    stderr=sys.stderr,   # <- never subprocess.PIPE
     cwd=PROJECT_ROOT,
 )
 
@@ -139,13 +169,13 @@ def notify(method, params=None):
 def tool(name, args):
     return call("tools/call", {"name": name, "arguments": args})["content"][0]["text"]
 
-# Handshake — always in this order
+# Handshake -- always in this order
 call("initialize", {
     "protocolVersion": "2024-11-05",
     "capabilities": {},
     "clientInfo": {"name": "script", "version": "1"},
 })
-notify("notifications/initialized", {})  # ← mandatory, no response expected
+notify("notifications/initialized", {})  # <- mandatory, no response expected
 
 # Now call tools
 print(tool("index_workspace", {"paths": ["/path/to/project"]}))

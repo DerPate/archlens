@@ -160,14 +160,14 @@ class TraceDataFlowToolTest {
 
         assertThat(result)
                 .contains("flow graph:")
-                .contains("n0 CustomerController.get [root]")
+                .contains("N0 CustomerController.get [root]")
                 .contains("branches:")
-                .contains("b0 IF Validator.java:11")
-                .contains("then -> n1")
-                .contains("else -> n2")
+                .contains("B0 IF Validator.java:11")
+                .contains("then -> N1")
+                .contains("else -> N2")
                 .contains("edges:")
-                .contains("n0 -> n1 [then]")
-                .contains("n0 -> n2 [else]")
+                .contains("N0 -> N1 [then] (B0/b0:then)")
+                .contains("N0 -> N2 [else] (B0/b0:else)")
                 .doesNotContain("  flow:\n");
     }
 
