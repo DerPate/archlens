@@ -1180,6 +1180,10 @@ public class ArchitectureGraph {
                 set(vertex, "noiseScore", relevance.noiseScore());
                 set(vertex, "workflowBridgeScore", relevance.workflowBridgeScore());
                 set(vertex, "architecturalWeight", relevance.architecturalWeight());
+                set(vertex, "primaryRole", relevance.primaryRole());
+                set(vertex, "supportRole", relevance.supportRole());
+                set(vertex, "agentCategory", relevance.agentCategory());
+                set(vertex, "classificationEvidence", relevance.classificationEvidence());
             }
         }
     }
@@ -1307,7 +1311,11 @@ public class ArchitectureGraph {
                         vStr(vertex, "infrastructureRole"),
                         vInt(vertex, "noiseScore"),
                         vInt(vertex, "workflowBridgeScore"),
-                        vBool(vertex, "entrypointReachable"));
+                        vBool(vertex, "entrypointReachable"),
+                        vStr(vertex, "primaryRole"),
+                        vStr(vertex, "supportRole"),
+                        vStr(vertex, "agentCategory"),
+                        vStr(vertex, "classificationEvidence"));
             case "Entrypoint" ->
                 new EntrypointNode(
                         nodeId,
@@ -1826,6 +1834,10 @@ public class ArchitectureGraph {
      * @param noiseScore a score reflecting how likely the component is low-signal infrastructure
      * @param workflowBridgeScore a score reflecting how many workflows this component bridges
      * @param entrypointReachable true if this component is reachable from at least one entrypoint
+     * @param primaryRole broad architectural role for agent filtering
+     * @param supportRole support subtype when the component is infrastructure/support code
+     * @param agentCategory high-level agent routing category
+     * @param classificationEvidence compact evidence used to classify the component
      */
     public record ComponentNode(
             GraphNodeId id,
@@ -1847,7 +1859,11 @@ public class ArchitectureGraph {
             String infrastructureRole,
             int noiseScore,
             int workflowBridgeScore,
-            boolean entrypointReachable)
+            boolean entrypointReachable,
+            String primaryRole,
+            String supportRole,
+            String agentCategory,
+            String classificationEvidence)
             implements GraphNode {
         @Override
         public String label() {
@@ -1884,6 +1900,10 @@ public class ArchitectureGraph {
             m.put("noiseScore", noiseScore);
             m.put("workflowBridgeScore", workflowBridgeScore);
             m.put("entrypointReachable", entrypointReachable);
+            if (primaryRole != null) m.put("primaryRole", primaryRole);
+            if (supportRole != null) m.put("supportRole", supportRole);
+            if (agentCategory != null) m.put("agentCategory", agentCategory);
+            if (classificationEvidence != null) m.put("classificationEvidence", classificationEvidence);
             m.entrySet().removeIf(e -> e.getValue() == null);
             return m;
         }
@@ -1894,6 +1914,10 @@ public class ArchitectureGraph {
                     || GraphNode.q(query, name)
                     || GraphNode.q(query, qualifiedName)
                     || GraphNode.q(query, technology)
+                    || GraphNode.q(query, primaryRole)
+                    || GraphNode.q(query, supportRole)
+                    || GraphNode.q(query, agentCategory)
+                    || GraphNode.q(query, classificationEvidence)
                     || (type != null && GraphNode.q(query, type.name()))
                     || (module != null && GraphNode.q(query, module.serialize()));
         }

@@ -139,6 +139,33 @@ class ArchitectureGraphTest {
     }
 
     @Test
+    void projectsAgentClassificationMetadataAndFilters() {
+        ArchitectureModel model = model();
+        Component redisLock = new Component();
+        redisLock.id = ComponentId.of("RedisLock");
+        redisLock.name = "OwnerAwareRedisLockRegistry";
+        redisLock.qualifiedName = "de.homeinstead.phoenix.redis.OwnerAwareRedisLockRegistry";
+        redisLock.type = ComponentType.SERVICE;
+        model.components.add(redisLock);
+
+        ArchitectureGraph graph = new ArchitectureGraph();
+        graph.rebuild(model);
+
+        ArchitectureGraph.GraphNode lock =
+                graph.findNodes("Component", "OwnerAwareRedisLockRegistry", Map.of(), 10).getFirst();
+
+        assertThat(lock.properties())
+                .containsEntry("primaryRole", "support")
+                .containsEntry("supportRole", "redis-lock")
+                .containsEntry("agentCategory", "supporting-infrastructure");
+        assertThat((String) lock.properties().get("classificationEvidence"))
+                .contains("package:redis", "name:OwnerAwareRedisLockRegistry");
+        assertThat(graph.findNodes("Component", null, Map.of("agentCategory", "supporting-infrastructure"), 10))
+                .extracting(node -> node.id().serialize())
+                .contains("RedisLock");
+    }
+
+    @Test
     void downranksUtilityFanInBelowWorkflowComponents() {
         ArchitectureModel model = model();
 

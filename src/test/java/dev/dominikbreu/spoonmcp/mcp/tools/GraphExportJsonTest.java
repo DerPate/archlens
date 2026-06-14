@@ -77,7 +77,11 @@ class GraphExportJsonTest {
                                 "entrypoint",
                                 0,
                                 0,
-                                true),
+                                true,
+                                "entrypoint",
+                                null,
+                                "boundary",
+                                "type:REST_RESOURCE,package:example,name:CustomerController"),
                         new ArchitectureGraph.ContainerNode(
                                 GraphNodeId.of("container:app:example:api"),
                                 "api",
