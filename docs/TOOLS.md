@@ -745,7 +745,8 @@ Arguments:
   `limit` returns all matching nodes; pass `limit` to cap large result sets.
 - Common shorthand filters are also accepted as top-level args:
   `type`, `technology`, `module`, `packageName`, `entrypointReachable`,
-  `workflowRelevant`, `businessRelevant`, `infrastructureRole`, `isCrossModule`,
+  `workflowRelevant`, `businessRelevant`, `infrastructureRole`, `primaryRole`,
+  `supportRole`, `agentCategory`, `classificationEvidence`, `isCrossModule`,
   `isRuntimeRelevant`, and `isCondensable`.
 
 Useful graph properties include:
@@ -753,7 +754,11 @@ Useful graph properties include:
 - Component nodes: `componentType`, `qualifiedName`, `packageName`, `module`, `technology`,
   `sourceFile`, `sourceLine`, `confidence`, `fanIn`, `fanOut`, `entrypointReachable`,
   `architecturalWeight`, `workflowRelevant`, `businessRelevant`, `infrastructureRole`,
-  `noiseScore`, `workflowBridgeScore`. `architecturalWeight` is noise-aware: utility,
+  `noiseScore`, `workflowBridgeScore`, `primaryRole`, `supportRole`, `agentCategory`,
+  and `classificationEvidence`. Use `agentCategory=core-workflow` for first-pass
+  business flow discovery and `supportRole` when looking for supporting infrastructure
+  such as configuration, mappers, Redis locks, migration initializers, converters, or
+  tenant/security support. `architecturalWeight` is noise-aware: utility,
   formatter/parser/mapper/logger/config, DTO-ish, and unknown components are downranked
   even when their fan-in is high; workflow bridges, entrypoints, schedulers,
   repositories, outbound clients, and state handoffs are promoted. Self-only state
@@ -953,6 +958,19 @@ Example — find every messaging entrypoint bound to an in-memory channel:
 ```json
 { "action": "find_nodes", "label": "Interface", "filters": { "broker": "IN_MEMORY" } }
 ```
+
+## `tool_guidance`
+
+Return compact task-to-tool recipes for agents.
+
+Arguments:
+
+- `task` string, optional. Keyword such as `business`, `component`, `pipeline`,
+  `noise`, or `graph`.
+
+Use this before combining architecture tools when the next step is unclear. The output
+recommends concrete MCP tool sequences and graph filters such as
+`agentCategory=core-workflow`, `supportRole`, and `classificationEvidence`.
 
 ---
 

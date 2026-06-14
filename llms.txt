@@ -102,7 +102,8 @@ The server is designed for consumption by LLM agents and MCP-capable clients
 `export_architecture_docs`, `export_graph_architecture_poc`,
 `export_graph_data`, `export_graph_viewer`,
 `query_architecture_graph`, `render_architecture_view`, `export_likec4_model`,
-`explain_architecture`, `detect_use_cases`, `trace_data_flow`, `render_pipeline`.
+`explain_architecture`, `detect_use_cases`, `trace_data_flow`, `render_pipeline`,
+`tool_guidance`.
 
 `render_pipeline` stitches multiple `DataFlowPath`s into a single end-to-end Mermaid
 diagram across entrypoint boundaries (consumer → store → scheduler → channel → consumer).
@@ -234,6 +235,10 @@ Prompts are workflow templates for clients and agents; they do not replace tools
   persistence sinks expose destination/entity/link evidence, external systems are
   `ExternalSystem` nodes, and `CALLS` edges expose propagation/debug fields such as
   `paramMapping`, `resolvedLiteralArgs`, `assignedToVar`, and `killedTrackedNames`.
+- Use `tool_guidance` when the task asks "what should I inspect next?" or when choosing
+  between graph, dependency, runtime-flow, and data-flow tools. For source architecture
+  summaries, start with `query_architecture_graph` filters `agentCategory=core-workflow`
+  or `agentCategory=boundary`, then inspect `supportRole` only when support code matters.
 - Prefer `WORKFLOW_LINK` over reconstructing pipelines from raw `linkedPathIds`.
   `WORKFLOW_LINK` is the canonical query edge for messaging/event-bus/state-handoff
   continuation between `DataFlowPath` nodes.
