@@ -741,7 +741,8 @@ Arguments:
 - `toId` string, optional. Required for `paths`.
 - `direction` string, optional. One of `in`, `out`, or `both` for `neighborhood`.
 - `maxDepth` integer, optional. Traversal depth for `paths` or `impacted_by`.
-- `limit` integer, optional. Maximum returned rows.
+- `limit` integer, optional. Maximum returned rows. For `find_nodes`, omitting
+  `limit` returns all matching nodes; pass `limit` to cap large result sets.
 - Common shorthand filters are also accepted as top-level args:
   `type`, `technology`, `module`, `packageName`, `entrypointReachable`,
   `workflowRelevant`, `businessRelevant`, `infrastructureRole`, `isCrossModule`,

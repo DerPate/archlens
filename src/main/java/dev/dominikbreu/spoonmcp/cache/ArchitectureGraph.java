@@ -248,7 +248,7 @@ public class ArchitectureGraph {
                 .filter(v -> normalizedLabel == null || v.label().equalsIgnoreCase(normalizedLabel))
                 .map(this::toNode)
                 .filter(node -> normalizedQuery == null || node.matches(normalizedQuery))
-                .limit(normalizeLimit(limit))
+                .limit(normalizeFindNodesLimit(limit))
                 .toList();
     }
 
@@ -1637,6 +1637,10 @@ public class ArchitectureGraph {
 
     private int normalizeLimit(int limit) {
         return Math.clamp(limit <= 0 ? 25 : limit, 1, 100);
+    }
+
+    private long normalizeFindNodesLimit(int limit) {
+        return limit <= 0 ? Long.MAX_VALUE : Math.clamp(limit, 1, 50_000);
     }
 
     /**
