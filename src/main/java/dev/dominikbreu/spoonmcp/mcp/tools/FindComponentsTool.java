@@ -1,6 +1,6 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.model.Component;
@@ -35,7 +35,7 @@ public class FindComponentsTool {
     public String execute(Map<String, Object> args) {
         try {
             ToolModelIndex index = cache.index();
-            ArchitectureGraph graph = cache.graph();
+            GraphQuery graph = cache.graph();
             if (index.rawModel() == null) return "No workspace indexed yet. Call index_workspace first.";
 
             String appId = ToolArgs.getString(args, "appId");
@@ -43,7 +43,7 @@ public class FindComponentsTool {
             String techFilter = ToolArgs.getString(args, "technology");
 
             // Retrieve candidate nodes from graph; use owned-by index when appId is set
-            List<ArchitectureGraph.GraphNode> nodes = appId != null
+            List<GraphQuery.GraphNode> nodes = appId != null
                     ? graph.componentNodesOwnedBy(AppId.of(appId))
                     : graph.findNodes("Component", null, Map.of(), 5000);
 

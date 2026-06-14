@@ -1,6 +1,6 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
@@ -56,7 +56,7 @@ public class ExportGraphArchitecturePocTool {
                 return "No workspace indexed yet. Call index_workspace first.";
             }
 
-            ArchitectureGraph graph = cache.graph();
+            GraphQuery graph = cache.graph();
             Path output = Path.of(ToolArgs.getString(args, "outputPath", DEFAULT_OUTPUT.toString()));
             String focus = ToolArgs.getString(args, "focusComponent", "McpServer");
             String markdown = renderMarkdown(model, graph, focus);
@@ -75,8 +75,8 @@ public class ExportGraphArchitecturePocTool {
         }
     }
 
-    private String renderMarkdown(ArchitectureModel model, ArchitectureGraph graph, String focusComponent) {
-        ArchitectureGraph.GraphSummary summary = graph.summary();
+    private String renderMarkdown(ArchitectureModel model, GraphQuery graph, String focusComponent) {
+        GraphQuery.GraphSummary summary = graph.summary();
         StringBuilder sb = new StringBuilder();
         sb.append("# Generated Architecture Graph POC\n\n");
         sb.append(
@@ -149,17 +149,17 @@ public class ExportGraphArchitecturePocTool {
         return sb.toString();
     }
 
-    private void appendHighSignalComponents(StringBuilder sb, ArchitectureGraph graph) {
+    private void appendHighSignalComponents(StringBuilder sb, GraphQuery graph) {
         sb.append("## High Signal Components\n\n");
-        Comparator<ArchitectureGraph.GraphNode> signalOrder = Comparator.comparingInt(
-                        (ArchitectureGraph.GraphNode node) ->
+        Comparator<GraphQuery.GraphNode> signalOrder = Comparator.comparingInt(
+                        (GraphQuery.GraphNode node) ->
                                 booleanRank(node.properties().get("workflowRelevant")))
                 .reversed()
-                .thenComparing(Comparator.comparingInt((ArchitectureGraph.GraphNode node) ->
+                .thenComparing(Comparator.comparingInt((GraphQuery.GraphNode node) ->
                                 booleanRank(node.properties().get("businessRelevant")))
                         .reversed())
                 .thenComparingInt(node -> numeric(node.properties().get("noiseScore")))
-                .thenComparing(Comparator.comparingInt((ArchitectureGraph.GraphNode node) ->
+                .thenComparing(Comparator.comparingInt((GraphQuery.GraphNode node) ->
                                 numeric(node.properties().get(ARCHITECTURAL_WEIGHT)))
                         .reversed())
                 .thenComparing(node -> node.id().serialize());
@@ -194,7 +194,7 @@ public class ExportGraphArchitecturePocTool {
         sb.append("\n");
     }
 
-    private void appendCrossModuleDependencies(StringBuilder sb, ArchitectureGraph graph) {
+    private void appendCrossModuleDependencies(StringBuilder sb, GraphQuery graph) {
         sb.append("## Cross-Module Dependencies\n\n");
         graph.findEdges("DEPENDS_ON", Map.of("isCrossModule", "true"), 100).stream()
                 .sorted(Comparator.comparingDouble(
@@ -213,7 +213,7 @@ public class ExportGraphArchitecturePocTool {
         sb.append("\n");
     }
 
-    private void appendEntrypointReachability(StringBuilder sb, ArchitectureGraph graph) {
+    private void appendEntrypointReachability(StringBuilder sb, GraphQuery graph) {
         sb.append("## Entrypoint Reachability\n\n");
         graph.findNodes(COMPONENT_LABEL, null, Map.of("entrypointReachable", "true"), 100).stream()
                 .limit(20)
@@ -267,7 +267,7 @@ public class ExportGraphArchitecturePocTool {
         sb.append("\n");
     }
 
-    private void appendFocusSlice(StringBuilder sb, ArchitectureGraph graph, String focusComponent) {
+    private void appendFocusSlice(StringBuilder sb, GraphQuery graph, String focusComponent) {
         sb.append("## Focus Slice\n\n");
         sb.append("Focus component: `").append(focusComponent).append("`\n\n");
         graph.findNodes(COMPONENT_LABEL, focusComponent, Map.of(), 5).stream()

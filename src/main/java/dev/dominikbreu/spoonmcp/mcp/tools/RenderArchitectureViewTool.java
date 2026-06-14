@@ -1,6 +1,6 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.model.AppEntry;
@@ -39,7 +39,7 @@ public final class RenderArchitectureViewTool {
             if (model == null) {
                 return "No workspace indexed yet. Call index_workspace first.";
             }
-            ArchitectureGraph graph = cache.graph();
+            GraphQuery graph = cache.graph();
             String view = ToolArgs.getString(args, "view", "component");
             if (!"component".equalsIgnoreCase(view)) {
                 return "Only view=component is supported. Received: " + view;

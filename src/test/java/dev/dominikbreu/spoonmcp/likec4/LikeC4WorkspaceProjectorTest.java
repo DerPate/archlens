@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.model.AppEntry;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
@@ -111,8 +111,7 @@ class LikeC4WorkspaceProjectorTest {
                 dependency(invoice.id, audit.id, "field-reference"),
                 dependency(address.id, audit.id, "field-reference")));
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = GraphQuery.from(model);
 
         LikeC4Document document = new LikeC4WorkspaceProjector().projectWorkspace(graph, model, app, 5);
 
@@ -161,8 +160,7 @@ class LikeC4WorkspaceProjectorTest {
                 dependency(listener.id, service.id, "injection"),
                 dependency(service.id, entity.id, "jpa")));
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = GraphQuery.from(model);
 
         LikeC4Document document = new LikeC4WorkspaceProjector().projectWorkspace(graph, model, app, 6);
 
@@ -209,8 +207,7 @@ class LikeC4WorkspaceProjectorTest {
                 entrypoint("listenAddress", EntrypointType.MESSAGING_CONSUMER, "KAFKA", "address", listener.id);
         model.entrypoints.add(listenAddress);
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = GraphQuery.from(model);
 
         LikeC4Document document = new LikeC4WorkspaceProjector().projectWorkspace(graph, model, app, 6);
 
@@ -258,8 +255,7 @@ class LikeC4WorkspaceProjectorTest {
                 "sendPayment", EntrypointType.MESSAGING_PRODUCER, MessagingBroker.KAFKA, "payments", notifier.id);
         model.entrypoints.addAll(List.of(consumer, producer));
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = GraphQuery.from(model);
 
         LikeC4Document document = new LikeC4WorkspaceProjector().projectWorkspace(graph, model, app, 8);
 
@@ -302,8 +298,7 @@ class LikeC4WorkspaceProjectorTest {
         model.entrypoints.add(
                 entrypoint("createOrder", EntrypointType.REST_ENDPOINT, "POST", "/orders", controller.id));
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = GraphQuery.from(model);
 
         LikeC4Document document = new LikeC4WorkspaceProjector().projectWorkspace(graph, model, app, 8);
 

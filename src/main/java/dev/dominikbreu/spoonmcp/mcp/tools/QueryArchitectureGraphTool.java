@@ -1,6 +1,6 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.model.ids.GraphNodeId;
 import java.util.LinkedHashMap;
@@ -35,7 +35,7 @@ public class QueryArchitectureGraphTool {
      */
     public String execute(Map<String, Object> args) {
         try {
-            ArchitectureGraph graph = cache.graph();
+            GraphQuery graph = cache.graph();
             String action = text(args, "action", "summary");
             return switch (action) {
                 case "summary" -> renderSummary(graph.summary());
@@ -70,7 +70,7 @@ public class QueryArchitectureGraphTool {
         }
     }
 
-    private String renderSummary(ArchitectureGraph.GraphSummary summary) {
+    private String renderSummary(GraphQuery.GraphSummary summary) {
         StringBuilder sb = new StringBuilder();
         sb.append("Architecture graph (backend: ")
                 .append(cache.getBackend().name().toLowerCase())
@@ -92,13 +92,13 @@ public class QueryArchitectureGraphTool {
                 sb.append("- ").append(label).append(": ").append(count).append("\n"));
     }
 
-    private String renderNodes(List<ArchitectureGraph.GraphNode> nodes) {
+    private String renderNodes(List<GraphQuery.GraphNode> nodes) {
         if (nodes.isEmpty()) {
             return "No graph nodes matched.";
         }
         StringBuilder sb = new StringBuilder();
         sb.append("Graph nodes:\n");
-        for (ArchitectureGraph.GraphNode node : nodes) {
+        for (GraphQuery.GraphNode node : nodes) {
             sb.append("- ")
                     .append(node.id().serialize())
                     .append(" [")
@@ -113,9 +113,9 @@ public class QueryArchitectureGraphTool {
         return sb.toString();
     }
 
-    private void appendNodeFields(StringBuilder sb, ArchitectureGraph.GraphNode node) {
+    private void appendNodeFields(StringBuilder sb, GraphQuery.GraphNode node) {
         switch (node) {
-            case ArchitectureGraph.ComponentNode cn ->
+            case GraphQuery.ComponentNode cn ->
                 appendFields(
                         sb,
                         "type",
@@ -156,7 +156,7 @@ public class QueryArchitectureGraphTool {
                         cn.agentCategory(),
                         "classificationEvidence",
                         cn.classificationEvidence());
-            case ArchitectureGraph.EntrypointNode en ->
+            case GraphQuery.EntrypointNode en ->
                 appendFields(
                         sb,
                         "type",
@@ -175,9 +175,9 @@ public class QueryArchitectureGraphTool {
                         en.protocol(),
                         "componentId",
                         en.componentId());
-            case ArchitectureGraph.ApplicationNode an ->
+            case GraphQuery.ApplicationNode an ->
                 appendFields(sb, "technology", an.technology(), "packagingType", an.packagingType(), "role", an.role());
-            case ArchitectureGraph.InterfaceNode in ->
+            case GraphQuery.InterfaceNode in ->
                 appendFields(
                         sb,
                         "type",
@@ -192,13 +192,13 @@ public class QueryArchitectureGraphTool {
                         in.topic(),
                         "componentId",
                         in.componentId());
-            case ArchitectureGraph.ContainerNode cn ->
+            case GraphQuery.ContainerNode cn ->
                 appendFields(sb, "technology", cn.technology(), "derivedFrom", cn.derivedFrom(), "appId", cn.appId());
-            case ArchitectureGraph.ExternalSystemNode es ->
+            case GraphQuery.ExternalSystemNode es ->
                 appendFields(sb, "kind", es.kind(), "technology", es.technology());
-            case ArchitectureGraph.RuntimeFlowNode rf ->
+            case GraphQuery.RuntimeFlowNode rf ->
                 appendFields(sb, "entrypointId", rf.entrypointId(), "stepCount", rf.stepCount());
-            case ArchitectureGraph.RuntimeFlowStepNode rs ->
+            case GraphQuery.RuntimeFlowStepNode rs ->
                 appendFields(
                         sb,
                         "flowId",
@@ -211,7 +211,7 @@ public class QueryArchitectureGraphTool {
                         rs.componentType(),
                         "via",
                         rs.via());
-            case ArchitectureGraph.DataFlowPathNode dp ->
+            case GraphQuery.DataFlowPathNode dp ->
                 appendFields(
                         sb,
                         "entrypointId",
@@ -222,7 +222,7 @@ public class QueryArchitectureGraphTool {
                         dp.stepCount(),
                         "sinkCount",
                         dp.sinkCount());
-            case ArchitectureGraph.DataFlowSinkNode ds ->
+            case GraphQuery.DataFlowSinkNode ds ->
                 appendFields(
                         sb,
                         "sinkKind",
@@ -249,7 +249,7 @@ public class QueryArchitectureGraphTool {
                         ds.linkEvidence(),
                         "calleeQualifiedName",
                         ds.calleeQualifiedName());
-            case ArchitectureGraph.DataFlowNodeNode dn ->
+            case GraphQuery.DataFlowNodeNode dn ->
                 appendFields(
                         sb,
                         "pathId",
@@ -266,9 +266,9 @@ public class QueryArchitectureGraphTool {
                         dn.method(),
                         "localName",
                         dn.localName());
-            case ArchitectureGraph.DataFlowBranchNode db ->
+            case GraphQuery.DataFlowBranchNode db ->
                 appendFields(sb, "pathId", db.pathId(), "branchId", db.branchId(), "branchKind", db.branchKind());
-            case ArchitectureGraph.DataFlowBranchArmNode da ->
+            case GraphQuery.DataFlowBranchArmNode da ->
                 appendFields(
                         sb,
                         "pathId",
@@ -281,10 +281,10 @@ public class QueryArchitectureGraphTool {
                         da.armLabel(),
                         "entryNodeId",
                         da.entryNodeId());
-            case ArchitectureGraph.PipelineChainNode pc ->
+            case GraphQuery.PipelineChainNode pc ->
                 appendFields(sb, "segmentCount", pc.segmentCount(), "rootEntrypointId", pc.rootEntrypointId());
-            case ArchitectureGraph.DeploymentNode dn -> appendFields(sb, "type", dn.type());
-            case ArchitectureGraph.UnknownNode un -> appendProperties(sb, un.rawProperties());
+            case GraphQuery.DeploymentNode dn -> appendFields(sb, "type", dn.type());
+            case GraphQuery.UnknownNode un -> appendProperties(sb, un.rawProperties());
         }
     }
 
@@ -309,13 +309,13 @@ public class QueryArchitectureGraphTool {
         if (!suffix.isBlank()) sb.append(" {").append(suffix).append("}");
     }
 
-    private String renderEdges(List<ArchitectureGraph.GraphEdge> edges) {
+    private String renderEdges(List<GraphQuery.GraphEdge> edges) {
         if (edges.isEmpty()) {
             return "No graph edges matched.";
         }
         StringBuilder sb = new StringBuilder();
         sb.append("Graph edges:\n");
-        for (ArchitectureGraph.GraphEdge edge : edges) {
+        for (GraphQuery.GraphEdge edge : edges) {
             sb.append("- ")
                     .append(edge.fromId().serialize())
                     .append(" -[")
@@ -328,13 +328,13 @@ public class QueryArchitectureGraphTool {
         return sb.toString();
     }
 
-    private String renderPaths(List<ArchitectureGraph.GraphPath> paths) {
+    private String renderPaths(List<GraphQuery.GraphPath> paths) {
         if (paths.isEmpty()) {
             return "No graph paths matched.";
         }
         StringBuilder sb = new StringBuilder();
         sb.append("Graph paths:\n");
-        for (ArchitectureGraph.GraphPath path : paths) {
+        for (GraphQuery.GraphPath path : paths) {
             List<String> nodeIds =
                     path.nodes().stream().map(node -> node.id().serialize()).toList();
             sb.append("- ").append(String.join(" -> ", nodeIds));
