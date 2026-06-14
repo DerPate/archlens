@@ -9,6 +9,10 @@ import dev.dominikbreu.spoonmcp.model.CallEdge;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.Container;
+import dev.dominikbreu.spoonmcp.model.DataFlowBranch;
+import dev.dominikbreu.spoonmcp.model.DataFlowBranchArm;
+import dev.dominikbreu.spoonmcp.model.DataFlowEdge;
+import dev.dominikbreu.spoonmcp.model.DataFlowNode;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Dependency;
@@ -715,6 +719,91 @@ public class ArchitectureGraph {
                     Map.of("sinkKind", sink.kind != null ? sink.kind.value() : ""));
             addSinkTargetEdge(sinkId, sink);
         }
+        addDataFlowTopology(path);
+    }
+
+    private void addDataFlowTopology(DataFlowPath path) {
+        String pathId = path.id.serialize();
+        for (DataFlowNode node : path.flowNodes) {
+            String nodeVertexId = flowNodeId(path, node.id);
+            Vertex vertex = addVertex(nodeVertexId, "DataFlowNode", nodeLabel(node));
+            set(vertex, "kind", "dataFlowNode");
+            set(vertex, "pathId", pathId);
+            set(vertex, "flowNodeId", node.id);
+            set(vertex, "nodeKind", node.kind != null ? node.kind.name().toLowerCase(Locale.ROOT) : null);
+            set(vertex, COMPONENT_ID, node.componentId != null ? node.componentId.serialize() : null);
+            set(vertex, "componentName", node.componentName);
+            set(vertex, METHOD, node.method);
+            set(vertex, "localName", node.localName);
+            setSource(vertex, node.source);
+            addEdge(pathId, nodeVertexId, "HAS_FLOW_NODE", Map.of("nodeKind", Objects.toString(node.kind, "")));
+        }
+        for (DataFlowEdge edge : path.flowEdges) {
+            Map<String, Object> props = new LinkedHashMap<>();
+            props.put("edgeKind", edge.kind != null ? edge.kind.name().toLowerCase(Locale.ROOT) : "");
+            props.put("branchId", edge.branchId);
+            props.put("branchArmId", edge.branchArmId);
+            props.put("label", edge.label);
+            addEdge(flowNodeId(path, edge.fromNodeId), flowNodeId(path, edge.toNodeId), "FLOW_EDGE", props);
+        }
+        for (DataFlowBranch branch : path.branches) {
+            String branchVertexId = branchId(path, branch.id);
+            Vertex vertex = addVertex(branchVertexId, "DataFlowBranch", branch.id);
+            set(vertex, "kind", "dataFlowBranch");
+            set(vertex, "pathId", pathId);
+            set(vertex, "branchId", branch.id);
+            set(vertex, "branchKind", branch.kind != null ? branch.kind.name().toLowerCase(Locale.ROOT) : null);
+            setSource(vertex, branch.source);
+            addEdge(pathId, branchVertexId, "HAS_BRANCH", Map.of("branchKind", Objects.toString(branch.kind, "")));
+            for (DataFlowBranchArm arm : branch.arms) {
+                String armVertexId = branchArmId(path, arm.id);
+                Vertex armVertex = addVertex(armVertexId, "DataFlowBranchArm", arm.label);
+                set(armVertex, "kind", "dataFlowBranchArm");
+                set(armVertex, "pathId", pathId);
+                set(armVertex, "branchId", arm.branchId);
+                set(armVertex, "branchArmId", arm.id);
+                set(armVertex, "label", arm.label);
+                set(armVertex, "entryNodeId", arm.entryNodeId);
+                addEdge(
+                        branchVertexId,
+                        armVertexId,
+                        "HAS_BRANCH_ARM",
+                        Map.of("label", Objects.toString(arm.label, "")));
+                addEdge(armVertexId, flowNodeId(path, arm.entryNodeId), "ARM_STARTS_AT", Map.of());
+            }
+        }
+        for (int i = 0; i < path.sinks.size(); i++) {
+            // Best-effort explicit bridge for graph-first traversals: topology sink nodes
+            // already carry sink shape, while DataFlowSink nodes carry classified sink metadata.
+            DataFlowSink sink = path.sinks.get(i);
+            String sinkId = pathId + SINK_MARKER + i;
+            path.flowNodes.stream()
+                    .filter(node -> node.kind == DataFlowNode.Kind.SINK
+                            && Objects.equals(node.componentId, sink.componentId)
+                            && Objects.equals(node.method, sink.method))
+                    .findFirst()
+                    .ifPresent(node -> addEdge(flowNodeId(path, node.id), sinkId, "REACHES_NODE", Map.of()));
+        }
+    }
+
+    private static String nodeLabel(DataFlowNode node) {
+        String component = Objects.toString(node.componentName, "");
+        String method = Objects.toString(node.method, "");
+        if (!component.isBlank() && !method.isBlank()) return component + "." + method;
+        if (!component.isBlank()) return component;
+        return method;
+    }
+
+    private static String flowNodeId(DataFlowPath path, String nodeId) {
+        return path.id.serialize() + ":node:" + nodeId;
+    }
+
+    private static String branchId(DataFlowPath path, String branchId) {
+        return path.id.serialize() + ":branch:" + branchId;
+    }
+
+    private static String branchArmId(DataFlowPath path, String branchArmId) {
+        return path.id.serialize() + ":arm:" + branchArmId;
     }
 
     private void addSinkVertex(String sinkId, DataFlowPath path, DataFlowSink sink) {
@@ -1307,6 +1396,35 @@ public class ArchitectureGraph {
                         vStr(vertex, "linkEvidence"),
                         vStr(vertex, "calleeQualifiedName"),
                         vSource(vertex));
+            case "DataFlowNode" ->
+                new DataFlowNodeNode(
+                        nodeId,
+                        name,
+                        vStr(vertex, "pathId"),
+                        vStr(vertex, "flowNodeId"),
+                        vStr(vertex, "nodeKind"),
+                        vComponentId(vertex, COMPONENT_ID),
+                        vStr(vertex, "componentName"),
+                        vStr(vertex, METHOD),
+                        vStr(vertex, "localName"),
+                        vSource(vertex));
+            case "DataFlowBranch" ->
+                new DataFlowBranchNode(
+                        nodeId,
+                        name,
+                        vStr(vertex, "pathId"),
+                        vStr(vertex, "branchId"),
+                        vStr(vertex, "branchKind"),
+                        vSource(vertex));
+            case "DataFlowBranchArm" ->
+                new DataFlowBranchArmNode(
+                        nodeId,
+                        name,
+                        vStr(vertex, "pathId"),
+                        vStr(vertex, "branchId"),
+                        vStr(vertex, "branchArmId"),
+                        vStr(vertex, "label"),
+                        vStr(vertex, "entryNodeId"));
             case "PipelineChain" ->
                 new PipelineChainNode(
                         nodeId,
@@ -1575,6 +1693,9 @@ public class ArchitectureGraph {
                     RuntimeFlowStepNode,
                     DataFlowPathNode,
                     DataFlowSinkNode,
+                    DataFlowNodeNode,
+                    DataFlowBranchNode,
+                    DataFlowBranchArmNode,
                     PipelineChainNode,
                     UnknownNode {
         /**
@@ -2221,6 +2342,166 @@ public class ArchitectureGraph {
                     || (sinkKind != null && GraphNode.q(query, sinkKind.value()))
                     || GraphNode.q(query, method)
                     || GraphNode.q(query, channel);
+        }
+    }
+
+    /**
+     * Graph node representing one branch-aware data-flow topology vertex.
+     *
+     * @param id the graph node id
+     * @param name the human-readable node label
+     * @param pathId the containing data-flow path id
+     * @param flowNodeId the node id within the path topology
+     * @param nodeKind the topology node kind
+     * @param componentId the component visited by the node, when known
+     * @param componentName the component display name, when known
+     * @param method the method associated with the node, when known
+     * @param localName the tracked local value name, when known
+     * @param source source location for the topology node, when known
+     */
+    public record DataFlowNodeNode(
+            GraphNodeId id,
+            String name,
+            String pathId,
+            String flowNodeId,
+            String nodeKind,
+            ComponentId componentId,
+            String componentName,
+            String method,
+            String localName,
+            SourceInfo source)
+            implements GraphNode {
+        @Override
+        public String label() {
+            return "DataFlowNode";
+        }
+
+        @Override
+        public Map<String, Object> properties() {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("pathId", pathId);
+            m.put("flowNodeId", flowNodeId);
+            m.put("nodeKind", nodeKind);
+            if (componentId != null) m.put("componentId", componentId.serialize());
+            m.put("componentName", componentName);
+            m.put("method", method);
+            m.put("localName", localName);
+            if (source != null) {
+                m.put("sourceFile", source.file);
+                m.put("sourceLine", source.line);
+                m.put("derivedFrom", source.derivedFrom);
+                m.put("confidence", source.confidence);
+            }
+            m.entrySet().removeIf(e -> e.getValue() == null);
+            return m;
+        }
+
+        @Override
+        public boolean matches(String query) {
+            return GraphNode.q(query, id.serialize())
+                    || GraphNode.q(query, name)
+                    || GraphNode.q(query, pathId)
+                    || GraphNode.q(query, flowNodeId)
+                    || GraphNode.q(query, nodeKind)
+                    || GraphNode.q(query, componentName)
+                    || GraphNode.q(query, method)
+                    || GraphNode.q(query, localName);
+        }
+    }
+
+    /**
+     * Graph node representing a control-flow branch inside a data-flow path.
+     *
+     * @param id the graph node id
+     * @param name the branch display name
+     * @param pathId the containing data-flow path id
+     * @param branchId the branch id within the path topology
+     * @param branchKind the branch kind
+     * @param source source location for the branch, when known
+     */
+    public record DataFlowBranchNode(
+            GraphNodeId id, String name, String pathId, String branchId, String branchKind, SourceInfo source)
+            implements GraphNode {
+        @Override
+        public String label() {
+            return "DataFlowBranch";
+        }
+
+        @Override
+        public Map<String, Object> properties() {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("pathId", pathId);
+            m.put("branchId", branchId);
+            m.put("branchKind", branchKind);
+            if (source != null) {
+                m.put("sourceFile", source.file);
+                m.put("sourceLine", source.line);
+                m.put("derivedFrom", source.derivedFrom);
+                m.put("confidence", source.confidence);
+            }
+            m.entrySet().removeIf(e -> e.getValue() == null);
+            return m;
+        }
+
+        @Override
+        public boolean matches(String query) {
+            return GraphNode.q(query, id.serialize())
+                    || GraphNode.q(query, name)
+                    || GraphNode.q(query, pathId)
+                    || GraphNode.q(query, branchId)
+                    || GraphNode.q(query, branchKind);
+        }
+    }
+
+    /**
+     * Graph node representing one labelled arm of a data-flow branch.
+     *
+     * @param id the graph node id
+     * @param name the arm display name
+     * @param pathId the containing data-flow path id
+     * @param branchId the parent branch id
+     * @param branchArmId the arm id within the path topology
+     * @param armLabel the arm label, such as then, else, or case value
+     * @param entryNodeId the first flow node reached by this arm
+     */
+    public record DataFlowBranchArmNode(
+            GraphNodeId id,
+            String name,
+            String pathId,
+            String branchId,
+            String branchArmId,
+            String armLabel,
+            String entryNodeId)
+            implements GraphNode {
+        @Override
+        public String label() {
+            return "DataFlowBranchArm";
+        }
+
+        @Override
+        public Map<String, Object> properties() {
+            return GraphNode.propsOf(
+                    "pathId",
+                    pathId,
+                    "branchId",
+                    branchId,
+                    "branchArmId",
+                    branchArmId,
+                    "label",
+                    armLabel,
+                    "entryNodeId",
+                    entryNodeId);
+        }
+
+        @Override
+        public boolean matches(String query) {
+            return GraphNode.q(query, id.serialize())
+                    || GraphNode.q(query, name)
+                    || GraphNode.q(query, pathId)
+                    || GraphNode.q(query, branchId)
+                    || GraphNode.q(query, branchArmId)
+                    || GraphNode.q(query, armLabel)
+                    || GraphNode.q(query, entryNodeId);
         }
     }
 

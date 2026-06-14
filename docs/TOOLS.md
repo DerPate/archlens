@@ -721,7 +721,7 @@ Arguments: none.
 
 Query the indexed architecture model as a graph. The graph view includes applications,
 components, entrypoints, interfaces, containers, deployments, runtime flows, data-flow
-paths, data-flow sinks, and their relationships.
+paths, data-flow sinks, branch-aware data-flow topology nodes, and their relationships.
 
 Set `SPOON_MCP_CACHE_BACKEND=graph` or `-Dspoonmcp.cache.backend=graph` to eagerly
 maintain the graph projection during cache store/load. With the default JSON backend,
@@ -783,6 +783,16 @@ Useful graph properties include:
   `payloadType`, `entityType`, `repositoryOperation`, `linkEvidence`, and
   `calleeQualifiedName` (fully-qualified declaring type of the outbound callee, e.g.
   `java.nio.file.Files`; absent for non-outbound kinds).
+- DataFlowNode nodes (label `DataFlowNode`): branch-aware topology vertices inside a
+  `DataFlowPath`. Properties: `pathId`, `flowNodeId`, `nodeKind` (`root`, `method`,
+  `branch`, `sink`, etc.), `componentId`, `componentName`, `method`, `localName`,
+  `sourceFile`, `sourceLine`, `derivedFrom`, and `confidence`.
+- DataFlowBranch nodes (label `DataFlowBranch`): control-flow branch metadata inside a
+  `DataFlowPath`. Properties: `pathId`, `branchId`, `branchKind`, `sourceFile`,
+  `sourceLine`, `derivedFrom`, and `confidence`.
+- DataFlowBranchArm nodes (label `DataFlowBranchArm`): labelled branch arms such as
+  `then`, `else`, or `case:*`. Properties: `pathId`, `branchId`, `branchArmId`,
+  `label`, and `entryNodeId`.
 - RuntimeFlow and RuntimeFlowStep nodes (labels `RuntimeFlow`, `RuntimeFlowStep`):
   internal call-trace scaffolding generated from runtime-flow inference. They are
   queryable through `query_architecture_graph` and dedicated runtime-flow tools,
@@ -837,6 +847,14 @@ Edge labels:
   source-level behavior.
 - `ORIGINATES` — Entrypoint → DataFlowPath (carries `trackedParam`)
 - `REACHES` — DataFlowPath → DataFlowSink (carries `sinkKind`)
+- `HAS_FLOW_NODE` — DataFlowPath → DataFlowNode topology vertex (carries `nodeKind`)
+- `FLOW_EDGE` — DataFlowNode → DataFlowNode branch-aware topology edge. Carries
+  `edgeKind`, `branchId`, `branchArmId`, and `label`.
+- `HAS_BRANCH` — DataFlowPath → DataFlowBranch (carries `branchKind`)
+- `HAS_BRANCH_ARM` — DataFlowBranch → DataFlowBranchArm (carries `label`)
+- `ARM_STARTS_AT` — DataFlowBranchArm → DataFlowNode first reached by that branch arm
+- `REACHES_NODE` — DataFlowNode (`sink`) → DataFlowSink, bridging topology sink nodes
+  to classified sink metadata.
 - `ON_FIELD` — DataFlowSink (`store`) → Component (the field's declaring component;
   carries `fieldName`)
 - `AT_COMPONENT` — DataFlowSink (non-`store`) → Component (carries `method`)

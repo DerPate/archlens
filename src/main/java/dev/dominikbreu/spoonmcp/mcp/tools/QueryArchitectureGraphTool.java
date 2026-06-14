@@ -241,6 +241,38 @@ public class QueryArchitectureGraphTool {
                         ds.linkEvidence(),
                         "calleeQualifiedName",
                         ds.calleeQualifiedName());
+            case ArchitectureGraph.DataFlowNodeNode dn ->
+                appendFields(
+                        sb,
+                        "pathId",
+                        dn.pathId(),
+                        "flowNodeId",
+                        dn.flowNodeId(),
+                        "nodeKind",
+                        dn.nodeKind(),
+                        "componentId",
+                        dn.componentId(),
+                        "componentName",
+                        dn.componentName(),
+                        "method",
+                        dn.method(),
+                        "localName",
+                        dn.localName());
+            case ArchitectureGraph.DataFlowBranchNode db ->
+                appendFields(sb, "pathId", db.pathId(), "branchId", db.branchId(), "branchKind", db.branchKind());
+            case ArchitectureGraph.DataFlowBranchArmNode da ->
+                appendFields(
+                        sb,
+                        "pathId",
+                        da.pathId(),
+                        "branchId",
+                        da.branchId(),
+                        "branchArmId",
+                        da.branchArmId(),
+                        "label",
+                        da.armLabel(),
+                        "entryNodeId",
+                        da.entryNodeId());
             case ArchitectureGraph.PipelineChainNode pc ->
                 appendFields(sb, "segmentCount", pc.segmentCount(), "rootEntrypointId", pc.rootEntrypointId());
             case ArchitectureGraph.DeploymentNode dn -> appendFields(sb, "type", dn.type());
