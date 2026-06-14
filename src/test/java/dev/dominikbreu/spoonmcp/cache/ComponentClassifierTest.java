@@ -14,8 +14,7 @@ class ComponentClassifierTest {
     void classifiesCoreBusinessService() {
         Component component = component("de.homeinstead.phoenix.service.AbsenceService", ComponentType.SERVICE);
 
-        ComponentClassifier.Classification classification =
-                ComponentClassifier.classify(component, metrics(1, 12, 0));
+        ComponentClassifier.Classification classification = ComponentClassifier.classify(component, metrics(1, 12, 0));
 
         assertThat(classification.primaryRole()).isEqualTo("business-service");
         assertThat(classification.supportRole()).isNull();
@@ -28,13 +27,13 @@ class ComponentClassifierTest {
         Component component = component(
                 "de.homeinstead.phoenix.infrastructure.FlywayClientDatabaseInitializer", ComponentType.SERVICE);
 
-        ComponentClassifier.Classification classification =
-                ComponentClassifier.classify(component, metrics(0, 0, 0));
+        ComponentClassifier.Classification classification = ComponentClassifier.classify(component, metrics(0, 0, 0));
 
         assertThat(classification.primaryRole()).isEqualTo("support");
         assertThat(classification.supportRole()).isEqualTo("migration-initializer");
         assertThat(classification.agentCategory()).isEqualTo("supporting-infrastructure");
-        assertThat(classification.evidence()).contains("package:infrastructure", "name:FlywayClientDatabaseInitializer");
+        assertThat(classification.evidence())
+                .contains("package:infrastructure", "name:FlywayClientDatabaseInitializer");
     }
 
     @Test
@@ -42,8 +41,7 @@ class ComponentClassifierTest {
         Component component =
                 component("de.homeinstead.phoenix.redis.OwnerAwareRedisLockRegistry", ComponentType.SERVICE);
 
-        ComponentClassifier.Classification classification =
-                ComponentClassifier.classify(component, metrics(6, 1, 0));
+        ComponentClassifier.Classification classification = ComponentClassifier.classify(component, metrics(6, 1, 0));
 
         assertThat(classification.primaryRole()).isEqualTo("support");
         assertThat(classification.supportRole()).isEqualTo("redis-lock");
@@ -57,8 +55,7 @@ class ComponentClassifierTest {
                 component("de.homeinstead.phoenix.authorization.AllowedUrlConfiguration", ComponentType.SERVICE);
         component.stereotypes.add("configuration");
 
-        ComponentClassifier.Classification classification =
-                ComponentClassifier.classify(component, metrics(0, 0, 0));
+        ComponentClassifier.Classification classification = ComponentClassifier.classify(component, metrics(0, 0, 0));
 
         assertThat(classification.primaryRole()).isEqualTo("support");
         assertThat(classification.supportRole()).isEqualTo("security-configuration");
@@ -71,8 +68,7 @@ class ComponentClassifierTest {
         Component component =
                 component("de.homeinstead.phoenix.client.model.mapper.IExtHolidayMapper", ComponentType.SERVICE);
 
-        ComponentClassifier.Classification classification =
-                ComponentClassifier.classify(component, metrics(1, 0, 0));
+        ComponentClassifier.Classification classification = ComponentClassifier.classify(component, metrics(1, 0, 0));
 
         assertThat(classification.primaryRole()).isEqualTo("support");
         assertThat(classification.supportRole()).isEqualTo("mapper");
@@ -83,20 +79,23 @@ class ComponentClassifierTest {
     @Test
     void classifiesEntryDataAndDomainRoles() {
         assertThat(ComponentClassifier.classify(
-                        component(
-                                "de.homeinstead.phoenix.controller.app.AppAbsenceController",
-                                ComponentType.REST_RESOURCE),
-                        metrics(0, 1, 8))
-                .agentCategory())
+                                component(
+                                        "de.homeinstead.phoenix.controller.app.AppAbsenceController",
+                                        ComponentType.REST_RESOURCE),
+                                metrics(0, 1, 8))
+                        .agentCategory())
                 .isEqualTo("boundary");
         assertThat(ComponentClassifier.classify(
-                        component("de.homeinstead.phoenix.repository.IAccountRepository", ComponentType.REPOSITORY),
-                        metrics(3, 1, 0))
-                .primaryRole())
+                                component(
+                                        "de.homeinstead.phoenix.repository.IAccountRepository",
+                                        ComponentType.REPOSITORY),
+                                metrics(3, 1, 0))
+                        .primaryRole())
                 .isEqualTo("data-access");
         assertThat(ComponentClassifier.classify(
-                        component("de.homeinstead.phoenix.bean.Account", ComponentType.ENTITY), metrics(11, 1, 0))
-                .primaryRole())
+                                component("de.homeinstead.phoenix.bean.Account", ComponentType.ENTITY),
+                                metrics(11, 1, 0))
+                        .primaryRole())
                 .isEqualTo("domain-model");
     }
 
