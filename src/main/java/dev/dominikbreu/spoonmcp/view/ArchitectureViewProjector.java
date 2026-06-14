@@ -1,6 +1,6 @@
 package dev.dominikbreu.spoonmcp.view;
 
-import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.model.ids.GraphNodeId;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -29,7 +29,7 @@ public final class ArchitectureViewProjector {
      * @return the projected component view
      */
     public ArchitectureViewProjection projectComponentView(
-            ArchitectureGraph graph, String scopeId, String title, int maxNodes) {
+            GraphQuery graph, String scopeId, String title, int maxNodes) {
 
         Set<String> scopeIds = resolveScope(graph, scopeId);
 
@@ -67,7 +67,7 @@ public final class ArchitectureViewProjector {
     }
 
     // Resolves component IDs belonging to this scope via OWNS edges from the app node.
-    private static Set<String> resolveScope(ArchitectureGraph graph, String scopeId) {
+    private static Set<String> resolveScope(GraphQuery graph, String scopeId) {
         if (StringUtils.isBlank(scopeId)) {
             return Set.of();
         }
@@ -77,10 +77,10 @@ public final class ArchitectureViewProjector {
                 .collect(Collectors.toSet());
     }
 
-    private static Comparator<ArchitectureGraph.GraphNode> componentPriority() {
+    private static Comparator<GraphQuery.GraphNode> componentPriority() {
         // Avoid chained .reversed() — it reverses the entire preceding chain each time,
         // not just the last criterion. Use Comparator.reverseOrder() or negation per criterion.
-        return Comparator.<ArchitectureGraph.GraphNode, Boolean>comparing(
+        return Comparator.<GraphQuery.GraphNode, Boolean>comparing(
                         node -> bool(node, "workflowRelevant"), Comparator.reverseOrder())
                 .thenComparing(node -> bool(node, "businessRelevant"), Comparator.reverseOrder())
                 .thenComparingInt(node -> -intProp(node, "workflowBridgeScore")) // high bridge score first
@@ -98,11 +98,11 @@ public final class ArchitectureViewProjector {
         return label.toLowerCase().replace('_', ' ');
     }
 
-    private static boolean bool(ArchitectureGraph.GraphNode node, String key) {
+    private static boolean bool(GraphQuery.GraphNode node, String key) {
         return Boolean.TRUE.equals(node.properties().get(key));
     }
 
-    private static int intProp(ArchitectureGraph.GraphNode node, String key) {
+    private static int intProp(GraphQuery.GraphNode node, String key) {
         Object value = node.properties().get(key);
         if (value instanceof Number number) {
             return number.intValue();

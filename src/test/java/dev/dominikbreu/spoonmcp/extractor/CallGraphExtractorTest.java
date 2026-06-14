@@ -2,7 +2,7 @@ package dev.dominikbreu.spoonmcp.extractor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.extractor.objectflow.ObjectFlowIndex;
 import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndex;
 import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndexBuilder;
@@ -257,8 +257,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         traced.outboundSinkSites.addAll(model.outboundSinkSites);
         traced.dataFlowPaths.addAll(new DataFlowTracer().trace(traced));
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(traced);
+        GraphQuery graph = GraphQuery.from(traced);
 
         assertThat(graph.findEdges("STATE_HANDOFF", java.util.Map.of("fieldName", "cache"), 20))
                 .as("component graph must expose OrderBuffer.cache handoff to OrderForwarder")

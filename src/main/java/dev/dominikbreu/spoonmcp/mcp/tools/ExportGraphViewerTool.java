@@ -1,6 +1,6 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.renderer.GraphViewerHtmlRenderer;
 import java.nio.file.Files;
@@ -34,12 +34,12 @@ public class ExportGraphViewerTool {
      */
     public String execute(Map<String, Object> args) {
         try {
-            ArchitectureGraph graph = cache.graph();
+            GraphQuery graph = cache.graph();
             if (graph.isEmpty()) return "No workspace indexed yet. Call index_workspace first.";
 
             Path output = Path.of(ToolArgs.getString(args, "outputPath", DEFAULT_OUTPUT.toString()));
             int limit = ToolArgs.getInt(args, "limit", DEFAULT_LIMIT);
-            ArchitectureGraph.GraphSnapshot snapshot = graph.snapshot(limit);
+            GraphQuery.GraphSnapshot snapshot = graph.snapshot(limit);
             String html = renderer.render(GraphExportJson.write(snapshot, Instant.now()));
 
             Path parent = output.getParent();

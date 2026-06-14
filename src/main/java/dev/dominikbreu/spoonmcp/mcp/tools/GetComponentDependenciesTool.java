@@ -1,6 +1,6 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.extractor.DependencyCondenser;
@@ -36,7 +36,7 @@ public class GetComponentDependenciesTool {
     public String execute(Map<String, Object> args) {
         try {
             ToolModelIndex index = cache.index();
-            ArchitectureGraph graph = cache.graph();
+            GraphQuery graph = cache.graph();
             if (index.rawModel() == null) return "No workspace indexed yet. Call index_workspace first.";
 
             String ref = ToolArgs.getString(args, "componentId");

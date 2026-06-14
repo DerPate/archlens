@@ -28,7 +28,7 @@ public class ModelCache {
     private final JsonMapper mapper;
     private final String cacheDir;
     private final CacheBackend backend;
-    private final ArchitectureGraph graph;
+    private final GraphStore store = new GraphStore();
     private ArchitectureModel current;
     private ToolModelIndex cachedIndex;
 
@@ -58,7 +58,6 @@ public class ModelCache {
                 JsonMapper.builder().enable(SerializationFeature.INDENT_OUTPUT).build();
         this.cacheDir = externalCachePath != null ? externalCachePath : DEFAULT_CACHE_DIR;
         this.backend = backend != null ? backend : CacheBackend.JSON;
-        this.graph = new ArchitectureGraph();
     }
 
     /**
@@ -76,9 +75,7 @@ public class ModelCache {
         }
         mapper.writeValue(new File(dir, MODEL_FILE), model);
         writeActiveWorkspace(workspaceKey(model));
-        if (backend == CacheBackend.GRAPH) {
-            graph.rebuild(model);
-        }
+        new GraphProjector().project(model, store);
     }
 
     /**
@@ -93,7 +90,7 @@ public class ModelCache {
     public void clearActive() throws IOException {
         this.current = null;
         this.cachedIndex = null;
-        graph.rebuild(null);
+        store.clear();
         Files.deleteIfExists(activeWorkspaceFile().toPath());
     }
 
@@ -110,9 +107,6 @@ public class ModelCache {
         File f = new File(new File(new File(cacheDir, WORKSPACES_DIR), key), MODEL_FILE);
         if (f.exists()) {
             current = mapper.readValue(f, ArchitectureModel.class);
-            if (backend == CacheBackend.GRAPH) {
-                graph.rebuild(current);
-            }
         }
         return current;
     }
@@ -141,22 +135,20 @@ public class ModelCache {
     }
 
     /**
-     * Returns a graph projection for traversal-oriented tools.
+     * Returns a read-only graph query handle.
      *
-     * <p>When the graph backend is enabled, the projection is maintained during
-     * store/load. With the JSON backend, it is built lazily from the current
-     * model so graph tools remain available without changing the durable cache
-     * format.</p>
+     * <p>The graph is built lazily on first access from the stored JSON model and
+     * maintained in-memory until {@link #clearActive()} is called.</p>
      *
-     * @return graph projection of the current architecture model
+     * @return graph query over the current architecture model
      * @throws IOException if the current model must be loaded and cannot be read
      */
-    public ArchitectureGraph graph() throws IOException {
+    public GraphQuery graph() throws IOException {
         ArchitectureModel model = load();
-        if (model != null && graph.isEmpty()) {
-            graph.rebuild(model);
+        if (model != null && store.isEmpty()) {
+            new GraphProjector().project(model, store);
         }
-        return graph;
+        return new GraphQuery(store);
     }
 
     /**
@@ -165,7 +157,10 @@ public class ModelCache {
      *
      * @return tool model index
      * @throws IOException if the current model must be loaded and cannot be read
+     * @deprecated Tools should use {@link #graph()} instead. This method will be removed
+     *             once all tools have been migrated to {@link GraphQuery}.
      */
+    @Deprecated
     public ToolModelIndex index() throws IOException {
         if (cachedIndex == null) {
             cachedIndex = ToolModelIndex.from(load());

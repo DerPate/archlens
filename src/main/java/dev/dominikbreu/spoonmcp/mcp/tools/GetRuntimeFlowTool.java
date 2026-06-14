@@ -1,6 +1,6 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer;
@@ -38,7 +38,7 @@ public class GetRuntimeFlowTool {
     public String execute(Map<String, Object> args) {
         try {
             ToolModelIndex index = cache.index();
-            ArchitectureGraph graph = cache.graph();
+            GraphQuery graph = cache.graph();
             ArchitectureModel model = index.rawModel();
             if (model == null) return "No workspace indexed yet. Call index_workspace first.";
 
@@ -107,8 +107,8 @@ public class GetRuntimeFlowTool {
         }
     }
 
-    private RuntimeFlow findStoredFlow(String ref, int maxDepth, ToolModelIndex index, ArchitectureGraph graph) {
-        GraphNodeId epNodeId = graph.resolveEntrypoint(ref, index).orElse(null);
+    private RuntimeFlow findStoredFlow(String ref, int maxDepth, ToolModelIndex index, GraphQuery graph) {
+        GraphNodeId epNodeId = graph.resolveEntrypoint(ref).orElse(null);
         if (epNodeId == null) return null;
         EntrypointId epId = EntrypointId.deserialize(epNodeId.value());
         return index.runtimeFlows().stream()

@@ -12,8 +12,8 @@ class GraphDataProjectionTest {
 
     @Test
     void projectsPipelineChainsIntoViewerReadySummaries() {
-        ArchitectureGraph.GraphSnapshot snapshot = new ArchitectureGraph.GraphSnapshot(
-                new ArchitectureGraph.GraphSnapshotMetadata(
+        GraphQuery.GraphSnapshot snapshot = new GraphQuery.GraphSnapshot(
+                new GraphQuery.GraphSnapshotMetadata(
                         5,
                         4,
                         5,
@@ -22,13 +22,13 @@ class GraphDataProjectionTest {
                         Map.of("PipelineChain", 1, "DataFlowPath", 2, "DataFlowSink", 1, "Component", 1),
                         Map.of("HAS_SEGMENT", 2, "REACHES", 1, "AT_COMPONENT", 1)),
                 List.of(
-                        new ArchitectureGraph.PipelineChainNode(
+                        new GraphQuery.PipelineChainNode(
                                 GraphNodeId.of("chain:12"),
                                 "chain:12",
                                 2,
                                 "de.homeinstead.phoenix.controller.ServiceRequestController#update:PUT:/serviceRequest/{id}",
                                 List.of("messaging")),
-                        new ArchitectureGraph.DataFlowPathNode(
+                        new GraphQuery.DataFlowPathNode(
                                 GraphNodeId.of("serviceRequest#serviceRequest"),
                                 "serviceRequest#serviceRequest",
                                 EntrypointId.deserialize(
@@ -36,7 +36,7 @@ class GraphDataProjectionTest {
                                 "serviceRequest",
                                 1,
                                 1),
-                        new ArchitectureGraph.DataFlowPathNode(
+                        new GraphQuery.DataFlowPathNode(
                                 GraphNodeId.of("address#event"),
                                 "address#event",
                                 EntrypointId.deserialize(
@@ -119,8 +119,8 @@ class GraphDataProjectionTest {
 
     @Test
     void doesNotExpandSelectedPipelineThroughSharedSinkComponents() {
-        ArchitectureGraph.GraphSnapshot snapshot = new ArchitectureGraph.GraphSnapshot(
-                new ArchitectureGraph.GraphSnapshotMetadata(
+        GraphQuery.GraphSnapshot snapshot = new GraphQuery.GraphSnapshot(
+                new GraphQuery.GraphSnapshotMetadata(
                         7,
                         8,
                         7,
@@ -129,7 +129,7 @@ class GraphDataProjectionTest {
                         Map.of("PipelineChain", 1, "DataFlowPath", 3, "DataFlowSink", 2, "Component", 1),
                         Map.of("HAS_SEGMENT", 2, "REACHES", 2, "AT_COMPONENT", 2, "LINKS_TO", 1, "WORKFLOW_LINK", 1)),
                 List.of(
-                        new ArchitectureGraph.PipelineChainNode(
+                        new GraphQuery.PipelineChainNode(
                                 GraphNodeId.of("chain:selected"),
                                 "chain:selected",
                                 2,
@@ -178,18 +178,18 @@ class GraphDataProjectionTest {
                         "sink:customer:0->example.KafkaJsonProducer:AT_COMPONENT:3");
     }
 
-    private static ArchitectureGraph.GraphNode node(
+    private static GraphQuery.GraphNode node(
             String id, String label, String name, Map<String, Object> properties) {
-        return new ArchitectureGraph.UnknownNode(GraphNodeId.of(id), label, name, properties);
+        return new GraphQuery.UnknownNode(GraphNodeId.of(id), label, name, properties);
     }
 
-    private static ArchitectureGraph.DataFlowPathNode path(String id, String entrypointId, String trackedParam) {
-        return new ArchitectureGraph.DataFlowPathNode(
+    private static GraphQuery.DataFlowPathNode path(String id, String entrypointId, String trackedParam) {
+        return new GraphQuery.DataFlowPathNode(
                 GraphNodeId.of(id), id, EntrypointId.deserialize(entrypointId), trackedParam, 1, 1);
     }
 
-    private static ArchitectureGraph.GraphEdge edge(
+    private static GraphQuery.GraphEdge edge(
             String fromId, String toId, String label, Map<String, Object> properties) {
-        return new ArchitectureGraph.GraphEdge(GraphNodeId.of(fromId), GraphNodeId.of(toId), label, properties);
+        return new GraphQuery.GraphEdge(GraphNodeId.of(fromId), GraphNodeId.of(toId), label, properties);
     }
 }

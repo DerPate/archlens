@@ -1,6 +1,6 @@
 package dev.dominikbreu.spoonmcp.likec4;
 
-import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.model.AppEntry;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
@@ -52,19 +52,19 @@ public final class LikeC4WorkspaceProjector {
      * @return the projected LikeC4 document
      */
     public LikeC4Document projectWorkspace(
-            ArchitectureGraph graph, ArchitectureModel model, AppEntry app, int maxNodes) {
+            GraphQuery graph, ArchitectureModel model, AppEntry app, int maxNodes) {
         LikeC4Element system = systemElement(model, app);
         int nodeLimit = Math.max(1, maxNodes);
 
-        List<ArchitectureGraph.GraphNode> scopedComponents = scopedComponents(graph, model, app);
-        List<ArchitectureGraph.GraphNode> entrypoints = scopedEntrypoints(graph, model, app).stream()
+        List<GraphQuery.GraphNode> scopedComponents = scopedComponents(graph, model, app);
+        List<GraphQuery.GraphNode> entrypoints = scopedEntrypoints(graph, model, app).stream()
                 .sorted(entrypointPriority())
                 .limit(entrypointBudget(nodeLimit))
                 .toList();
         Set<GraphNodeId> entrypointComponentIds = componentIds(entrypoints);
         int componentLimit = Math.max(1, nodeLimit - entrypoints.size());
 
-        List<ArchitectureGraph.GraphNode> primaryCandidates = scopedComponents.stream()
+        List<GraphQuery.GraphNode> primaryCandidates = scopedComponents.stream()
                 .filter(LikeC4WorkspaceProjector::isPrimaryComponent)
                 .sorted(primaryComponentPriority())
                 .toList();
@@ -74,16 +74,16 @@ public final class LikeC4WorkspaceProjector {
         Set<GraphNodeId> injectionTargets =
                 graph.findEdgesBetween(union(entrypointComponentIds, candidateIds), Set.of("DEPENDS_ON")).stream()
                         .filter(edge -> entrypointComponentIds.contains(edge.fromId()))
-                        .map(ArchitectureGraph.GraphEdge::toId)
+                        .map(GraphQuery.GraphEdge::toId)
                         .filter(candidateIds::contains)
                         .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
         Set<GraphNodeId> allForcedIds = union(entrypointComponentIds, injectionTargets);
-        List<ArchitectureGraph.GraphNode> primaryComponents =
+        List<GraphQuery.GraphNode> primaryComponents =
                 selectPrimaryComponents(primaryCandidates, allForcedIds, componentLimit);
 
         Set<GraphNodeId> primaryIds = ids(primaryComponents);
         int supportingEntityBudget = supportingEntityBudget(nodeLimit, entrypoints.size(), primaryComponents.size());
-        List<ArchitectureGraph.GraphNode> supportingEntities = supportingEntityBudget == 0
+        List<GraphQuery.GraphNode> supportingEntities = supportingEntityBudget == 0
                 ? List.of()
                 : scopedComponents.stream()
                         .filter(LikeC4WorkspaceProjector::isEntityComponent)
@@ -92,7 +92,7 @@ public final class LikeC4WorkspaceProjector {
                         .limit(supportingEntityBudget)
                         .toList();
 
-        List<ArchitectureGraph.GraphNode> selectedComponents = new ArrayList<>();
+        List<GraphQuery.GraphNode> selectedComponents = new ArrayList<>();
         selectedComponents.addAll(primaryComponents);
         selectedComponents.addAll(supportingEntities);
 
@@ -195,24 +195,24 @@ public final class LikeC4WorkspaceProjector {
                 dynamicViews);
     }
 
-    private static List<LikeC4DynamicView> projectMessageBrokerFlows(List<ArchitectureGraph.GraphNode> entrypoints) {
-        List<ArchitectureGraph.GraphNode> messagingNodes = entrypoints.stream()
+    private static List<LikeC4DynamicView> projectMessageBrokerFlows(List<GraphQuery.GraphNode> entrypoints) {
+        List<GraphQuery.GraphNode> messagingNodes = entrypoints.stream()
                 .filter(node -> MESSAGING_ENTRYPOINT_TYPES.contains(entrypointTypeOf(node)))
                 .toList();
         if (messagingNodes.isEmpty()) {
             return List.of();
         }
 
-        Map<String, List<ArchitectureGraph.GraphNode>> byBroker = messagingNodes.stream()
+        Map<String, List<GraphQuery.GraphNode>> byBroker = messagingNodes.stream()
                 .collect(Collectors.groupingBy(node -> brokerOf(node), LinkedHashMap::new, Collectors.toList()));
 
         List<LikeC4DynamicView> views = new ArrayList<>();
-        for (Map.Entry<String, List<ArchitectureGraph.GraphNode>> entry : byBroker.entrySet()) {
+        for (Map.Entry<String, List<GraphQuery.GraphNode>> entry : byBroker.entrySet()) {
             String broker = entry.getKey();
-            List<ArchitectureGraph.GraphNode> nodes = entry.getValue();
+            List<GraphQuery.GraphNode> nodes = entry.getValue();
 
             List<LikeC4DynamicStep> steps = new ArrayList<>();
-            for (ArchitectureGraph.GraphNode node : nodes) {
+            for (GraphQuery.GraphNode node : nodes) {
                 String type = entrypointTypeOf(node);
                 String channel = channelOf(node);
                 String topicId = topicNodeId(broker, channel);
@@ -262,17 +262,17 @@ public final class LikeC4WorkspaceProjector {
         return "topic:" + broker + ":" + channel;
     }
 
-    private static String entrypointTypeOf(ArchitectureGraph.GraphNode node) {
+    private static String entrypointTypeOf(GraphQuery.GraphNode node) {
         return String.valueOf(node.properties().getOrDefault("entrypointType", ""));
     }
 
-    private static String brokerOf(ArchitectureGraph.GraphNode node) {
+    private static String brokerOf(GraphQuery.GraphNode node) {
         String broker =
                 String.valueOf(node.properties().getOrDefault("broker", "")).trim();
         return broker.isBlank() ? "UNKNOWN" : broker;
     }
 
-    private static String channelOf(ArchitectureGraph.GraphNode node) {
+    private static String channelOf(GraphQuery.GraphNode node) {
         String channel = String.valueOf(node.properties().getOrDefault("channelName", ""))
                 .trim();
         if (!channel.isBlank()) {
@@ -281,8 +281,8 @@ public final class LikeC4WorkspaceProjector {
         return String.valueOf(node.properties().getOrDefault("topic", "")).trim();
     }
 
-    private static List<ArchitectureGraph.GraphNode> scopedComponents(
-            ArchitectureGraph graph, ArchitectureModel model, AppEntry app) {
+    private static List<GraphQuery.GraphNode> scopedComponents(
+            GraphQuery graph, ArchitectureModel model, AppEntry app) {
         if (app != null && !app.componentIds.isEmpty()) {
             return graph.nodesByComponentIds(app.componentIds);
         }
@@ -296,8 +296,8 @@ public final class LikeC4WorkspaceProjector {
         return List.of();
     }
 
-    private static List<ArchitectureGraph.GraphNode> scopedEntrypoints(
-            ArchitectureGraph graph, ArchitectureModel model, AppEntry app) {
+    private static List<GraphQuery.GraphNode> scopedEntrypoints(
+            GraphQuery graph, ArchitectureModel model, AppEntry app) {
         if (model == null || model.entrypoints == null || model.entrypoints.isEmpty()) {
             return List.of();
         }
@@ -310,13 +310,13 @@ public final class LikeC4WorkspaceProjector {
         return graph.nodesByEntrypointIds(ids);
     }
 
-    private static Set<GraphNodeId> ids(List<ArchitectureGraph.GraphNode> nodes) {
+    private static Set<GraphNodeId> ids(List<GraphQuery.GraphNode> nodes) {
         Set<GraphNodeId> ids = new LinkedHashSet<>();
         nodes.forEach(node -> ids.add(node.id()));
         return ids;
     }
 
-    private static Set<GraphNodeId> componentIds(List<ArchitectureGraph.GraphNode> nodes) {
+    private static Set<GraphNodeId> componentIds(List<GraphQuery.GraphNode> nodes) {
         Set<GraphNodeId> ids = new LinkedHashSet<>();
         nodes.stream()
                 .map(LikeC4WorkspaceProjector::componentId)
@@ -343,9 +343,9 @@ public final class LikeC4WorkspaceProjector {
         return Math.min(maxNodes - used, Math.min(4, Math.max(1, maxNodes / 5)));
     }
 
-    private static List<ArchitectureGraph.GraphNode> selectPrimaryComponents(
-            List<ArchitectureGraph.GraphNode> candidates, Set<GraphNodeId> forcedIds, int limit) {
-        List<ArchitectureGraph.GraphNode> selected = new ArrayList<>();
+    private static List<GraphQuery.GraphNode> selectPrimaryComponents(
+            List<GraphQuery.GraphNode> candidates, Set<GraphNodeId> forcedIds, int limit) {
+        List<GraphQuery.GraphNode> selected = new ArrayList<>();
         Set<GraphNodeId> selectedIds = new HashSet<>();
         candidates.stream()
                 .filter(node -> forcedIds.contains(node.id()))
@@ -357,16 +357,16 @@ public final class LikeC4WorkspaceProjector {
     }
 
     private static void addSelected(
-            List<ArchitectureGraph.GraphNode> selected,
+            List<GraphQuery.GraphNode> selected,
             Set<GraphNodeId> selectedIds,
-            ArchitectureGraph.GraphNode node,
+            GraphQuery.GraphNode node,
             int limit) {
         if (selected.size() < limit && selectedIds.add(node.id())) {
             selected.add(node);
         }
     }
 
-    private static boolean connectedToAny(ArchitectureGraph graph, GraphNodeId nodeId, Set<GraphNodeId> selectedIds) {
+    private static boolean connectedToAny(GraphQuery graph, GraphNodeId nodeId, Set<GraphNodeId> selectedIds) {
         if (selectedIds.isEmpty()) {
             return false;
         }
@@ -376,40 +376,40 @@ public final class LikeC4WorkspaceProjector {
                 .anyMatch(edge -> nodeId.equals(edge.fromId()) || nodeId.equals(edge.toId()));
     }
 
-    private static Comparator<ArchitectureGraph.GraphNode> primaryComponentPriority() {
+    private static Comparator<GraphQuery.GraphNode> primaryComponentPriority() {
         return Comparator.comparingInt(LikeC4WorkspaceProjector::primaryRank)
                 .thenComparing(LikeC4WorkspaceProjector::workflowRelevant, Comparator.reverseOrder())
                 .thenComparing(LikeC4WorkspaceProjector::businessRelevant, Comparator.reverseOrder())
                 .thenComparingInt(node -> -workflowBridgeScore(node))
                 .thenComparingInt(LikeC4WorkspaceProjector::noiseScore)
                 .thenComparingInt(node -> -architecturalWeight(node))
-                .thenComparing(ArchitectureGraph.GraphNode::name);
+                .thenComparing(GraphQuery.GraphNode::name);
     }
 
-    private static Comparator<ArchitectureGraph.GraphNode> entrypointPriority() {
+    private static Comparator<GraphQuery.GraphNode> entrypointPriority() {
         return Comparator.comparingInt(LikeC4WorkspaceProjector::entrypointRank)
-                .thenComparing(ArchitectureGraph.GraphNode::name)
+                .thenComparing(GraphQuery.GraphNode::name)
                 .thenComparing(node -> node.id().value());
     }
 
-    private static Comparator<ArchitectureGraph.GraphNode> fallbackComponentPriority() {
+    private static Comparator<GraphQuery.GraphNode> fallbackComponentPriority() {
         return Comparator.comparingInt(LikeC4WorkspaceProjector::noiseScore)
                 .thenComparingInt(node -> -architecturalWeight(node))
-                .thenComparing(ArchitectureGraph.GraphNode::name);
+                .thenComparing(GraphQuery.GraphNode::name);
     }
 
-    private static Comparator<ArchitectureGraph.GraphNode> supportingEntityPriority(
-            ArchitectureGraph graph, Set<GraphNodeId> primaryIds) {
+    private static Comparator<GraphQuery.GraphNode> supportingEntityPriority(
+            GraphQuery graph, Set<GraphNodeId> primaryIds) {
         return Comparator.comparingInt(
-                        (ArchitectureGraph.GraphNode node) -> primaryConnectionCount(graph, node.id(), primaryIds))
+                        (GraphQuery.GraphNode node) -> primaryConnectionCount(graph, node.id(), primaryIds))
                 .reversed()
                 .thenComparing(LikeC4WorkspaceProjector::businessRelevant, Comparator.reverseOrder())
                 .thenComparingInt(LikeC4WorkspaceProjector::noiseScore)
-                .thenComparing(ArchitectureGraph.GraphNode::name);
+                .thenComparing(GraphQuery.GraphNode::name);
     }
 
     private static int primaryConnectionCount(
-            ArchitectureGraph graph, GraphNodeId nodeId, Set<GraphNodeId> primaryIds) {
+            GraphQuery graph, GraphNodeId nodeId, Set<GraphNodeId> primaryIds) {
         Set<GraphNodeId> ids = new HashSet<>(primaryIds);
         ids.add(nodeId);
         return (int) graph.findEdgesBetween(ids, VIEW_RELATIONSHIPS).stream()
@@ -417,7 +417,7 @@ public final class LikeC4WorkspaceProjector {
                 .count();
     }
 
-    private static int primaryRank(ArchitectureGraph.GraphNode node) {
+    private static int primaryRank(GraphQuery.GraphNode node) {
         return switch (componentType(node)) {
             case "REST_RESOURCE", "MESSAGE_DRIVEN_BEAN", "SCHEDULER", "CDI_EVENT_CONSUMER" -> 0;
             case "SERVICE", "EJB_STATELESS", "EJB_STATEFUL", "EJB_SINGLETON" -> 1;
@@ -427,23 +427,23 @@ public final class LikeC4WorkspaceProjector {
         };
     }
 
-    private static boolean isPrimaryComponent(ArchitectureGraph.GraphNode node) {
+    private static boolean isPrimaryComponent(GraphQuery.GraphNode node) {
         return PRIMARY_COMPONENT_TYPES.contains(componentType(node));
     }
 
-    private static boolean isEntityComponent(ArchitectureGraph.GraphNode node) {
+    private static boolean isEntityComponent(GraphQuery.GraphNode node) {
         return "ENTITY".equals(componentType(node));
     }
 
-    private static String componentType(ArchitectureGraph.GraphNode node) {
+    private static String componentType(GraphQuery.GraphNode node) {
         return String.valueOf(node.properties().getOrDefault("componentType", ""));
     }
 
-    private static GraphNodeId componentId(ArchitectureGraph.GraphNode node) {
+    private static GraphNodeId componentId(GraphQuery.GraphNode node) {
         return GraphNodeId.of(String.valueOf(node.properties().getOrDefault("componentId", "")));
     }
 
-    private static int entrypointRank(ArchitectureGraph.GraphNode node) {
+    private static int entrypointRank(GraphQuery.GraphNode node) {
         return switch (String.valueOf(node.properties().getOrDefault("entrypointType", ""))) {
             case "MESSAGING_CONSUMER" -> 0;
             case "SCHEDULER" -> 1;
@@ -453,7 +453,7 @@ public final class LikeC4WorkspaceProjector {
         };
     }
 
-    private static String entrypointTitle(ArchitectureGraph.GraphNode node) {
+    private static String entrypointTitle(GraphQuery.GraphNode node) {
         Map<String, Object> properties = node.properties();
         String type = String.valueOf(properties.getOrDefault("entrypointType", ""));
         if ("REST_ENDPOINT".equals(type)) {
@@ -479,27 +479,27 @@ public final class LikeC4WorkspaceProjector {
         return label.toLowerCase().replace('_', ' ');
     }
 
-    private static boolean workflowRelevant(ArchitectureGraph.GraphNode node) {
+    private static boolean workflowRelevant(GraphQuery.GraphNode node) {
         return Boolean.TRUE.equals(node.properties().get("workflowRelevant"));
     }
 
-    private static boolean businessRelevant(ArchitectureGraph.GraphNode node) {
+    private static boolean businessRelevant(GraphQuery.GraphNode node) {
         return Boolean.TRUE.equals(node.properties().get("businessRelevant"));
     }
 
-    private static int workflowBridgeScore(ArchitectureGraph.GraphNode node) {
+    private static int workflowBridgeScore(GraphQuery.GraphNode node) {
         return intProp(node, "workflowBridgeScore");
     }
 
-    private static int architecturalWeight(ArchitectureGraph.GraphNode node) {
+    private static int architecturalWeight(GraphQuery.GraphNode node) {
         return intProp(node, "architecturalWeight");
     }
 
-    private static int noiseScore(ArchitectureGraph.GraphNode node) {
+    private static int noiseScore(GraphQuery.GraphNode node) {
         return intProp(node, "noiseScore");
     }
 
-    private static int intProp(ArchitectureGraph.GraphNode node, String key) {
+    private static int intProp(GraphQuery.GraphNode node, String key) {
         Object value = node.properties().get(key);
         if (value instanceof Number number) {
             return number.intValue();

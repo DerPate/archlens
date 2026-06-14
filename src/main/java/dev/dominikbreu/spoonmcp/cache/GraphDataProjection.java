@@ -22,26 +22,26 @@ public final class GraphDataProjection {
      * @param snapshot the graph snapshot to project
      * @return the viewer-ready projections
      */
-    public static ViewerProjections from(ArchitectureGraph.GraphSnapshot snapshot) {
+    public static ViewerProjections from(GraphQuery.GraphSnapshot snapshot) {
         return new ViewerProjections(pipelineProjections(snapshot));
     }
 
-    private static List<PipelineProjection> pipelineProjections(ArchitectureGraph.GraphSnapshot snapshot) {
-        Map<GraphNodeId, ArchitectureGraph.GraphNode> nodeById = snapshot.nodes().stream()
-                .collect(Collectors.toMap(ArchitectureGraph.GraphNode::id, Function.identity(), (a, b) -> a));
+    private static List<PipelineProjection> pipelineProjections(GraphQuery.GraphSnapshot snapshot) {
+        Map<GraphNodeId, GraphQuery.GraphNode> nodeById = snapshot.nodes().stream()
+                .collect(Collectors.toMap(GraphQuery.GraphNode::id, Function.identity(), (a, b) -> a));
 
         return snapshot.nodes().stream()
-                .filter(ArchitectureGraph.PipelineChainNode.class::isInstance)
-                .map(ArchitectureGraph.PipelineChainNode.class::cast)
+                .filter(GraphQuery.PipelineChainNode.class::isInstance)
+                .map(GraphQuery.PipelineChainNode.class::cast)
                 .map(chain -> pipelineProjection(snapshot, nodeById, chain))
                 .sorted(Comparator.comparing(PipelineProjection::title))
                 .toList();
     }
 
     private static PipelineProjection pipelineProjection(
-            ArchitectureGraph.GraphSnapshot snapshot,
-            Map<GraphNodeId, ArchitectureGraph.GraphNode> nodeById,
-            ArchitectureGraph.PipelineChainNode chain) {
+            GraphQuery.GraphSnapshot snapshot,
+            Map<GraphNodeId, GraphQuery.GraphNode> nodeById,
+            GraphQuery.PipelineChainNode chain) {
         GraphNodeId chainId = chain.id();
         String rootEntrypointId = chain.rootEntrypointId();
         List<SegmentEdge> segmentEdges = segmentEdges(snapshot, chainId);
@@ -76,12 +76,12 @@ public final class GraphDataProjection {
     }
 
     private static PipelineSegmentProjection segmentProjection(
-            ArchitectureGraph.GraphSnapshot snapshot,
-            Map<GraphNodeId, ArchitectureGraph.GraphNode> nodeById,
+            GraphQuery.GraphSnapshot snapshot,
+            Map<GraphNodeId, GraphQuery.GraphNode> nodeById,
             SegmentEdge segmentEdge,
             List<String> endNodeIds) {
-        ArchitectureGraph.GraphNode node = nodeById.get(segmentEdge.edge().toId());
-        if (!(node instanceof ArchitectureGraph.DataFlowPathNode pathNode)) return null;
+        GraphQuery.GraphNode node = nodeById.get(segmentEdge.edge().toId());
+        if (!(node instanceof GraphQuery.DataFlowPathNode pathNode)) return null;
         String linkKind = stringProperty(segmentEdge.edge().properties(), "linkKind", "");
         String viaChannel = stringProperty(segmentEdge.edge().properties(), "viaChannel", "");
         Set<GraphNodeId> boundarySinkIds =
@@ -108,7 +108,7 @@ public final class GraphDataProjection {
         return List.of();
     }
 
-    private static List<SegmentEdge> segmentEdges(ArchitectureGraph.GraphSnapshot snapshot, GraphNodeId chainId) {
+    private static List<SegmentEdge> segmentEdges(GraphQuery.GraphSnapshot snapshot, GraphNodeId chainId) {
         return snapshot.edges().stream()
                 .filter(edge -> chainId.equals(edge.fromId()))
                 .filter(edge -> "HAS_SEGMENT".equals(edge.label()))
@@ -118,15 +118,15 @@ public final class GraphDataProjection {
     }
 
     private static GraphSlice graphSlice(
-            ArchitectureGraph.GraphSnapshot snapshot,
-            Map<GraphNodeId, ArchitectureGraph.GraphNode> nodeById,
+            GraphQuery.GraphSnapshot snapshot,
+            Map<GraphNodeId, GraphQuery.GraphNode> nodeById,
             Set<GraphNodeId> segmentIds,
             Set<GraphNodeId> boundarySinkIds) {
         Set<GraphNodeId> selectedIds = new LinkedHashSet<>(segmentIds);
         List<IndexedEdge> selectedEdges = new ArrayList<>();
 
         for (int i = 0; i < snapshot.edges().size(); i++) {
-            ArchitectureGraph.GraphEdge edge = snapshot.edges().get(i);
+            GraphQuery.GraphEdge edge = snapshot.edges().get(i);
             if ("HAS_SEGMENT".equals(edge.label())) continue;
             if (isPipelineSpineEdge(edge, segmentIds, boundarySinkIds)) {
                 selectedEdges.add(new IndexedEdge(i, edge));
@@ -136,7 +136,7 @@ public final class GraphDataProjection {
         }
 
         for (int i = 0; i < snapshot.edges().size(); i++) {
-            ArchitectureGraph.GraphEdge edge = snapshot.edges().get(i);
+            GraphQuery.GraphEdge edge = snapshot.edges().get(i);
             if (containsEdge(selectedEdges, edge)) continue;
             if (isBoundarySinkTargetEdge(edge, nodeById, boundarySinkIds)) {
                 selectedEdges.add(new IndexedEdge(i, edge));
@@ -146,7 +146,7 @@ public final class GraphDataProjection {
         }
 
         for (int i = 0; i < snapshot.edges().size(); i++) {
-            ArchitectureGraph.GraphEdge edge = snapshot.edges().get(i);
+            GraphQuery.GraphEdge edge = snapshot.edges().get(i);
             if (containsEdge(selectedEdges, edge)) continue;
             if (!"HAS_SEGMENT".equals(edge.label())
                     && selectedIds.contains(edge.fromId())
@@ -156,7 +156,7 @@ public final class GraphDataProjection {
         }
 
         Set<GraphNodeId> nodeIds = snapshot.nodes().stream()
-                .map(ArchitectureGraph.GraphNode::id)
+                .map(GraphQuery.GraphNode::id)
                 .filter(selectedIds::contains)
                 .filter(id -> !id.serialize().startsWith("chain:"))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
@@ -168,12 +168,12 @@ public final class GraphDataProjection {
         return new GraphSlice(nodeIds.stream().map(GraphNodeId::serialize).toList(), visibleEdgeKeys);
     }
 
-    private static boolean containsEdge(List<IndexedEdge> edges, ArchitectureGraph.GraphEdge edge) {
+    private static boolean containsEdge(List<IndexedEdge> edges, GraphQuery.GraphEdge edge) {
         return edges.stream().anyMatch(indexed -> indexed.edge().equals(edge));
     }
 
     private static boolean isPipelineSpineEdge(
-            ArchitectureGraph.GraphEdge edge, Set<GraphNodeId> segmentIds, Set<GraphNodeId> boundarySinkIds) {
+            GraphQuery.GraphEdge edge, Set<GraphNodeId> segmentIds, Set<GraphNodeId> boundarySinkIds) {
         if ("ORIGINATES".equals(edge.label())) return segmentIds.contains(edge.toId());
         if ("REACHES".equals(edge.label()))
             return segmentIds.contains(edge.fromId()) && boundarySinkIds.contains(edge.toId());
@@ -186,20 +186,20 @@ public final class GraphDataProjection {
     }
 
     private static boolean isBoundarySinkTargetEdge(
-            ArchitectureGraph.GraphEdge edge,
-            Map<GraphNodeId, ArchitectureGraph.GraphNode> nodeById,
+            GraphQuery.GraphEdge edge,
+            Map<GraphNodeId, GraphQuery.GraphNode> nodeById,
             Set<GraphNodeId> boundarySinkIds) {
         if (!boundarySinkIds.contains(edge.fromId())) return false;
         if (!isDataFlowSink(nodeById.get(edge.fromId()))) return false;
         return "AT_COMPONENT".equals(edge.label()) || "ON_FIELD".equals(edge.label());
     }
 
-    private static boolean isDataFlowSink(ArchitectureGraph.GraphNode node) {
-        return node instanceof ArchitectureGraph.DataFlowSinkNode
+    private static boolean isDataFlowSink(GraphQuery.GraphNode node) {
+        return node instanceof GraphQuery.DataFlowSinkNode
                 || (node != null && "DataFlowSink".equals(node.label()));
     }
 
-    private static String edgeKey(ArchitectureGraph.GraphEdge edge, int index) {
+    private static String edgeKey(GraphQuery.GraphEdge edge, int index) {
         return edge.fromId().serialize() + "->" + edge.toId().serialize() + ":" + edge.label() + ":" + index;
     }
 
@@ -225,7 +225,7 @@ public final class GraphDataProjection {
         return method.isBlank() ? simpleOwner : simpleOwner + "." + method;
     }
 
-    private static String dataFlowPathTitle(ArchitectureGraph.DataFlowPathNode node) {
+    private static String dataFlowPathTitle(GraphQuery.DataFlowPathNode node) {
         EntrypointId entrypointId = node.entrypointId();
         String serializedEntrypointId =
                 entrypointId != null ? entrypointId.serialize() : fallbackEntrypointId(node.id());
@@ -327,9 +327,9 @@ public final class GraphDataProjection {
         }
     }
 
-    private record SegmentEdge(int index, ArchitectureGraph.GraphEdge edge) {}
+    private record SegmentEdge(int index, GraphQuery.GraphEdge edge) {}
 
-    private record IndexedEdge(int index, ArchitectureGraph.GraphEdge edge) {}
+    private record IndexedEdge(int index, GraphQuery.GraphEdge edge) {}
 
     private record GraphSlice(List<String> nodeIds, List<String> edgeKeys) {}
 }

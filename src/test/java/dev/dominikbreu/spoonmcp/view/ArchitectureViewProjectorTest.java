@@ -3,7 +3,7 @@ package dev.dominikbreu.spoonmcp.view;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.model.AppEntry;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
@@ -44,7 +44,7 @@ class ArchitectureViewProjectorTest {
 
     @Test
     void componentViewPrefersWorkflowRelevantComponentsOverUtilityFanIn() {
-        ArchitectureGraph graph = componentViewFixture();
+        GraphQuery graph = componentViewFixture();
 
         ArchitectureViewProjection projection =
                 new ArchitectureViewProjector().projectComponentView(graph, "app:demo", "Demo Component View", 12);
@@ -91,8 +91,7 @@ class ArchitectureViewProjectorTest {
         model.fieldAccesses.add(fieldAccess(FieldAccess.Kind.WRITE, writer.id, "consume", stateStore.id, "store"));
         model.fieldAccesses.add(fieldAccess(FieldAccess.Kind.READ, reader.id, "publish", stateStore.id, "store"));
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = GraphQuery.from(model);
 
         // Pass maxNodes=500 (the new default) — all 5 components must appear
         ArchitectureViewProjection projection =
@@ -129,8 +128,7 @@ class ArchitectureViewProjectorTest {
         Dependency d2 = dependency(server.id, extractor.id, "injection");
         model.dependencies.addAll(List.of(d1, d2));
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = GraphQuery.from(model);
 
         ArchitectureViewProjection projection =
                 new ArchitectureViewProjector().projectComponentView(graph, "app:injection", "Injection View", 10);
@@ -147,7 +145,7 @@ class ArchitectureViewProjectorTest {
 
     // ── fixture ────────────────────────────────────────────────────────────────
 
-    private static ArchitectureGraph componentViewFixture() {
+    private static GraphQuery componentViewFixture() {
         ArchitectureModel model = new ArchitectureModel("fixture");
 
         AppEntry app = new AppEntry();
@@ -183,8 +181,7 @@ class ArchitectureViewProjectorTest {
             model.dependencies.add(dep);
         }
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = GraphQuery.from(model);
         return graph;
     }
 
