@@ -2,11 +2,6 @@ package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
-import dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer;
-import dev.dominikbreu.spoonmcp.model.Entrypoint;
-import dev.dominikbreu.spoonmcp.model.EntrypointType;
-import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.List;
 import java.util.Map;
 
@@ -17,62 +12,49 @@ public class FindEntrypointsTool {
 
     private final ModelCache cache;
 
-    /**
-     * Creates the tool with the shared model cache.
-     *
-     * @param cache model cache used by prior indexing
-     */
     public FindEntrypointsTool(ModelCache cache) {
         this.cache = cache;
     }
 
-    /**
-     * Executes an entrypoint search.
-     *
-     * @param args JSON arguments including appId or type
-     * @return formatted entrypoint list or an error message
-     */
     public String execute(Map<String, Object> args) {
         try {
-            ToolModelIndex index = cache.index();
             GraphQuery graph = cache.graph();
-            if (index.rawModel() == null) return "No workspace indexed yet. Call index_workspace first.";
+            if (graph.isEmpty()) return "No workspace indexed yet. Call index_workspace first.";
 
             String appId = ToolArgs.getString(args, "appId");
             String typeFilter = ToolArgs.getString(args, "type");
             String methodFilter = ToolArgs.getString(args, "httpMethod");
             String pathFilter = ToolArgs.getString(args, "path");
 
-            List<Entrypoint> eps = graph.findNodes("Entrypoint", null, Map.of(), 5000).stream()
-                    .map(n -> index.entrypoint(EntrypointId.deserialize(n.id().value())))
-                    .filter(ep -> ep != null)
-                    .filter(ep ->
-                            appId == null || ep.componentId.qualifiedName().contains(appId))
-                    .filter(ep -> typeFilter == null || matchesType(ep.type, typeFilter))
-                    .filter(ep -> methodFilter == null || methodFilter.equalsIgnoreCase(ep.httpMethod))
-                    .filter(ep -> pathFilter == null || pathPrefixMatchesForDiscovery(ep.path, pathFilter))
+            List<GraphQuery.GraphNode> nodes = graph.allEntrypoints().stream()
+                    .filter(n -> n instanceof GraphQuery.EntrypointNode)
+                    .filter(n -> {
+                        GraphQuery.EntrypointNode en = (GraphQuery.EntrypointNode) n;
+                        if (appId != null && (en.componentId() == null || !en.componentId().serialize().contains(appId))) return false;
+                        if (typeFilter != null && (en.type() == null || !typeFilter.equalsIgnoreCase(en.type().name()))) return false;
+                        if (methodFilter != null && !methodFilter.equalsIgnoreCase(en.httpMethod())) return false;
+                        if (pathFilter != null && !pathPrefixMatchesForDiscovery(en.path(), pathFilter)) return false;
+                        return true;
+                    })
                     .toList();
 
-            if (eps.isEmpty()) return "No entrypoints found matching the given criteria.";
+            if (nodes.isEmpty()) return "No entrypoints found matching the given criteria.";
 
             StringBuilder sb = new StringBuilder();
-            sb.append("Found ").append(eps.size()).append(" entrypoint(s):\n\n");
-            for (Entrypoint ep : eps) {
-                sb.append("- [").append(ep.type).append("] ").append(ep.name);
-                if (ep.httpMethod != null) sb.append(" [").append(ep.httpMethod).append("]");
-                if (ep.path != null && !ep.path.isEmpty()) sb.append(" ").append(ep.path);
+            sb.append("Found ").append(nodes.size()).append(" entrypoint(s):\n\n");
+            for (GraphQuery.GraphNode node : nodes) {
+                GraphQuery.EntrypointNode en = (GraphQuery.EntrypointNode) node;
+                sb.append("- [").append(en.type() != null ? en.type().name() : "?").append("] ").append(en.name());
+                if (en.httpMethod() != null) sb.append(" [").append(en.httpMethod()).append("]");
+                if (en.path() != null && !en.path().isEmpty()) sb.append(" ").append(en.path());
                 sb.append("\n");
-                sb.append("  Component: ").append(ep.componentId.serialize()).append("\n");
-                if (ep.source != null) {
-                    sb.append("  Source: ")
-                            .append(ep.source.file)
-                            .append(":")
-                            .append(ep.source.line)
-                            .append(" [")
-                            .append(ep.source.derivedFrom)
-                            .append(", confidence=")
-                            .append(ep.source.confidence)
-                            .append("]\n");
+                sb.append("  Component: ").append(en.componentId() != null ? en.componentId().serialize() : "").append("\n");
+                Map<String, Object> props = en.properties();
+                if (props.get("sourceFile") != null) {
+                    sb.append("  Source: ").append(props.get("sourceFile"))
+                            .append(":").append(props.get("sourceLine"))
+                            .append(" [").append(props.get("derivedFrom"))
+                            .append(", confidence=").append(props.get("confidence")).append("]\n");
                 }
                 sb.append("\n");
             }
@@ -82,21 +64,9 @@ public class FindEntrypointsTool {
         }
     }
 
-    private boolean matchesType(EntrypointType type, String filter) {
-        try {
-            return type == EntrypointType.valueOf(filter.toUpperCase());
-        } catch (IllegalArgumentException _) {
-            return type.name().toLowerCase().contains(filter.toLowerCase());
-        }
-    }
-
     /**
      * Discovery-mode path filter: returns true when {@code epPath} is at or below
      * {@code filterPath} in the path hierarchy.
-     *
-     * <p>Unlike {@link RuntimeFlowInferrer#pathPrefixMatches}, this variant always
-     * allows prefix matching even when {@code filterPath} contains path variables —
-     * e.g. {@code /customer/{id}} should discover {@code /customer/{id}/address/{aid}}.
      */
     static boolean pathPrefixMatchesForDiscovery(String epPath, String filterPath) {
         if (epPath == null || filterPath == null) return false;

@@ -24,9 +24,7 @@ public class McpServer {
     private final GetComponentDependenciesTool dependenciesTool;
     private final InferContainersTool containersTool;
     private final RenderMermaidFlowchartTool flowchartTool;
-    private final GetRuntimeFlowTool runtimeFlowTool;
-    private final RenderCallFlowTool callFlowTool;
-    private final ExplainArchitectureTool explainTool;
+    private final CallFlowTool callFlowTool;
     private final RenderSourceOverviewTool sourceOverviewTool;
     private final RenderDependencyMapTool dependencyMapTool;
     private final RenderComponentDependencyDiagramTool dependencyDiagramTool;
@@ -41,7 +39,6 @@ public class McpServer {
     private final RenderPipelineTool pipelineTool;
     private final RenderArchitectureViewTool renderArchitectureViewTool;
     private final ExportLikeC4ModelTool exportLikeC4ModelTool;
-    private final ToolGuidanceTool toolGuidanceTool;
 
     private static final String TYPE_STRING = "string";
     private static final String TYPE_INTEGER = "integer";
@@ -66,9 +63,7 @@ public class McpServer {
         this.dependenciesTool = new GetComponentDependenciesTool(cache);
         this.containersTool = new InferContainersTool(cache);
         this.flowchartTool = new RenderMermaidFlowchartTool(cache);
-        this.runtimeFlowTool = new GetRuntimeFlowTool(cache);
-        this.callFlowTool = new RenderCallFlowTool(cache);
-        this.explainTool = new ExplainArchitectureTool(cache);
+        this.callFlowTool = new CallFlowTool(cache);
         this.sourceOverviewTool = new RenderSourceOverviewTool(cache);
         this.dependencyMapTool = new RenderDependencyMapTool(cache);
         this.dependencyDiagramTool = new RenderComponentDependencyDiagramTool(cache);
@@ -83,7 +78,6 @@ public class McpServer {
         this.pipelineTool = new RenderPipelineTool(cache);
         this.renderArchitectureViewTool = new RenderArchitectureViewTool(cache);
         this.exportLikeC4ModelTool = new ExportLikeC4ModelTool(cache);
-        this.toolGuidanceTool = new ToolGuidanceTool();
     }
 
     /**
@@ -178,32 +172,14 @@ public class McpServer {
                 flowchartTool::execute));
 
         specs.add(toolSpec(
-                "get_runtime_flow",
-                "Return a reduced runtime path for a use case or entry point by following injection dependencies.",
+                "call_flow",
+                "Return the runtime call flow for an entry point: ordered steps and a Mermaid flowchart. Component shapes reflect architectural role (cylinder=repository, parallelogram=http-client, etc.). Edge labels show the actual called method name.",
                 schema().opt(ENTRYPOINT_ID, TYPE_STRING, "Entrypoint ID (from find_entrypoints)")
                         .opt(
                                 ENTRYPOINT_NAME,
                                 TYPE_STRING,
-                                "Entrypoint path, name, or 'METHOD /path' (e.g. 'GET /account') for HTTP-method disambiguation")
-                        .opt(MAX_DEPTH, TYPE_INTEGER, "Max traversal depth (default 5)"),
-                runtimeFlowTool::execute));
-
-        specs.add(toolSpec(
-                "render_call_flow",
-                "Render a Mermaid flowchart showing the execution path from an entry point through its call chain. Component shapes reflect architectural role (cylinder=repository, parallelogram=http-client, etc.). Edge labels show the actual called method name.",
-                schema().opt(ENTRYPOINT_ID, TYPE_STRING, "Entrypoint ID (from find_entrypoints)")
-                        .opt(
-                                ENTRYPOINT_NAME,
-                                TYPE_STRING,
-                                "Entrypoint path, name, or 'METHOD /path' (e.g. 'GET /account') for HTTP-method disambiguation")
-                        .opt(MAX_DEPTH, TYPE_INTEGER, "Max traversal depth (default 5)"),
+                                "Entrypoint path, name, or 'METHOD /path' (e.g. 'GET /account') for HTTP-method disambiguation"),
                 callFlowTool::execute));
-
-        specs.add(toolSpec(
-                "explain_architecture",
-                "Return an agent-friendly textual summary of the architecture model (apps, components, dependencies, deployments).",
-                schema().opt(APP_ID, TYPE_STRING, APP_ID_DESCRIPTION),
-                explainTool::execute));
 
         specs.add(toolSpec(
                 "render_source_overview",
@@ -335,15 +311,6 @@ public class McpServer {
                 graphTool::execute));
 
         specs.add(toolSpec(
-                "tool_guidance",
-                "Return compact task-to-tool recipes for agents, including graph classification filters that reduce support-code noise.",
-                schema().opt(
-                                "task",
-                                TYPE_STRING,
-                                "Optional task keyword such as business, component, pipeline, noise, or graph"),
-                toolGuidanceTool::execute));
-
-        specs.add(toolSpec(
                 "trace_data_flow",
                 "Trace how entrypoint parameters flow through the call graph to sinks (persistence, messaging, http-outbound, event-bus, store, file-outbound, object-storage). Requires call-graph data from index_workspace.",
                 schema().opt(ENTRYPOINT_ID, TYPE_STRING, "Filter by entrypoint ID (partial match)")
@@ -434,7 +401,7 @@ public class McpServer {
                         1. Call `index_workspace` with `paths: ["{path}"]`.
                         2. Call `list_apps` to identify modules and packaging.
                         3. Call `find_entrypoints` and `find_components` to map the runtime surface.
-                        4. Call `explain_architecture` for a concise architecture summary.
+                        4. Call `query_architecture_graph` with `action: "summary"` for a concise graph overview.
                         5. Mention uncertainty where component types or technologies are inferred with low confidence.
                         """),
                 promptSpec(
@@ -475,11 +442,10 @@ public class McpServer {
 
                         Use this workflow:
                         1. Call `find_entrypoints` to confirm the matching entrypoint.
-                        2. Call `get_runtime_flow` with `entrypointName: "{entrypoint}"` and `maxDepth: 8`.
-                        3. Call `render_call_flow` with `entrypointName: "{entrypoint}"` and `maxDepth: 8`.
-                        4. Call `trace_data_flow` with `entrypointName: "{entrypoint}"`.
-                        5. Call `render_use_case_timeline` with `entrypointName: "{entrypoint}"`.
-                        6. Explain the request path, component hops, data sinks, and any missing call-graph evidence.
+                        2. Call `call_flow` with `entrypointName: "{entrypoint}"`.
+                        3. Call `trace_data_flow` with `entrypointName: "{entrypoint}"`.
+                        4. Call `render_use_case_timeline` with `entrypointName: "{entrypoint}"`.
+                        5. Explain the request path, component hops, data sinks, and any missing call-graph evidence.
                         """),
                 promptSpec(
                         "architecture_view",
