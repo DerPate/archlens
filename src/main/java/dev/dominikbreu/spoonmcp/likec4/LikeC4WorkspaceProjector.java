@@ -1,10 +1,7 @@
 package dev.dominikbreu.spoonmcp.likec4;
 
 import dev.dominikbreu.spoonmcp.cache.GraphQuery;
-import dev.dominikbreu.spoonmcp.model.AppEntry;
-import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
-import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
-import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import dev.dominikbreu.spoonmcp.model.ids.GraphNodeId;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -46,18 +43,17 @@ public final class LikeC4WorkspaceProjector {
      * Projects a workspace-level LikeC4 document for the given application.
      *
      * @param graph the architecture graph
-     * @param model the raw architecture model
-     * @param app the application entry to scope the view to
+     * @param app the application node to scope the view to (may be null for workspace-wide)
      * @param maxNodes the maximum number of component nodes to include
      * @return the projected LikeC4 document
      */
     public LikeC4Document projectWorkspace(
-            GraphQuery graph, ArchitectureModel model, AppEntry app, int maxNodes) {
-        LikeC4Element system = systemElement(model, app);
+            GraphQuery graph, GraphQuery.ApplicationNode app, int maxNodes) {
+        LikeC4Element system = systemElement(app);
         int nodeLimit = Math.max(1, maxNodes);
 
-        List<GraphQuery.GraphNode> scopedComponents = scopedComponents(graph, model, app);
-        List<GraphQuery.GraphNode> entrypoints = scopedEntrypoints(graph, model, app).stream()
+        List<GraphQuery.GraphNode> scopedComponents = scopedComponents(graph, app);
+        List<GraphQuery.GraphNode> entrypoints = scopedEntrypoints(graph, app).stream()
                 .sorted(entrypointPriority())
                 .limit(entrypointBudget(nodeLimit))
                 .toList();
@@ -282,32 +278,27 @@ public final class LikeC4WorkspaceProjector {
     }
 
     private static List<GraphQuery.GraphNode> scopedComponents(
-            GraphQuery graph, ArchitectureModel model, AppEntry app) {
-        if (app != null && !app.componentIds.isEmpty()) {
-            return graph.nodesByComponentIds(app.componentIds);
-        }
-        if (model != null && model.components != null && !model.components.isEmpty()) {
-            return graph.nodesByComponentIds(
-                    model.components.stream().map(c -> c.id).toList());
-        }
+            GraphQuery graph, GraphQuery.ApplicationNode app) {
         if (app != null) {
-            return graph.componentNodesOwnedBy(app.id);
+            return graph.componentNodesOwnedBy(AppId.deserialize(app.id().value()));
         }
-        return List.of();
+        return graph.findNodes("Component", null, Map.of(), 0);
     }
 
     private static List<GraphQuery.GraphNode> scopedEntrypoints(
-            GraphQuery graph, ArchitectureModel model, AppEntry app) {
-        if (model == null || model.entrypoints == null || model.entrypoints.isEmpty()) {
-            return List.of();
+            GraphQuery graph, GraphQuery.ApplicationNode app) {
+        if (app != null) {
+            List<GraphNodeId> compIds = graph.componentIdsOwnedBy(app.id());
+            Set<String> compIdSet = compIds.stream().map(GraphNodeId::value)
+                    .collect(java.util.stream.Collectors.toSet());
+            return graph.findNodes("Entrypoint", null, Map.of(), 0).stream()
+                    .filter(ep -> {
+                        Object compId = ep.properties().get("componentId");
+                        return compId != null && compIdSet.contains(compId.toString());
+                    })
+                    .toList();
         }
-        Set<ComponentId> scope =
-                app != null && !app.componentIds.isEmpty() ? new HashSet<>(app.componentIds) : Set.of();
-        List<EntrypointId> ids = model.entrypoints.stream()
-                .filter(ep -> scope.isEmpty() || scope.contains(ep.componentId))
-                .map(ep -> ep.id)
-                .toList();
-        return graph.nodesByEntrypointIds(ids);
+        return graph.findNodes("Entrypoint", null, Map.of(), 0);
     }
 
     private static Set<GraphNodeId> ids(List<GraphQuery.GraphNode> nodes) {
@@ -507,30 +498,24 @@ public final class LikeC4WorkspaceProjector {
         return 0;
     }
 
-    private static LikeC4Element systemElement(ArchitectureModel model, AppEntry app) {
+    private static LikeC4Element systemElement(GraphQuery.ApplicationNode app) {
         if (app != null) {
             return new LikeC4Element(
-                    app.id.serialize(),
+                    app.id().value(),
                     "system",
-                    title(app.name, app.id.serialize()),
-                    app.id.serialize(),
+                    title(app.name(), app.id().value()),
+                    app.id().value(),
                     appMetadata(app));
         }
-        String workspace = model != null ? model.workspacePath : null;
-        return new LikeC4Element(
-                "system:workspace",
-                "system",
-                title(workspace, "Workspace"),
-                "workspace",
-                workspace == null || workspace.isBlank() ? Map.of() : Map.of("workspacePath", workspace));
+        return new LikeC4Element("system:workspace", "system", "Workspace", "workspace", Map.of());
     }
 
-    private static Map<String, Object> appMetadata(AppEntry app) {
+    private static Map<String, Object> appMetadata(GraphQuery.ApplicationNode app) {
         Map<String, Object> metadata = new LinkedHashMap<>();
-        putIfPresent(metadata, "technology", app.technology);
-        putIfPresent(metadata, "packagingType", app.packagingType);
-        putIfPresent(metadata, "role", app.role);
-        putIfPresent(metadata, "rootPath", app.rootPath);
+        putIfPresent(metadata, "technology", app.technology());
+        putIfPresent(metadata, "packagingType", app.packagingType());
+        putIfPresent(metadata, "role", app.role());
+        putIfPresent(metadata, "rootPath", app.rootPath());
         return metadata;
     }
 

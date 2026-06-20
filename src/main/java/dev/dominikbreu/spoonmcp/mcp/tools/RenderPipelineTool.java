@@ -1,7 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Chain;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Segment;
@@ -48,12 +48,12 @@ public class RenderPipelineTool {
      */
     public String execute(Map<String, Object> args) {
         try {
-            ToolModelIndex index = cache.index();
-            ArchitectureModel model = index.rawModel();
-            if (model == null) return "No workspace indexed yet. Call index_workspace first.";
-            if (model.callEdges.isEmpty()) {
+            GraphQuery graph = cache.graph();
+            if (!graph.isIndexed()) return "No workspace indexed yet. Call index_workspace first.";
+            if (!graph.hasCallGraph()) {
                 return "No call-graph data available. Re-index the workspace to enable pipeline rendering.";
             }
+            ArchitectureModel model = cache.load();
 
             int maxDepth = ToolArgs.getInt(args, "maxDepth", 8);
             int maxChains = ToolArgs.getInt(args, "maxChains", 5);
@@ -72,7 +72,7 @@ public class RenderPipelineTool {
             if (filtered.isEmpty()) {
                 return "No pipeline chains matched the given filters.";
             }
-            return renderChains(filtered, index);
+            return renderChains(filtered, graph);
         } catch (Exception e) {
             return "Error rendering pipeline: " + e.getMessage();
         }
@@ -90,7 +90,7 @@ public class RenderPipelineTool {
         return candidates;
     }
 
-    private String renderChains(List<Chain> filtered, ToolModelIndex index) {
+    private String renderChains(List<Chain> filtered, GraphQuery graph) {
         StringBuilder out = new StringBuilder();
         for (int i = 0; i < filtered.size(); i++) {
             Chain c = filtered.get(i);
@@ -110,7 +110,7 @@ public class RenderPipelineTool {
                     .append(" segments=")
                     .append(c.segments.size())
                     .append("\n");
-            out.append(renderer.render(c, index));
+            out.append(renderer.render(c, graph));
             if (i < filtered.size() - 1) out.append("\n");
         }
         return out.toString();

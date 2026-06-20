@@ -283,6 +283,9 @@ public class QueryArchitectureGraphTool {
                         da.entryNodeId());
             case GraphQuery.PipelineChainNode pc ->
                 appendFields(sb, "segmentCount", pc.segmentCount(), "rootEntrypointId", pc.rootEntrypointId());
+            case GraphQuery.DataFlowStepNode ds ->
+                appendFields(sb, "stepIndex", ds.stepIndex(), "componentName", ds.componentName(),
+                        "method", ds.method(), "localName", ds.localName());
             case GraphQuery.DeploymentNode dn -> appendFields(sb, "type", dn.type());
             case GraphQuery.UnknownNode un -> appendProperties(sb, un.rawProperties());
         }

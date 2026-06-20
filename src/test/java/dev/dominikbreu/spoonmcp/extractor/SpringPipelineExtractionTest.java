@@ -2,7 +2,7 @@ package dev.dominikbreu.spoonmcp.extractor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.MessagingBroker;
@@ -52,7 +52,7 @@ class SpringPipelineExtractionTest extends ExtractorTestBase {
         List<PipelineGraphBuilder.Chain> chains = new PipelineGraphBuilder().build(model, 8);
 
         assertThat(chains).isNotEmpty();
-        String mermaid = new MermaidPipelineRenderer().render(chains.getFirst(), ToolModelIndex.from(model));
+        String mermaid = new MermaidPipelineRenderer().render(chains.getFirst(), GraphQuery.from(model));
         assertThat(mermaid).contains("orders.created");
         assertThat(mermaid).contains("OrderController.create");
         assertThat(mermaid).contains("OrderCreatedListener.onCreated");

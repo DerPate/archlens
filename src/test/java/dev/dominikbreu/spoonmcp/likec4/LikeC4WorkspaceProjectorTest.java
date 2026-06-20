@@ -30,10 +30,10 @@ class LikeC4WorkspaceProjectorTest {
     @Test
     void projectsWorkspaceDocumentWithSystemComponentsAndStandardViews() throws Exception {
         ModelCache cache = indexFixtureProject("state-handoff");
-        ArchitectureModel model = cache.load();
-        AppEntry app = model.applications.getFirst();
+        GraphQuery graph = cache.graph();
+        GraphQuery.ApplicationNode app = graph.allApplicationNodes().getFirst();
 
-        LikeC4Document document = new LikeC4WorkspaceProjector().projectWorkspace(cache.graph(), model, app, 12);
+        LikeC4Document document = new LikeC4WorkspaceProjector().projectWorkspace(graph, app, 12);
 
         assertTrue(
                 document.elementKinds().contains("system"),
@@ -46,9 +46,9 @@ class LikeC4WorkspaceProjectorTest {
                 .filter(element -> "system".equals(element.kind()))
                 .findFirst()
                 .orElseThrow();
-        assertEquals(app.id.serialize(), system.id());
-        assertEquals(app.name, system.title());
-        assertEquals(app.id.serialize(), system.sourceId());
+        assertEquals(app.id().value(), system.id());
+        assertEquals(app.name(), system.title());
+        assertEquals(app.id().value(), system.sourceId());
 
         List<LikeC4Element> components = document.elements().stream()
                 .filter(element -> "component".equals(element.kind()))
@@ -65,15 +65,15 @@ class LikeC4WorkspaceProjectorTest {
         LikeC4View container = view(document, "container");
         LikeC4View component = view(document, "component");
 
-        assertEquals(List.of(app.id.serialize()), context.includes());
+        assertEquals(List.of(app.id().value()), context.includes());
         assertTrue(
-                container.includes().contains(app.id.serialize()),
+                container.includes().contains(app.id().value()),
                 container.includes().toString());
         assertTrue(
                 component
                         .includes()
                         .containsAll(container.includes().stream()
-                                .filter(id -> !app.id.serialize().equals(id))
+                                .filter(id -> !app.id().value().equals(id))
                                 .toList()),
                 component.includes().toString());
         assertEquals(
@@ -113,7 +113,8 @@ class LikeC4WorkspaceProjectorTest {
 
         GraphQuery graph = GraphQuery.from(model);
 
-        LikeC4Document document = new LikeC4WorkspaceProjector().projectWorkspace(graph, model, app, 5);
+        LikeC4Document document = new LikeC4WorkspaceProjector()
+                .projectWorkspace(graph, graph.allApplicationNodes().getFirst(), 5);
 
         List<String> componentTitles = document.elements().stream()
                 .filter(element -> "component".equals(element.kind()))
@@ -162,7 +163,8 @@ class LikeC4WorkspaceProjectorTest {
 
         GraphQuery graph = GraphQuery.from(model);
 
-        LikeC4Document document = new LikeC4WorkspaceProjector().projectWorkspace(graph, model, app, 6);
+        LikeC4Document document = new LikeC4WorkspaceProjector()
+                .projectWorkspace(graph, graph.allApplicationNodes().getFirst(), 6);
 
         assertTrue(
                 document.elementKinds().contains("entrypoint"),
@@ -209,7 +211,8 @@ class LikeC4WorkspaceProjectorTest {
 
         GraphQuery graph = GraphQuery.from(model);
 
-        LikeC4Document document = new LikeC4WorkspaceProjector().projectWorkspace(graph, model, app, 6);
+        LikeC4Document document = new LikeC4WorkspaceProjector()
+                .projectWorkspace(graph, graph.allApplicationNodes().getFirst(), 6);
 
         Set<String> elementIds =
                 document.elements().stream().map(LikeC4Element::id).collect(Collectors.toSet());
@@ -220,10 +223,10 @@ class LikeC4WorkspaceProjectorTest {
     @Test
     void relationshipEndpointsReferToDocumentElementsWhenRelationshipsExist() throws Exception {
         ModelCache cache = indexFixtureProject("state-handoff");
-        ArchitectureModel model = cache.load();
-        AppEntry app = model.applications.getFirst();
+        GraphQuery graph = cache.graph();
+        GraphQuery.ApplicationNode app = graph.allApplicationNodes().getFirst();
 
-        LikeC4Document document = new LikeC4WorkspaceProjector().projectWorkspace(cache.graph(), model, app, 12);
+        LikeC4Document document = new LikeC4WorkspaceProjector().projectWorkspace(graph, app, 12);
 
         assertFalse(document.relationships().isEmpty(), "state-handoff fixture should project relationships");
         Set<String> elementIds =
@@ -257,7 +260,8 @@ class LikeC4WorkspaceProjectorTest {
 
         GraphQuery graph = GraphQuery.from(model);
 
-        LikeC4Document document = new LikeC4WorkspaceProjector().projectWorkspace(graph, model, app, 8);
+        LikeC4Document document = new LikeC4WorkspaceProjector()
+                .projectWorkspace(graph, graph.allApplicationNodes().getFirst(), 8);
 
         assertFalse(document.dynamicViews().isEmpty(), "expected dynamic views for messaging entrypoints");
 
@@ -300,7 +304,8 @@ class LikeC4WorkspaceProjectorTest {
 
         GraphQuery graph = GraphQuery.from(model);
 
-        LikeC4Document document = new LikeC4WorkspaceProjector().projectWorkspace(graph, model, app, 8);
+        LikeC4Document document = new LikeC4WorkspaceProjector()
+                .projectWorkspace(graph, graph.allApplicationNodes().getFirst(), 8);
 
         assertTrue(document.dynamicViews().isEmpty(), "expected no dynamic views for REST-only app");
         assertFalse(document.elementKinds().contains("queue"), "expected no queue kind for REST-only app");

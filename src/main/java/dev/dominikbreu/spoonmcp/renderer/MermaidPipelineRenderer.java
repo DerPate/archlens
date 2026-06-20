@@ -1,9 +1,8 @@
 package dev.dominikbreu.spoonmcp.renderer;
 
-import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Chain;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Segment;
-import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.DataFlowStep;
@@ -34,13 +33,13 @@ public class MermaidPipelineRenderer {
      * @param index tool model index for component lookups
      * @return Mermaid flowchart text
      */
-    public String render(Chain chain, ToolModelIndex index) {
+    public String render(Chain chain, GraphQuery graph) {
         if (chain == null || chain.segments.isEmpty()) {
             return "flowchart TD\n    note[no pipeline chain]\n";
         }
         RenderState st = new RenderState();
         for (int segIdx = 0; segIdx < chain.segments.size(); segIdx++) {
-            renderSegment(st, chain, segIdx, index);
+            renderSegment(st, chain, segIdx, graph);
         }
         return assemble(st);
     }
@@ -55,16 +54,16 @@ public class MermaidPipelineRenderer {
         String previousSinkLabel;
     }
 
-    private void renderSegment(RenderState st, Chain chain, int segIdx, ToolModelIndex index) {
+    private void renderSegment(RenderState st, Chain chain, int segIdx, GraphQuery graph) {
         Segment seg = chain.segments.get(segIdx);
         Entrypoint ep = seg.entrypoint;
 
         // Boundary node from previous segment (skip for first segment).
         if (seg.incomingSink != null) {
-            renderBoundary(st, seg, ep, segIdx, index);
+            renderBoundary(st, seg, ep, segIdx, graph);
         }
-        String headerNodeId = renderHeader(st, seg, ep, segIdx, index);
-        String previousNodeInSeg = renderSteps(st, seg, segIdx, headerNodeId, index);
+        String headerNodeId = renderHeader(st, seg, ep, segIdx, graph);
+        String previousNodeInSeg = renderSteps(st, seg, segIdx, headerNodeId, graph);
         renderTerminalSinks(st, chain, seg, segIdx, previousNodeInSeg);
 
         // Determine which sink (if any) links to the next segment.
@@ -74,10 +73,10 @@ public class MermaidPipelineRenderer {
         st.previousSinkLabel = linkOut != null && linkOut.method != null ? linkOut.method : "";
     }
 
-    private void renderBoundary(RenderState st, Segment seg, Entrypoint ep, int segIdx, ToolModelIndex index) {
+    private void renderBoundary(RenderState st, Segment seg, Entrypoint ep, int segIdx, GraphQuery graph) {
         st.boundaryCounter++;
         String boundaryId = "B" + st.boundaryCounter;
-        String boundaryLabel = boundaryLabel(seg.incomingSink, index);
+        String boundaryLabel = boundaryLabel(seg.incomingSink, graph);
         st.nodes
                 .append("    ")
                 .append(boundaryId)
@@ -110,18 +109,22 @@ public class MermaidPipelineRenderer {
                 .append("\n");
     }
 
-    private String renderHeader(RenderState st, Segment seg, Entrypoint ep, int segIdx, ToolModelIndex index) {
+    private String renderHeader(RenderState st, Segment seg, Entrypoint ep, int segIdx, GraphQuery graph) {
         String headerNodeId = "S" + segIdx + "_0";
-        Component headerComp = (ep != null && ep.componentId != null) ? index.component(ep.componentId) : null;
+        GraphQuery.ComponentNode headerComp = null;
+        if (ep != null && ep.componentId != null) {
+            GraphQuery.GraphNode n = graph.component(ep.componentId);
+            if (n instanceof GraphQuery.ComponentNode cn) headerComp = cn;
+        }
         String headerComponentName;
         if (headerComp != null) {
-            headerComponentName = headerComp.name;
+            headerComponentName = headerComp.name();
         } else if (seg.path.steps.isEmpty()) {
             headerComponentName = "?";
         } else {
             headerComponentName = seg.path.steps.getFirst().componentName;
         }
-        ComponentType headerType = headerComp != null ? headerComp.type : null;
+        ComponentType headerType = headerComp != null ? headerComp.type() : null;
         String headerLabel = headerComponentName + (ep != null && ep.name != null ? "." + ep.name : "");
         st.nodes
                 .append("    ")
@@ -131,7 +134,7 @@ public class MermaidPipelineRenderer {
         return headerNodeId;
     }
 
-    private String renderSteps(RenderState st, Segment seg, int segIdx, String headerNodeId, ToolModelIndex index) {
+    private String renderSteps(RenderState st, Segment seg, int segIdx, String headerNodeId, GraphQuery graph) {
         String previousNodeInSeg = headerNodeId;
         // Track last rendered component to collapse intra-component step chains.
         // Also deduplicate DFS back-tracking artifacts: DataFlowTracer records every visited
@@ -153,8 +156,12 @@ public class MermaidPipelineRenderer {
             String dedupKey = stepKey + "#" + step.method;
             if (!renderedStepKeys.add(dedupKey)) continue;
             String nodeId = "S" + segIdx + "_" + i;
-            Component stepComp = step.componentId != null ? index.component(step.componentId) : null;
-            ComponentType type = stepComp != null ? stepComp.type : null;
+            GraphQuery.ComponentNode stepComp = null;
+            if (step.componentId != null) {
+                GraphQuery.GraphNode n = graph.component(step.componentId);
+                if (n instanceof GraphQuery.ComponentNode cn) stepComp = cn;
+            }
+            ComponentType type = stepComp != null ? stepComp.type() : null;
             String label = step.componentName + "." + step.method;
             st.nodes
                     .append("    ")
@@ -247,18 +254,22 @@ public class MermaidPipelineRenderer {
         };
     }
 
-    private String boundaryLabel(DataFlowSink sink, ToolModelIndex index) {
+    private String boundaryLabel(DataFlowSink sink, GraphQuery graph) {
         return switch (sink.kind) {
-            case STORE -> storeBoundaryLabel(sink, index);
+            case STORE -> storeBoundaryLabel(sink, graph);
             case MESSAGING, EVENT_BUS -> sink.channel != null ? sink.channel : "channel";
             case PERSISTENCE -> sink.entityType != null ? sink.entityType : nonNullComponentName(sink);
             default -> sink.componentName != null ? sink.componentName : sink.kind.value();
         };
     }
 
-    private String storeBoundaryLabel(DataFlowSink sink, ToolModelIndex index) {
-        Component owner = sink.fieldOwnerComponentId != null ? index.component(sink.fieldOwnerComponentId) : null;
-        String ownerName = owner != null ? owner.name : nonNullComponentName(sink);
+    private String storeBoundaryLabel(DataFlowSink sink, GraphQuery graph) {
+        GraphQuery.ComponentNode owner = null;
+        if (sink.fieldOwnerComponentId != null) {
+            GraphQuery.GraphNode n = graph.component(sink.fieldOwnerComponentId);
+            if (n instanceof GraphQuery.ComponentNode cn) owner = cn;
+        }
+        String ownerName = owner != null ? owner.name() : nonNullComponentName(sink);
         return ownerName + "." + (sink.fieldName != null ? sink.fieldName : "?");
     }
 

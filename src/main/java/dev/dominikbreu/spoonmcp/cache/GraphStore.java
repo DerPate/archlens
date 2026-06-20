@@ -25,9 +25,14 @@ class GraphStore {
     Graph graph = TinkerGraph.open();
     GraphTraversalSource g = graph.traversal();
     final Map<GraphNodeId, Vertex> verticesById = new LinkedHashMap<>();
+    boolean projected = false;
 
     boolean isEmpty() {
         return verticesById.isEmpty();
+    }
+
+    boolean isIndexed() {
+        return projected;
     }
 
     long vertexCount() {
@@ -47,6 +52,7 @@ class GraphStore {
         graph = TinkerGraph.open();
         g = graph.traversal();
         verticesById.clear();
+        projected = false;
     }
 
     String serializeGraphSON() throws Exception {
@@ -67,6 +73,7 @@ class GraphStore {
                 .readGraph(in, store.graph);
         store.g = store.graph.traversal();
         store.graph.vertices().forEachRemaining(v -> store.verticesById.put(GraphNodeId.of(v.id().toString()), v));
+        store.projected = true;
         return store;
     }
 }
