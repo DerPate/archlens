@@ -790,20 +790,50 @@ public class GraphQuery {
         return Optional.empty();
     }
 
-    /** Resolves an entrypoint reference (id or name) to its graph node ID. */
+    /** Resolves an entrypoint reference (id, name, or "METHOD /path") to its graph node ID. */
     public synchronized Optional<GraphNodeId> resolveEntrypoint(String ref) {
         if (ref == null || ref.isBlank()) return Optional.empty();
         GraphNodeId direct = GraphNodeId.of(ref);
         if (store.verticesById.containsKey(direct)) return Optional.of(direct);
+        String httpMethod = extractHttpMethodFromRef(ref);
+        String pathRef = httpMethod != null ? ref.substring(httpMethod.length() + 1) : ref;
+        GraphNodeId prefixCandidate = null;
         for (Map.Entry<GraphNodeId, Vertex> entry : store.verticesById.entrySet()) {
             Vertex v = entry.getValue();
             if (!"Entrypoint".equals(v.label())) continue;
-            String name = vStr(v, "name");
-            if (ref.equals(name) || ref.equals(entry.getKey().serialize())) {
-                return Optional.of(entry.getKey());
+            if (httpMethod == null) {
+                String name = vStr(v, "name");
+                if (ref.equals(name) || ref.equals(entry.getKey().serialize())) {
+                    return Optional.of(entry.getKey());
+                }
+            } else {
+                String epMethod = vStr(v, "httpMethod");
+                if (!httpMethod.equalsIgnoreCase(epMethod)) continue;
+                String epPath = vStr(v, "path");
+                if (pathRef.equalsIgnoreCase(epPath)) return Optional.of(entry.getKey());
+                if (prefixCandidate == null && epPathPrefixMatches(epPath, pathRef)) {
+                    prefixCandidate = entry.getKey();
+                }
             }
         }
-        return Optional.empty();
+        return Optional.ofNullable(prefixCandidate);
+    }
+
+    private static String extractHttpMethodFromRef(String ref) {
+        if (ref == null) return null;
+        String upper = ref.toUpperCase(Locale.ROOT);
+        for (String m : List.of("GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS")) {
+            if (upper.startsWith(m + " /")) return m;
+        }
+        return null;
+    }
+
+    private static boolean epPathPrefixMatches(String epPath, String ref) {
+        if (epPath == null || ref == null || !ref.startsWith("/")) return false;
+        String lp = epPath.toLowerCase(Locale.ROOT);
+        String lr = ref.toLowerCase(Locale.ROOT);
+        if (lr.contains("{")) return lp.equals(lr);
+        return lp.equals(lr) || lp.startsWith(lr + "/") || lp.startsWith(lr + "{");
     }
 
     // --- private helpers ---

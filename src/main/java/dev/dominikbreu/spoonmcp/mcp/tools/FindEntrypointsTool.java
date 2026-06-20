@@ -48,6 +48,7 @@ public class FindEntrypointsTool {
                 if (en.httpMethod() != null) sb.append(" [").append(en.httpMethod()).append("]");
                 if (en.path() != null && !en.path().isEmpty()) sb.append(" ").append(en.path());
                 sb.append("\n");
+                sb.append("  ID: ").append(en.id().serialize()).append("\n");
                 sb.append("  Component: ").append(en.componentId() != null ? en.componentId().serialize() : "").append("\n");
                 Map<String, Object> props = en.properties();
                 if (props.get("sourceFile") != null) {

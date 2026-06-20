@@ -130,7 +130,8 @@ public class RenderPipelineTool {
         String pathFilter = RuntimeFlowInferrer.extractPathFromRef(filter);
         String lower = pathFilter.toLowerCase();
         if (ep == null)
-            return root.path.entrypointId != null
+            return root.path != null
+                    && root.path.entrypointId != null
                     && root.path.entrypointId.serialize().toLowerCase().contains(lower);
         if (method != null && !method.equalsIgnoreCase(ep.httpMethod)) return false;
         if (ep.name != null && ep.name.toLowerCase().contains(lower)) return true;
