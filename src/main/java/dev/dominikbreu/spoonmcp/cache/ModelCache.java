@@ -30,7 +30,6 @@ public class ModelCache {
     private final CacheBackend backend;
     private final GraphStore store = new GraphStore();
     private ArchitectureModel current;
-    private ToolModelIndex cachedIndex;
 
     /** Creates a cache using the default local cache directory. */
     public ModelCache() {
@@ -68,7 +67,6 @@ public class ModelCache {
      */
     public void store(ArchitectureModel model) throws IOException {
         this.current = model;
-        this.cachedIndex = null;
         File dir = workspaceDir(model);
         if (!dir.exists() && !dir.mkdirs()) {
             throw new IOException("Failed to create cache directory: " + dir.getAbsolutePath());
@@ -89,7 +87,6 @@ public class ModelCache {
      */
     public void clearActive() throws IOException {
         this.current = null;
-        this.cachedIndex = null;
         store.clear();
         Files.deleteIfExists(activeWorkspaceFile().toPath());
     }
@@ -149,23 +146,6 @@ public class ModelCache {
             new GraphProjector().project(model, store);
         }
         return new GraphQuery(store);
-    }
-
-    /**
-     * Returns an O(1) lookup index over the current model, built lazily and
-     * invalidated on each {@link #store} or {@link #clearActive}.
-     *
-     * @return tool model index
-     * @throws IOException if the current model must be loaded and cannot be read
-     * @deprecated Tools should use {@link #graph()} instead. This method will be removed
-     *             once all tools have been migrated to {@link GraphQuery}.
-     */
-    @Deprecated
-    public ToolModelIndex index() throws IOException {
-        if (cachedIndex == null) {
-            cachedIndex = ToolModelIndex.from(load());
-        }
-        return cachedIndex;
     }
 
     /**
