@@ -34,9 +34,19 @@ final class ArchitectureRelevanceScorer {
         int structuralWeight = Math.min(metrics.fanIn(), 3) + metrics.fanOut() + (metrics.ownedEntrypointCount() * 4);
         int roleBonus = (workflowBridgeScore * 3) + (businessRelevant ? 2 : 0);
         int architecturalWeight = Math.max(0, structuralWeight + roleBonus - (noiseScore * 2));
+        ComponentClassifier.Classification classification = ComponentClassifier.classify(component, metrics);
 
         return new Relevance(
-                workflowRelevant, businessRelevant, role, noiseScore, workflowBridgeScore, architecturalWeight);
+                workflowRelevant,
+                businessRelevant,
+                role,
+                noiseScore,
+                workflowBridgeScore,
+                architecturalWeight,
+                classification.primaryRole(),
+                classification.supportRole(),
+                classification.agentCategory(),
+                classification.evidence());
     }
 
     private static int noiseScore(Component component) {
@@ -181,5 +191,9 @@ final class ArchitectureRelevanceScorer {
             String infrastructureRole,
             int noiseScore,
             int workflowBridgeScore,
-            int architecturalWeight) {}
+            int architecturalWeight,
+            String primaryRole,
+            String supportRole,
+            String agentCategory,
+            String classificationEvidence) {}
 }

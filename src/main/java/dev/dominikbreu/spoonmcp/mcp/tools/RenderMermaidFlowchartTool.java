@@ -1,8 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
-import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.renderer.MermaidFlowchartRenderer;
 import java.util.Map;
 
@@ -31,15 +30,14 @@ public class RenderMermaidFlowchartTool {
      */
     public String execute(Map<String, Object> args) {
         try {
-            ToolModelIndex index = cache.index();
-            ArchitectureModel model = index.rawModel();
-            if (model == null) return "No workspace indexed yet. Call index_workspace first.";
+            GraphQuery graph = cache.graph();
+            if (!graph.isIndexed()) return "No workspace indexed yet. Call index_workspace first.";
 
             String appId = ToolArgs.getString(args, "appId");
             String level = ToolArgs.getString(args, "level");
             if (level == null) level = "component";
 
-            return renderer.render(model, appId, level);
+            return renderer.render(graph, appId, level);
         } catch (Exception e) {
             return "Error rendering flowchart: " + e.getMessage();
         }

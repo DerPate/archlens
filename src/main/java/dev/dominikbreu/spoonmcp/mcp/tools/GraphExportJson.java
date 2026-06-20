@@ -1,6 +1,6 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.cache.GraphDataProjection;
 import java.time.Instant;
 import java.util.LinkedHashSet;
@@ -20,7 +20,7 @@ final class GraphExportJson {
 
     private GraphExportJson() {}
 
-    static String write(ArchitectureGraph.GraphSnapshot snapshot, Instant generatedAt) throws Exception {
+    static String write(GraphQuery.GraphSnapshot snapshot, Instant generatedAt) throws Exception {
         return MAPPER.writerWithDefaultPrettyPrinter()
                 .writeValueAsString(
                         new Payload(SnapshotJson.from(snapshot), GraphDataProjection.from(snapshot), generatedAt));
@@ -28,15 +28,15 @@ final class GraphExportJson {
 
     record Payload(SnapshotJson snapshot, GraphDataProjection.ViewerProjections projections, Instant generatedAt) {}
 
-    record SnapshotJson(ArchitectureGraph.GraphSnapshotMetadata metadata, List<NodeJson> nodes, List<EdgeJson> edges) {
-        static SnapshotJson from(ArchitectureGraph.GraphSnapshot snapshot) {
-            List<ArchitectureGraph.GraphNode> nodes = snapshot.nodes().stream()
+    record SnapshotJson(GraphQuery.GraphSnapshotMetadata metadata, List<NodeJson> nodes, List<EdgeJson> edges) {
+        static SnapshotJson from(GraphQuery.GraphSnapshot snapshot) {
+            List<GraphQuery.GraphNode> nodes = snapshot.nodes().stream()
                     .filter(GraphExportJson::isPublicSnapshotNode)
                     .toList();
             Set<String> nodeIds = nodes.stream()
                     .map(node -> node.id().serialize())
                     .collect(Collectors.toCollection(LinkedHashSet::new));
-            List<ArchitectureGraph.GraphEdge> edges = snapshot.edges().stream()
+            List<GraphQuery.GraphEdge> edges = snapshot.edges().stream()
                     .filter(GraphExportJson::isPublicSnapshotEdge)
                     .filter(edge -> nodeIds.contains(edge.fromId().serialize())
                             && nodeIds.contains(edge.toId().serialize()))
@@ -48,7 +48,7 @@ final class GraphExportJson {
         }
     }
 
-    private static boolean isPublicSnapshotNode(ArchitectureGraph.GraphNode node) {
+    private static boolean isPublicSnapshotNode(GraphQuery.GraphNode node) {
         if ("Interface".equals(node.label())
                 && "rest_endpoint".equals(node.properties().get("interfaceType"))) {
             return false;
@@ -59,18 +59,18 @@ final class GraphExportJson {
         };
     }
 
-    private static boolean isPublicSnapshotEdge(ArchitectureGraph.GraphEdge edge) {
+    private static boolean isPublicSnapshotEdge(GraphQuery.GraphEdge edge) {
         return switch (edge.label()) {
             case "CONTAINS", "HAS_SEGMENT", "HAS_STEP", "STARTED_BY", "VISITS" -> false;
             default -> true;
         };
     }
 
-    private static ArchitectureGraph.GraphSnapshotMetadata publicMetadata(
-            ArchitectureGraph.GraphSnapshotMetadata raw,
-            List<ArchitectureGraph.GraphNode> nodes,
-            List<ArchitectureGraph.GraphEdge> edges) {
-        return new ArchitectureGraph.GraphSnapshotMetadata(
+    private static GraphQuery.GraphSnapshotMetadata publicMetadata(
+            GraphQuery.GraphSnapshotMetadata raw,
+            List<GraphQuery.GraphNode> nodes,
+            List<GraphQuery.GraphEdge> edges) {
+        return new GraphQuery.GraphSnapshotMetadata(
                 raw.nodeCount(),
                 raw.edgeCount(),
                 nodes.size(),
@@ -78,24 +78,24 @@ final class GraphExportJson {
                 raw.truncated(),
                 nodes.stream()
                         .collect(Collectors.groupingBy(
-                                ArchitectureGraph.GraphNode::label,
+                                GraphQuery.GraphNode::label,
                                 java.util.TreeMap::new,
                                 Collectors.summingInt(ignoredNode -> 1))),
                 edges.stream()
                         .collect(Collectors.groupingBy(
-                                ArchitectureGraph.GraphEdge::label,
+                                GraphQuery.GraphEdge::label,
                                 java.util.TreeMap::new,
                                 Collectors.summingInt(ignoredEdge -> 1))));
     }
 
     record NodeJson(String id, String label, String name, Map<String, Object> properties) {
-        static NodeJson from(ArchitectureGraph.GraphNode node) {
+        static NodeJson from(GraphQuery.GraphNode node) {
             return new NodeJson(node.id().serialize(), node.label(), node.name(), node.properties());
         }
     }
 
     record EdgeJson(String fromId, String toId, String label, Map<String, Object> properties) {
-        static EdgeJson from(ArchitectureGraph.GraphEdge edge) {
+        static EdgeJson from(GraphQuery.GraphEdge edge) {
             return new EdgeJson(edge.fromId().serialize(), edge.toId().serialize(), edge.label(), edge.properties());
         }
     }

@@ -1,12 +1,10 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
-import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Chain;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Segment;
 import dev.dominikbreu.spoonmcp.extractor.RuntimeFlowInferrer;
-import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
@@ -28,7 +26,6 @@ public class RenderPipelineTool {
             Set.of(EntrypointType.CDI_EVENT_OBSERVER, EntrypointType.MAIN_METHOD, EntrypointType.RMI_ENDPOINT);
 
     private final ModelCache cache;
-    private final PipelineGraphBuilder builder = new PipelineGraphBuilder();
     private final MermaidPipelineRenderer renderer = new MermaidPipelineRenderer();
 
     /**
@@ -48,22 +45,20 @@ public class RenderPipelineTool {
      */
     public String execute(Map<String, Object> args) {
         try {
-            ToolModelIndex index = cache.index();
-            ArchitectureModel model = index.rawModel();
-            if (model == null) return "No workspace indexed yet. Call index_workspace first.";
-            if (model.callEdges.isEmpty()) {
+            GraphQuery graph = cache.graph();
+            if (!graph.isIndexed()) return "No workspace indexed yet. Call index_workspace first.";
+            if (!graph.hasCallGraph()) {
                 return "No call-graph data available. Re-index the workspace to enable pipeline rendering.";
             }
 
-            int maxDepth = ToolArgs.getInt(args, "maxDepth", 8);
             int maxChains = ToolArgs.getInt(args, "maxChains", 5);
             boolean includeLifecycle = ToolArgs.getBool(args, "includeLifecycle", false);
             String epFilter = ToolArgs.getString(args, "entrypointName");
             String channelFilter = ToolArgs.getString(args, "channel");
 
-            List<Chain> chains = builder.build(model, maxDepth);
+            List<Chain> chains = graph.allPipelineChains();
             if (chains.isEmpty()) {
-                return diagnostic(model);
+                return diagnosticFromGraph(graph);
             }
 
             List<Chain> candidates = filterCandidates(chains, includeLifecycle, epFilter, channelFilter);
@@ -72,7 +67,7 @@ public class RenderPipelineTool {
             if (filtered.isEmpty()) {
                 return "No pipeline chains matched the given filters.";
             }
-            return renderChains(filtered, index);
+            return renderChains(filtered, graph);
         } catch (Exception e) {
             return "Error rendering pipeline: " + e.getMessage();
         }
@@ -90,7 +85,7 @@ public class RenderPipelineTool {
         return candidates;
     }
 
-    private String renderChains(List<Chain> filtered, ToolModelIndex index) {
+    private String renderChains(List<Chain> filtered, GraphQuery graph) {
         StringBuilder out = new StringBuilder();
         for (int i = 0; i < filtered.size(); i++) {
             Chain c = filtered.get(i);
@@ -110,7 +105,7 @@ public class RenderPipelineTool {
                     .append(" segments=")
                     .append(c.segments.size())
                     .append("\n");
-            out.append(renderer.render(c, index));
+            out.append(renderer.render(c, graph));
             if (i < filtered.size() - 1) out.append("\n");
         }
         return out.toString();
@@ -191,86 +186,16 @@ public class RenderPipelineTool {
         }
     }
 
-    private static final class PipelineStats {
-        int totalPaths;
-        int linkedPaths;
-        int messagingSinks;
-        int unresolvedMessaging;
-        int persistenceWrites;
-        int persistenceReads;
-    }
-
-    private String diagnostic(ArchitectureModel model) {
-        int consumerTopics = collectConsumerTopics(model).size();
-        PipelineStats stats = computePipelineStats(model);
+    private String diagnosticFromGraph(GraphQuery graph) {
+        GraphQuery.PipelineDiagnostic d = graph.pipelineDiagnostic();
         return "No pipeline chains:\n"
-                + "- data-flow path(s): " + stats.totalPaths + "\n"
-                + "- path(s) with linked sinks: " + stats.linkedPaths + "\n"
-                + "- messaging sink(s): " + stats.messagingSinks + "\n"
-                + "- unresolved messaging destination(s): " + stats.unresolvedMessaging + "\n"
-                + "- consumer topic(s): " + consumerTopics + "\n"
-                + "- persistence write sink(s): " + stats.persistenceWrites + "\n"
-                + "- persistence read sink(s): " + stats.persistenceReads + "\n"
+                + "- data-flow path(s): " + d.totalPaths() + "\n"
+                + "- path(s) with linked sinks: " + d.linkedPaths() + "\n"
+                + "- messaging sink(s): " + d.messagingSinks() + "\n"
+                + "- unresolved messaging destination(s): " + d.unresolvedMessaging() + "\n"
+                + "- consumer topic(s): " + d.consumerTopics() + "\n"
+                + "- persistence write sink(s): " + d.persistenceWrites() + "\n"
+                + "- persistence read sink(s): " + d.persistenceReads() + "\n"
                 + "Re-index after improving topic/property resolution or repository handoff metadata.";
-    }
-
-    private java.util.Set<String> collectConsumerTopics(ArchitectureModel model) {
-        java.util.Set<String> consumerTopics = new java.util.LinkedHashSet<>();
-        for (Entrypoint ep : model.entrypoints) {
-            if ((ep.type == EntrypointType.MESSAGING_CONSUMER || ep.type == EntrypointType.JMS_CONSUMER)
-                    && ep.channelName != null
-                    && !ep.channelName.isBlank()
-                    && !"(unresolved)".equals(ep.channelName)) {
-                consumerTopics.add(ep.channelName);
-            }
-        }
-        return consumerTopics;
-    }
-
-    private PipelineStats computePipelineStats(ArchitectureModel model) {
-        PipelineStats stats = new PipelineStats();
-        stats.totalPaths = model.dataFlowPaths.size();
-        for (DataFlowPath path : model.dataFlowPaths) {
-            boolean pathLinked = false;
-            for (DataFlowSink sink : path.sinks) {
-                pathLinked |= accumulateSink(stats, sink);
-            }
-            if (pathLinked) stats.linkedPaths++;
-        }
-        return stats;
-    }
-
-    private boolean accumulateSink(PipelineStats stats, DataFlowSink sink) {
-        boolean linked = sink.linkedPathIds != null && !sink.linkedPathIds.isEmpty();
-        if (sink.kind == DataFlowSink.Kind.MESSAGING || sink.kind == DataFlowSink.Kind.EVENT_BUS) {
-            stats.messagingSinks++;
-            String destination = sink.topic != null ? sink.topic : sink.channel;
-            if (destination == null
-                    || destination.isBlank()
-                    || destination.contains("${")
-                    || "(unresolved)".equals(destination)) {
-                stats.unresolvedMessaging++;
-            }
-        }
-        if (sink.kind == DataFlowSink.Kind.PERSISTENCE && isWriteOperation(sink.repositoryOperation)) {
-            stats.persistenceWrites++;
-        }
-        if (sink.kind == DataFlowSink.Kind.PERSISTENCE && isReadOperation(sink.repositoryOperation)) {
-            stats.persistenceReads++;
-        }
-        return linked;
-    }
-
-    private boolean isWriteOperation(String method) {
-        if (method == null) return false;
-        return method.startsWith("save") || method.startsWith("delete");
-    }
-
-    private boolean isReadOperation(String method) {
-        if (method == null) return false;
-        return method.startsWith("find")
-                || method.startsWith("get")
-                || method.startsWith("read")
-                || method.startsWith("exists");
     }
 }

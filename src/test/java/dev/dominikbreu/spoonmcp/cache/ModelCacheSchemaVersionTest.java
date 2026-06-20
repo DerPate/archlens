@@ -12,38 +12,37 @@ import org.junit.jupiter.api.io.TempDir;
 class ModelCacheSchemaVersionTest {
 
     @Test
-    void persistsUnderVersionedFilename(@TempDir Path tempDir) throws Exception {
-        ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON);
+    void persistsUnderVersionedGraphSONFilename(@TempDir Path tempDir) throws Exception {
+        ModelCache cache = new ModelCache(tempDir.toString());
         ArchitectureModel model = new ArchitectureModel();
         model.workspacePath = "ws";
         cache.store(model);
 
         try (var paths = Files.walk(tempDir)) {
-            List<String> modelFiles = paths.map(p -> p.getFileName().toString())
-                    .filter(n -> n.startsWith("architecture-model") && n.endsWith(".json"))
+            List<String> graphFiles = paths.map(p -> p.getFileName().toString())
+                    .filter(n -> n.startsWith("architecture-graph") && n.endsWith(".graphson"))
                     .toList();
-            assertThat(modelFiles).containsExactly("architecture-model.v2.json");
+            assertThat(graphFiles).containsExactly("architecture-graph.v1.graphson");
         }
     }
 
     @Test
     void ignoresLegacyUnversionedModelFile(@TempDir Path tempDir) throws Exception {
-        ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON);
+        ModelCache cache = new ModelCache(tempDir.toString());
         ArchitectureModel model = new ArchitectureModel();
         model.workspacePath = "ws";
         cache.store(model);
 
-        // Simulate a pre-bump cache: rename the versioned model file back to the legacy name.
-        Path versioned;
+        // Simulate a pre-migration cache: rename the graph file to an unknown name.
+        Path graphFile;
         try (var paths = Files.walk(tempDir)) {
-            versioned = paths.filter(p ->
-                            "architecture-model.v2.json".equals(p.getFileName().toString()))
+            graphFile = paths.filter(p ->
+                            "architecture-graph.v1.graphson".equals(p.getFileName().toString()))
                     .findFirst()
                     .orElseThrow();
         }
-        Files.move(versioned, versioned.resolveSibling("architecture-model.json"));
+        Files.move(graphFile, graphFile.resolveSibling("architecture-graph.old.graphson"));
 
-        ArchitectureModel reloaded = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON).load();
-        assertThat(reloaded).isNull();
+        assertThat(new ModelCache(tempDir.toString()).graph().isIndexed()).isFalse();
     }
 }

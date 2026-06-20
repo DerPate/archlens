@@ -2,7 +2,7 @@ package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.MessagingBroker;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
@@ -19,8 +19,8 @@ class GraphExportJsonTest {
 
     @Test
     void keepsPipelineChainsAsProjectionsNotSnapshotNodes() throws Exception {
-        ArchitectureGraph.GraphSnapshot snapshot = new ArchitectureGraph.GraphSnapshot(
-                new ArchitectureGraph.GraphSnapshotMetadata(
+        GraphQuery.GraphSnapshot snapshot = new GraphQuery.GraphSnapshot(
+                new GraphQuery.GraphSnapshotMetadata(
                         9,
                         9,
                         9,
@@ -57,7 +57,7 @@ class GraphExportJsonTest {
                                 "REACHES",
                                 1)),
                 List.of(
-                        new ArchitectureGraph.ComponentNode(
+                        new GraphQuery.ComponentNode(
                                 GraphNodeId.of("example.CustomerController"),
                                 "CustomerController",
                                 ComponentType.REST_RESOURCE,
@@ -77,14 +77,18 @@ class GraphExportJsonTest {
                                 "entrypoint",
                                 0,
                                 0,
-                                true),
-                        new ArchitectureGraph.ContainerNode(
+                                true,
+                                "entrypoint",
+                                null,
+                                "boundary",
+                                "type:REST_RESOURCE,package:example,name:CustomerController"),
+                        new GraphQuery.ContainerNode(
                                 GraphNodeId.of("container:app:example:api"),
                                 "api",
                                 AppId.of("app:example"),
                                 "spring",
                                 "stereotype-convention"),
-                        new ArchitectureGraph.InterfaceNode(
+                        new GraphQuery.InterfaceNode(
                                 GraphNodeId.of("iface:example.CustomerController:rest_endpoint:PUT /customer/{id}"),
                                 "PUT /customer/{id}",
                                 "rest_endpoint",
@@ -96,7 +100,7 @@ class GraphExportJsonTest {
                                 null,
                                 null,
                                 null),
-                        new ArchitectureGraph.InterfaceNode(
+                        new GraphQuery.InterfaceNode(
                                 GraphNodeId.of("iface:example.CustomerEvents:messaging_producer:customers"),
                                 "customers",
                                 "messaging_producer",
@@ -108,12 +112,12 @@ class GraphExportJsonTest {
                                 "customers",
                                 null,
                                 null),
-                        new ArchitectureGraph.RuntimeFlowNode(
+                        new GraphQuery.RuntimeFlowNode(
                                 GraphNodeId.of("flow:example.CustomerController#update"),
                                 "flow:example.CustomerController#update",
                                 EntrypointId.deserialize("example.CustomerController#update:PUT:/customer/{id}"),
                                 1),
-                        new ArchitectureGraph.RuntimeFlowStepNode(
+                        new GraphQuery.RuntimeFlowStepNode(
                                 GraphNodeId.of("flow:example.CustomerController#update:step:0"),
                                 "CustomerController",
                                 "flow:example.CustomerController#update",
@@ -121,20 +125,20 @@ class GraphExportJsonTest {
                                 ComponentId.of("example.CustomerController"),
                                 "REST_RESOURCE",
                                 "PUT /customer/{id}"),
-                        new ArchitectureGraph.PipelineChainNode(
+                        new GraphQuery.PipelineChainNode(
                                 GraphNodeId.of("chain:1"),
                                 "chain:1",
                                 2,
                                 "example.CustomerController#update:PUT:/customer/{id}",
                                 List.of("messaging")),
-                        new ArchitectureGraph.DataFlowPathNode(
+                        new GraphQuery.DataFlowPathNode(
                                 GraphNodeId.of("customer#customer"),
                                 "customer#customer",
                                 EntrypointId.deserialize("example.CustomerController#update:PUT:/customer/{id}"),
                                 "customer",
                                 1,
                                 1),
-                        new ArchitectureGraph.DataFlowPathNode(
+                        new GraphQuery.DataFlowPathNode(
                                 GraphNodeId.of("address#event"),
                                 "address#event",
                                 EntrypointId.deserialize(
@@ -210,8 +214,8 @@ class GraphExportJsonTest {
                 .doesNotContain("\"label\" : \"VISITS\"");
     }
 
-    private static ArchitectureGraph.GraphEdge edge(
+    private static GraphQuery.GraphEdge edge(
             String fromId, String toId, String label, Map<String, Object> properties) {
-        return new ArchitectureGraph.GraphEdge(GraphNodeId.of(fromId), GraphNodeId.of(toId), label, properties);
+        return new GraphQuery.GraphEdge(GraphNodeId.of(fromId), GraphNodeId.of(toId), label, properties);
     }
 }

@@ -215,44 +215,19 @@ Example — system-level diagram:
 
 ---
 
-## `get_runtime_flow`
+## `call_flow`
 
-Return a reduced runtime path for an entry point by following the call graph.
+Return the runtime call flow for an entry point: ordered steps and a Mermaid `flowchart TD`.
 
-When `model.callEdges` is populated (after a full index), the tool performs a DFS over
-actual method-call edges starting from the entrypoint method — each step's `via` field
-reflects the real called-method name or HTTP method+path. When only injection data is
-available (older cached models), it falls back to BFS over dependency edges.
+When call-graph data is available (after a full `index_workspace`), the tool performs a
+DFS over actual method-call edges from the entrypoint method — each step’s `via` field
+shows the real called-method name or HTTP method+path. Without call-graph data it falls
+back to BFS over injection-dependency edges.
 
-Arguments:
-
-- `entrypointId` string, optional. Entrypoint ID from `find_entrypoints`.
-- `entrypointName` string, optional. Partial entrypoint name or HTTP path match. Prefix
-  with an HTTP verb to disambiguate same-path endpoints: `"GET /account"` selects the GET
-  handler, `"POST /account"` selects the POST handler.
-- `maxDepth` integer, optional. Default `5`.
-
-Example:
-
-```json
-{ "entrypointName": "createOrder" }
-```
-
-Example — disambiguate by HTTP verb:
-
-```json
-{ "entrypointName": "GET /account" }
-```
-
----
-
-## `render_call_flow`
-
-Render a Mermaid `flowchart TD` showing the execution path from an entry point through its
-call chain. Component shapes reflect architectural role:
+Component shapes reflect architectural role:
 
 | Shape | Mermaid syntax | Used for |
-|-------|---------------|---------|
+| --- | --- | --- |
 | Rectangle | `[Name]` | SERVICE, REST_RESOURCE, EJB, default |
 | Cylinder | `[(Name)]` | REPOSITORY — persistence store |
 | Parallelogram | `[/Name/]` | HTTP_CLIENT — external call |
@@ -265,10 +240,8 @@ Client shows the HTTP method+path or channel name. No return arrows — executio
 Arguments:
 
 - `entrypointId` string, optional. Entrypoint ID from `find_entrypoints`.
-- `entrypointName` string, optional. Entrypoint name or HTTP path (partial match). Prefix
-  with an HTTP verb to disambiguate same-path endpoints: `"GET /account"` selects the GET
-  handler, `"POST /account"` selects the POST handler.
-- `maxDepth` integer, optional. Default `5`.
+- `entrypointName` string, optional. Entrypoint path, name, or `'METHOD /path'`
+  (e.g. `'GET /account'`) for HTTP-method disambiguation.
 
 Example:
 
@@ -397,7 +370,7 @@ Sample output:
 Detected 4 use case(s):
 
 ## POST Create Order
-  id:           usecase:com.example.api.OrderResource#createOrder
+  id:           com.example.api.OrderResource#createOrder
   type:         REST_ENDPOINT
   channel/path: /orders
   components:   OrderResource, OrderService, OrderRepository
@@ -406,7 +379,7 @@ Detected 4 use case(s):
     - OrderService.create → OrderRepository.save
 
 ## Process order-events
-  id:           usecase:com.example.messaging.OrderConsumer#handle:msg-in:order-events
+  id:           com.example.messaging.OrderConsumer#handle:msg-in:order-events
   type:         MESSAGING_CONSUMER
   channel/path: order-events
   components:   OrderConsumer, OrderService
@@ -545,7 +518,7 @@ Sample output — REST entrypoints:
 3 data-flow path(s):
 
 ## POST /orders → param: order
-  id: df:com.example.api.OrderResource#createOrder#order
+  id: com.example.api.OrderResource#createOrder#order
   flow:
     1. OrderResource.createOrder (as 'order')
     2. OrderService.create (as 'dto')
@@ -555,7 +528,7 @@ Sample output — REST entrypoints:
     - [messaging] emitter.send  (OrderService.java:27)
 
 ## GET /orders/{id} → param: id
-  id: df:com.example.api.OrderResource#getOrder#id
+  id: com.example.api.OrderResource#getOrder#id
   flow:
     1. OrderResource.getOrder (as 'id')
     2. OrderService.find (as 'id')
@@ -569,7 +542,7 @@ Sample output — two-phase pipeline (`MESSAGING_CONSUMER` → cache → `SCHEDU
 2 data-flow path(s):
 
 ## handle (device-snapshots) → param: snapshot
-  id: df:com.example.DeviceConsumer#handle:msg-in:device-snapshots#snapshot
+  id: com.example.DeviceConsumer#handle:msg-in:device-snapshots#snapshot
   flow:
     1. DeviceConsumer.handle (as 'snapshot')
     2. StateCache.put (as 'snapshot')
@@ -577,7 +550,7 @@ Sample output — two-phase pipeline (`MESSAGING_CONSUMER` → cache → `SCHEDU
     - [store] stateCache  field owner: StateCache  (DeviceConsumer.java:42)
 
 ## processSnapshots → param: stateCache
-  id: df:com.example.scheduler.SnapshotProcessor#processSnapshots#stateCache
+  id: com.example.scheduler.SnapshotProcessor#processSnapshots#stateCache
   flow:
     1. SnapshotProcessor.processSnapshots (as 'stateCache')
     2. StateCalculator.calculate (as 'entry')
@@ -588,7 +561,7 @@ Sample output — two-phase pipeline (`MESSAGING_CONSUMER` → cache → `SCHEDU
 
 The matching field name (`stateCache`) in both paths identifies the shared state linking the
 two phases. The consumer's `store` sink also carries
-`linkedPathIds: ["df:com.example.scheduler.SnapshotProcessor#processSnapshots#stateCache"]`,
+`linkedPathIds: ["com.example.scheduler.SnapshotProcessor#processSnapshots#stateCache"]`,
 so agents can stitch the cross-phase pipeline without name matching.
 
 ---
@@ -596,7 +569,7 @@ so agents can stitch the cross-phase pipeline without name matching.
 ## `render_pipeline`
 
 Render an end-to-end Mermaid `flowchart TD` for a multi-phase pipeline by stitching
-multiple `DataFlowPath`s across entrypoint boundaries. Where `render_call_flow`
+multiple `DataFlowPath`s across entrypoint boundaries. Where `call_flow`
 shows the call chain rooted at a single entrypoint, and `trace_data_flow` produces
 textual per-path output, `render_pipeline` follows `DataFlowSink.linkedPathIds`
 through the shared workflow linker to produce one connected diagram per chain.
@@ -671,16 +644,6 @@ flowchart TD
 
 ---
 
-## `explain_architecture`
-
-Return an agent-friendly textual summary of the architecture model.
-
-Arguments:
-
-- `appId` string, optional. Partial app ID filter.
-
----
-
 ## `render_source_overview`
 
 Render a package-aware Mermaid source overview with component nodes and dependency edges.
@@ -721,11 +684,7 @@ Arguments: none.
 
 Query the indexed architecture model as a graph. The graph view includes applications,
 components, entrypoints, interfaces, containers, deployments, runtime flows, data-flow
-paths, data-flow sinks, and their relationships.
-
-Set `SPOON_MCP_CACHE_BACKEND=graph` or `-Dspoonmcp.cache.backend=graph` to eagerly
-maintain the graph projection during cache store/load. With the default JSON backend,
-the tool builds the same graph projection lazily from the cached model.
+paths, data-flow sinks, branch-aware data-flow topology nodes, and their relationships.
 
 Arguments:
 
@@ -741,10 +700,12 @@ Arguments:
 - `toId` string, optional. Required for `paths`.
 - `direction` string, optional. One of `in`, `out`, or `both` for `neighborhood`.
 - `maxDepth` integer, optional. Traversal depth for `paths` or `impacted_by`.
-- `limit` integer, optional. Maximum returned rows.
+- `limit` integer, optional. Maximum returned rows. For `find_nodes`, omitting
+  `limit` returns all matching nodes; pass `limit` to cap large result sets.
 - Common shorthand filters are also accepted as top-level args:
   `type`, `technology`, `module`, `packageName`, `entrypointReachable`,
-  `workflowRelevant`, `businessRelevant`, `infrastructureRole`, `isCrossModule`,
+  `workflowRelevant`, `businessRelevant`, `infrastructureRole`, `primaryRole`,
+  `supportRole`, `agentCategory`, `classificationEvidence`, `isCrossModule`,
   `isRuntimeRelevant`, and `isCondensable`.
 
 Useful graph properties include:
@@ -752,7 +713,11 @@ Useful graph properties include:
 - Component nodes: `componentType`, `qualifiedName`, `packageName`, `module`, `technology`,
   `sourceFile`, `sourceLine`, `confidence`, `fanIn`, `fanOut`, `entrypointReachable`,
   `architecturalWeight`, `workflowRelevant`, `businessRelevant`, `infrastructureRole`,
-  `noiseScore`, `workflowBridgeScore`. `architecturalWeight` is noise-aware: utility,
+  `noiseScore`, `workflowBridgeScore`, `primaryRole`, `supportRole`, `agentCategory`,
+  and `classificationEvidence`. Use `agentCategory=core-workflow` for first-pass
+  business flow discovery and `supportRole` when looking for supporting infrastructure
+  such as configuration, mappers, Redis locks, migration initializers, converters, or
+  tenant/security support. `architecturalWeight` is noise-aware: utility,
   formatter/parser/mapper/logger/config, DTO-ish, and unknown components are downranked
   even when their fan-in is high; workflow bridges, entrypoints, schedulers,
   repositories, outbound clients, and state handoffs are promoted. Self-only state
@@ -783,6 +748,16 @@ Useful graph properties include:
   `payloadType`, `entityType`, `repositoryOperation`, `linkEvidence`, and
   `calleeQualifiedName` (fully-qualified declaring type of the outbound callee, e.g.
   `java.nio.file.Files`; absent for non-outbound kinds).
+- DataFlowNode nodes (label `DataFlowNode`): branch-aware topology vertices inside a
+  `DataFlowPath`. Properties: `pathId`, `flowNodeId`, `nodeKind` (`root`, `method`,
+  `branch`, `sink`, etc.), `componentId`, `componentName`, `method`, `localName`,
+  `sourceFile`, `sourceLine`, `derivedFrom`, and `confidence`.
+- DataFlowBranch nodes (label `DataFlowBranch`): control-flow branch metadata inside a
+  `DataFlowPath`. Properties: `pathId`, `branchId`, `branchKind`, `sourceFile`,
+  `sourceLine`, `derivedFrom`, and `confidence`.
+- DataFlowBranchArm nodes (label `DataFlowBranchArm`): labelled branch arms such as
+  `then`, `else`, or `case:*`. Properties: `pathId`, `branchId`, `branchArmId`,
+  `label`, and `entryNodeId`.
 - RuntimeFlow and RuntimeFlowStep nodes (labels `RuntimeFlow`, `RuntimeFlowStep`):
   internal call-trace scaffolding generated from runtime-flow inference. They are
   queryable through `query_architecture_graph` and dedicated runtime-flow tools,
@@ -837,6 +812,14 @@ Edge labels:
   source-level behavior.
 - `ORIGINATES` — Entrypoint → DataFlowPath (carries `trackedParam`)
 - `REACHES` — DataFlowPath → DataFlowSink (carries `sinkKind`)
+- `HAS_FLOW_NODE` — DataFlowPath → DataFlowNode topology vertex (carries `nodeKind`)
+- `FLOW_EDGE` — DataFlowNode → DataFlowNode branch-aware topology edge. Carries
+  `edgeKind`, `branchId`, `branchArmId`, and `label`.
+- `HAS_BRANCH` — DataFlowPath → DataFlowBranch (carries `branchKind`)
+- `HAS_BRANCH_ARM` — DataFlowBranch → DataFlowBranchArm (carries `label`)
+- `ARM_STARTS_AT` — DataFlowBranchArm → DataFlowNode first reached by that branch arm
+- `REACHES_NODE` — DataFlowNode (`sink`) → DataFlowSink, bridging topology sink nodes
+  to classified sink metadata.
 - `ON_FIELD` — DataFlowSink (`store`) → Component (the field's declaring component;
   carries `fieldName`)
 - `AT_COMPONENT` — DataFlowSink (non-`store`) → Component (carries `method`)
@@ -934,8 +917,6 @@ Example — find every messaging entrypoint bound to an in-memory channel:
 ```json
 { "action": "find_nodes", "label": "Interface", "filters": { "broker": "IN_MEMORY" } }
 ```
-
----
 
 ## `export_architecture_docs`
 

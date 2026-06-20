@@ -45,7 +45,9 @@ class UntestedToolsCoverageTest {
 
     @Test
     void listApps_returnsApplications() {
-        assertOk(new ListAppsTool(cache).execute(Map.of()));
+        String result = new ListAppsTool(cache).execute(Map.of());
+        assertOk(result);
+        assertNoTypedIdNoise(result);
     }
 
     @Test
@@ -60,12 +62,9 @@ class UntestedToolsCoverageTest {
 
     @Test
     void inferContainers_runs() {
-        assertOk(new InferContainersTool(cache).execute(Map.of()));
-    }
-
-    @Test
-    void explainArchitecture_runs() {
-        assertOk(new ExplainArchitectureTool(cache).execute(Map.of()));
+        String result = new InferContainersTool(cache).execute(Map.of());
+        assertOk(result);
+        assertNoTypedIdNoise(result);
     }
 
     @Test
@@ -91,17 +90,11 @@ class UntestedToolsCoverageTest {
     }
 
     @Test
-    void getRuntimeFlow_byEntrypointId_runs() {
+    void callFlow_byEntrypointId_runs() {
         assertThat(entrypointId).isNotNull();
-        String result = new GetRuntimeFlowTool(cache).execute(Map.of("entrypointId", entrypointId));
+        String result = new CallFlowTool(cache).execute(Map.of("entrypointId", entrypointId));
         assertThat(result).doesNotStartWith("Error");
-    }
-
-    @Test
-    void renderCallFlow_byEntrypointId_runs() {
-        assertThat(entrypointId).isNotNull();
-        String result = new RenderCallFlowTool(cache).execute(Map.of("entrypointId", entrypointId));
-        assertThat(result).doesNotStartWith("Error");
+        assertNoTypedIdNoise(result);
     }
 
     @Test
@@ -144,10 +137,7 @@ class UntestedToolsCoverageTest {
         assertThat(new FindComponentsTool(empty).execute(Map.of())).contains("No workspace indexed");
         assertThat(new DetectUseCasesTool(empty).execute(Map.of())).contains("No workspace indexed");
         assertThat(new InferContainersTool(empty).execute(Map.of())).contains("No workspace indexed");
-        assertThat(new ExplainArchitectureTool(empty).execute(Map.of())).contains("No workspace indexed");
-        assertThat(new GetRuntimeFlowTool(empty).execute(Map.of("entrypointId", "x")))
-                .contains("No workspace indexed");
-        assertThat(new RenderCallFlowTool(empty).execute(Map.of("entrypointId", "x")))
+        assertThat(new CallFlowTool(empty).execute(Map.of("entrypointId", "x")))
                 .contains("No workspace indexed");
         assertThat(new RenderUseCaseTimelineTool(empty).execute(Map.of())).contains("No workspace indexed");
         assertThat(new RenderComponentDependencyDiagramTool(empty).execute(Map.of("componentId", "x")))
@@ -162,13 +152,18 @@ class UntestedToolsCoverageTest {
         assertThat(result).doesNotContain("No workspace indexed");
     }
 
+    private static void assertNoTypedIdNoise(String result) {
+        assertThat(result)
+                .doesNotContain("AppId[")
+                .doesNotContain("ComponentId[")
+                .doesNotContain("EntrypointId[")
+                .doesNotContain("DataFlowPathId[");
+    }
+
     private static ModelCache cacheReturning(ArchitectureModel m) {
-        return new ModelCache(null) {
-            @Override
-            public ArchitectureModel load() {
-                return m;
-            }
-        };
+        ModelCache cache = new ModelCache(null);
+        cache.indexInMemory(m);
+        return cache;
     }
 
     private static String projectPath(String name) {

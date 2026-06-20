@@ -2,7 +2,7 @@ package dev.dominikbreu.spoonmcp.extractor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.extractor.objectflow.ObjectFlowIndex;
 import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndex;
 import dev.dominikbreu.spoonmcp.extractor.sourcefacts.SourceFactIndexBuilder;
@@ -257,8 +257,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         traced.outboundSinkSites.addAll(model.outboundSinkSites);
         traced.dataFlowPaths.addAll(new DataFlowTracer().trace(traced));
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(traced);
+        GraphQuery graph = GraphQuery.from(traced);
 
         assertThat(graph.findEdges("STATE_HANDOFF", java.util.Map.of("fieldName", "cache"), 20))
                 .as("component graph must expose OrderBuffer.cache handoff to OrderForwarder")
@@ -517,6 +516,312 @@ class CallGraphExtractorTest extends ExtractorTestBase {
             assertThat(edge.toMethod).isEqualTo("sendKafkaEvent");
             assertThat(edge.resolvedLiteralArgs).containsEntry("topic", "orders.created");
         });
+    }
+
+    @Test
+    void callEdgesRecordIfThenAndElseBranches() {
+        ArchitectureModel fixture =
+                extractBranchFixture("IfBranchFixture.java", """
+                package example;
+                class BranchController {
+                    private final BranchService service = new BranchService();
+                    void handle(String value) {
+                        if (value == null) {
+                            service.reject(value);
+                        } else {
+                            service.accept(value);
+                        }
+                    }
+                }
+                class BranchService {
+                    void reject(String value) {
+                    }
+                    void accept(String value) {
+                    }
+                }
+                """, "example.BranchController", "example.BranchService");
+
+        CallEdge reject = edgeTo(fixture, "reject");
+        CallEdge accept = edgeTo(fixture, "accept");
+
+        assertThat(reject.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.IF_THEN);
+        assertThat(reject.branchLabel).isEqualTo("then");
+        assertThat(reject.branchGroupId).isNotBlank();
+        assertThat(reject.branchArmId).endsWith(":then");
+        assertThat(reject.controlSource.line).isPositive();
+        assertThat(accept.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.IF_ELSE);
+        assertThat(accept.branchLabel).isEqualTo("else");
+        assertThat(accept.branchGroupId).isEqualTo(reject.branchGroupId);
+        assertThat(accept.branchArmId).endsWith(":else");
+    }
+
+    @Test
+    void intraComponentCallEdgesRecordBranchMetadata() {
+        ArchitectureModel fixture =
+                extractBranchFixture("IntraComponentBranchFixture.java", """
+                package example;
+                class BranchController {
+                    void handle(String value) {
+                        if (value == null) {
+                            reject(value);
+                        } else {
+                            accept(value);
+                        }
+                    }
+                    private void reject(String value) {
+                    }
+                    private void accept(String value) {
+                    }
+                }
+                """, "example.BranchController");
+
+        CallEdge reject = edgeTo(fixture, "reject");
+        CallEdge accept = edgeTo(fixture, "accept");
+
+        assertThat(reject.fromComponentId).isEqualTo(reject.toComponentId);
+        assertThat(accept.fromComponentId).isEqualTo(accept.toComponentId);
+        assertThat(reject.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.IF_THEN);
+        assertThat(reject.branchLabel).isEqualTo("then");
+        assertThat(accept.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.IF_ELSE);
+        assertThat(accept.branchLabel).isEqualTo("else");
+        assertThat(accept.branchGroupId).isEqualTo(reject.branchGroupId);
+        assertThat(accept.branchArmId).isNotEqualTo(reject.branchArmId);
+    }
+
+    @Test
+    void callEdgesKeepSeparateArmsWhenBothBranchesCallSameMethod() {
+        ArchitectureModel fixture = extractBranchFixture(
+                "DuplicateBranchCallFixture.java", """
+                package example;
+                class BranchController {
+                    private final BranchService service = new BranchService();
+                    void handle(String value) {
+                        if (value == null) {
+                            service.process(value);
+                        } else {
+                            service.process(value);
+                        }
+                    }
+                }
+                class BranchService {
+                    void process(String value) {
+                    }
+                }
+                """, "example.BranchController", "example.BranchService");
+
+        List<CallEdge> processEdges = fixture.callEdges.stream()
+                .filter(edge -> "process".equals(edge.toMethod))
+                .toList();
+
+        assertThat(processEdges).hasSize(2);
+        assertThat(processEdges).extracting(edge -> edge.branchLabel).containsExactlyInAnyOrder("then", "else");
+        assertThat(processEdges)
+                .extracting(edge -> edge.branchGroupId)
+                .containsOnly(processEdges.getFirst().branchGroupId);
+        assertThat(processEdges).extracting(edge -> edge.branchArmId).doesNotHaveDuplicates();
+        assertThat(processEdges).extracting(edge -> edge.id).doesNotHaveDuplicates();
+    }
+
+    @Test
+    void callEdgesKeepSeparateSwitchCasesWhenSanitizedLabelsCollide() {
+        ArchitectureModel fixture = extractBranchFixture(
+                "SwitchCollisionBranchFixture.java", """
+                package example;
+                class BranchController {
+                    private final BranchService service = new BranchService();
+                    void handle(String status) {
+                        switch (status) {
+                            case "A B" -> service.process(status);
+                            case "A-B" -> service.process(status);
+                            default -> {
+                            }
+                        }
+                    }
+                }
+                class BranchService {
+                    void process(String status) {
+                    }
+                }
+                """, "example.BranchController", "example.BranchService");
+
+        List<CallEdge> processEdges = fixture.callEdges.stream()
+                .filter(edge -> "process".equals(edge.toMethod))
+                .toList();
+
+        assertThat(processEdges).hasSize(2);
+        assertThat(processEdges).extracting(edge -> edge.branchLabel).containsExactlyInAnyOrder("\"A B\"", "\"A-B\"");
+        assertThat(processEdges)
+                .extracting(edge -> edge.branchGroupId)
+                .containsOnly(processEdges.getFirst().branchGroupId);
+        assertThat(processEdges).extracting(edge -> edge.branchArmId).doesNotHaveDuplicates();
+        assertThat(processEdges).extracting(edge -> edge.id).doesNotHaveDuplicates();
+    }
+
+    @Test
+    void callEdgesRecordSwitchCaseAndDefaultBranches() {
+        ArchitectureModel fixture = extractBranchFixture(
+                "SwitchBranchFixture.java", """
+                package example;
+                class BranchController {
+                    private final BranchService service = new BranchService();
+                    void handle(String status) {
+                        switch (status) {
+                            case "ACTIVE" -> service.activate(status);
+                            default -> service.ignore(status);
+                        }
+                    }
+                }
+                class BranchService {
+                    void activate(String status) {
+                    }
+                    void ignore(String status) {
+                    }
+                }
+                """, "example.BranchController", "example.BranchService");
+
+        CallEdge activate = edgeTo(fixture, "activate");
+        CallEdge ignore = edgeTo(fixture, "ignore");
+
+        assertThat(activate.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.SWITCH_CASE);
+        assertThat(activate.branchLabel).contains("ACTIVE");
+        assertThat(ignore.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.SWITCH_DEFAULT);
+        assertThat(ignore.branchLabel).isEqualTo("default");
+        assertThat(ignore.branchGroupId).isEqualTo(activate.branchGroupId);
+    }
+
+    @Test
+    void callEdgesRecordSwitchExpressionBranches() {
+        ArchitectureModel fixture = extractBranchFixture(
+                "SwitchExpressionBranchFixture.java", """
+                package example;
+                class BranchController {
+                    private final BranchService service = new BranchService();
+                    String handle(String status) {
+                        return switch (status) {
+                            case "ACTIVE" -> service.activate(status);
+                            default -> service.ignore(status);
+                        };
+                    }
+                }
+                class BranchService {
+                    String activate(String status) {
+                        return status;
+                    }
+                    String ignore(String status) {
+                        return status;
+                    }
+                }
+                """, "example.BranchController", "example.BranchService");
+
+        CallEdge activate = edgeTo(fixture, "activate");
+        CallEdge ignore = edgeTo(fixture, "ignore");
+
+        assertThat(activate.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.SWITCH_CASE);
+        assertThat(activate.branchLabel).contains("ACTIVE");
+        assertThat(ignore.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.SWITCH_DEFAULT);
+        assertThat(ignore.branchLabel).isEqualTo("default");
+        assertThat(ignore.branchGroupId).isEqualTo(activate.branchGroupId);
+        assertThat(ignore.branchArmId).isNotEqualTo(activate.branchArmId);
+    }
+
+    @Test
+    void callEdgesRecordTernaryBranches() {
+        ArchitectureModel fixture = extractBranchFixture(
+                "TernaryBranchFixture.java", """
+                package example;
+                class BranchController {
+                    private final BranchService service = new BranchService();
+                    String handle(String value, boolean valid) {
+                        return valid ? service.accept(value) : service.reject(value);
+                    }
+                }
+                class BranchService {
+                    String accept(String value) {
+                        return value;
+                    }
+                    String reject(String value) {
+                        return value;
+                    }
+                }
+                """, "example.BranchController", "example.BranchService");
+
+        CallEdge accept = edgeTo(fixture, "accept");
+        CallEdge reject = edgeTo(fixture, "reject");
+
+        assertThat(accept.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.TERNARY_THEN);
+        assertThat(accept.branchLabel).isEqualTo("then");
+        assertThat(reject.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.TERNARY_ELSE);
+        assertThat(reject.branchLabel).isEqualTo("else");
+        assertThat(reject.branchGroupId).isEqualTo(accept.branchGroupId);
+    }
+
+    @Test
+    void callEdgesRecordCatchAndFinallyBranches() {
+        ArchitectureModel fixture =
+                extractBranchFixture("TryBranchFixture.java", """
+                package example;
+                class BranchController {
+                    private final BranchService service = new BranchService();
+                    void handle(String value) {
+                        try {
+                            service.work(value);
+                        } catch (RuntimeException ex) {
+                            service.recover(value);
+                        } finally {
+                            service.cleanup(value);
+                        }
+                    }
+                }
+                class BranchService {
+                    void work(String value) {
+                    }
+                    void recover(String value) {
+                    }
+                    void cleanup(String value) {
+                    }
+                }
+                """, "example.BranchController", "example.BranchService");
+
+        CallEdge work = edgeTo(fixture, "work");
+        CallEdge recover = edgeTo(fixture, "recover");
+        CallEdge cleanup = edgeTo(fixture, "cleanup");
+
+        assertThat(work.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.UNCONDITIONAL);
+        assertThat(recover.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.CATCH);
+        assertThat(recover.branchLabel).contains("RuntimeException");
+        assertThat(cleanup.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.FINALLY);
+        assertThat(cleanup.branchLabel).isEqualTo("finally");
+        assertThat(cleanup.branchGroupId).isEqualTo(recover.branchGroupId);
+        assertThat(recover.branchGroupId).contains(":try:");
+        assertThat(recover.branchArmId).contains(":catch:");
+        assertThat(cleanup.branchArmId).endsWith(":finally");
+        assertThat(cleanup.controlSource.file).isEqualTo(recover.controlSource.file);
+        assertThat(cleanup.controlSource.line).isGreaterThan(recover.controlSource.line);
+    }
+
+    private static CallEdge edgeTo(ArchitectureModel model, String toMethod) {
+        return model.callEdges.stream()
+                .filter(edge -> toMethod.equals(edge.toMethod))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private static ArchitectureModel extractBranchFixture(String fileName, String source, String... componentNames) {
+        Launcher launcher = new Launcher();
+        launcher.getEnvironment().setNoClasspath(true);
+        launcher.getEnvironment().setComplianceLevel(21);
+        launcher.getEnvironment().setShouldCompile(false);
+        launcher.addInputResource(new VirtualFile(source, fileName));
+        launcher.buildModel();
+
+        ArchitectureModel fixture = new ArchitectureModel("test");
+        for (String componentName : componentNames) {
+            fixture.components.add(component(componentName));
+        }
+        new CallGraphExtractor(new dev.dominikbreu.spoonmcp.extractor.objectflow.ObjectFlowIndexBuilder()
+                        .build(launcher.getModel(), fixture))
+                .extract(launcher.getModel(), fixture);
+        return fixture;
     }
 
     private static Component component(String qualifiedName) {

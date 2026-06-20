@@ -1,9 +1,8 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
-import dev.dominikbreu.spoonmcp.model.AppEntry;
-import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -13,51 +12,33 @@ public class ListAppsTool {
 
     private final ModelCache cache;
 
-    /**
-     * Creates the tool with the shared model cache.
-     *
-     * @param cache model cache used by prior indexing
-     */
     public ListAppsTool(ModelCache cache) {
         this.cache = cache;
     }
 
-    /**
-     * Executes application listing.
-     *
-     * @param args unused JSON arguments
-     * @return formatted application list or an error message
-     */
     public String execute(Map<String, Object> args) {
         try {
-            ToolModelIndex index = cache.index();
-            ArchitectureModel model = index.rawModel();
-            if (model == null) return "No workspace indexed yet. Call index_workspace first.";
+            GraphQuery graph = cache.graph();
+            if (graph.isEmpty()) return "No workspace indexed yet. Call index_workspace first.";
 
-            if (index.allApps().isEmpty()) return "No applications found in the indexed workspace.";
+            List<GraphQuery.GraphNode> apps = graph.allApps();
+            if (apps.isEmpty()) return "No applications found in the indexed workspace.";
 
             StringBuilder sb = new StringBuilder();
-            sb.append("Applications (").append(index.allApps().size()).append("):\n\n");
-            for (AppEntry app : index.allApps()) {
-                sb.append("- ")
-                        .append(app.name)
-                        .append("\n  id:          ")
-                        .append(app.id)
-                        .append("\n  technology:  ")
-                        .append(app.technology)
-                        .append("\n  packaging:   ")
-                        .append(app.packagingType)
-                        .append("\n  root:        ")
-                        .append(app.rootPath)
-                        .append("\n  components:  ")
-                        .append(app.componentIds.size())
+            sb.append("Applications (").append(apps.size()).append("):\n\n");
+            for (GraphQuery.GraphNode node : apps) {
+                if (!(node instanceof GraphQuery.ApplicationNode an)) continue;
+                sb.append("- ").append(an.name())
+                        .append("\n  id:          ").append(an.id().serialize())
+                        .append("\n  technology:  ").append(an.technology())
+                        .append("\n  packaging:   ").append(an.packagingType())
+                        .append("\n  root:        ").append(an.rootPath())
                         .append("\n\n");
             }
-            sb.append("Total components: ").append(model.components.size()).append("\n");
-            sb.append("Total entrypoints: ").append(model.entrypoints.size()).append("\n");
-            sb.append("Total interfaces: ").append(model.interfaces.size()).append("\n");
-            sb.append("Total dependencies: ").append(model.dependencies.size()).append("\n");
-            sb.append("Total runtime flows: ").append(model.runtimeFlows.size()).append("\n");
+            sb.append("Total components:    ").append(graph.countByLabel("Component")).append("\n");
+            sb.append("Total entrypoints:   ").append(graph.countByLabel("Entrypoint")).append("\n");
+            sb.append("Total interfaces:    ").append(graph.countByLabel("Interface")).append("\n");
+            sb.append("Total runtime flows: ").append(graph.countByLabel("RuntimeFlow")).append("\n");
             return sb.toString();
         } catch (Exception e) {
             return "Error listing apps: " + e.getMessage();

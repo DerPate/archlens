@@ -7,6 +7,10 @@ import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.CallEdge;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
+import dev.dominikbreu.spoonmcp.model.DataFlowBranch;
+import dev.dominikbreu.spoonmcp.model.DataFlowBranchArm;
+import dev.dominikbreu.spoonmcp.model.DataFlowEdge;
+import dev.dominikbreu.spoonmcp.model.DataFlowNode;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Dependency;
@@ -34,10 +38,9 @@ class ArchitectureGraphTest {
 
     @Test
     void projectsArchitectureModelToQueryableGraph() {
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model());
+        GraphQuery graph = buildGraph(model());
 
-        ArchitectureGraph.GraphSummary summary = graph.summary();
+        GraphQuery.GraphSummary summary = graph.summary();
 
         assertThat(summary.labels()).containsEntry("Application", 1);
         assertThat(summary.labels()).containsEntry("Component", 2);
@@ -61,10 +64,9 @@ class ArchitectureGraphTest {
         dependency.confidence = 0.9;
         model.dependencies.add(dependency);
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = buildGraph(model);
 
-        ArchitectureGraph.GraphSnapshot snapshot = graph.snapshot(5000);
+        GraphQuery.GraphSnapshot snapshot = graph.snapshot(5000);
 
         assertThat(snapshot.metadata().nodeCount()).isEqualTo(2);
         assertThat(snapshot.metadata().edgeCount()).isEqualTo(1);
@@ -83,11 +85,10 @@ class ArchitectureGraphTest {
 
     @Test
     void findsNodesAndPaths() {
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model());
+        GraphQuery graph = buildGraph(model());
 
-        List<ArchitectureGraph.GraphNode> nodes = graph.findNodes("Component", "OrderService", Map.of(), 10);
-        List<ArchitectureGraph.GraphPath> paths =
+        List<GraphQuery.GraphNode> nodes = graph.findNodes("Component", "OrderService", Map.of(), 10);
+        List<GraphQuery.GraphPath> paths =
                 graph.paths(GraphNodeId.of("orders#"), GraphNodeId.of("OrderRepository"), 3, 10);
 
         assertThat(nodes).extracting(node -> node.id().serialize()).containsExactlyInAnyOrder("OrderService");
@@ -100,28 +101,26 @@ class ArchitectureGraphTest {
 
     @Test
     void findsIncomingImpact() {
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model());
+        GraphQuery graph = buildGraph(model());
 
-        List<ArchitectureGraph.GraphNode> impacted = graph.impactedBy(GraphNodeId.of("OrderRepository"), 3, 10);
+        List<GraphQuery.GraphNode> impacted = graph.impactedBy(GraphNodeId.of("OrderRepository"), 3, 10);
 
         assertThat(impacted).extracting(node -> node.id().serialize()).contains("OrderService", "orders#");
     }
 
     @Test
     void exposesDerivedMetadataAndFilters() {
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model());
+        GraphQuery graph = buildGraph(model());
 
-        List<ArchitectureGraph.GraphNode> reachableServices = graph.findNodes(
+        List<GraphQuery.GraphNode> reachableServices = graph.findNodes(
                 "Component", null, Map.of("entrypointReachable", "true", "packageName", "com.example"), 10);
-        List<ArchitectureGraph.GraphEdge> strongDependencies =
+        List<GraphQuery.GraphEdge> strongDependencies =
                 graph.findEdges("DEPENDS_ON", Map.of("confidence", ">=0.8", "isRuntimeRelevant", "true"), 10);
 
         assertThat(reachableServices)
                 .extracting(node -> node.id().serialize())
                 .contains("OrderService", "OrderRepository");
-        ArchitectureGraph.GraphNode serviceNode = reachableServices.stream()
+        GraphQuery.GraphNode serviceNode = reachableServices.stream()
                 .filter(node -> "OrderService".equals(node.id().serialize()))
                 .findFirst()
                 .orElseThrow();
@@ -132,6 +131,32 @@ class ArchitectureGraphTest {
         assertThat(strongDependencies.getFirst().properties())
                 .containsEntry("kind", "injection")
                 .containsEntry("isCrossModule", false);
+    }
+
+    @Test
+    void projectsAgentClassificationMetadataAndFilters() {
+        ArchitectureModel model = model();
+        Component redisLock = new Component();
+        redisLock.id = ComponentId.of("RedisLock");
+        redisLock.name = "OwnerAwareRedisLockRegistry";
+        redisLock.qualifiedName = "de.homeinstead.phoenix.redis.OwnerAwareRedisLockRegistry";
+        redisLock.type = ComponentType.SERVICE;
+        model.components.add(redisLock);
+
+        GraphQuery graph = buildGraph(model);
+
+        GraphQuery.GraphNode lock = graph.findNodes("Component", "OwnerAwareRedisLockRegistry", Map.of(), 10)
+                .getFirst();
+
+        assertThat(lock.properties())
+                .containsEntry("primaryRole", "support")
+                .containsEntry("supportRole", "redis-lock")
+                .containsEntry("agentCategory", "supporting-infrastructure");
+        assertThat((String) lock.properties().get("classificationEvidence"))
+                .contains("package:redis", "name:OwnerAwareRedisLockRegistry");
+        assertThat(graph.findNodes("Component", null, Map.of("agentCategory", "supporting-infrastructure"), 10))
+                .extracting(node -> node.id().serialize())
+                .contains("RedisLock");
     }
 
     @Test
@@ -162,12 +187,11 @@ class ArchitectureGraphTest {
             model.dependencies.add(dependency);
         }
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = buildGraph(model);
 
-        ArchitectureGraph.GraphNode service =
+        GraphQuery.GraphNode service =
                 graph.findNodes("Component", "OrderService", Map.of(), 10).getFirst();
-        ArchitectureGraph.GraphNode utility =
+        GraphQuery.GraphNode utility =
                 graph.findNodes("Component", "TimestampFormatter", Map.of(), 10).getFirst();
 
         assertThat(utility.properties())
@@ -190,12 +214,11 @@ class ArchitectureGraphTest {
                     FieldAccess.Kind.READ, "ArchitectureGraph", "method" + i, "ArchitectureGraph", "verticesById"));
         }
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = buildGraph(model);
 
-        ArchitectureGraph.GraphNode service =
+        GraphQuery.GraphNode service =
                 graph.findNodes("Component", "OrderService", Map.of(), 10).getFirst();
-        ArchitectureGraph.GraphNode internals =
+        GraphQuery.GraphNode internals =
                 graph.findNodes("Component", "ArchitectureGraph", Map.of(), 10).getFirst();
 
         assertThat(internals.properties())
@@ -224,8 +247,7 @@ class ArchitectureGraphTest {
         edge.receiverConfidence = 0.90;
         model.callEdges.add(edge);
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = buildGraph(model);
 
         assertThat(graph.findEdges("CALLS", java.util.Map.of("receiverEvidence", "constructor-assignment"), 10))
                 .anySatisfy(graphEdge -> {
@@ -245,8 +267,7 @@ class ArchitectureGraphTest {
         model.fieldAccesses.add(write);
         model.fieldAccesses.add(read);
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = buildGraph(model);
 
         assertThat(graph.findEdges("WRITES_STATE", Map.of("fieldName", "snapshots"), 10))
                 .anyMatch(edge -> "OrderService".equals(edge.fromId().serialize())
@@ -259,7 +280,7 @@ class ArchitectureGraphTest {
                         && "StatePublisher".equals(edge.toId().serialize())
                         && "0.8".equals(edge.properties().get("confidence").toString()));
 
-        ArchitectureGraph.GraphNode publisher =
+        GraphQuery.GraphNode publisher =
                 graph.findNodes("Component", "StatePublisher", Map.of(), 10).getFirst();
         assertThat(publisher.properties())
                 .containsEntry("workflowRelevant", true)
@@ -310,8 +331,7 @@ class ArchitectureGraphTest {
         producerPath.sinks.add(msgSink);
         model.dataFlowPaths.add(producerPath);
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = buildGraph(model);
 
         assertThat(graph.summary().labels()).containsEntry("DataFlowPath", 2);
         assertThat(graph.summary().labels()).containsEntry("DataFlowSink", 2);
@@ -321,7 +341,7 @@ class ArchitectureGraphTest {
         assertThat(graph.summary().edges()).containsEntry("WORKFLOW_LINK", 1);
         assertThat(graph.summary().edges()).containsEntry("ON_FIELD", 1);
 
-        List<ArchitectureGraph.GraphEdge> linkEdges = graph.findEdges("LINKS_TO", Map.of(), 10);
+        List<GraphQuery.GraphEdge> linkEdges = graph.findEdges("LINKS_TO", Map.of(), 10);
         assertThat(linkEdges).hasSize(1);
         assertThat(linkEdges.getFirst().toId().serialize()).isEqualTo(producerPathId.serialize());
         assertThat(linkEdges.getFirst().properties())
@@ -375,11 +395,10 @@ class ArchitectureGraphTest {
         consumerPath.trackedParam = "entry";
         model.dataFlowPaths.add(consumerPath);
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = buildGraph(model);
 
         // 1. MESSAGING LINKS_TO edge with viaChannel + linkKind
-        List<ArchitectureGraph.GraphEdge> linkEdges = graph.findEdges("LINKS_TO", Map.of(), 10);
+        List<GraphQuery.GraphEdge> linkEdges = graph.findEdges("LINKS_TO", Map.of(), 10);
         assertThat(linkEdges)
                 .anyMatch(e -> consumerPathId2.serialize().equals(e.toId().serialize())
                         && "messaging".equals(e.properties().get("linkKind"))
@@ -390,7 +409,7 @@ class ArchitectureGraphTest {
 
         // 2. PipelineChain node materialised with segmentCount and rootEntrypointId
         assertThat(graph.summary().labels()).containsEntry("PipelineChain", 1);
-        List<ArchitectureGraph.GraphNode> chains = graph.findNodes("PipelineChain", null, Map.of(), 10);
+        List<GraphQuery.GraphNode> chains = graph.findNodes("PipelineChain", null, Map.of(), 10);
         assertThat(chains).hasSize(1);
         assertThat(chains.getFirst().properties())
                 .containsEntry("segmentCount", 2)
@@ -399,7 +418,7 @@ class ArchitectureGraphTest {
                 .containsEntry("linkKinds", "messaging");
 
         // 3. HAS_SEGMENT edges in order, with linkKind/viaChannel on the bridging segment
-        List<ArchitectureGraph.GraphEdge> segEdges = graph.findEdges("HAS_SEGMENT", Map.of(), 10);
+        List<GraphQuery.GraphEdge> segEdges = graph.findEdges("HAS_SEGMENT", Map.of(), 10);
         assertThat(segEdges).hasSize(2);
         assertThat(segEdges)
                 .anyMatch(e -> producerPathId2.serialize().equals(e.toId().serialize())
@@ -436,10 +455,9 @@ class ArchitectureGraphTest {
         path.sinks.add(sink);
         model.dataFlowPaths.add(path);
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = buildGraph(model);
 
-        List<ArchitectureGraph.GraphNode> sinks =
+        List<GraphQuery.GraphNode> sinks =
                 graph.findNodes("DataFlowSink", null, Map.of("sinkKind", "messaging"), 10);
 
         assertThat(sinks).hasSize(1);
@@ -467,10 +485,9 @@ class ArchitectureGraphTest {
         entry.topic = "orders.created";
         model.interfaces.add(entry);
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = buildGraph(model);
 
-        List<ArchitectureGraph.GraphNode> nodes =
+        List<GraphQuery.GraphNode> nodes =
                 graph.findNodes("Interface", null, Map.of("interfaceType", "messaging_producer"), 10);
 
         assertThat(nodes).hasSize(1);
@@ -504,8 +521,7 @@ class ArchitectureGraphTest {
         dependency.confidence = 0.9;
         model.dependencies.add(dependency);
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = buildGraph(model);
 
         assertThat(graph.findNodes("ExternalSystem", null, Map.of("technology", "kafka"), 10))
                 .anySatisfy(node -> assertThat(node.properties())
@@ -534,8 +550,7 @@ class ArchitectureGraphTest {
         ep.parameters.add("key");
         model.entrypoints.add(ep);
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = buildGraph(model);
 
         assertThat(graph.findNodes("Entrypoint", null, Map.of("entrypointType", "MESSAGING_CONSUMER"), 10))
                 .anySatisfy(node -> assertThat(node.properties())
@@ -560,14 +575,61 @@ class ArchitectureGraphTest {
         path.sinks.add(sink);
         model.dataFlowPaths.add(path);
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = buildGraph(model);
 
         assertThat(graph.findNodes("DataFlowSink", null, Map.of("sinkKind", "persistence"), 10))
                 .anySatisfy(node -> assertThat(node.properties())
                         .containsEntry("entityType", "com.example.Order")
                         .containsEntry("repositoryOperation", "save")
                         .containsEntry("linkEvidence", "repository-call"));
+    }
+
+    @Test
+    void projectsDataFlowBranchTopology() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        DataFlowPath path = new DataFlowPath();
+        path.id = DataFlowPathId.of(EntrypointId.deserialize("create"), "order");
+        path.entrypointId = EntrypointId.deserialize("create");
+        path.trackedParam = "order";
+        path.flowNodes.add(
+                new DataFlowNode("n0", DataFlowNode.Kind.ROOT, ComponentId.of("Api"), "Api", "create", "order", null));
+        path.flowNodes.add(new DataFlowNode(
+                "n1", DataFlowNode.Kind.METHOD, ComponentId.of("Svc"), "Svc", "accept", "order", null));
+        path.flowNodes.add(new DataFlowNode(
+                "n2", DataFlowNode.Kind.METHOD, ComponentId.of("Svc"), "Svc", "reject", "order", null));
+        path.flowNodes.add(
+                new DataFlowNode("n3", DataFlowNode.Kind.SINK, ComponentId.of("Repo"), "Repo", "save", null, null));
+        path.flowEdges.add(new DataFlowEdge("n0", "n1", DataFlowEdge.Kind.CONDITIONAL, "b0", "b0:then", "then"));
+        path.flowEdges.add(new DataFlowEdge("n0", "n2", DataFlowEdge.Kind.CONDITIONAL, "b0", "b0:else", "else"));
+        path.flowEdges.add(new DataFlowEdge("n1", "n3", DataFlowEdge.Kind.UNCONDITIONAL, null, null, "save"));
+        path.branches.add(new DataFlowBranch(
+                "b0",
+                DataFlowBranch.Kind.IF,
+                new SourceInfo("Api.java", 10, "control-flow", 0.95),
+                List.of(
+                        new DataFlowBranchArm("b0:then", "b0", "then", "n1"),
+                        new DataFlowBranchArm("b0:else", "b0", "else", "n2"))));
+        DataFlowSink sink =
+                new DataFlowSink(DataFlowSink.Kind.PERSISTENCE, ComponentId.of("Repo"), "Repo", "save", null);
+        path.sinks.add(sink);
+        model.dataFlowPaths.add(path);
+
+        GraphQuery graph = buildGraph(model);
+
+        assertThat(graph.summary().labels())
+                .containsEntry("DataFlowNode", 4)
+                .containsEntry("DataFlowBranch", 1)
+                .containsEntry("DataFlowBranchArm", 2);
+        assertThat(graph.summary().edges())
+                .containsEntry("HAS_FLOW_NODE", 4)
+                .containsEntry("FLOW_EDGE", 3)
+                .containsEntry("HAS_BRANCH", 1)
+                .containsEntry("HAS_BRANCH_ARM", 2)
+                .containsEntry("ARM_STARTS_AT", 2)
+                .containsEntry("REACHES_NODE", 1);
+        assertThat(graph.findNodes("DataFlowBranchArm", null, Map.of("label", "then"), 10))
+                .singleElement()
+                .satisfies(node -> assertThat(node.properties()).containsEntry("entryNodeId", "n1"));
     }
 
     @Test
@@ -589,8 +651,7 @@ class ArchitectureGraphTest {
         edge.killedTrackedNames.add("request");
         model.callEdges.add(edge);
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = buildGraph(model);
 
         assertThat(graph.findEdges("CALLS", Map.of("fromMethod", "create"), 10))
                 .anySatisfy(call -> assertThat(call.properties())
@@ -715,8 +776,7 @@ class ArchitectureGraphTest {
         readCall.toMethod = "getAllDevices";
         model.callEdges.add(readCall);
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = buildGraph(model);
 
         assertThat(graph.findEdges("STATE_HANDOFF", Map.of(), 10))
                 .anyMatch(edge -> "MqttConsumer".equals(edge.fromId().serialize())
@@ -752,8 +812,7 @@ class ArchitectureGraphTest {
         model.entrypoints.add(entrypoint("writer", EntrypointType.REST_ENDPOINT));
         model.entrypoints.add(entrypoint("reader", EntrypointType.SCHEDULER));
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = buildGraph(model);
 
         assertThat(graph.findEdges("WORKFLOW_LINK", Map.of("kind", "PERSISTENCE_HANDOFF"), 10))
                 .anySatisfy(edge -> {
@@ -779,10 +838,9 @@ class ArchitectureGraphTest {
         path.sinks.add(sink);
         model.dataFlowPaths.add(path);
 
-        ArchitectureGraph graph = new ArchitectureGraph();
-        graph.rebuild(model);
+        GraphQuery graph = buildGraph(model);
 
-        List<ArchitectureGraph.GraphNode> sinkNodes =
+        List<GraphQuery.GraphNode> sinkNodes =
                 graph.findNodes("DataFlowSink", null, Map.of("calleeQualifiedName", "java.nio.file.Files"), 10);
         assertThat(sinkNodes).hasSize(1);
         assertThat(sinkNodes.getFirst().properties())
@@ -805,5 +863,9 @@ class ArchitectureGraphTest {
         component.name = name;
         component.type = type;
         return component;
+    }
+
+    private static GraphQuery buildGraph(ArchitectureModel model) {
+        return GraphQuery.from(model);
     }
 }
