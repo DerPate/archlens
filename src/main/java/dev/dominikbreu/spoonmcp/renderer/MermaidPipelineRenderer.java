@@ -7,11 +7,14 @@ import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.DataFlowStep;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
+import dev.dominikbreu.spoonmcp.model.ids.GraphNodeId;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Renders a single pipeline {@link Chain} as a Mermaid {@code flowchart TD}.
@@ -24,6 +27,7 @@ import java.util.Set;
 public class MermaidPipelineRenderer {
 
     private static final String EDGE_LABEL_OPEN = " -->|";
+    private static final String CONDITIONAL_EDGE_LABEL_OPEN = " -.->|";
     private static final String STORE = "store";
 
     /** Creates a renderer with default styling. */
@@ -140,12 +144,17 @@ public class MermaidPipelineRenderer {
 
     private String renderSteps(RenderState st, Segment seg, int segIdx, String headerNodeId,
             GraphQuery graph, Map<String, String> callerNodeIds) {
-        String previousNodeInSeg = headerNodeId;
-        // Track last rendered component to collapse intra-component step chains.
+        List<GraphQuery.DataFlowNodeNode> topoNodes =
+                graph.pathFlowNodes(GraphNodeId.of(seg.path.id.serialize()));
+        if (!topoNodes.isEmpty()) {
+            return renderStepsFromTopology(st, seg, segIdx, headerNodeId, graph, callerNodeIds, topoNodes);
+        }
+        // Fallback: flat steps list (paths without topology data).
         // Also deduplicate DFS back-tracking artifacts: DataFlowTracer records every visited
         // node including dead-end conditional branches, so the same component+method can
         // appear multiple times non-consecutively. Key = compId#method to allow different
         // methods on the same class (e.g. ingest vs processNonNullValue) to be distinct.
+        String previousNodeInSeg = headerNodeId;
         String prevComponentKey = seg.path.steps.isEmpty() ? null : compKey(seg.path.steps.getFirst());
         Set<String> renderedStepKeys = new HashSet<>();
         if (!seg.path.steps.isEmpty()) {
@@ -156,9 +165,7 @@ public class MermaidPipelineRenderer {
         for (int i = 1; i < seg.path.steps.size(); i++) {
             DataFlowStep step = seg.path.steps.get(i);
             String stepKey = compKey(step);
-            // Skip steps that stay within the same component (private/helper method calls).
             if (stepKey != null && stepKey.equals(prevComponentKey)) continue;
-            // Skip exact (component+method) revisits — DFS backtracking artifact.
             String dedupKey = stepKey + "#" + step.method;
             if (!renderedStepKeys.add(dedupKey)) continue;
             String nodeId = "S" + segIdx + "_" + i;
@@ -187,6 +194,70 @@ public class MermaidPipelineRenderer {
             if (step.componentId != null) callerNodeIds.put(step.componentId.serialize(), nodeId);
         }
         return previousNodeInSeg;
+    }
+
+    private String renderStepsFromTopology(
+            RenderState st, Segment seg, int segIdx, String headerNodeId,
+            GraphQuery graph, Map<String, String> callerNodeIds,
+            List<GraphQuery.DataFlowNodeNode> nodes) {
+        List<GraphQuery.GraphEdge> edges =
+                graph.pathFlowEdges(GraphNodeId.of(seg.path.id.serialize()));
+
+        Map<GraphNodeId, String> nodeIdMap = new HashMap<>();
+        String lastMethodNodeId = headerNodeId;
+
+        for (GraphQuery.DataFlowNodeNode dn : nodes) {
+            switch (dn.nodeKind()) {
+                case "root" -> {
+                    nodeIdMap.put(dn.id(), headerNodeId);
+                    if (dn.componentId() != null)
+                        callerNodeIds.put(dn.componentId().serialize(), headerNodeId);
+                }
+                case "method" -> {
+                    String mermaidId = "S" + segIdx + "_N" + dn.nodeOrder();
+                    nodeIdMap.put(dn.id(), mermaidId);
+                    GraphQuery.ComponentNode compNode = null;
+                    if (dn.componentId() != null) {
+                        GraphQuery.GraphNode n = graph.component(dn.componentId());
+                        if (n instanceof GraphQuery.ComponentNode cn) compNode = cn;
+                    }
+                    ComponentType type = compNode != null ? compNode.type() : null;
+                    String label = (dn.componentName() != null ? dn.componentName() : "?")
+                            + (dn.method() != null ? "." + dn.method() : "");
+                    st.nodes.append("    ").append(mermaidId)
+                            .append(nodeShape(label, type)).append("\n");
+                    if (dn.componentId() != null)
+                        callerNodeIds.put(dn.componentId().serialize(), mermaidId);
+                    lastMethodNodeId = mermaidId;
+                }
+                // "sink" nodes: skip — handled by renderTerminalSinks
+            }
+        }
+
+        Set<GraphNodeId> sinkNodeIds = nodes.stream()
+                .filter(n -> "sink".equals(n.nodeKind()))
+                .map(GraphQuery.DataFlowNodeNode::id)
+                .collect(Collectors.toSet());
+
+        for (GraphQuery.GraphEdge edge : edges) {
+            if (sinkNodeIds.contains(edge.toId())) continue;
+            String fromMermaid = nodeIdMap.get(edge.fromId());
+            String toMermaid = nodeIdMap.get(edge.toId());
+            if (fromMermaid == null || toMermaid == null) continue;
+
+            String edgeKind = (String) edge.properties().get("edgeKind");
+            String edgeLabel = (String) edge.properties().get("label");
+            boolean conditional = "conditional".equals(edgeKind);
+            String labelStr = edgeLabel != null && !edgeLabel.isBlank() ? edgeLabel : "";
+
+            st.edges.append("    ").append(fromMermaid)
+                    .append(conditional ? CONDITIONAL_EDGE_LABEL_OPEN : EDGE_LABEL_OPEN)
+                    .append(escape(labelStr))
+                    .append("| ")
+                    .append(toMermaid).append("\n");
+        }
+
+        return lastMethodNodeId;
     }
 
     private static String compKey(DataFlowStep step) {
