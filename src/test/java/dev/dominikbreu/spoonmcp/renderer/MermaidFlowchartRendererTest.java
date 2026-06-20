@@ -2,6 +2,7 @@ package dev.dominikbreu.spoonmcp.renderer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.extractor.ContainerInferrer;
 import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.model.ids.AppId;
@@ -45,20 +46,20 @@ class MermaidFlowchartRendererTest {
 
     @Test
     void outputStartsWithFlowchartDirective() {
-        assertThat(renderer.render(model, null, "component")).startsWith("flowchart TD");
+        assertThat(renderer.render(GraphQuery.from(model), null, "component")).startsWith("flowchart TD");
     }
 
     // ── system level ─────────────────────────────────────────────────────────
 
     @Test
     void systemLevelContainsAppName() {
-        String out = renderer.render(model, null, "system");
+        String out = renderer.render(GraphQuery.from(model), null, "system");
         assertThat(out).contains("orders");
     }
 
     @Test
     void systemLevelContainsTechnology() {
-        String out = renderer.render(model, null, "system");
+        String out = renderer.render(GraphQuery.from(model), null, "system");
         assertThat(out).contains("quarkus");
     }
 
@@ -74,7 +75,7 @@ class MermaidFlowchartRendererTest {
         d.kind = "rest-client";
         model.dependencies.add(d);
 
-        String out = renderer.render(model, null, "system");
+        String out = renderer.render(GraphQuery.from(model), null, "system");
 
         assertThat(out).contains("ext_rest_billing");
         assertThat(out).contains("billing");
@@ -94,7 +95,7 @@ class MermaidFlowchartRendererTest {
         d.kind = "messaging";
         model.dependencies.add(d);
 
-        String out = renderer.render(model, null, "system");
+        String out = renderer.render(GraphQuery.from(model), null, "system");
 
         assertThat(out).contains("ext_messaging_kafka");
         assertThat(out).contains("Kafka");
@@ -111,7 +112,7 @@ class MermaidFlowchartRendererTest {
         ghost.technology = "microprofile-rest-client";
         model.externalSystems.add(ghost);
 
-        String out = renderer.render(model, null, "system");
+        String out = renderer.render(GraphQuery.from(model), null, "system");
 
         assertThat(out).doesNotContain("ext_rest_ghost");
     }
@@ -139,7 +140,7 @@ class MermaidFlowchartRendererTest {
         d.kind = "rest-client";
         model.dependencies.add(d);
 
-        String out = renderer.render(model, "orders", "system");
+        String out = renderer.render(GraphQuery.from(model), "orders", "system");
 
         assertThat(out).doesNotContain("ext_rest_thirdparty");
     }
@@ -148,7 +149,7 @@ class MermaidFlowchartRendererTest {
 
     @Test
     void containerLevelContainsLayerNames() {
-        String out = renderer.render(model, null, "container");
+        String out = renderer.render(GraphQuery.from(model), null, "container");
         assertThat(out).contains("api");
         assertThat(out).contains("service");
         assertThat(out).contains("repository");
@@ -159,7 +160,7 @@ class MermaidFlowchartRendererTest {
 
     @Test
     void componentLevelContainsComponentNames() {
-        String out = renderer.render(model, null, "component");
+        String out = renderer.render(GraphQuery.from(model), null, "component");
         assertThat(out).contains("Resource");
         assertThat(out).contains("Service");
         assertThat(out).contains("Repository");
@@ -167,27 +168,27 @@ class MermaidFlowchartRendererTest {
 
     @Test
     void componentLevelContainsDependencyEdge() {
-        String out = renderer.render(model, null, "component");
+        String out = renderer.render(GraphQuery.from(model), null, "component");
         assertThat(out).contains("-->");
     }
 
     @Test
     void componentLevelContainsSubgraphForApp() {
-        String out = renderer.render(model, null, "component");
+        String out = renderer.render(GraphQuery.from(model), null, "component");
         assertThat(out).contains("subgraph");
         assertThat(out).contains("end");
     }
 
     @Test
     void entityUsedCylinderShape() {
-        String out = renderer.render(model, null, "component");
+        String out = renderer.render(GraphQuery.from(model), null, "component");
         // Entity nodes rendered with [(" ... ")]
         assertThat(out).contains("[(");
     }
 
     @Test
     void restResourceUsesStadiumShape() {
-        String out = renderer.render(model, null, "component");
+        String out = renderer.render(GraphQuery.from(model), null, "component");
         // REST_RESOURCE nodes rendered with ([ ... ])
         assertThat(out).contains("([");
     }
@@ -205,7 +206,7 @@ class MermaidFlowchartRendererTest {
         model.components.add(c);
         other.componentIds.add(c.id);
 
-        String out = renderer.render(model, "orders", "component");
+        String out = renderer.render(GraphQuery.from(model), "orders", "component");
         assertThat(out).doesNotContain("app:other");
     }
 
@@ -214,7 +215,7 @@ class MermaidFlowchartRendererTest {
     @Test
     void moduleLevelRendersWarAsSubgraph() {
         ArchitectureModel m = modelWithWarAndModules();
-        String out = renderer.render(m, null, "module");
+        String out = renderer.render(GraphQuery.from(m), null, "module");
         assertThat(out).contains("subgraph");
         assertThat(out).contains("war-app");
     }
@@ -222,21 +223,21 @@ class MermaidFlowchartRendererTest {
     @Test
     void moduleLevelShowsInternalModuleNodes() {
         ArchitectureModel m = modelWithWarAndModules();
-        String out = renderer.render(m, null, "module");
+        String out = renderer.render(GraphQuery.from(m), null, "module");
         assertThat(out).contains("core");
     }
 
     @Test
     void moduleLevelStandaloneJarRenderedAsBox() {
         ArchitectureModel m = modelWithWarAndModules();
-        String out = renderer.render(m, null, "module");
+        String out = renderer.render(GraphQuery.from(m), null, "module");
         assertThat(out).startsWith("flowchart TD");
     }
 
     @Test
     void defaultLevelIsComponent() {
-        String withNull = renderer.render(model, null, null);
-        String withComp = renderer.render(model, null, "component");
+        String withNull = renderer.render(GraphQuery.from(model), null, null);
+        String withComp = renderer.render(GraphQuery.from(model), null, "component");
         assertThat(withNull).isEqualTo(withComp);
     }
 

@@ -77,6 +77,11 @@ public class GraphQuery {
 
     // --- existence / count ---
 
+    /** True when the graph was built from a model (even an empty one). False when no workspace was ever indexed. */
+    public synchronized boolean isIndexed() {
+        return store.isIndexed();
+    }
+
     public synchronized boolean isEmpty() {
         return store.isEmpty();
     }
@@ -120,6 +125,97 @@ public class GraphQuery {
         return findNodes("Application", null, Map.of(), 0);
     }
 
+    /** All application nodes as typed list. */
+    public synchronized List<ApplicationNode> allApplicationNodes() {
+        return findNodes("Application", null, Map.of(), 0).stream()
+                .filter(n -> n instanceof ApplicationNode).map(n -> (ApplicationNode) n).toList();
+    }
+
+    /** All component nodes as typed list. */
+    public synchronized List<ComponentNode> allComponentNodes() {
+        return findNodes("Component", null, Map.of(), 0).stream()
+                .filter(n -> n instanceof ComponentNode).map(n -> (ComponentNode) n).toList();
+    }
+
+    /** All container nodes as typed list. */
+    public synchronized List<ContainerNode> allContainerNodes() {
+        return findNodes("Container", null, Map.of(), 0).stream()
+                .filter(n -> n instanceof ContainerNode).map(n -> (ContainerNode) n).toList();
+    }
+
+    /** All external-system nodes as typed list. */
+    public synchronized List<ExternalSystemNode> allExternalSystemNodes() {
+        return findNodes("ExternalSystem", null, Map.of(), 0).stream()
+                .filter(n -> n instanceof ExternalSystemNode).map(n -> (ExternalSystemNode) n).toList();
+    }
+
+    /** All DEPENDS_ON edges. */
+    public synchronized List<GraphEdge> dependencyEdges() {
+        return findEdges("DEPENDS_ON", Map.of(), 100_000);
+    }
+
+    /** Component IDs owned by the given application node (via OWNS edges). */
+    public synchronized List<GraphNodeId> componentIdsOwnedBy(GraphNodeId appNodeId) {
+        Vertex appV = store.verticesById.get(appNodeId);
+        if (appV == null) return List.of();
+        List<GraphNodeId> result = new ArrayList<>();
+        Iterator<Edge> it = appV.edges(Direction.OUT, "OWNS");
+        while (it.hasNext()) result.add(nid(it.next().inVertex()));
+        return result;
+    }
+
+    /** Component IDs inside the given container node (via CONTAINS edges). */
+    public synchronized List<GraphNodeId> componentIdsInContainer(GraphNodeId containerNodeId) {
+        Vertex cv = store.verticesById.get(containerNodeId);
+        if (cv == null) return List.of();
+        List<GraphNodeId> result = new ArrayList<>();
+        Iterator<Edge> it = cv.edges(Direction.OUT, "CONTAINS");
+        while (it.hasNext()) result.add(nid(it.next().inVertex()));
+        return result;
+    }
+
+    /** Containers whose appId matches the given app. */
+    public synchronized List<ContainerNode> containersForApp(AppId appId) {
+        if (appId == null) return List.of();
+        String key = appId.serialize();
+        return allContainerNodes().stream()
+                .filter(c -> c.appId() != null && key.equals(c.appId().serialize()))
+                .toList();
+    }
+
+    /** Child apps (internal modules) whose parentAppId matches the given parent. */
+    public synchronized List<ApplicationNode> childApps(AppId parentId) {
+        if (parentId == null) return List.of();
+        String key = parentId.serialize();
+        return allApplicationNodes().stream()
+                .filter(a -> a.parentAppId() != null && key.equals(a.parentAppId().serialize()))
+                .toList();
+    }
+
+    /** True when the vertex with the given ID is an ExternalSystem. */
+    public synchronized boolean isExternalSystem(GraphNodeId nodeId) {
+        Vertex v = store.verticesById.get(nodeId);
+        return v != null && "ExternalSystem".equals(v.label());
+    }
+
+    /** Entrypoint count per container ID (key = container vertex ID). */
+    public synchronized Map<String, Long> entrypointCountPerContainer() {
+        Map<String, String> compToContainer = new LinkedHashMap<>();
+        for (ContainerNode c : allContainerNodes()) {
+            for (GraphNodeId cid : componentIdsInContainer(c.id())) {
+                compToContainer.put(cid.value(), c.id().value());
+            }
+        }
+        Map<String, Long> result = new LinkedHashMap<>();
+        for (GraphNode ep : findNodes("Entrypoint", null, Map.of(), 0)) {
+            if (ep instanceof EntrypointNode epn && epn.componentId() != null) {
+                String containerId = compToContainer.get(epn.componentId().serialize());
+                if (containerId != null) result.merge(containerId, 1L, Long::sum);
+            }
+        }
+        return result;
+    }
+
     /** Find the pre-computed runtime flow for the given entrypoint reference (id, name, path). */
     public synchronized Optional<RuntimeFlowNode> runtimeFlowForEntrypoint(String ref) {
         Optional<GraphNodeId> epNodeId = resolveEntrypoint(ref);
@@ -156,6 +252,106 @@ public class GraphQuery {
             Vertex stepV = stepIt.next().inVertex();
             Iterator<Edge> callIt = stepV.edges(Direction.OUT, "FLOW_CALLS");
             while (callIt.hasNext()) result.add(toEdge(callIt.next()));
+        }
+        return result;
+    }
+
+    /** True when the graph contains CALLS edges (i.e. call-graph data was indexed). */
+    public synchronized boolean hasCallGraph() {
+        return store.g.E().hasLabel("CALLS").hasNext();
+    }
+
+    /** All DataFlowPath nodes. */
+    public synchronized List<DataFlowPathNode> allDataFlowPaths() {
+        return findNodes("DataFlowPath", null, Map.of(), 0).stream()
+                .filter(n -> n instanceof DataFlowPathNode)
+                .map(n -> (DataFlowPathNode) n)
+                .toList();
+    }
+
+    /** Sinks reachable from a DataFlowPath vertex via REACHES edges. */
+    public synchronized List<DataFlowSinkNode> pathSinks(GraphNodeId pathId) {
+        if (pathId == null) return List.of();
+        Vertex pathVertex = store.verticesById.get(pathId);
+        if (pathVertex == null) return List.of();
+        List<DataFlowSinkNode> result = new ArrayList<>();
+        Iterator<Edge> it = pathVertex.edges(Direction.OUT, "REACHES");
+        while (it.hasNext()) {
+            GraphNode n = toNode(it.next().inVertex());
+            if (n instanceof DataFlowSinkNode sn) result.add(sn);
+        }
+        return result;
+    }
+
+    /** Linear DataFlowStep nodes for a path, ordered by stepIndex. */
+    public synchronized List<DataFlowStepNode> pathDataFlowSteps(GraphNodeId pathId) {
+        if (pathId == null) return List.of();
+        Vertex pathVertex = store.verticesById.get(pathId);
+        if (pathVertex == null) return List.of();
+        List<DataFlowStepNode> result = new ArrayList<>();
+        Iterator<Edge> it = pathVertex.edges(Direction.OUT, "HAS_DATA_STEP");
+        while (it.hasNext()) {
+            GraphNode n = toNode(it.next().inVertex());
+            if (n instanceof DataFlowStepNode sn) result.add(sn);
+        }
+        result.sort(Comparator.comparingInt(DataFlowStepNode::stepIndex));
+        return result;
+    }
+
+    /** DataFlowNode topology vertices for a path (topology graph, newer paths only), ordered by insertion index. */
+    public synchronized List<DataFlowNodeNode> pathFlowNodes(GraphNodeId pathId) {
+        if (pathId == null) return List.of();
+        Vertex pathVertex = store.verticesById.get(pathId);
+        if (pathVertex == null) return List.of();
+        List<DataFlowNodeNode> result = new ArrayList<>();
+        Iterator<Edge> it = pathVertex.edges(Direction.OUT, "HAS_FLOW_NODE");
+        while (it.hasNext()) {
+            GraphNode n = toNode(it.next().inVertex());
+            if (n instanceof DataFlowNodeNode dn) result.add(dn);
+        }
+        result.sort(Comparator.comparingInt(DataFlowNodeNode::nodeOrder));
+        return result;
+    }
+
+    /** DataFlowBranch vertices for a path. */
+    public synchronized List<DataFlowBranchNode> pathBranches(GraphNodeId pathId) {
+        if (pathId == null) return List.of();
+        Vertex pathVertex = store.verticesById.get(pathId);
+        if (pathVertex == null) return List.of();
+        List<DataFlowBranchNode> result = new ArrayList<>();
+        Iterator<Edge> it = pathVertex.edges(Direction.OUT, "HAS_BRANCH");
+        while (it.hasNext()) {
+            GraphNode n = toNode(it.next().inVertex());
+            if (n instanceof DataFlowBranchNode bn) result.add(bn);
+        }
+        return result;
+    }
+
+    /** DataFlowBranchArm vertices for a branch vertex. */
+    public synchronized List<DataFlowBranchArmNode> branchArms(GraphNodeId branchId) {
+        if (branchId == null) return List.of();
+        Vertex branchVertex = store.verticesById.get(branchId);
+        if (branchVertex == null) return List.of();
+        List<DataFlowBranchArmNode> result = new ArrayList<>();
+        Iterator<Edge> it = branchVertex.edges(Direction.OUT, "HAS_BRANCH_ARM");
+        while (it.hasNext()) {
+            GraphNode n = toNode(it.next().inVertex());
+            if (n instanceof DataFlowBranchArmNode an) result.add(an);
+        }
+        return result;
+    }
+
+    /** FLOW_EDGE graph edges (topology edges between DataFlowNode vertices) for a path. */
+    public synchronized List<GraphEdge> pathFlowEdges(GraphNodeId pathId) {
+        if (pathId == null) return List.of();
+        Vertex pathVertex = store.verticesById.get(pathId);
+        if (pathVertex == null) return List.of();
+        List<GraphEdge> result = new ArrayList<>();
+        Iterator<Edge> nodeIt = pathVertex.edges(Direction.OUT, "HAS_FLOW_NODE");
+        while (nodeIt.hasNext()) {
+            Vertex nodeV = nodeIt.next().inVertex();
+            Iterator<Edge> edgeIt = nodeV.edges(Direction.OUT, "FLOW_EDGE");
+            while (edgeIt.hasNext()) result.add(toEdge(edgeIt.next()));
         }
         return result;
     }
@@ -570,6 +766,7 @@ public class GraphQuery {
                         name,
                         vStr(vertex, "pathId"),
                         vStr(vertex, "flowNodeId"),
+                        vInt(vertex, "nodeOrder"),
                         vStr(vertex, "nodeKind"),
                         vComponentId(vertex, COMPONENT_ID),
                         vStr(vertex, "componentName"),
@@ -593,6 +790,16 @@ public class GraphQuery {
                         vStr(vertex, "branchArmId"),
                         vStr(vertex, "label"),
                         vStr(vertex, "entryNodeId"));
+            case "DataFlowStep" ->
+                new DataFlowStepNode(
+                        nodeId,
+                        name,
+                        vStr(vertex, "pathId"),
+                        vInt(vertex, "stepIndex"),
+                        vComponentId(vertex, COMPONENT_ID),
+                        vStr(vertex, "componentName"),
+                        vStr(vertex, METHOD),
+                        vStr(vertex, "localName"));
             case "PipelineChain" ->
                 new PipelineChainNode(
                         nodeId,
@@ -733,6 +940,7 @@ public class GraphQuery {
                     DataFlowNodeNode,
                     DataFlowBranchNode,
                     DataFlowBranchArmNode,
+                    DataFlowStepNode,
                     PipelineChainNode,
                     UnknownNode {
         GraphNodeId id();
@@ -1088,7 +1296,7 @@ public class GraphQuery {
     }
 
     public record DataFlowNodeNode(
-            GraphNodeId id, String name, String pathId, String flowNodeId, String nodeKind,
+            GraphNodeId id, String name, String pathId, String flowNodeId, int nodeOrder, String nodeKind,
             ComponentId componentId, String componentName, String method, String localName,
             SourceInfo source)
             implements GraphNode {
@@ -1163,6 +1371,28 @@ public class GraphQuery {
                     || GraphNode.q(query, pathId) || GraphNode.q(query, branchId)
                     || GraphNode.q(query, branchArmId) || GraphNode.q(query, armLabel)
                     || GraphNode.q(query, entryNodeId);
+        }
+    }
+
+    public record DataFlowStepNode(
+            GraphNodeId id, String name, String pathId, int stepIndex,
+            ComponentId componentId, String componentName, String method, String localName)
+            implements GraphNode {
+        @Override
+        public String label() { return "DataFlowStep"; }
+
+        @Override
+        public Map<String, Object> properties() {
+            return GraphNode.propsOf(
+                    "pathId", pathId, "stepIndex", stepIndex,
+                    "componentId", componentId != null ? componentId.serialize() : null,
+                    "componentName", componentName, "method", method, "localName", localName);
+        }
+
+        @Override
+        public boolean matches(String query) {
+            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name)
+                    || GraphNode.q(query, pathId) || GraphNode.q(query, componentName) || GraphNode.q(query, method);
         }
     }
 
