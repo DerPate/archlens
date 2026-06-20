@@ -250,11 +250,14 @@ public class MermaidPipelineRenderer {
             boolean conditional = "conditional".equals(edgeKind);
             String labelStr = edgeLabel != null && !edgeLabel.isBlank() ? edgeLabel : "";
 
-            st.edges.append("    ").append(fromMermaid)
-                    .append(conditional ? CONDITIONAL_EDGE_LABEL_OPEN : EDGE_LABEL_OPEN)
-                    .append(escape(labelStr))
-                    .append("| ")
-                    .append(toMermaid).append("\n");
+            st.edges.append("    ").append(fromMermaid);
+            if (labelStr.isEmpty()) {
+                st.edges.append(conditional ? " -.-> " : " --> ");
+            } else {
+                st.edges.append(conditional ? CONDITIONAL_EDGE_LABEL_OPEN : EDGE_LABEL_OPEN)
+                        .append(escape(labelStr)).append("| ");
+            }
+            st.edges.append(toMermaid).append("\n");
         }
 
         return lastMethodNodeId;

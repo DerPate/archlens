@@ -342,8 +342,9 @@ class PipelineRendererIntegrationTest {
         String mermaid = new MermaidPipelineRenderer().render(chain, GraphQuery.from(model));
 
         assertThat(mermaid).contains("-.->|if accountId == null|");
-        assertThat(mermaid).containsPattern("-->\\|[^|]*\\|");
+        assertThat(mermaid).contains(" --> ");   // unlabeled unconditional edge: bare arrow
         assertThat(mermaid).doesNotContain("-.->||");
+        assertThat(mermaid).doesNotContain("-->||");
     }
 
     @Test
