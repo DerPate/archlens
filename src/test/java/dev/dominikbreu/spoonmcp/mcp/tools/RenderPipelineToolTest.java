@@ -198,7 +198,18 @@ class RenderPipelineToolTest {
                 sink.channel = "${topics.missing}";
                 path.sinks.add(sink);
                 model.dataFlowPaths.add(path);
-                model.callEdges.add(new CallEdge());
+                Component compA1 = new Component();
+                compA1.id = ComponentId.of("DiagA");
+                compA1.type = ComponentType.SERVICE;
+                model.components.add(compA1);
+                Component compB1 = new Component();
+                compB1.id = ComponentId.of("DiagB");
+                compB1.type = ComponentType.SERVICE;
+                model.components.add(compB1);
+                CallEdge ce1 = new CallEdge();
+                ce1.fromComponentId = ComponentId.of("DiagA");
+                ce1.toComponentId = ComponentId.of("DiagB");
+                model.callEdges.add(ce1);
                 return model;
             }
         };
@@ -256,7 +267,18 @@ class RenderPipelineToolTest {
                 path.sinks.add(write);
                 path.sinks.add(read);
                 model.dataFlowPaths.add(path);
-                model.callEdges.add(new CallEdge());
+                Component compA2 = new Component();
+                compA2.id = ComponentId.of("DiagA");
+                compA2.type = ComponentType.SERVICE;
+                model.components.add(compA2);
+                Component compB2 = new Component();
+                compB2.id = ComponentId.of("DiagB");
+                compB2.type = ComponentType.SERVICE;
+                model.components.add(compB2);
+                CallEdge ce2 = new CallEdge();
+                ce2.fromComponentId = ComponentId.of("DiagA");
+                ce2.toComponentId = ComponentId.of("DiagB");
+                model.callEdges.add(ce2);
                 return model;
             }
         };

@@ -2,10 +2,6 @@ package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
-import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
-import dev.dominikbreu.spoonmcp.model.RuntimeFlow;
-import dev.dominikbreu.spoonmcp.model.RuntimeFlowStep;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
@@ -50,16 +46,14 @@ public class ExportGraphArchitecturePocTool {
      */
     public String execute(Map<String, Object> args) {
         try {
-            ToolModelIndex index = cache.index();
-            ArchitectureModel model = index.rawModel();
-            if (model == null) {
+            GraphQuery graph = cache.graph();
+            if (!graph.isIndexed()) {
                 return "No workspace indexed yet. Call index_workspace first.";
             }
 
-            GraphQuery graph = cache.graph();
             Path output = Path.of(ToolArgs.getString(args, "outputPath", DEFAULT_OUTPUT.toString()));
             String focus = ToolArgs.getString(args, "focusComponent", "McpServer");
-            String markdown = renderMarkdown(model, graph, focus);
+            String markdown = renderMarkdown(graph, focus);
 
             Path parent = output.getParent();
             if (parent != null) {
@@ -75,19 +69,19 @@ public class ExportGraphArchitecturePocTool {
         }
     }
 
-    private String renderMarkdown(ArchitectureModel model, GraphQuery graph, String focusComponent) {
+    private String renderMarkdown(GraphQuery graph, String focusComponent) {
         GraphQuery.GraphSummary summary = graph.summary();
         StringBuilder sb = new StringBuilder();
         sb.append("# Generated Architecture Graph POC\n\n");
         sb.append(
-                "Generated from the indexed `ArchitectureModel` and the embedded `ArchitectureGraph` by the MCP tool `export_graph_architecture_poc`.\n\n");
+                "Generated from the indexed workspace by the MCP tool `export_graph_architecture_poc`.\n\n");
         sb.append("## Summary\n\n");
-        sb.append("- Applications: ").append(model.applications.size()).append("\n");
-        sb.append("- Components: ").append(model.components.size()).append("\n");
-        sb.append("- Entrypoints: ").append(model.entrypoints.size()).append("\n");
-        sb.append("- Interfaces: ").append(model.interfaces.size()).append("\n");
-        sb.append("- Dependencies: ").append(model.dependencies.size()).append("\n");
-        sb.append("- Runtime flows: ").append(model.runtimeFlows.size()).append("\n");
+        sb.append("- Applications: ").append(graph.countByLabel("Application")).append("\n");
+        sb.append("- Components: ").append(graph.countByLabel("Component")).append("\n");
+        sb.append("- Entrypoints: ").append(graph.countByLabel("Entrypoint")).append("\n");
+        sb.append("- Interfaces: ").append(graph.countByLabel("Interface")).append("\n");
+        sb.append("- Dependencies: ").append(summary.edges().getOrDefault("DEPENDS_ON", 0)).append("\n");
+        sb.append("- Runtime flows: ").append(graph.countByLabel("RuntimeFlow")).append("\n");
         sb.append("- Graph nodes: ").append(summary.nodeCount()).append("\n");
         sb.append("- Graph edges: ").append(summary.edgeCount()).append("\n");
         sb.append("- Cache backend: ")
@@ -126,7 +120,7 @@ public class ExportGraphArchitecturePocTool {
         appendCrossModuleDependencies(sb, graph);
         appendEntrypointReachability(sb, graph);
 
-        appendRuntimeFlowSamples(sb, model);
+        appendRuntimeFlowSamples(sb, graph);
         appendFocusSlice(sb, graph, focusComponent);
 
         sb.append("## MCP Graph Query Examples\n\n");
@@ -233,36 +227,40 @@ public class ExportGraphArchitecturePocTool {
         sb.append("\n");
     }
 
-    private void appendRuntimeFlowSamples(StringBuilder sb, ArchitectureModel model) {
+    private void appendRuntimeFlowSamples(StringBuilder sb, GraphQuery graph) {
         sb.append("## Runtime Flow Samples\n\n");
-        if (model.runtimeFlows.isEmpty()) {
+        List<GraphQuery.RuntimeFlowNode> flows = graph.allRuntimeFlows();
+        if (flows.isEmpty()) {
             sb.append("- No runtime flows were persisted in the indexed model.\n\n");
             return;
         }
-        for (RuntimeFlow flow : model.runtimeFlows) {
-            sb.append("### ").append(flow.id).append("\n\n");
+        for (GraphQuery.RuntimeFlowNode flow : flows) {
+            sb.append("### ").append(flow.id().value()).append("\n\n");
             sb.append("- Entrypoint: `")
-                    .append(flow.entrypointId != null ? flow.entrypointId.serialize() : "")
+                    .append(flow.entrypointId() != null ? flow.entrypointId().serialize() : "")
                     .append("`\n");
-            sb.append("- Steps: ").append(flow.steps.size()).append("\n");
-            for (RuntimeFlowStep step : flow.steps) {
-                appendFlowStep(sb, step);
+            List<GraphQuery.RuntimeFlowStepNode> steps = graph.flowSteps(flow.id());
+            sb.append("- Steps: ").append(steps.size()).append("\n");
+            for (GraphQuery.RuntimeFlowStepNode step : steps) {
+                appendFlowStep(sb, step, graph);
             }
             sb.append("\n");
         }
     }
 
-    private void appendFlowStep(StringBuilder sb, RuntimeFlowStep step) {
+    private void appendFlowStep(StringBuilder sb, GraphQuery.RuntimeFlowStepNode step, GraphQuery graph) {
         sb.append("- ")
-                .append(step.order)
+                .append(step.order())
                 .append(". `")
-                .append(step.componentId != null ? step.componentId.serialize() : "")
+                .append(step.componentId() != null ? step.componentId().serialize() : "")
                 .append("`");
-        if (StringUtils.isNotBlank(step.componentName)) {
-            sb.append(" ").append(step.componentName);
+        if (step.componentId() != null) {
+            GraphQuery.GraphNode cn = graph.component(step.componentId());
+            String name = cn instanceof GraphQuery.ComponentNode c ? c.name() : null;
+            if (StringUtils.isNotBlank(name)) sb.append(" ").append(name);
         }
-        if (StringUtils.isNotBlank(step.via)) {
-            sb.append(" via `").append(step.via).append("`");
+        if (StringUtils.isNotBlank(step.via())) {
+            sb.append(" via `").append(step.via()).append("`");
         }
         sb.append("\n");
     }

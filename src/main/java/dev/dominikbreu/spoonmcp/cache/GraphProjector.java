@@ -14,6 +14,7 @@ import dev.dominikbreu.spoonmcp.model.DataFlowBranchArm;
 import dev.dominikbreu.spoonmcp.model.DataFlowEdge;
 import dev.dominikbreu.spoonmcp.model.DataFlowNode;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
+import dev.dominikbreu.spoonmcp.model.DataFlowStep;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.Dependency;
 import dev.dominikbreu.spoonmcp.model.DeploymentEntry;
@@ -96,16 +97,18 @@ class GraphProjector {
 
         sourceModel.applications.forEach(app -> app.componentIds.forEach(componentId -> addEdge(
                 app.id.serialize(), componentId.serialize(), "OWNS", Map.of(SOURCE, "application.componentIds"))));
-        sourceModel.entrypoints.forEach(entrypoint -> addEdge(
-                entrypoint.id.serialize(),
-                entrypoint.componentId.serialize(),
-                REL_STARTS_AT,
-                Map.of(SOURCE, "entrypoint.componentId")));
-        sourceModel.interfaces.forEach(interfaceEntry -> addEdge(
-                interfaceEntry.id,
-                interfaceEntry.componentId.serialize(),
-                "EXPOSES",
-                Map.of(SOURCE, "interface.componentId")));
+        sourceModel.entrypoints.forEach(entrypoint -> {
+            if (entrypoint.componentId != null) {
+                addEdge(entrypoint.id.serialize(), entrypoint.componentId.serialize(),
+                        REL_STARTS_AT, Map.of(SOURCE, "entrypoint.componentId"));
+            }
+        });
+        sourceModel.interfaces.forEach(interfaceEntry -> {
+            if (interfaceEntry.componentId != null) {
+                addEdge(interfaceEntry.id, interfaceEntry.componentId.serialize(),
+                        "EXPOSES", Map.of(SOURCE, "interface.componentId"));
+            }
+        });
         sourceModel.containers.forEach(container -> container.componentIds.forEach(componentId ->
                 addEdge(container.id, componentId.serialize(), "CONTAINS", Map.of(SOURCE, "container.componentIds"))));
         sourceModel.deployments.forEach(deployment -> deployment.appIds.forEach(
@@ -124,6 +127,7 @@ class GraphProjector {
         addWorkflowLinks(sourceModel);
         addPipelineChains(sourceModel);
         computeDerivedProperties();
+        this.store.projected = true;
     }
 
     private void addApplication(AppEntry app) {
@@ -307,6 +311,19 @@ class GraphProjector {
                 "ORIGINATES",
                 Map.of("trackedParam", Objects.toString(path.trackedParam, "")));
 
+        for (int i = 0; i < path.steps.size(); i++) {
+            DataFlowStep step = path.steps.get(i);
+            String stepId = path.id.serialize() + ":dfstep:" + i;
+            Vertex stepVertex = addVertex(stepId, "DataFlowStep", step.componentName + "." + step.method);
+            set(stepVertex, "stepIndex", step.index);
+            set(stepVertex, COMPONENT_ID, step.componentId != null ? step.componentId.serialize() : null);
+            set(stepVertex, "componentName", step.componentName);
+            set(stepVertex, METHOD, step.method);
+            set(stepVertex, "localName", step.localName);
+            set(stepVertex, "pathId", path.id.serialize());
+            addEdge(path.id.serialize(), stepId, "HAS_DATA_STEP", Map.of("stepIndex", step.index));
+        }
+
         for (int i = 0; i < path.sinks.size(); i++) {
             DataFlowSink sink = path.sinks.get(i);
             String sinkId = path.id.serialize() + SINK_MARKER + i;
@@ -323,12 +340,14 @@ class GraphProjector {
 
     private void addDataFlowTopology(DataFlowPath path) {
         String pathId = path.id.serialize();
-        for (DataFlowNode node : path.flowNodes) {
+        for (int nodeIdx = 0; nodeIdx < path.flowNodes.size(); nodeIdx++) {
+            DataFlowNode node = path.flowNodes.get(nodeIdx);
             String nodeVertexId = flowNodeId(path, node.id);
             Vertex vertex = addVertex(nodeVertexId, "DataFlowNode", nodeLabel(node));
             set(vertex, "kind", "dataFlowNode");
             set(vertex, "pathId", pathId);
             set(vertex, "flowNodeId", node.id);
+            set(vertex, "nodeOrder", nodeIdx);
             set(vertex, "nodeKind", node.kind != null ? node.kind.name().toLowerCase(Locale.ROOT) : null);
             set(vertex, COMPONENT_ID, node.componentId != null ? node.componentId.serialize() : null);
             set(vertex, "componentName", node.componentName);

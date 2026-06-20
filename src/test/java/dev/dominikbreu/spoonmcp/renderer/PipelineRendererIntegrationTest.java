@@ -2,7 +2,7 @@ package dev.dominikbreu.spoonmcp.renderer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Chain;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
@@ -58,7 +58,7 @@ class PipelineRendererIntegrationTest {
         assertThat(linkTwo.channel).isEqualTo("internal");
 
         // 5. Rendered Mermaid contains the boundary shapes and edges
-        String mermaid = new MermaidPipelineRenderer().render(chain, ToolModelIndex.from(model));
+        String mermaid = new MermaidPipelineRenderer().render(chain, GraphQuery.from(model));
         assertThat(mermaid).startsWith("flowchart TD");
         // STORE boundary uses cylinder: [("Cache.records")]
         assertThat(mermaid).containsPattern("\\[\\(\"Cache\\.records\"\\)]");
@@ -217,7 +217,7 @@ class PipelineRendererIntegrationTest {
         PipelineGraphBuilder.Chain chain = new PipelineGraphBuilder.Chain();
         chain.segments.add(new PipelineGraphBuilder.Segment(p, null, model.entrypoints.get(0)));
 
-        String mermaid = new MermaidPipelineRenderer().render(chain, ToolModelIndex.from(model));
+        String mermaid = new MermaidPipelineRenderer().render(chain, GraphQuery.from(model));
 
         // validate and transform are intra-component — must not appear as separate nodes
         assertThat(mermaid).doesNotContain("Service.validate");
@@ -260,7 +260,7 @@ class PipelineRendererIntegrationTest {
         PipelineGraphBuilder.Chain chain = new PipelineGraphBuilder.Chain();
         chain.segments.add(new PipelineGraphBuilder.Segment(p, null, model.entrypoints.get(0)));
 
-        String mermaid = new MermaidPipelineRenderer().render(chain, ToolModelIndex.from(model));
+        String mermaid = new MermaidPipelineRenderer().render(chain, GraphQuery.from(model));
 
         // KafkaMessageSender.sendTombstone must appear at most once as a node
         long sendTombstoneCount = java.util.Arrays.stream(mermaid.split("\n"))
@@ -296,7 +296,7 @@ class PipelineRendererIntegrationTest {
         PipelineGraphBuilder.Chain chain = new PipelineGraphBuilder.Chain();
         chain.segments.add(new PipelineGraphBuilder.Segment(p1, null, model.entrypoints.get(0)));
 
-        String mermaid = new MermaidPipelineRenderer().render(chain, ToolModelIndex.from(model));
+        String mermaid = new MermaidPipelineRenderer().render(chain, GraphQuery.from(model));
 
         // "Scheduler.tick" must appear as exactly one node declaration (not two).
         long headerCount = java.util.Arrays.stream(mermaid.split("\n"))
@@ -324,7 +324,7 @@ class PipelineRendererIntegrationTest {
 
         PipelineGraphBuilder.Chain chain =
                 new PipelineGraphBuilder().build(model, 8).getFirst();
-        String mermaid = new MermaidPipelineRenderer().render(chain, ToolModelIndex.from(model));
+        String mermaid = new MermaidPipelineRenderer().render(chain, GraphQuery.from(model));
 
         assertThat(mermaid).contains("com.example.Order");
         assertThat(mermaid).containsPattern("\\[\\(\"com\\.example\\.Order\"\\)]");

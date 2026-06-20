@@ -457,12 +457,13 @@ public class GraphQuery {
     }
 
     public synchronized List<GraphNode> componentNodesOwnedBy(AppId appId) {
-        String appKey = appId.serialize();
+        Vertex appV = store.verticesById.get(GraphNodeId.of(appId.serialize()));
+        if (appV == null) return List.of();
         List<GraphNode> nodes = new ArrayList<>();
-        for (GraphEdge edge : findEdges("OWNS", Map.of(), 1000)) {
-            if (!appKey.equals(edge.fromId().value())) continue;
-            Vertex vertex = store.verticesById.get(edge.toId());
-            if (vertex != null) nodes.add(toNode(vertex));
+        Iterator<Edge> it = appV.edges(Direction.OUT, "OWNS");
+        while (it.hasNext()) {
+            Vertex target = it.next().inVertex();
+            if (target != null) nodes.add(toNode(target));
         }
         return nodes;
     }
