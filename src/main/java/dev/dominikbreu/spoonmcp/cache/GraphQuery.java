@@ -261,6 +261,12 @@ public class GraphQuery {
         return store.g.E().hasLabel("CALLS").hasNext();
     }
 
+    /** All RuntimeFlow nodes as a typed list. */
+    public synchronized List<RuntimeFlowNode> allRuntimeFlows() {
+        return findNodes("RuntimeFlow", null, Map.of(), 0).stream()
+                .filter(n -> n instanceof RuntimeFlowNode).map(n -> (RuntimeFlowNode) n).toList();
+    }
+
     /** All DataFlowPath nodes. */
     public synchronized List<DataFlowPathNode> allDataFlowPaths() {
         return findNodes("DataFlowPath", null, Map.of(), 0).stream()
