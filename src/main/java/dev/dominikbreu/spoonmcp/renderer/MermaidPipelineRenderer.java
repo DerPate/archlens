@@ -255,7 +255,7 @@ public class MermaidPipelineRenderer {
                 st.edges.append(conditional ? " -.-> " : " --> ");
             } else {
                 st.edges.append(conditional ? CONDITIONAL_EDGE_LABEL_OPEN : EDGE_LABEL_OPEN)
-                        .append(escape(labelStr)).append("| ");
+                        .append("\"").append(escape(labelStr)).append("\"| ");
             }
             st.edges.append(toMermaid).append("\n");
         }
