@@ -505,6 +505,7 @@ public class GraphQuery {
         sink.repositoryOperation = vStr(sinkV, "repositoryOperation");
         sink.linkEvidence = vStr(sinkV, "linkEvidence");
         sink.calleeQualifiedName = vStr(sinkV, "calleeQualifiedName");
+        sink.callerComponentId = vComponentId(sinkV, "callerComponentId");
         return sink;
     }
 

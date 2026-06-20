@@ -409,6 +409,7 @@ public class DataFlowTracer {
                 sink.payloadType = site.payloadType;
                 sink.linkEvidence = site.linkEvidence;
                 sink.calleeQualifiedName = site.calleeQualifiedName;
+                sink.callerComponentId = compId;
                 DataFlowPath path = ctx.pathsByOriginal().get(origName);
                 path.sinks.add(sink);
                 recordSinkNode(ctx, path, origName, currentNodeByOriginal.get(origName), sink, null);
@@ -435,6 +436,7 @@ public class DataFlowTracer {
                 DataFlowPath path = ctx.pathsByOriginal().get(e.getValue());
                 DataFlowSink sink = new DataFlowSink(
                         DataFlowSink.Kind.STORE, fieldOwner, compName, fieldName, fw.source, fieldName, fieldOwner);
+                sink.callerComponentId = compId;
                 path.sinks.add(sink);
                 recordSinkNode(ctx, path, e.getValue(), currentNodeByOriginal.get(e.getValue()), sink, null);
             }
@@ -514,6 +516,7 @@ public class DataFlowTracer {
                 sink.entityType = repositoryEntityType(target, ctx.index());
                 sink.linkEvidence = "repository-call";
             }
+            sink.callerComponentId = edge.fromComponentId;
             DataFlowPath path = ctx.pathsByOriginal().get(originalName);
             path.sinks.add(sink);
             recordSinkNode(ctx, path, originalName, currentNodeByOriginal.get(originalName), sink, edge);

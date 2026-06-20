@@ -7,7 +7,10 @@ import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.DataFlowStep;
 import dev.dominikbreu.spoonmcp.model.Entrypoint;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -63,8 +66,9 @@ public class MermaidPipelineRenderer {
             renderBoundary(st, seg, ep, segIdx, graph);
         }
         String headerNodeId = renderHeader(st, seg, ep, segIdx, graph);
-        String previousNodeInSeg = renderSteps(st, seg, segIdx, headerNodeId, graph);
-        renderTerminalSinks(st, chain, seg, segIdx, previousNodeInSeg);
+        Map<String, String> callerNodeIds = new HashMap<>();
+        String previousNodeInSeg = renderSteps(st, seg, segIdx, headerNodeId, graph, callerNodeIds);
+        renderTerminalSinks(st, chain, seg, segIdx, previousNodeInSeg, callerNodeIds);
 
         // Determine which sink (if any) links to the next segment.
         DataFlowSink linkOut =
@@ -134,7 +138,8 @@ public class MermaidPipelineRenderer {
         return headerNodeId;
     }
 
-    private String renderSteps(RenderState st, Segment seg, int segIdx, String headerNodeId, GraphQuery graph) {
+    private String renderSteps(RenderState st, Segment seg, int segIdx, String headerNodeId,
+            GraphQuery graph, Map<String, String> callerNodeIds) {
         String previousNodeInSeg = headerNodeId;
         // Track last rendered component to collapse intra-component step chains.
         // Also deduplicate DFS back-tracking artifacts: DataFlowTracer records every visited
@@ -143,9 +148,10 @@ public class MermaidPipelineRenderer {
         // methods on the same class (e.g. ingest vs processNonNullValue) to be distinct.
         String prevComponentKey = seg.path.steps.isEmpty() ? null : compKey(seg.path.steps.getFirst());
         Set<String> renderedStepKeys = new HashSet<>();
-        if (seg.path.steps.size() > 0) {
+        if (!seg.path.steps.isEmpty()) {
             DataFlowStep first = seg.path.steps.getFirst();
             renderedStepKeys.add(compKey(first) + "#" + first.method);
+            if (first.componentId != null) callerNodeIds.put(first.componentId.serialize(), headerNodeId);
         }
         for (int i = 1; i < seg.path.steps.size(); i++) {
             DataFlowStep step = seg.path.steps.get(i);
@@ -178,6 +184,7 @@ public class MermaidPipelineRenderer {
                     .append("\n");
             previousNodeInSeg = nodeId;
             prevComponentKey = stepKey;
+            if (step.componentId != null) callerNodeIds.put(step.componentId.serialize(), nodeId);
         }
         return previousNodeInSeg;
     }
@@ -186,12 +193,20 @@ public class MermaidPipelineRenderer {
         return step.componentId != null ? step.componentId.serialize() : step.componentName;
     }
 
-    private void renderTerminalSinks(RenderState st, Chain chain, Segment seg, int segIdx, String previousNodeInSeg) {
-        // Emit terminal sinks of this segment that aren't the linking sink, as leaf nodes.
-        int terminalCounter = 0;
+    private void renderTerminalSinks(RenderState st, Chain chain, Segment seg, int segIdx,
+            String previousNodeInSeg, Map<String, String> callerNodeIds) {
+        // Deduplicate sinks by (componentName, method, kind, channel/topic) and group by caller
+        // so each distinct sink appears once, wired from the step that actually called it.
+        // Key = dedup key; value = first sink seen with that key.
+        LinkedHashMap<String, DataFlowSink> unique = new LinkedHashMap<>();
         for (DataFlowSink s : seg.path.sinks) {
             boolean isLink = (segIdx + 1 < chain.segments.size()) && chain.segments.get(segIdx + 1).incomingSink == s;
             if (isLink) continue;
+            String dedupKey = sinkDedupKey(s);
+            unique.putIfAbsent(dedupKey, s);
+        }
+        int terminalCounter = 0;
+        for (DataFlowSink s : unique.values()) {
             terminalCounter++;
             String termId = "T" + segIdx + "_" + terminalCounter;
             String termLabel =
@@ -207,15 +222,26 @@ public class MermaidPipelineRenderer {
                     .append(' ')
                     .append(terminalClass(s.kind))
                     .append("\n");
+            // Wire from the step that called this sink, falling back to the segment's last node.
+            String callerNode = s.callerComponentId != null
+                    ? callerNodeIds.getOrDefault(s.callerComponentId.serialize(), previousNodeInSeg)
+                    : previousNodeInSeg;
             st.edges
                     .append("    ")
-                    .append(previousNodeInSeg)
+                    .append(callerNode)
                     .append(EDGE_LABEL_OPEN)
                     .append(escape(s.method == null ? "" : s.method))
                     .append("| ")
                     .append(termId)
                     .append("\n");
         }
+    }
+
+    private static String sinkDedupKey(DataFlowSink s) {
+        return (s.componentName != null ? s.componentName : "")
+                + "|" + (s.method != null ? s.method : "")
+                + "|" + (s.kind != null ? s.kind.value() : "")
+                + "|" + (s.channel != null ? s.channel : s.topic != null ? s.topic : "");
     }
 
     private String assemble(RenderState st) {

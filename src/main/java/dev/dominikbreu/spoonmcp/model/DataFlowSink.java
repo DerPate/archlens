@@ -107,6 +107,8 @@ public class DataFlowSink {
     /** Fully-qualified declaring type of the outbound callee (e.g. {@code java.nio.file.Files},
      *  {@code software.amazon.awssdk.services.s3.S3Client}). Null for non-outbound sink kinds. */
     public String calleeQualifiedName;
+    /** Component that made the call reaching this sink (the caller, not the sink itself). */
+    public ComponentId callerComponentId;
 
     /** Creates an empty sink for JSON deserialization. */
     public DataFlowSink() {}
