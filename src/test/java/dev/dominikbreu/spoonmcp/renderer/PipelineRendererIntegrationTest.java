@@ -8,6 +8,8 @@ import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Chain;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
+import dev.dominikbreu.spoonmcp.model.DataFlowEdge;
+import dev.dominikbreu.spoonmcp.model.DataFlowNode;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.DataFlowStep;
@@ -305,6 +307,64 @@ class PipelineRendererIntegrationTest {
         assertThat(headerCount)
                 .as("'Scheduler.tick' node must appear exactly once — no duplicate header")
                 .isEqualTo(1);
+    }
+
+    @Test
+    void conditionalTopologyEdgesRenderAsDashed() {
+        ArchitectureModel model = new ArchitectureModel("topo-test");
+        model.components.add(comp("AccountService", "AccountService", ComponentType.SERVICE));
+        model.entrypoints.add(ep("handle", "handle", EntrypointType.REST_ENDPOINT, null, "AccountService"));
+
+        DataFlowPath p = path("handle", "handle", "body");
+        DataFlowNode root = new DataFlowNode(
+                "N0", DataFlowNode.Kind.ROOT,
+                ComponentId.of("AccountService"), "AccountService", "handle", "body", null);
+        DataFlowNode addNode = new DataFlowNode(
+                "N1", DataFlowNode.Kind.METHOD,
+                ComponentId.of("AccountService"), "AccountService", "add", null, null);
+        DataFlowNode updateNode = new DataFlowNode(
+                "N2", DataFlowNode.Kind.METHOD,
+                ComponentId.of("AccountService"), "AccountService", "update", null, null);
+        p.flowNodes.add(root);
+        p.flowNodes.add(addNode);
+        p.flowNodes.add(updateNode);
+
+        p.flowEdges.add(new DataFlowEdge(
+                "N0", "N1", DataFlowEdge.Kind.CONDITIONAL, "B0", "B0_0", "if accountId == null"));
+        p.flowEdges.add(new DataFlowEdge(
+                "N0", "N2", DataFlowEdge.Kind.UNCONDITIONAL, null, null, null));
+
+        model.dataFlowPaths.add(p);
+
+        PipelineGraphBuilder.Chain chain = new PipelineGraphBuilder.Chain();
+        chain.segments.add(new PipelineGraphBuilder.Segment(p, null, model.entrypoints.get(0)));
+
+        String mermaid = new MermaidPipelineRenderer().render(chain, GraphQuery.from(model));
+
+        assertThat(mermaid).contains("-.->|if accountId == null|");
+        assertThat(mermaid).containsPattern("-->\\|[^|]*\\|");
+        assertThat(mermaid).doesNotContain("-.->||");
+    }
+
+    @Test
+    void topologyFallsBackToStepsWhenFlowNodesEmpty() {
+        ArchitectureModel model = new ArchitectureModel("fallback-test");
+        model.components.add(comp("Service", "Service", ComponentType.SERVICE));
+        model.entrypoints.add(ep("run", "run", EntrypointType.SCHEDULER, null, "Service"));
+
+        DataFlowPath p = path("run", "run", "*");
+        p.steps.add(new DataFlowStep(0, ComponentId.of("Service"), "Service", "run", "*"));
+        p.steps.add(new DataFlowStep(1, ComponentId.of("Service"), "Service", "persist", "*"));
+        // flowNodes intentionally empty — must fall back to flat steps rendering
+        model.dataFlowPaths.add(p);
+
+        PipelineGraphBuilder.Chain chain = new PipelineGraphBuilder.Chain();
+        chain.segments.add(new PipelineGraphBuilder.Segment(p, null, model.entrypoints.get(0)));
+
+        String mermaid = new MermaidPipelineRenderer().render(chain, GraphQuery.from(model));
+
+        assertThat(mermaid).contains("Service.run");
+        assertThat(mermaid).doesNotContain("-.->"); // flat steps = all solid arrows
     }
 
     @Test
