@@ -443,6 +443,7 @@ class GraphProjector {
         set(sinkVertex, "repositoryOperation", sink.repositoryOperation);
         set(sinkVertex, "linkEvidence", sink.linkEvidence);
         set(sinkVertex, "calleeQualifiedName", sink.calleeQualifiedName);
+        set(sinkVertex, "callerComponentId", sink.callerComponentId != null ? sink.callerComponentId.serialize() : null);
         setSource(sinkVertex, sink.source);
     }
 
