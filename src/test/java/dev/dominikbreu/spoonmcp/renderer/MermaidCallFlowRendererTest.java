@@ -2,7 +2,7 @@ package dev.dominikbreu.spoonmcp.renderer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
@@ -14,20 +14,22 @@ class MermaidCallFlowRendererTest {
 
     @Test
     void outputStartsWithFlowchartDirective() {
-        assertThat(renderer.render(flow(3), index(3))).startsWith("flowchart TD");
+        var r = buildGraph(model(3), flow(3));
+        assertThat(renderer.render(r.flowNode(), r.graph())).startsWith("flowchart TD");
     }
 
     @Test
     void containsClientNode() {
-        assertThat(renderer.render(flow(3), index(3))).contains("Client([Client])");
+        var r = buildGraph(model(3), flow(3));
+        assertThat(renderer.render(r.flowNode(), r.graph())).contains("Client([Client])");
     }
 
     @Test
     void containsEachComponentBySimpleName() {
-        RuntimeFlow f = flow(3);
-        String out = renderer.render(f, index(3));
-        for (RuntimeFlowStep step : f.steps) {
-            assertThat(out).contains(step.componentName);
+        var r = buildGraph(model(3), flow(3));
+        String out = renderer.render(r.flowNode(), r.graph());
+        for (int i = 0; i < 3; i++) {
+            assertThat(out).contains("Comp" + i);
         }
     }
 
@@ -35,24 +37,24 @@ class MermaidCallFlowRendererTest {
     void repositoryRendersAsCylinder() {
         ArchitectureModel m = model(2);
         m.components.get(1).type = ComponentType.REPOSITORY;
-        String out = renderer.render(flow(2), ToolModelIndex.from(m));
-        assertThat(out).contains("[(Comp1)]");
+        var r = buildGraph(m, flow(2));
+        assertThat(renderer.render(r.flowNode(), r.graph())).contains("[(Comp1)]");
     }
 
     @Test
     void httpClientRendersAsParallelogram() {
         ArchitectureModel m = model(2);
         m.components.get(1).type = ComponentType.HTTP_CLIENT;
-        String out = renderer.render(flow(2), ToolModelIndex.from(m));
-        assertThat(out).contains("[/Comp1/]");
+        var r = buildGraph(m, flow(2));
+        assertThat(renderer.render(r.flowNode(), r.graph())).contains("[/Comp1/]");
     }
 
     @Test
     void schedulerRendersAsStadium() {
         ArchitectureModel m = model(2);
         m.components.get(1).type = ComponentType.SCHEDULER;
-        String out = renderer.render(flow(2), ToolModelIndex.from(m));
-        assertThat(out).contains("([Comp1])");
+        var r = buildGraph(m, flow(2));
+        assertThat(renderer.render(r.flowNode(), r.graph())).contains("([Comp1])");
     }
 
     @Test
@@ -60,13 +62,15 @@ class MermaidCallFlowRendererTest {
         RuntimeFlow f = flow(3);
         f.edges.get(0).label = "processOrder";
         f.edges.get(1).label = "save";
-        String out = renderer.render(f, index(3));
+        var r = buildGraph(model(3), f);
+        String out = renderer.render(r.flowNode(), r.graph());
         assertThat(out).contains("-->|processOrder|");
         assertThat(out).contains("-->|save|");
     }
 
     @Test
     void branchingFlowRendersBothBranches() {
+        ArchitectureModel m = model(3);
         RuntimeFlow f = new RuntimeFlow();
         f.id = "flow:test";
         f.entrypointId = EntrypointId.deserialize("test");
@@ -82,7 +86,8 @@ class MermaidCallFlowRendererTest {
         f.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of("Comp0"), ComponentId.of("Comp1"), "doB"));
         f.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of("Comp0"), ComponentId.of("Comp2"), "doC"));
 
-        String out = renderer.render(f, index(3));
+        var r = buildGraph(m, f);
+        String out = renderer.render(r.flowNode(), r.graph());
         assertThat(out).contains("Comp0 -->|doB| Comp1");
         assertThat(out).contains("Comp0 -->|doC| Comp2");
         assertThat(out).doesNotContain("Comp1 -->");
@@ -92,67 +97,67 @@ class MermaidCallFlowRendererTest {
     void clientEdgeShowsHttpMethodAndPath() {
         ArchitectureModel m = model(2);
         Entrypoint ep = new Entrypoint();
-        ep.id = EntrypointId.deserialize("Comp0#create");
+        ep.id = EntrypointId.deserialize("test");
         ep.httpMethod = "POST";
         ep.path = "/orders";
         ep.componentId = ComponentId.of("Comp0");
         m.entrypoints.add(ep);
         RuntimeFlow f = flow(2);
         f.entrypointId = ep.id;
-        String out = renderer.render(f, ToolModelIndex.from(m));
-        assertThat(out).contains("POST /orders");
+        var r = buildGraph(m, f);
+        assertThat(renderer.render(r.flowNode(), r.graph())).contains("POST /orders");
     }
 
     @Test
     void clientEdgeShowsChannelNameForMessaging() {
         ArchitectureModel m = model(2);
         Entrypoint ep = new Entrypoint();
-        ep.id = EntrypointId.deserialize("Comp0#handle");
+        ep.id = EntrypointId.deserialize("test");
         ep.channelName = "order-events";
         ep.componentId = ComponentId.of("Comp0");
         m.entrypoints.add(ep);
         RuntimeFlow f = flow(2);
         f.entrypointId = ep.id;
-        String out = renderer.render(f, ToolModelIndex.from(m));
-        assertThat(out).contains("order-events");
+        var r = buildGraph(m, f);
+        assertThat(renderer.render(r.flowNode(), r.graph())).contains("order-events");
     }
 
     @Test
     void selfEdgesAreNotRendered() {
+        ArchitectureModel m = model(2);
         RuntimeFlow f = new RuntimeFlow();
         f.id = "flow:test";
         f.entrypointId = EntrypointId.deserialize("test");
         RuntimeFlowStep s0 = new RuntimeFlowStep();
+        s0.order = 0;
         s0.componentId = ComponentId.of("Comp0");
         s0.componentName = "Comp0";
         f.steps.add(s0);
         RuntimeFlowStep s1 = new RuntimeFlowStep();
+        s1.order = 1;
         s1.componentId = ComponentId.of("Comp1");
         s1.componentName = "Comp1";
         f.steps.add(s1);
-        // intra-component self-edge — must be suppressed
         f.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of("Comp0"), ComponentId.of("Comp0"), "helper"));
-        // cross-component edge — must be kept
         f.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of("Comp0"), ComponentId.of("Comp1"), "process"));
 
-        String out = renderer.render(f, index(2));
+        var r = buildGraph(m, f);
+        String out = renderer.render(r.flowNode(), r.graph());
         assertThat(out).doesNotContain("Comp0 -->|helper| Comp0");
         assertThat(out).contains("-->|process| Comp1");
     }
 
     @Test
     void noReturnArrowsRendered() {
-        String out = renderer.render(flow(4), index(4));
+        var r = buildGraph(model(4), flow(4));
+        String out = renderer.render(r.flowNode(), r.graph());
         assertThat(out).doesNotContain("-->>");
         assertThat(out).doesNotContain("result");
     }
 
     @Test
     void emptyFlowProducesFallbackNote() {
-        RuntimeFlow f = new RuntimeFlow();
-        f.id = "flow:empty";
-        f.entrypointId = EntrypointId.deserialize("none");
-        String out = renderer.render(f, ToolModelIndex.from(null));
+        String out = renderer.render(null, null);
         assertThat(out).contains("flowchart TD");
         assertThat(out).contains("no flow steps");
     }
@@ -172,21 +177,37 @@ class MermaidCallFlowRendererTest {
         f.entrypointId = EntrypointId.deserialize("test");
         for (int i = 0; i < 2; i++) {
             RuntimeFlowStep s = new RuntimeFlowStep();
+            s.order = i;
             s.componentId = ComponentId.of("pkg" + i + ".Service");
             s.componentName = "Service";
             s.componentType = "SERVICE";
             s.via = "call";
             f.steps.add(s);
         }
-        String out = renderer.render(f, ToolModelIndex.from(m));
+        var r = buildGraph(m, f);
+        String out = renderer.render(r.flowNode(), r.graph());
         assertThat(out).contains("Service_1");
         assertThat(out).contains("Service_2");
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
-    private ToolModelIndex index(int n) {
-        return ToolModelIndex.from(model(n));
+    record GraphResult(GraphQuery.RuntimeFlowNode flowNode, GraphQuery graph) {}
+
+    private GraphResult buildGraph(ArchitectureModel m, RuntimeFlow f) {
+        // ensure a matching entrypoint exists so resolveEntrypoint can find the flow
+        if (f.entrypointId != null && m.entrypoints.stream().noneMatch(e -> e.id.equals(f.entrypointId))) {
+            Entrypoint ep = new Entrypoint();
+            ep.id = f.entrypointId;
+            ep.componentId = f.steps.isEmpty() ? ComponentId.of("unknown") : f.steps.getFirst().componentId;
+            m.entrypoints.add(ep);
+        }
+        m.runtimeFlows.add(f);
+        GraphQuery graph = GraphQuery.from(m);
+        GraphQuery.RuntimeFlowNode flowNode = graph
+                .runtimeFlowForEntrypoint(f.entrypointId != null ? f.entrypointId.serialize() : "")
+                .orElseThrow(() -> new IllegalStateException("flow not found in graph for ep=" + f.entrypointId));
+        return new GraphResult(flowNode, graph);
     }
 
     private ArchitectureModel model(int n) {
@@ -214,8 +235,7 @@ class MermaidCallFlowRendererTest {
             s.via = "call";
             f.steps.add(s);
             if (i > 0) {
-                f.edges.add(
-                        new RuntimeFlow.FlowEdge(ComponentId.of("Comp" + (i - 1)), ComponentId.of("Comp" + i), "call"));
+                f.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of("Comp" + (i - 1)), ComponentId.of("Comp" + i), "call"));
             }
         }
         return f;

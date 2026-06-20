@@ -15,17 +15,16 @@ import org.junit.jupiter.api.io.TempDir;
 class ModelCacheGraphBackendTest {
 
     @Test
-    void graphBackendStoresJsonAndMaintainsGraphProjection(@TempDir Path tempDir) throws Exception {
-        ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.GRAPH);
+    void storesGraphSONAndMaintainsGraphProjection(@TempDir Path tempDir) throws Exception {
+        ModelCache cache = new ModelCache(tempDir.toString());
 
         cache.store(model());
 
         assertThat(tempDir.resolve("active-workspace.txt")).exists();
         assertThat(Files.walk(tempDir.resolve("workspaces"))
-                        .filter(path -> "architecture-model.v2.json"
+                        .filter(path -> "architecture-graph.v1.graphson"
                                 .equals(path.getFileName().toString())))
                 .hasSize(1);
-        assertThat(cache.getBackend()).isEqualTo(ModelCache.CacheBackend.GRAPH);
         assertThat(cache.graph().findNodes("Component", "BillingService", Map.of(), 10))
                 .extracting(node -> node.id().serialize())
                 .containsExactlyInAnyOrder("BillingService");
@@ -33,7 +32,7 @@ class ModelCacheGraphBackendTest {
 
     @Test
     void storesSeparateWorkspaceSnapshotsAndLoadsOnlyActiveWorkspace(@TempDir Path tempDir) throws Exception {
-        ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON);
+        ModelCache cache = new ModelCache(tempDir.toString());
         ArchitectureModel first = model("first-workspace", "FirstService");
         ArchitectureModel second = model("second-workspace", "SecondService");
 
@@ -41,12 +40,11 @@ class ModelCacheGraphBackendTest {
         cache.store(second);
 
         assertThat(Files.walk(tempDir.resolve("workspaces"))
-                        .filter(path -> "architecture-model.v2.json"
+                        .filter(path -> "architecture-graph.v1.graphson"
                                 .equals(path.getFileName().toString())))
                 .hasSize(2);
 
-        ModelCache reloaded = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON);
-        assertThat(reloaded.load().workspacePath).isEqualTo("second-workspace");
+        ModelCache reloaded = new ModelCache(tempDir.toString());
         assertThat(reloaded.graph().findNodes("Component", "SecondService", Map.of(), 10))
                 .extracting(node -> node.id().serialize())
                 .containsExactlyInAnyOrder("SecondService");
@@ -56,16 +54,15 @@ class ModelCacheGraphBackendTest {
 
     @Test
     void clearingActiveWorkspacePreventsStaleLoads(@TempDir Path tempDir) throws Exception {
-        ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON);
+        ModelCache cache = new ModelCache(tempDir.toString());
 
         cache.store(model());
         cache.clearActive();
 
-        assertThat(cache.load()).isNull();
-        assertThat(new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON).load())
-                .isNull();
+        assertThat(cache.graph().isIndexed()).isFalse();
+        assertThat(new ModelCache(tempDir.toString()).graph().isIndexed()).isFalse();
         assertThat(Files.walk(tempDir.resolve("workspaces"))
-                        .filter(path -> "architecture-model.v2.json"
+                        .filter(path -> "architecture-graph.v1.graphson"
                                 .equals(path.getFileName().toString())))
                 .hasSize(1);
     }

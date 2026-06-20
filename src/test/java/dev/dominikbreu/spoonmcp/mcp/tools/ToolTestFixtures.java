@@ -19,7 +19,7 @@ class ToolTestFixtures {
 
     static ModelCache indexFixtureProject(String name) throws Exception {
         var tempDir = Files.createTempDirectory("spoon-mcp-tool-test-");
-        ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.GRAPH);
+        ModelCache cache = new ModelCache(tempDir.toString());
         if ("state-handoff".equals(name)) {
             cache.store(stateHandoffModel());
         } else {

@@ -48,7 +48,7 @@ class DependencyExtractorTest extends ExtractorTestBase {
         assertHasDependency(quarkusModel, "OrderService", "com.example.model.Order");
         quarkusModel.dependencies.stream()
                 .filter(d -> d.fromId.serialize().contains("OrderService")
-                        && d.toId.serialize().equals("com.example.model.Order"))
+                        && "com.example.model.Order".equals(d.toId.serialize()))
                 .forEach(d -> assertThat(d.kind).isEqualTo("type-usage"));
     }
 
@@ -56,18 +56,16 @@ class DependencyExtractorTest extends ExtractorTestBase {
     void quarkusDependenciesAreAnnotationDerived() {
         quarkusModel.dependencies.stream()
                 .filter(d -> "injection".equals(d.kind))
-                .forEach(
-                        d -> assertThat(d.derivedFrom).as("derivedFrom for %s", d.id).isEqualTo("annotation"));
+                .forEach(d ->
+                        assertThat(d.derivedFrom).as("derivedFrom for %s", d.id).isEqualTo("annotation"));
     }
 
     @Test
     void quarkusDependenciesHaveHighConfidence() {
         quarkusModel.dependencies.stream()
                 .filter(d -> "injection".equals(d.kind))
-                .forEach(
-                        d -> assertThat(d.confidence)
-                                .as("confidence for %s", d.id)
-                                .isGreaterThanOrEqualTo(0.9));
+                .forEach(d ->
+                        assertThat(d.confidence).as("confidence for %s", d.id).isGreaterThanOrEqualTo(0.9));
     }
 
     @Test
@@ -80,9 +78,7 @@ class DependencyExtractorTest extends ExtractorTestBase {
     @Test
     void dependencyKindIsInjectionOrTypeUsage() {
         quarkusModel.dependencies.forEach(
-                d -> assertThat(d.kind)
-                        .as("kind for %s", d.id)
-                        .isIn("injection", "type-usage"));
+                d -> assertThat(d.kind).as("kind for %s", d.id).isIn("injection", "type-usage"));
     }
 
     // ── javaee ejb/resource injection ────────────────────────────────────────

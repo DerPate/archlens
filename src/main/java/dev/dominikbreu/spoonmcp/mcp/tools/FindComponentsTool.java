@@ -1,12 +1,9 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
-import dev.dominikbreu.spoonmcp.model.Component;
-import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.ids.AppId;
-import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -17,71 +14,46 @@ public class FindComponentsTool {
 
     private final ModelCache cache;
 
-    /**
-     * Creates the tool with the shared model cache.
-     *
-     * @param cache model cache used by prior indexing
-     */
     public FindComponentsTool(ModelCache cache) {
         this.cache = cache;
     }
 
-    /**
-     * Executes a component search.
-     *
-     * @param args JSON arguments including appId, type, or technology
-     * @return formatted component list or an error message
-     */
     public String execute(Map<String, Object> args) {
         try {
-            ToolModelIndex index = cache.index();
-            ArchitectureGraph graph = cache.graph();
-            if (index.rawModel() == null) return "No workspace indexed yet. Call index_workspace first.";
+            GraphQuery graph = cache.graph();
+            if (graph.isEmpty()) return "No workspace indexed yet. Call index_workspace first.";
 
             String appId = ToolArgs.getString(args, "appId");
             String typeFilter = ToolArgs.getString(args, "type");
             String techFilter = ToolArgs.getString(args, "technology");
 
-            // Retrieve candidate nodes from graph; use owned-by index when appId is set
-            List<ArchitectureGraph.GraphNode> nodes = appId != null
-                    ? graph.componentNodesOwnedBy(AppId.of(appId))
-                    : graph.findNodes("Component", null, Map.of(), 5000);
+            Map<String, String> filters = new LinkedHashMap<>();
+            if (typeFilter != null) filters.put("type", typeFilter);
+            if (techFilter != null) filters.put("technology", techFilter);
 
-            List<Component> comps = nodes.stream()
-                    .map(n -> index.component(ComponentId.of(n.id().value())))
-                    .filter(c -> c != null)
-                    .filter(c -> typeFilter == null || matchesType(c.type, typeFilter))
-                    .filter(c -> techFilter == null || techFilter.equalsIgnoreCase(c.technology))
-                    .toList();
+            List<GraphQuery.GraphNode> nodes = appId != null
+                    ? applyFilters(graph.componentNodesOwnedBy(AppId.of(appId)), typeFilter, techFilter)
+                    : graph.findNodes("Component", null, filters, 0);
 
-            if (comps.isEmpty()) return "No components found matching the given criteria.";
+            if (nodes.isEmpty()) return "No components found matching the given criteria.";
 
             StringBuilder sb = new StringBuilder();
-            sb.append("Found ").append(comps.size()).append(" component(s):\n\n");
-            for (Component c : comps) {
-                sb.append("- [")
-                        .append(c.type)
-                        .append("] ")
-                        .append(c.name)
-                        .append(" (")
-                        .append(c.technology)
-                        .append(")\n");
-                sb.append("  QN: ").append(c.qualifiedName).append("\n");
-                if (!c.stereotypes.isEmpty()) {
-                    sb.append("  Stereotypes: ")
-                            .append(String.join(", ", c.stereotypes))
-                            .append("\n");
+            sb.append("Found ").append(nodes.size()).append(" component(s):\n\n");
+            for (GraphQuery.GraphNode node : nodes) {
+                if (!(node instanceof GraphQuery.ComponentNode cn)) continue;
+                sb.append("- [").append(cn.type() != null ? cn.type().name() : "?").append("] ")
+                        .append(cn.name())
+                        .append(" (").append(cn.technology()).append(")\n");
+                sb.append("  QN: ").append(cn.qualifiedName()).append("\n");
+                if (cn.stereotypes() != null && !cn.stereotypes().isEmpty()) {
+                    sb.append("  Stereotypes: ").append(String.join(", ", cn.stereotypes())).append("\n");
                 }
-                if (c.source != null) {
-                    sb.append("  Source: ")
-                            .append(c.source.file)
-                            .append(":")
-                            .append(c.source.line)
-                            .append(" [")
-                            .append(c.source.derivedFrom)
-                            .append(", confidence=")
-                            .append(c.source.confidence)
-                            .append("]\n");
+                Map<String, Object> props = cn.properties();
+                if (props.get("sourceFile") != null) {
+                    sb.append("  Source: ").append(props.get("sourceFile"))
+                            .append(":").append(props.get("sourceLine"))
+                            .append(" [").append(props.get("derivedFrom"))
+                            .append(", confidence=").append(props.get("confidence")).append("]\n");
                 }
                 sb.append("\n");
             }
@@ -91,11 +63,18 @@ public class FindComponentsTool {
         }
     }
 
-    private boolean matchesType(ComponentType type, String filter) {
-        try {
-            return type == ComponentType.valueOf(filter.toUpperCase());
-        } catch (IllegalArgumentException _) {
-            return type.name().toLowerCase().contains(filter.toLowerCase());
-        }
+    private List<GraphQuery.GraphNode> applyFilters(List<GraphQuery.GraphNode> nodes, String typeFilter, String techFilter) {
+        if (typeFilter == null && techFilter == null) return nodes;
+        return nodes.stream()
+                .filter(n -> {
+                    Map<String, Object> p = n.properties();
+                    if (typeFilter != null) {
+                        String t = p.getOrDefault("type", "").toString();
+                        if (!typeFilter.equalsIgnoreCase(t) && !t.toLowerCase().contains(typeFilter.toLowerCase())) return false;
+                    }
+                    if (techFilter != null && !techFilter.equalsIgnoreCase(p.getOrDefault("technology", "").toString())) return false;
+                    return true;
+                })
+                .toList();
     }
 }

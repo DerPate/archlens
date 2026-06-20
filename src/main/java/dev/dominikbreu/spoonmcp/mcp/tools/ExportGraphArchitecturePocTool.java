@@ -1,11 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
-import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
-import dev.dominikbreu.spoonmcp.model.RuntimeFlow;
-import dev.dominikbreu.spoonmcp.model.RuntimeFlowStep;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
@@ -50,16 +46,14 @@ public class ExportGraphArchitecturePocTool {
      */
     public String execute(Map<String, Object> args) {
         try {
-            ToolModelIndex index = cache.index();
-            ArchitectureModel model = index.rawModel();
-            if (model == null) {
+            GraphQuery graph = cache.graph();
+            if (!graph.isIndexed()) {
                 return "No workspace indexed yet. Call index_workspace first.";
             }
 
-            ArchitectureGraph graph = cache.graph();
             Path output = Path.of(ToolArgs.getString(args, "outputPath", DEFAULT_OUTPUT.toString()));
             String focus = ToolArgs.getString(args, "focusComponent", "McpServer");
-            String markdown = renderMarkdown(model, graph, focus);
+            String markdown = renderMarkdown(graph, focus);
 
             Path parent = output.getParent();
             if (parent != null) {
@@ -75,24 +69,22 @@ public class ExportGraphArchitecturePocTool {
         }
     }
 
-    private String renderMarkdown(ArchitectureModel model, ArchitectureGraph graph, String focusComponent) {
-        ArchitectureGraph.GraphSummary summary = graph.summary();
+    private String renderMarkdown(GraphQuery graph, String focusComponent) {
+        GraphQuery.GraphSummary summary = graph.summary();
         StringBuilder sb = new StringBuilder();
         sb.append("# Generated Architecture Graph POC\n\n");
         sb.append(
-                "Generated from the indexed `ArchitectureModel` and the embedded `ArchitectureGraph` by the MCP tool `export_graph_architecture_poc`.\n\n");
+                "Generated from the indexed workspace by the MCP tool `export_graph_architecture_poc`.\n\n");
         sb.append("## Summary\n\n");
-        sb.append("- Applications: ").append(model.applications.size()).append("\n");
-        sb.append("- Components: ").append(model.components.size()).append("\n");
-        sb.append("- Entrypoints: ").append(model.entrypoints.size()).append("\n");
-        sb.append("- Interfaces: ").append(model.interfaces.size()).append("\n");
-        sb.append("- Dependencies: ").append(model.dependencies.size()).append("\n");
-        sb.append("- Runtime flows: ").append(model.runtimeFlows.size()).append("\n");
+        sb.append("- Applications: ").append(graph.countByLabel("Application")).append("\n");
+        sb.append("- Components: ").append(graph.countByLabel("Component")).append("\n");
+        sb.append("- Entrypoints: ").append(graph.countByLabel("Entrypoint")).append("\n");
+        sb.append("- Interfaces: ").append(graph.countByLabel("Interface")).append("\n");
+        sb.append("- Dependencies: ").append(summary.edges().getOrDefault("DEPENDS_ON", 0)).append("\n");
+        sb.append("- Runtime flows: ").append(graph.countByLabel("RuntimeFlow")).append("\n");
         sb.append("- Graph nodes: ").append(summary.nodeCount()).append("\n");
         sb.append("- Graph edges: ").append(summary.edgeCount()).append("\n");
-        sb.append("- Cache backend: ")
-                .append(cache.getBackend().name().toLowerCase())
-                .append("\n\n");
+        sb.append("- Cache backend: graphson\n\n");
 
         sb.append("## Graph Metadata POC\n\n");
         sb.append("This section reflects the embedded property graph projection rather than the plain JSON model.\n");
@@ -126,7 +118,7 @@ public class ExportGraphArchitecturePocTool {
         appendCrossModuleDependencies(sb, graph);
         appendEntrypointReachability(sb, graph);
 
-        appendRuntimeFlowSamples(sb, model);
+        appendRuntimeFlowSamples(sb, graph);
         appendFocusSlice(sb, graph, focusComponent);
 
         sb.append("## MCP Graph Query Examples\n\n");
@@ -149,17 +141,17 @@ public class ExportGraphArchitecturePocTool {
         return sb.toString();
     }
 
-    private void appendHighSignalComponents(StringBuilder sb, ArchitectureGraph graph) {
+    private void appendHighSignalComponents(StringBuilder sb, GraphQuery graph) {
         sb.append("## High Signal Components\n\n");
-        Comparator<ArchitectureGraph.GraphNode> signalOrder = Comparator.comparingInt(
-                        (ArchitectureGraph.GraphNode node) ->
+        Comparator<GraphQuery.GraphNode> signalOrder = Comparator.comparingInt(
+                        (GraphQuery.GraphNode node) ->
                                 booleanRank(node.properties().get("workflowRelevant")))
                 .reversed()
-                .thenComparing(Comparator.comparingInt((ArchitectureGraph.GraphNode node) ->
+                .thenComparing(Comparator.comparingInt((GraphQuery.GraphNode node) ->
                                 booleanRank(node.properties().get("businessRelevant")))
                         .reversed())
                 .thenComparingInt(node -> numeric(node.properties().get("noiseScore")))
-                .thenComparing(Comparator.comparingInt((ArchitectureGraph.GraphNode node) ->
+                .thenComparing(Comparator.comparingInt((GraphQuery.GraphNode node) ->
                                 numeric(node.properties().get(ARCHITECTURAL_WEIGHT)))
                         .reversed())
                 .thenComparing(node -> node.id().serialize());
@@ -194,7 +186,7 @@ public class ExportGraphArchitecturePocTool {
         sb.append("\n");
     }
 
-    private void appendCrossModuleDependencies(StringBuilder sb, ArchitectureGraph graph) {
+    private void appendCrossModuleDependencies(StringBuilder sb, GraphQuery graph) {
         sb.append("## Cross-Module Dependencies\n\n");
         graph.findEdges("DEPENDS_ON", Map.of("isCrossModule", "true"), 100).stream()
                 .sorted(Comparator.comparingDouble(
@@ -213,7 +205,7 @@ public class ExportGraphArchitecturePocTool {
         sb.append("\n");
     }
 
-    private void appendEntrypointReachability(StringBuilder sb, ArchitectureGraph graph) {
+    private void appendEntrypointReachability(StringBuilder sb, GraphQuery graph) {
         sb.append("## Entrypoint Reachability\n\n");
         graph.findNodes(COMPONENT_LABEL, null, Map.of("entrypointReachable", "true"), 100).stream()
                 .limit(20)
@@ -233,39 +225,45 @@ public class ExportGraphArchitecturePocTool {
         sb.append("\n");
     }
 
-    private void appendRuntimeFlowSamples(StringBuilder sb, ArchitectureModel model) {
+    private void appendRuntimeFlowSamples(StringBuilder sb, GraphQuery graph) {
         sb.append("## Runtime Flow Samples\n\n");
-        if (model.runtimeFlows.isEmpty()) {
+        List<GraphQuery.RuntimeFlowNode> flows = graph.allRuntimeFlows();
+        if (flows.isEmpty()) {
             sb.append("- No runtime flows were persisted in the indexed model.\n\n");
             return;
         }
-        for (RuntimeFlow flow : model.runtimeFlows) {
-            sb.append("### ").append(flow.id).append("\n\n");
-            sb.append("- Entrypoint: `").append(flow.entrypointId).append("`\n");
-            sb.append("- Steps: ").append(flow.steps.size()).append("\n");
-            for (RuntimeFlowStep step : flow.steps) {
-                appendFlowStep(sb, step);
+        for (GraphQuery.RuntimeFlowNode flow : flows) {
+            sb.append("### ").append(flow.id().value()).append("\n\n");
+            sb.append("- Entrypoint: `")
+                    .append(flow.entrypointId() != null ? flow.entrypointId().serialize() : "")
+                    .append("`\n");
+            List<GraphQuery.RuntimeFlowStepNode> steps = graph.flowSteps(flow.id());
+            sb.append("- Steps: ").append(steps.size()).append("\n");
+            for (GraphQuery.RuntimeFlowStepNode step : steps) {
+                appendFlowStep(sb, step, graph);
             }
             sb.append("\n");
         }
     }
 
-    private void appendFlowStep(StringBuilder sb, RuntimeFlowStep step) {
+    private void appendFlowStep(StringBuilder sb, GraphQuery.RuntimeFlowStepNode step, GraphQuery graph) {
         sb.append("- ")
-                .append(step.order)
+                .append(step.order())
                 .append(". `")
-                .append(step.componentId)
+                .append(step.componentId() != null ? step.componentId().serialize() : "")
                 .append("`");
-        if (StringUtils.isNotBlank(step.componentName)) {
-            sb.append(" ").append(step.componentName);
+        if (step.componentId() != null) {
+            GraphQuery.GraphNode cn = graph.component(step.componentId());
+            String name = cn instanceof GraphQuery.ComponentNode c ? c.name() : null;
+            if (StringUtils.isNotBlank(name)) sb.append(" ").append(name);
         }
-        if (StringUtils.isNotBlank(step.via)) {
-            sb.append(" via `").append(step.via).append("`");
+        if (StringUtils.isNotBlank(step.via())) {
+            sb.append(" via `").append(step.via()).append("`");
         }
         sb.append("\n");
     }
 
-    private void appendFocusSlice(StringBuilder sb, ArchitectureGraph graph, String focusComponent) {
+    private void appendFocusSlice(StringBuilder sb, GraphQuery graph, String focusComponent) {
         sb.append("## Focus Slice\n\n");
         sb.append("Focus component: `").append(focusComponent).append("`\n\n");
         graph.findNodes(COMPONENT_LABEL, focusComponent, Map.of(), 5).stream()

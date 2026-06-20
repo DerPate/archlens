@@ -11,6 +11,19 @@ import java.util.Set;
  * actual {@code CtInvocation} nodes in the source rather than injection annotations.
  */
 public class CallEdge {
+    /** Source-level control-flow context for the call site. */
+    public enum ControlFlowKind {
+        UNCONDITIONAL,
+        IF_THEN,
+        IF_ELSE,
+        SWITCH_CASE,
+        SWITCH_DEFAULT,
+        TERNARY_THEN,
+        TERNARY_ELSE,
+        CATCH,
+        FINALLY
+    }
+
     /** Stable edge identifier: {@code call:fromCompId#fromMethod->toCompId#toMethod}. */
     public String id;
     /** Calling component identifier. */
@@ -25,6 +38,16 @@ public class CallEdge {
     public String callKind;
     /** Source evidence for the call site. */
     public SourceInfo source;
+    /** Source-level control-flow context of the call site. */
+    public ControlFlowKind controlFlowKind = ControlFlowKind.UNCONDITIONAL;
+    /** Stable id of the enclosing branch group, or null for unconditional calls. */
+    public String branchGroupId;
+    /** Stable id of the branch arm, or null for unconditional calls. */
+    public String branchArmId;
+    /** Human-readable branch arm label. */
+    public String branchLabel;
+    /** Source location of the branch construct that owns this call site. */
+    public SourceInfo controlSource;
     /** Evidence kind used to resolve the invocation receiver, e.g. constructor-assignment. */
     public String receiverEvidence;
     /**

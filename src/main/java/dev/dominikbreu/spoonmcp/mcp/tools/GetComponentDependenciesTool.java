@@ -1,14 +1,13 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
-import dev.dominikbreu.spoonmcp.cache.ArchitectureGraph;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
-import dev.dominikbreu.spoonmcp.extractor.DependencyCondenser;
-import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import dev.dominikbreu.spoonmcp.model.ids.GraphNodeId;
-import java.util.*;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * MCP tool that traverses dependencies around a selected component.
@@ -16,28 +15,15 @@ import java.util.Map;
 public class GetComponentDependenciesTool {
 
     private final ModelCache cache;
-    private final DependencyCondenser condenser = new DependencyCondenser();
 
-    /**
-     * Creates the tool with the shared model cache.
-     *
-     * @param cache model cache used by prior indexing
-     */
     public GetComponentDependenciesTool(ModelCache cache) {
         this.cache = cache;
     }
 
-    /**
-     * Executes a dependency traversal.
-     *
-     * @param args JSON arguments including componentId or name, depth, and condensed
-     * @return formatted dependency traversal or an error message
-     */
     public String execute(Map<String, Object> args) {
         try {
-            ToolModelIndex index = cache.index();
-            ArchitectureGraph graph = cache.graph();
-            if (index.rawModel() == null) return "No workspace indexed yet. Call index_workspace first.";
+            GraphQuery graph = cache.graph();
+            if (graph.isEmpty()) return "No workspace indexed yet. Call index_workspace first.";
 
             String ref = ToolArgs.getString(args, "componentId");
             if (ref == null) ref = ToolArgs.getString(args, "name");
@@ -48,63 +34,44 @@ public class GetComponentDependenciesTool {
 
             GraphNodeId rootNodeId = graph.resolveComponent(ref).orElse(null);
             if (rootNodeId == null) return "Component not found: " + ref;
-            Component root = index.component(ComponentId.of(rootNodeId.value()));
+
+            GraphQuery.GraphNode root = graph.component(ComponentId.of(rootNodeId.value()));
             if (root == null) return "Component not found: " + ref;
 
-            ArchitectureModel model = index.rawModel();
-            List<Dependency> allDeps =
-                    condensed ? condenser.condense(model.dependencies, model.components) : model.dependencies;
-
-            // BFS over DEPENDS_ON edges in the graph, then hydrate deps from the model
             Set<GraphNodeId> reachable = new LinkedHashSet<>();
             reachable.add(rootNodeId);
             graph.reachable(rootNodeId, "out", "DEPENDS_ON", depth, 1000).forEach(n -> reachable.add(n.id()));
 
-            List<Dependency> result = allDeps.stream()
-                    .filter(d -> reachable.contains(GraphNodeId.of(d.fromId.serialize()))
-                            && reachable.contains(GraphNodeId.of(d.toId.serialize()))
-                            && !d.fromId.equals(d.toId))
+            List<GraphQuery.GraphEdge> edges = graph.findEdges("DEPENDS_ON", Map.of(), 10000).stream()
+                    .filter(e -> reachable.contains(e.fromId()) && reachable.contains(e.toId())
+                            && !e.fromId().equals(e.toId()))
                     .toList();
 
-            Map<ComponentId, Component> byId = new HashMap<>();
-            for (GraphNodeId nid : reachable) {
-                Component c = index.component(ComponentId.of(nid.value()));
-                if (c != null) byId.put(c.id, c);
+            if (edges.isEmpty()) {
+                return "No dependencies found for component: " + root.name()
+                        + " (depth=" + depth + ", condensed=" + condensed + ")";
             }
-
-            if (result.isEmpty()) {
-                return "No dependencies found for component: " + root.name + " (depth=" + depth + ", condensed="
-                        + condensed + ")";
-            }
-            return formatDependencies(result, root, byId, depth, condensed);
+            return format(edges, root, graph, depth, condensed);
         } catch (Exception e) {
             return "Error getting dependencies: " + e.getMessage();
         }
     }
 
-    private String formatDependencies(
-            List<Dependency> result, Component root, Map<ComponentId, Component> byId, int depth, boolean condensed) {
+    private String format(List<GraphQuery.GraphEdge> edges, GraphQuery.GraphNode root, GraphQuery graph, int depth, boolean condensed) {
+        String rootType = root instanceof GraphQuery.ComponentNode cn && cn.type() != null ? cn.type().name() : "?";
         StringBuilder sb = new StringBuilder();
-        sb.append("Dependencies for [")
-                .append(root.type)
-                .append("] ")
-                .append(root.name)
-                .append(" (depth=")
-                .append(depth)
-                .append(", condensed=")
-                .append(condensed)
-                .append("):\n\n");
-        for (Dependency dep : result) {
-            Component to = byId.get(dep.toId);
-            String toLabel = to != null ? "[" + to.type + "] " + to.name : dep.toId.serialize();
-            sb.append("  -> ")
-                    .append(toLabel)
-                    .append(" [")
-                    .append(dep.kind)
-                    .append(", ")
-                    .append(dep.derivedFrom)
-                    .append(", evidence-score=")
-                    .append(dep.confidence)
+        sb.append("Dependencies for [").append(rootType).append("] ").append(root.name())
+                .append(" (depth=").append(depth).append(", condensed=").append(condensed).append("):\n\n");
+        for (GraphQuery.GraphEdge edge : edges) {
+            GraphQuery.GraphNode to = graph.component(ComponentId.of(edge.toId().value()));
+            String toLabel = to instanceof GraphQuery.ComponentNode cn && cn.type() != null
+                    ? "[" + cn.type().name() + "] " + cn.name()
+                    : edge.toId().serialize();
+            Map<String, Object> p = edge.properties();
+            sb.append("  -> ").append(toLabel)
+                    .append(" [").append(p.getOrDefault("kind", "?"))
+                    .append(", ").append(p.getOrDefault("derivedFrom", "?"))
+                    .append(", evidence-score=").append(p.getOrDefault("confidence", "?"))
                     .append("]\n");
         }
         return sb.toString();

@@ -46,12 +46,8 @@ class TraceDataFlowToolTest {
                 dataFlowPath("ep:BudgetControlController#get:GET#customerId", budgetEp.id, "customerId");
         model.dataFlowPaths.addAll(List.of(customerPath, budgetPath));
 
-        ModelCache cache = new ModelCache(null, ModelCache.CacheBackend.JSON) {
-            @Override
-            public ArchitectureModel load() {
-                return model;
-            }
-        };
+        ModelCache cache = new ModelCache(null);
+        cache.indexInMemory(model);
         TraceDataFlowTool tool = new TraceDataFlowTool(cache);
 
         String result = tool.execute(Map.of("entrypointName", "/customer"));
@@ -71,12 +67,8 @@ class TraceDataFlowToolTest {
 
     @Test
     void noModel_reportsNoWorkspace() {
-        ModelCache empty = new ModelCache(null, ModelCache.CacheBackend.JSON) {
-            @Override
-            public ArchitectureModel load() {
-                return null;
-            }
-        };
+        ModelCache empty = new ModelCache(null);
+        empty.indexInMemory(null);
         assertThat(new TraceDataFlowTool(empty).execute(Map.of())).contains("No workspace indexed");
     }
 
@@ -116,12 +108,59 @@ class TraceDataFlowToolTest {
         assertThat(result)
                 .contains("1 data-flow path(s):")
                 .contains("→ param: id")
+                .contains("id: ep:CustomerController#get:GET#id")
+                .doesNotContain("DataFlowPathId[")
                 .contains("flow:")
                 .contains("1. CustomerController.get (as 'id')")
                 .contains("sinks:")
                 .contains("[store] StateStore.put")
                 .contains("field=cache")
                 .contains("(StateStore.java:42)");
+    }
+
+    @Test
+    void format_prefersTopologyWhenPresent() {
+        ArchitectureModel model = richModel();
+        DataFlowPath path = model.dataFlowPaths.getFirst();
+        path.flowNodes.add(new DataFlowNode(
+                "n0", DataFlowNode.Kind.ROOT, path.entrypointId.component(), "CustomerController", "get", "id", null));
+        path.flowNodes.add(new DataFlowNode(
+                "n1",
+                DataFlowNode.Kind.METHOD,
+                ComponentId.of("Validator"),
+                "Validator",
+                "accept",
+                "id",
+                new SourceInfo("Validator.java", 12, "invocation", 0.9)));
+        path.flowNodes.add(new DataFlowNode(
+                "n2",
+                DataFlowNode.Kind.METHOD,
+                ComponentId.of("Validator"),
+                "Validator",
+                "reject",
+                "id",
+                new SourceInfo("Validator.java", 14, "invocation", 0.9)));
+        path.flowEdges.add(new DataFlowEdge("n0", "n1", DataFlowEdge.Kind.CONDITIONAL, "b0", "b0:then", "then"));
+        path.flowEdges.add(new DataFlowEdge("n0", "n2", DataFlowEdge.Kind.CONDITIONAL, "b0", "b0:else", "else"));
+        DataFlowBranch branch = new DataFlowBranch(
+                "b0", DataFlowBranch.Kind.IF, new SourceInfo("Validator.java", 11, "if", 1.0), List.of());
+        branch.arms.add(new DataFlowBranchArm("b0:then", "b0", "then", "n1"));
+        branch.arms.add(new DataFlowBranchArm("b0:else", "b0", "else", "n2"));
+        path.branches.add(branch);
+
+        String result = tool(model).execute(Map.of("entrypointId", "CustomerController#get"));
+
+        assertThat(result)
+                .contains("flow graph:")
+                .contains("N0 CustomerController.get [root]")
+                .contains("branches:")
+                .contains("B0 IF Validator.java:11")
+                .contains("then -> N1")
+                .contains("else -> N2")
+                .contains("edges:")
+                .contains("N0 -> N1 [then] (B0/b0:then)")
+                .contains("N0 -> N2 [else] (B0/b0:else)")
+                .doesNotContain("  flow:\n");
     }
 
     @Test
@@ -137,12 +176,8 @@ class TraceDataFlowToolTest {
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private static TraceDataFlowTool tool(ArchitectureModel model) {
-        ModelCache cache = new ModelCache(null, ModelCache.CacheBackend.JSON) {
-            @Override
-            public ArchitectureModel load() {
-                return model;
-            }
-        };
+        ModelCache cache = new ModelCache(null);
+        cache.indexInMemory(model);
         return new TraceDataFlowTool(cache);
     }
 

@@ -15,20 +15,27 @@ import io.opentelemetry.api.trace.Tracer;
 import java.util.*;
 import java.util.stream.Collectors;
 import spoon.reflect.CtModel;
+import spoon.reflect.code.CtAbstractSwitch;
 import spoon.reflect.code.CtAssignment;
+import spoon.reflect.code.CtBlock;
+import spoon.reflect.code.CtCase;
+import spoon.reflect.code.CtCatch;
 import spoon.reflect.code.CtConditional;
 import spoon.reflect.code.CtConstructorCall;
 import spoon.reflect.code.CtExpression;
 import spoon.reflect.code.CtFieldAccess;
 import spoon.reflect.code.CtFieldRead;
 import spoon.reflect.code.CtFieldWrite;
+import spoon.reflect.code.CtIf;
 import spoon.reflect.code.CtInvocation;
 import spoon.reflect.code.CtLiteral;
 import spoon.reflect.code.CtLocalVariable;
 import spoon.reflect.code.CtReturn;
+import spoon.reflect.code.CtTry;
 import spoon.reflect.code.CtTypeAccess;
 import spoon.reflect.code.CtVariableRead;
 import spoon.reflect.code.CtVariableWrite;
+import spoon.reflect.declaration.CtElement;
 import spoon.reflect.declaration.CtField;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtParameter;
@@ -166,6 +173,13 @@ public class CallGraphExtractor {
             Map<CtInvocation<?>, Set<String>> killedSnapshots,
             List<CtAssignment<?, ?>> assignments,
             List<CtFieldRead<?>> fieldReads) {}
+
+    private record BranchContext(
+            CallEdge.ControlFlowKind kind,
+            String branchGroupId,
+            String branchArmId,
+            String branchLabel,
+            SourceInfo controlSource) {}
 
     private static MethodScan scanMethod(CtMethod<?> method) {
         List<CtInvocation<?>> invocations = new ArrayList<>();
@@ -544,8 +558,8 @@ public class CallGraphExtractor {
             String toMethod = inv.getExecutable().getSimpleName();
             if (!ownMethodNames.contains(toMethod)) continue;
             if (toMethod.equals(fromMethod)) continue; // ignore trivial self-call
-            String edgeId = "call:" + fromComp.id.serialize() + "#" + fromMethod + "->" + fromComp.id.serialize() + "#"
-                    + toMethod;
+            BranchContext branch = branchContext(inv);
+            String edgeId = callEdgeId(fromComp, fromMethod, fromComp, toMethod, branch);
             if (!ctx.addSeenId(edgeId)) continue;
             CallEdge edge = new CallEdge();
             edge.id = edgeId;
@@ -555,6 +569,7 @@ public class CallGraphExtractor {
             edge.toMethod = toMethod;
             edge.callKind = "intra";
             edge.source = buildSource(inv);
+            applyBranchContext(edge, branch);
             model.callEdges.add(edge);
             buildParamMapping(inv, edge);
         }
@@ -729,8 +744,8 @@ public class CallGraphExtractor {
             ExtractionContext ctx,
             Set<String> killedSnapshot,
             String callKind) {
-        String edgeId =
-                "call:" + fromComp.id.serialize() + "#" + fromMethod + "->" + toComp.id.serialize() + "#" + toMethod;
+        BranchContext branch = branchContext(inv);
+        String edgeId = callEdgeId(fromComp, fromMethod, toComp, toMethod, branch);
         if (!ctx.addSeenId(edgeId)) return;
         CallEdge edge = new CallEdge();
         edge.id = edgeId;
@@ -740,6 +755,7 @@ public class CallGraphExtractor {
         edge.toMethod = toMethod;
         edge.callKind = callKind;
         edge.source = buildSource(inv);
+        applyBranchContext(edge, branch);
         edge.receiverEvidence = receiverEvidence;
         edge.receiverLocalName = resolveReceiverLocalName(inv);
         edge.receiverConfidence = receiverConfidence;
@@ -751,6 +767,226 @@ public class CallGraphExtractor {
         if (killedSnapshot != null) edge.killedTrackedNames.addAll(killedSnapshot);
         model.callEdges.add(edge);
         emitCallerSideFieldReadIfGetter(inv, fromComp, fromMethod, toComp, model, ctx);
+    }
+
+    private static String callEdgeId(
+            Component fromComp, String fromMethod, Component toComp, String toMethod, BranchContext branch) {
+        String edgeId =
+                "call:" + fromComp.id.serialize() + "#" + fromMethod + "->" + toComp.id.serialize() + "#" + toMethod;
+        if (branch == null) {
+            return edgeId;
+        }
+        return edgeId + "@arm:" + sanitizeIdSegment(branch.branchArmId());
+    }
+
+    private void applyBranchContext(CallEdge edge, BranchContext branch) {
+        if (branch == null) return;
+        edge.controlFlowKind = branch.kind();
+        edge.branchGroupId = branch.branchGroupId();
+        edge.branchArmId = branch.branchArmId();
+        edge.branchLabel = branch.branchLabel();
+        edge.controlSource = branch.controlSource();
+    }
+
+    private BranchContext branchContext(CtInvocation<?> invocation) {
+        CtElement cursor = invocation;
+        while (cursor != null) {
+            CtElement parent = cursor.getParent();
+            if (parent instanceof CtIf ctIf) {
+                BranchContext context = ifBranchContext(invocation, ctIf);
+                if (context != null) return context;
+            } else if (parent instanceof CtConditional<?> conditional) {
+                BranchContext context = ternaryBranchContext(invocation, conditional);
+                if (context != null) return context;
+            } else if (parent instanceof CtCase<?> ctCase) {
+                return switchBranchContext(ctCase);
+            } else if (parent instanceof CtCatch ctCatch) {
+                return catchBranchContext(ctCatch);
+            } else if (parent instanceof CtTry ctTry) {
+                CtBlock<?> finalizer = ctTry.getFinalizer();
+                if (isWithin(invocation, finalizer)) {
+                    return finallyBranchContext(ctTry);
+                }
+            }
+            cursor = parent;
+        }
+        return null;
+    }
+
+    private BranchContext ifBranchContext(CtInvocation<?> invocation, CtIf ctIf) {
+        SourceInfo source = buildControlSource(ctIf);
+        String groupId = branchId("if", ctIf);
+        if (isWithin(invocation, ctIf.getThenStatement())) {
+            return new BranchContext(CallEdge.ControlFlowKind.IF_THEN, groupId, groupId + ":then", "then", source);
+        }
+        if (isWithin(invocation, ctIf.getElseStatement())) {
+            return new BranchContext(CallEdge.ControlFlowKind.IF_ELSE, groupId, groupId + ":else", "else", source);
+        }
+        return null;
+    }
+
+    private BranchContext ternaryBranchContext(CtInvocation<?> invocation, CtConditional<?> conditional) {
+        SourceInfo source = buildControlSource(conditional);
+        String groupId = branchId("ternary", conditional);
+        if (isWithin(invocation, conditional.getThenExpression())) {
+            return new BranchContext(CallEdge.ControlFlowKind.TERNARY_THEN, groupId, groupId + ":then", "then", source);
+        }
+        if (isWithin(invocation, conditional.getElseExpression())) {
+            return new BranchContext(CallEdge.ControlFlowKind.TERNARY_ELSE, groupId, groupId + ":else", "else", source);
+        }
+        return null;
+    }
+
+    private BranchContext switchBranchContext(CtCase<?> ctCase) {
+        CtAbstractSwitch<?> ctSwitch = parentOf(ctCase, CtAbstractSwitch.class);
+        CtElement control = ctSwitch != null ? ctSwitch : ctCase;
+        SourceInfo source = buildControlSource(control);
+        String groupId = branchId("switch", control);
+        String label = caseLabel(ctCase);
+        CallEdge.ControlFlowKind kind = "default".equals(label)
+                ? CallEdge.ControlFlowKind.SWITCH_DEFAULT
+                : CallEdge.ControlFlowKind.SWITCH_CASE;
+        String armKind = kind == CallEdge.ControlFlowKind.SWITCH_DEFAULT ? "default" : "case";
+        int ordinal = caseOrdinal(ctSwitch, ctCase);
+        return new BranchContext(
+                kind, groupId, groupId + ":" + armKind + ":" + ordinal + ":" + sanitizeIdSegment(label), label, source);
+    }
+
+    private BranchContext catchBranchContext(CtCatch ctCatch) {
+        CtTry owner = parentOf(ctCatch, CtTry.class);
+        SourceInfo source = buildControlSource(ctCatch);
+        String groupId = branchId("try", owner != null ? owner : ctCatch);
+        String exceptionName = UNKNOWN;
+        if (ctCatch.getParameter() != null && ctCatch.getParameter().getType() != null) {
+            exceptionName = ctCatch.getParameter().getType().getSimpleName();
+        }
+        String label = "catch " + exceptionName;
+        int ordinal = catchOrdinal(owner, ctCatch);
+        return new BranchContext(
+                CallEdge.ControlFlowKind.CATCH,
+                groupId,
+                groupId + ":catch:" + ordinal + ":" + sanitizeIdSegment(exceptionName),
+                label,
+                source);
+    }
+
+    private BranchContext finallyBranchContext(CtTry ctTry) {
+        CtBlock<?> finalizer = ctTry.getFinalizer();
+        SourceInfo source = buildControlSource(finalizer != null ? finalizer : ctTry);
+        String groupId = branchId("try", ctTry);
+        return new BranchContext(CallEdge.ControlFlowKind.FINALLY, groupId, groupId + ":finally", "finally", source);
+    }
+
+    private static String branchId(String kind, CtElement element) {
+        CtType<?> ownerType = parentOf(element, CtType.class);
+        CtMethod<?> ownerMethod = parentOf(element, CtMethod.class);
+        var pos = element.getPosition();
+        return "branch:" + sanitizeIdSegment(kind) + ":" + sanitizeIdSegment(ownerTypeName(ownerType)) + "#"
+                + sanitizeIdSegment(ownerMethodName(ownerMethod)) + ":" + stableFileSegment(sourceFileOf(pos)) + ":"
+                + sourceCoordinates(pos);
+    }
+
+    private static String ownerTypeName(CtType<?> ownerType) {
+        if (ownerType == null
+                || ownerType.getQualifiedName() == null
+                || ownerType.getQualifiedName().isBlank()) {
+            return UNKNOWN;
+        }
+        return ownerType.getQualifiedName();
+    }
+
+    private static String ownerMethodName(CtMethod<?> ownerMethod) {
+        if (ownerMethod == null
+                || ownerMethod.getSimpleName() == null
+                || ownerMethod.getSimpleName().isBlank()) {
+            return UNKNOWN;
+        }
+        return ownerMethod.getSimpleName();
+    }
+
+    private static String sourceCoordinates(spoon.reflect.cu.SourcePosition pos) {
+        if (pos == null || !pos.isValidPosition()) {
+            return "L0C0-L0C0";
+        }
+        return "L" + pos.getLine() + "C" + pos.getColumn() + "-L" + pos.getEndLine() + "C" + pos.getEndColumn() + "@"
+                + pos.getSourceStart() + "-" + pos.getSourceEnd();
+    }
+
+    private static int caseOrdinal(CtAbstractSwitch<?> ctSwitch, CtCase<?> ctCase) {
+        if (ctSwitch == null || ctSwitch.getCases() == null) {
+            return 0;
+        }
+        List<? extends CtCase<?>> cases = ctSwitch.getCases();
+        for (int i = 0; i < cases.size(); i++) {
+            if (cases.get(i) == ctCase) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    private static int catchOrdinal(CtTry owner, CtCatch ctCatch) {
+        if (owner == null || owner.getCatchers() == null) {
+            return 0;
+        }
+        List<CtCatch> catchers = owner.getCatchers();
+        for (int i = 0; i < catchers.size(); i++) {
+            if (catchers.get(i) == ctCatch) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    private static String stableFileSegment(String file) {
+        if (file == null || file.isBlank()) {
+            return UNKNOWN;
+        }
+        String normalized = file.replace('\\', '/');
+        int slash = normalized.lastIndexOf('/');
+        String name = slash >= 0 ? normalized.substring(slash + 1) : normalized;
+        return sanitizeIdSegment(name);
+    }
+
+    private static String sanitizeIdSegment(String value) {
+        if (value == null || value.isBlank()) {
+            return UNKNOWN;
+        }
+        String sanitized = value.trim()
+                .replaceAll("[^A-Za-z0-9._:-]+", "-")
+                .replaceAll("^-+", "")
+                .replaceAll("-+$", "");
+        return sanitized.isBlank() ? UNKNOWN : sanitized;
+    }
+
+    private static String caseLabel(CtCase<?> ctCase) {
+        List<? extends CtExpression<?>> expressions = ctCase.getCaseExpressions();
+        if (expressions == null || expressions.isEmpty()) {
+            return "default";
+        }
+        return expressions.stream().map(Object::toString).collect(Collectors.joining(", "));
+    }
+
+    private static boolean isWithin(CtElement candidate, CtElement possibleAncestor) {
+        if (candidate == null || possibleAncestor == null) return false;
+        CtElement cursor = candidate;
+        while (cursor != null) {
+            if (cursor == possibleAncestor) return true;
+            cursor = cursor.getParent();
+        }
+        return false;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends CtElement> T parentOf(CtElement element, Class<T> type) {
+        CtElement cursor = element == null ? null : element.getParent();
+        while (cursor != null) {
+            if (type.isInstance(cursor)) {
+                return (T) cursor;
+            }
+            cursor = cursor.getParent();
+        }
+        return null;
     }
 
     private String resolveReceiverLocalName(CtInvocation<?> inv) {
@@ -1110,5 +1346,10 @@ public class CallGraphExtractor {
             line = 0;
         }
         return new SourceInfo(file, line, "invocation", 0.95);
+    }
+
+    private SourceInfo buildControlSource(CtElement element) {
+        var pos = element.getPosition();
+        return new SourceInfo(sourceFileOf(pos), sourceLineOf(pos), "control-flow", 0.95);
     }
 }

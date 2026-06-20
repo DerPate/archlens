@@ -36,12 +36,8 @@ class FindEntrypointsToolTest {
                 restEp("AccountController#getAll:GET", "getAll", "GET", "/account"),
                 restEp("AccountController#add:POST", "add", "POST", "/account")));
 
-        ModelCache cache = new ModelCache(null) {
-            @Override
-            public ArchitectureModel load() {
-                return model;
-            }
-        };
+        ModelCache cache = new ModelCache(null);
+        cache.indexInMemory(model);
         tool = new FindEntrypointsTool(cache);
     }
 
@@ -53,6 +49,8 @@ class FindEntrypointsToolTest {
         assertThat(result).contains("getAll [GET] /customer");
         assertThat(result).contains("get [GET] /customer/{id}");
         assertThat(result).contains("getAll [GET] /account");
+        assertThat(result).contains("Component: CustomerController");
+        assertThat(result).doesNotContain("ComponentId[");
         assertThat(result).doesNotContain("[POST]");
         assertThat(result).doesNotContain("[PUT]");
     }

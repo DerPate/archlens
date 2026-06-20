@@ -18,7 +18,7 @@ class IndexWorkspaceToolTest {
 
     @Test
     void failedIndexClearsPreviouslyActiveWorkspace(@TempDir Path tempDir) throws Exception {
-        ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON);
+        ModelCache cache = new ModelCache(tempDir.toString());
         cache.store(model("previous-workspace", "PreviousService"));
 
         IndexWorkspaceTool tool = new IndexWorkspaceTool(new FailingExtractor(), cache);
@@ -27,20 +27,22 @@ class IndexWorkspaceToolTest {
                 tool.execute(Map.of("paths", List.of(tempDir.resolve("next").toString())));
 
         assertThat(result).contains("Error indexing workspace: boom");
-        assertThat(cache.load()).isNull();
+        assertThat(cache.graph().isIndexed()).isFalse();
     }
 
     @Test
     void successfulIndexStoresNewActiveWorkspace(@TempDir Path tempDir) throws Exception {
         IndexWorkspaceTool tool = new IndexWorkspaceTool(
                 new FixedExtractor(model("next-workspace", "NextService")),
-                new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON));
+                new ModelCache(tempDir.toString()));
 
         String result = tool.execute(Map.of("paths", List.of(tempDir.toString())));
 
         assertThat(result).contains("Indexed 1 project(s).");
-        assertThat(new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON).load().workspacePath)
-                .isEqualTo("next-workspace");
+        assertThat(new ModelCache(tempDir.toString()).graph()
+                .findNodes("Component", "NextService", Map.of(), 10))
+                .extracting(n -> n.id().serialize())
+                .containsExactly("NextService");
     }
 
     private static ArchitectureModel model(String workspacePath, String componentName) {

@@ -119,8 +119,11 @@ public class DataFlowTracer {
             currentToOriginal.put(tracked, tracked);
         }
 
-        DfsContext ctx = new DfsContext(pathsByOriginal, index, new HashSet<>());
-        dfs(ctx, ep.componentId, ep.name, currentToOriginal, 0, Map.of());
+        Map<String, Integer> nodeCounters = new LinkedHashMap<>();
+        Map<String, String> currentNodeByOriginal = createRootNodes(ep, index, pathsByOriginal, nodeCounters);
+
+        DfsContext ctx = new DfsContext(pathsByOriginal, index, new HashSet<>(), nodeCounters);
+        dfs(ctx, ep.componentId, ep.name, currentToOriginal, currentNodeByOriginal, 0, Map.of());
 
         for (DataFlowPath path : pathsByOriginal.values()) {
             boolean hasSinks = !path.sinks.isEmpty();
@@ -147,6 +150,24 @@ public class DataFlowTracer {
             }
         }
         return trackedNames;
+    }
+
+    private Map<String, String> createRootNodes(
+            Entrypoint ep,
+            ModelIndex index,
+            Map<String, DataFlowPath> pathsByOriginal,
+            Map<String, Integer> nodeCounters) {
+        Component comp = index.components.get(ep.componentId);
+        String compName = comp != null ? comp.name : ep.componentId.serialize();
+        Map<String, String> currentNodeByOriginal = new LinkedHashMap<>();
+        for (Map.Entry<String, DataFlowPath> e : pathsByOriginal.entrySet()) {
+            String nodeId = nextNodeId(e.getKey(), nodeCounters);
+            DataFlowPath path = e.getValue();
+            path.flowNodes.add(new DataFlowNode(
+                    nodeId, DataFlowNode.Kind.ROOT, ep.componentId, compName, ep.name, e.getKey(), ep.source));
+            currentNodeByOriginal.put(e.getKey(), nodeId);
+        }
+        return currentNodeByOriginal;
     }
 
     private void linkStoreSinksToFieldReaders(List<DataFlowPath> paths, ArchitectureModel model, ModelIndex index) {
@@ -322,13 +343,17 @@ public class DataFlowTracer {
     private record DfsContext(
             Map<String, DataFlowPath> pathsByOriginal,
             ModelIndex index,
-            Set<dev.dominikbreu.spoonmcp.model.ids.MethodRef> onCurrentPath) {}
+            Set<dev.dominikbreu.spoonmcp.model.ids.MethodRef> onCurrentPath,
+            Map<String, Integer> nodeCounters) {}
+
+    private record BranchTopologyMetadata(String branchId, String armId, String label) {}
 
     private void dfs(
             DfsContext ctx,
             dev.dominikbreu.spoonmcp.model.ids.ComponentId compId,
             String method,
             Map<String, String> currentToOriginal,
+            Map<String, String> currentNodeByOriginal,
             int depth,
             Map<String, String> resolvedCallerArgs) {
 
@@ -342,9 +367,10 @@ public class DataFlowTracer {
             String compName = comp != null ? comp.name : compId.serialize();
 
             recordSteps(ctx, compId, method, compName, currentToOriginal);
-            recordOutboundSinks(ctx, compId, method, compName, currentToOriginal, resolvedCallerArgs);
-            recordFieldWriteSinks(ctx, compId, method, compName, depth, currentToOriginal);
-            traverseCallEdges(ctx, compId, method, currentToOriginal, depth);
+            recordOutboundSinks(
+                    ctx, compId, method, compName, currentToOriginal, currentNodeByOriginal, resolvedCallerArgs);
+            recordFieldWriteSinks(ctx, compId, method, compName, depth, currentToOriginal, currentNodeByOriginal);
+            traverseCallEdges(ctx, compId, method, currentToOriginal, currentNodeByOriginal, depth);
         } finally {
             ctx.onCurrentPath().remove(nodeKey);
         }
@@ -368,6 +394,7 @@ public class DataFlowTracer {
             String method,
             String compName,
             Map<String, String> currentToOriginal,
+            Map<String, String> currentNodeByOriginal,
             Map<String, String> resolvedCallerArgs) {
         for (OutboundSinkSite site : ctx.index().outboundSinks.sites(compId, method)) {
             String topic = site.topic != null ? resolvedCallerArgs.getOrDefault(site.topic, site.topic) : null;
@@ -382,7 +409,9 @@ public class DataFlowTracer {
                 sink.payloadType = site.payloadType;
                 sink.linkEvidence = site.linkEvidence;
                 sink.calleeQualifiedName = site.calleeQualifiedName;
-                ctx.pathsByOriginal().get(origName).sinks.add(sink);
+                DataFlowPath path = ctx.pathsByOriginal().get(origName);
+                path.sinks.add(sink);
+                recordSinkNode(ctx, path, origName, currentNodeByOriginal.get(origName), sink, null);
             }
         }
     }
@@ -393,7 +422,8 @@ public class DataFlowTracer {
             String method,
             String compName,
             int depth,
-            Map<String, String> currentToOriginal) {
+            Map<String, String> currentToOriginal,
+            Map<String, String> currentNodeByOriginal) {
         for (FieldAccess fw : ctx.index().fieldAccess.writes(compId, method)) {
             for (Map.Entry<String, String> e : currentToOriginal.entrySet()) {
                 if (!emitsStoreSink(fw, e.getKey(), depth)) continue;
@@ -402,17 +432,11 @@ public class DataFlowTracer {
                         ? ref.owner()
                         : fw.componentId;
                 String fieldName = fw.fieldBinding.fieldName();
-                ctx.pathsByOriginal()
-                        .get(e.getValue())
-                        .sinks
-                        .add(new DataFlowSink(
-                                DataFlowSink.Kind.STORE,
-                                fieldOwner,
-                                compName,
-                                fieldName,
-                                fw.source,
-                                fieldName,
-                                fieldOwner));
+                DataFlowPath path = ctx.pathsByOriginal().get(e.getValue());
+                DataFlowSink sink = new DataFlowSink(
+                        DataFlowSink.Kind.STORE, fieldOwner, compName, fieldName, fw.source, fieldName, fieldOwner);
+                path.sinks.add(sink);
+                recordSinkNode(ctx, path, e.getValue(), currentNodeByOriginal.get(e.getValue()), sink, null);
             }
         }
     }
@@ -436,26 +460,49 @@ public class DataFlowTracer {
             dev.dominikbreu.spoonmcp.model.ids.ComponentId compId,
             String method,
             Map<String, String> currentToOriginal,
+            Map<String, String> currentNodeByOriginal,
             int depth) {
         for (CallEdge edge : ctx.index().callAdj.edges(compId, method)) {
             Component target = ctx.index().components.get(edge.toComponentId);
             if (isSink(edge, target)) {
-                recordCallSinks(ctx, edge, target, currentToOriginal);
+                recordCallSinks(ctx, edge, target, currentToOriginal, currentNodeByOriginal);
             } else if (traversalPolicy.canTraverseInline(edge)) {
                 Map<String, String> nextMapping = buildNextMapping(edge, currentToOriginal);
-                if (!nextMapping.isEmpty()) {
-                    dfs(ctx, edge.toComponentId, edge.toMethod, nextMapping, depth + 1, edge.resolvedLiteralArgs);
+                int nextDepth = depth + 1;
+                if (!nextMapping.isEmpty() && canEnter(ctx, edge.toComponentId, edge.toMethod, nextDepth)) {
+                    Map<String, String> nextNodeByOriginal =
+                            createMethodNodes(ctx, edge, target, nextMapping, currentNodeByOriginal);
+                    dfs(
+                            ctx,
+                            edge.toComponentId,
+                            edge.toMethod,
+                            nextMapping,
+                            nextNodeByOriginal,
+                            nextDepth,
+                            edge.resolvedLiteralArgs);
                 }
             }
         }
     }
 
+    private boolean canEnter(
+            DfsContext ctx, dev.dominikbreu.spoonmcp.model.ids.ComponentId compId, String method, int depth) {
+        dev.dominikbreu.spoonmcp.model.ids.MethodRef nodeKey =
+                new dev.dominikbreu.spoonmcp.model.ids.MethodRef(compId, method);
+        return !ctx.onCurrentPath().contains(nodeKey) && depth <= MAX_DEPTH;
+    }
+
     private void recordCallSinks(
-            DfsContext ctx, CallEdge edge, Component target, Map<String, String> currentToOriginal) {
+            DfsContext ctx,
+            CallEdge edge,
+            Component target,
+            Map<String, String> currentToOriginal,
+            Map<String, String> currentNodeByOriginal) {
         DataFlowSink.Kind sinkKind = classifySink(edge, target);
         for (Map.Entry<String, String> e : currentToOriginal.entrySet()) {
             String currentName = e.getKey();
             if (!"*".equals(currentName) && edge.killedTrackedNames.contains(currentName)) continue;
+            String originalName = e.getValue();
             DataFlowSink sink = new DataFlowSink(
                     sinkKind,
                     edge.toComponentId,
@@ -467,8 +514,136 @@ public class DataFlowTracer {
                 sink.entityType = repositoryEntityType(target, ctx.index());
                 sink.linkEvidence = "repository-call";
             }
-            ctx.pathsByOriginal().get(e.getValue()).sinks.add(sink);
+            DataFlowPath path = ctx.pathsByOriginal().get(originalName);
+            path.sinks.add(sink);
+            recordSinkNode(ctx, path, originalName, currentNodeByOriginal.get(originalName), sink, edge);
         }
+    }
+
+    private Map<String, String> createMethodNodes(
+            DfsContext ctx,
+            CallEdge edge,
+            Component target,
+            Map<String, String> nextMapping,
+            Map<String, String> currentNodeByOriginal) {
+        Map<String, String> nextNodeByOriginal = new LinkedHashMap<>();
+        String compName = target != null ? target.name : edge.toComponentId.serialize();
+        for (Map.Entry<String, String> e : nextMapping.entrySet()) {
+            String localName = e.getKey();
+            String originalName = e.getValue();
+            DataFlowPath path = ctx.pathsByOriginal().get(originalName);
+            String nodeId = nextNodeId(originalName, ctx.nodeCounters());
+            path.flowNodes.add(new DataFlowNode(
+                    nodeId,
+                    DataFlowNode.Kind.METHOD,
+                    edge.toComponentId,
+                    compName,
+                    edge.toMethod,
+                    localName,
+                    edge.source));
+            addTopologyEdge(path, currentNodeByOriginal.get(originalName), nodeId, edge);
+            nextNodeByOriginal.put(originalName, nodeId);
+        }
+        return nextNodeByOriginal;
+    }
+
+    private void recordSinkNode(
+            DfsContext ctx,
+            DataFlowPath path,
+            String originalName,
+            String fromNodeId,
+            DataFlowSink sink,
+            CallEdge edge) {
+        String nodeId = nextNodeId(originalName, ctx.nodeCounters());
+        path.flowNodes.add(new DataFlowNode(
+                nodeId,
+                DataFlowNode.Kind.SINK,
+                sink.componentId,
+                sink.componentName,
+                sink.method,
+                sink.fieldName,
+                sink.source));
+        addTopologyEdge(path, fromNodeId, nodeId, edge);
+    }
+
+    private void addTopologyEdge(DataFlowPath path, String fromNodeId, String toNodeId, CallEdge edge) {
+        if (fromNodeId == null) return;
+        BranchTopologyMetadata branch = branchTopologyMetadata(edge);
+        if (branch != null) {
+            ensureBranch(path, edge, branch, toNodeId);
+        }
+        path.flowEdges.add(new DataFlowEdge(
+                fromNodeId,
+                toNodeId,
+                edgeKind(edge),
+                branch != null ? branch.branchId : null,
+                branch != null ? branch.armId : null,
+                branch != null ? branch.label : null));
+    }
+
+    private BranchTopologyMetadata branchTopologyMetadata(CallEdge edge) {
+        if (edge == null || StringUtils.isBlank(edge.branchGroupId)) return null;
+        String label = branchLabel(edge);
+        return new BranchTopologyMetadata(
+                edge.branchGroupId, firstNonBlank(edge.branchArmId, edge.branchGroupId + ":" + label), label);
+    }
+
+    private void ensureBranch(
+            DataFlowPath path, CallEdge edge, BranchTopologyMetadata branchMetadata, String entryNodeId) {
+        DataFlowBranch branch = path.branches.stream()
+                .filter(existing -> branchMetadata.branchId.equals(existing.id))
+                .findFirst()
+                .orElseGet(() -> {
+                    DataFlowBranch created = new DataFlowBranch();
+                    created.id = branchMetadata.branchId;
+                    created.kind = branchKind(edge.controlFlowKind);
+                    created.source = edge.controlSource;
+                    path.branches.add(created);
+                    return created;
+                });
+
+        boolean armExists = branch.arms.stream().anyMatch(arm -> branchMetadata.armId.equals(arm.id));
+        if (!armExists) {
+            branch.arms.add(new DataFlowBranchArm(
+                    branchMetadata.armId, branchMetadata.branchId, branchMetadata.label, entryNodeId));
+        }
+    }
+
+    private DataFlowEdge.Kind edgeKind(CallEdge edge) {
+        if (edge == null || StringUtils.isBlank(edge.branchGroupId)) return DataFlowEdge.Kind.UNCONDITIONAL;
+        if (edge.controlFlowKind == CallEdge.ControlFlowKind.CATCH
+                || edge.controlFlowKind == CallEdge.ControlFlowKind.FINALLY) {
+            return DataFlowEdge.Kind.EXCEPTION;
+        }
+        return DataFlowEdge.Kind.CONDITIONAL;
+    }
+
+    private DataFlowBranch.Kind branchKind(CallEdge.ControlFlowKind kind) {
+        return switch (kind) {
+            case SWITCH_CASE, SWITCH_DEFAULT -> DataFlowBranch.Kind.SWITCH;
+            case TERNARY_THEN, TERNARY_ELSE -> DataFlowBranch.Kind.TERNARY;
+            case CATCH, FINALLY -> DataFlowBranch.Kind.TRY;
+            case IF_THEN, IF_ELSE, UNCONDITIONAL -> DataFlowBranch.Kind.IF;
+        };
+    }
+
+    private String branchLabel(CallEdge edge) {
+        if (StringUtils.isNotBlank(edge.branchLabel)) return edge.branchLabel;
+        return switch (edge.controlFlowKind) {
+            case IF_THEN, TERNARY_THEN -> "then";
+            case IF_ELSE, TERNARY_ELSE -> "else";
+            case SWITCH_DEFAULT -> "default";
+            case CATCH -> "catch";
+            case FINALLY -> "finally";
+            case SWITCH_CASE -> "case";
+            case UNCONDITIONAL -> "branch";
+        };
+    }
+
+    private String nextNodeId(String originalName, Map<String, Integer> nodeCounters) {
+        int next = nodeCounters.getOrDefault(originalName, 0) + 1;
+        nodeCounters.put(originalName, next);
+        return "n" + next;
     }
 
     private Map<String, String> buildNextMapping(CallEdge edge, Map<String, String> currentToOriginal) {
