@@ -545,12 +545,12 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         CallEdge accept = edgeTo(fixture, "accept");
 
         assertThat(reject.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.IF_THEN);
-        assertThat(reject.branchLabel).isEqualTo("then");
+        assertThat(reject.branchLabel).isEqualTo("if value == null");
         assertThat(reject.branchGroupId).isNotBlank();
         assertThat(reject.branchArmId).endsWith(":then");
         assertThat(reject.controlSource.line).isPositive();
         assertThat(accept.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.IF_ELSE);
-        assertThat(accept.branchLabel).isEqualTo("else");
+        assertThat(accept.branchLabel).isEqualTo("else: !value == null");
         assertThat(accept.branchGroupId).isEqualTo(reject.branchGroupId);
         assertThat(accept.branchArmId).endsWith(":else");
     }
@@ -581,9 +581,9 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         assertThat(reject.fromComponentId).isEqualTo(reject.toComponentId);
         assertThat(accept.fromComponentId).isEqualTo(accept.toComponentId);
         assertThat(reject.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.IF_THEN);
-        assertThat(reject.branchLabel).isEqualTo("then");
+        assertThat(reject.branchLabel).isEqualTo("if value == null");
         assertThat(accept.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.IF_ELSE);
-        assertThat(accept.branchLabel).isEqualTo("else");
+        assertThat(accept.branchLabel).isEqualTo("else: !value == null");
         assertThat(accept.branchGroupId).isEqualTo(reject.branchGroupId);
         assertThat(accept.branchArmId).isNotEqualTo(reject.branchArmId);
     }
@@ -614,7 +614,8 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                 .toList();
 
         assertThat(processEdges).hasSize(2);
-        assertThat(processEdges).extracting(edge -> edge.branchLabel).containsExactlyInAnyOrder("then", "else");
+        assertThat(processEdges).extracting(edge -> edge.branchLabel)
+                .containsExactlyInAnyOrder("if value == null", "else: !value == null");
         assertThat(processEdges)
                 .extracting(edge -> edge.branchGroupId)
                 .containsOnly(processEdges.getFirst().branchGroupId);
@@ -749,9 +750,9 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         CallEdge reject = edgeTo(fixture, "reject");
 
         assertThat(accept.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.TERNARY_THEN);
-        assertThat(accept.branchLabel).isEqualTo("then");
+        assertThat(accept.branchLabel).isEqualTo("if valid");
         assertThat(reject.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.TERNARY_ELSE);
-        assertThat(reject.branchLabel).isEqualTo("else");
+        assertThat(reject.branchLabel).isEqualTo("else: !valid");
         assertThat(reject.branchGroupId).isEqualTo(accept.branchGroupId);
     }
 

@@ -816,11 +816,12 @@ public class CallGraphExtractor {
     private BranchContext ifBranchContext(CtInvocation<?> invocation, CtIf ctIf) {
         SourceInfo source = buildControlSource(ctIf);
         String groupId = branchId("if", ctIf);
+        String cond = conditionLabel(ctIf.getCondition());
         if (isWithin(invocation, ctIf.getThenStatement())) {
-            return new BranchContext(CallEdge.ControlFlowKind.IF_THEN, groupId, groupId + ":then", "then", source);
+            return new BranchContext(CallEdge.ControlFlowKind.IF_THEN, groupId, groupId + ":then", "if " + cond, source);
         }
         if (isWithin(invocation, ctIf.getElseStatement())) {
-            return new BranchContext(CallEdge.ControlFlowKind.IF_ELSE, groupId, groupId + ":else", "else", source);
+            return new BranchContext(CallEdge.ControlFlowKind.IF_ELSE, groupId, groupId + ":else", "else: !" + cond, source);
         }
         return null;
     }
@@ -828,13 +829,20 @@ public class CallGraphExtractor {
     private BranchContext ternaryBranchContext(CtInvocation<?> invocation, CtConditional<?> conditional) {
         SourceInfo source = buildControlSource(conditional);
         String groupId = branchId("ternary", conditional);
+        String cond = conditionLabel(conditional.getCondition());
         if (isWithin(invocation, conditional.getThenExpression())) {
-            return new BranchContext(CallEdge.ControlFlowKind.TERNARY_THEN, groupId, groupId + ":then", "then", source);
+            return new BranchContext(CallEdge.ControlFlowKind.TERNARY_THEN, groupId, groupId + ":then", "if " + cond, source);
         }
         if (isWithin(invocation, conditional.getElseExpression())) {
-            return new BranchContext(CallEdge.ControlFlowKind.TERNARY_ELSE, groupId, groupId + ":else", "else", source);
+            return new BranchContext(CallEdge.ControlFlowKind.TERNARY_ELSE, groupId, groupId + ":else", "else: !" + cond, source);
         }
         return null;
+    }
+
+    private static String conditionLabel(CtExpression<?> condition) {
+        if (condition == null) return "?";
+        String text = condition.toString();
+        return text.length() > 55 ? text.substring(0, 52) + "..." : text;
     }
 
     private BranchContext switchBranchContext(CtCase<?> ctCase) {
