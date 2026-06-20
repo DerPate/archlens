@@ -36,12 +36,8 @@ class FindEntrypointsToolTest {
                 restEp("AccountController#getAll:GET", "getAll", "GET", "/account"),
                 restEp("AccountController#add:POST", "add", "POST", "/account")));
 
-        ModelCache cache = new ModelCache(null) {
-            @Override
-            public ArchitectureModel load() {
-                return model;
-            }
-        };
+        ModelCache cache = new ModelCache(null);
+        cache.indexInMemory(model);
         tool = new FindEntrypointsTool(cache);
     }
 

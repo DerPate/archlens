@@ -72,9 +72,7 @@ public class QueryArchitectureGraphTool {
 
     private String renderSummary(GraphQuery.GraphSummary summary) {
         StringBuilder sb = new StringBuilder();
-        sb.append("Architecture graph (backend: ")
-                .append(cache.getBackend().name().toLowerCase())
-                .append(")\n");
+        sb.append("Architecture graph\n");
         sb.append("Nodes: ").append(summary.nodeCount()).append("\n");
         appendCounts(sb, "Node labels", summary.labels());
         sb.append("Edges: ").append(summary.edgeCount()).append("\n");

@@ -3,7 +3,6 @@ package dev.dominikbreu.spoonmcp.mcp.tools;
 import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.extractor.UseCaseDetector;
-import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.UseCase;
 import dev.dominikbreu.spoonmcp.model.UseCaseNamingConfig;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
@@ -36,8 +35,7 @@ public class DetectUseCasesTool {
             String filterModule = ToolArgs.getString(args, "module");
             int maxDepth = ToolArgs.getInt(args, "maxDepth", 5);
 
-            ArchitectureModel model = cache.load();
-            List<UseCase> useCases = detector.detect(model, configResult.config());
+            List<UseCase> useCases = detector.detect(graph, configResult.config());
 
             if (filterModule != null) useCases = filterByModule(useCases, graph, filterModule);
             if (useCases.isEmpty()) return "No use cases detected.";

@@ -28,24 +28,26 @@ Do not add independent traversal rules to renderers or MCP tools. Add them to
 `dev.dominikbreu.spoonmcp.cache` is the data-access layer for MCP tools. It has three
 components that work together:
 
-- **`ModelCache`** — stores and loads the `ArchitectureModel`. Exposes `index()` (returns
-  a `ToolModelIndex`) and `graph()` (returns the `ArchitectureGraph`). Both are built
-  lazily and cached until the next `index_workspace` call.
-- **`ToolModelIndex`** — pre-built O(1) lookup maps over the loaded model: `EntrypointId →
-  Entrypoint`, `AppId → AppEntry`, and component lookups via the existing `ComponentIndex`.
-  Use `cache.index()` in tools. Call `index.rawModel()` only when a renderer or
-  infrastructure component needs the full `ArchitectureModel`.
-- **`ArchitectureGraph`** — TinkerPop/Gremlin graph projection of the model. `GraphNode`
-  is a sealed interface with 12 typed per-label records (`ComponentNode`, `EntrypointNode`,
-  etc.) replacing the previous untyped `Map<String,Object>` property bag. Key traversal
-  methods: `resolveComponent`, `resolveEntrypoint`, `reachable`, `neighborhood`, `paths`,
-  `impactedBy`, `findNodes`, `findEdges`.
-- **`GraphDataProjection`** — cache-layer export projections over `ArchitectureGraph`
-  snapshots, such as viewer-ready pipeline summaries and focused graph slices. Keep these
+- **`ModelCache`** — stores the `ArchitectureModel` as a GraphSON file and exposes
+  `graph()` (returns a `GraphQuery`). Built lazily and reset on each `index_workspace` call.
+  `indexInMemory(model)` projects a model into the in-memory store without disk I/O
+  (used in tests).
+- **`GraphStore`** — owns the TinkerGraph instance. Handles low-level vertex/edge CRUD
+  and GraphSON serialize/deserialize (`serializeGraphSON()` / `loadFrom(String)`).
+- **`GraphProjector`** — projects an `ArchitectureModel` into a `GraphStore`. Called once
+  per `index_workspace`. Domain model classes do not leak past this layer.
+- **`GraphQuery`** — tool-facing read-only API over `GraphStore`. Returns typed `GraphNode`
+  records (`ComponentNode`, `EntrypointNode`, etc.) via `findNodes`, `findEdges`,
+  `neighborhood`, `paths`, `impactedBy`, `allDataFlowPaths`, `allPipelineChains`, and more.
+- **`GraphDataProjection`** — cache-layer export projections over `GraphQuery` snapshots,
+  such as viewer-ready pipeline summaries and focused graph slices. Keep these
   graph-derived view indexes here rather than in MCP tool adapters.
 
-MCP tools must not call `cache.load()` directly. Traversal goes through `cache.graph()`;
-typed lookups go through `cache.index()`. Only `IndexWorkspaceTool` writes to the cache.
+MCP tools access the workspace exclusively through `cache.graph()` (a `GraphQuery`).
+Domain model classes (`ArchitectureModel`, `Component`, `DataFlowPath`, etc.) are
+extraction-only artifacts and must not be imported in `mcp/tools/` or `renderer/`.
+Only `model/ids/` value types are permitted as query parameters.
+Only `IndexWorkspaceTool` writes to the cache.
 
 ### Build Metadata
 
@@ -69,7 +71,9 @@ flowchart TD
         comp_dev_dominikbreu_spoonmcp_Main["Main\nUNKNOWN"]
     end
     subgraph pkg_dev_dominikbreu_spoonmcp_cache["dev.dominikbreu.spoonmcp.cache"]
-        comp_dev_dominikbreu_spoonmcp_cache_ArchitectureGraph["ArchitectureGraph\nUNKNOWN"]
+        comp_dev_dominikbreu_spoonmcp_cache_GraphStore["GraphStore\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_cache_GraphProjector["GraphProjector\nSERVICE"]
+        comp_dev_dominikbreu_spoonmcp_cache_GraphQuery["GraphQuery\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_cache_ModelCache["ModelCache\nSERVICE"]
     end
     subgraph pkg_dev_dominikbreu_spoonmcp_extractor["dev.dominikbreu.spoonmcp.extractor"]
@@ -96,19 +100,17 @@ flowchart TD
         comp_dev_dominikbreu_spoonmcp_mcp_McpServer["McpServer\nSERVICE"]
     end
     subgraph pkg_dev_dominikbreu_spoonmcp_mcp_tools["dev.dominikbreu.spoonmcp.mcp.tools"]
+        comp_dev_dominikbreu_spoonmcp_mcp_tools_CallFlowTool["CallFlowTool\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_mcp_tools_DetectUseCasesTool["DetectUseCasesTool\nSERVICE"]
-        comp_dev_dominikbreu_spoonmcp_mcp_tools_ExplainArchitectureTool["ExplainArchitectureTool\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportArchitectureDocsTool["ExportArchitectureDocsTool\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_mcp_tools_ExportGraphArchitecturePocTool["ExportGraphArchitecturePocTool\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_mcp_tools_FindComponentsTool["FindComponentsTool\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_mcp_tools_FindEntrypointsTool["FindEntrypointsTool\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_mcp_tools_GetComponentDependenciesTool["GetComponentDependenciesTool\nSERVICE"]
-        comp_dev_dominikbreu_spoonmcp_mcp_tools_GetRuntimeFlowTool["GetRuntimeFlowTool\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_mcp_tools_IndexWorkspaceTool["IndexWorkspaceTool\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_mcp_tools_InferContainersTool["InferContainersTool\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_mcp_tools_ListAppsTool["ListAppsTool\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_mcp_tools_QueryArchitectureGraphTool["QueryArchitectureGraphTool\nSERVICE"]
-        comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderCallFlowTool["RenderCallFlowTool\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderComponentDependencyDiagramTool["RenderComponentDependencyDiagramTool\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderDependencyMapTool["RenderDependencyMapTool\nSERVICE"]
         comp_dev_dominikbreu_spoonmcp_mcp_tools_RenderMermaidFlowchartTool["RenderMermaidFlowchartTool\nSERVICE"]

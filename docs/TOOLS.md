@@ -215,44 +215,19 @@ Example — system-level diagram:
 
 ---
 
-## `get_runtime_flow`
+## `call_flow`
 
-Return a reduced runtime path for an entry point by following the call graph.
+Return the runtime call flow for an entry point: ordered steps and a Mermaid `flowchart TD`.
 
-When `model.callEdges` is populated (after a full index), the tool performs a DFS over
-actual method-call edges starting from the entrypoint method — each step's `via` field
-reflects the real called-method name or HTTP method+path. When only injection data is
-available (older cached models), it falls back to BFS over dependency edges.
+When call-graph data is available (after a full `index_workspace`), the tool performs a
+DFS over actual method-call edges from the entrypoint method — each step’s `via` field
+shows the real called-method name or HTTP method+path. Without call-graph data it falls
+back to BFS over injection-dependency edges.
 
-Arguments:
-
-- `entrypointId` string, optional. Entrypoint ID from `find_entrypoints`.
-- `entrypointName` string, optional. Partial entrypoint name or HTTP path match. Prefix
-  with an HTTP verb to disambiguate same-path endpoints: `"GET /account"` selects the GET
-  handler, `"POST /account"` selects the POST handler.
-- `maxDepth` integer, optional. Default `5`.
-
-Example:
-
-```json
-{ "entrypointName": "createOrder" }
-```
-
-Example — disambiguate by HTTP verb:
-
-```json
-{ "entrypointName": "GET /account" }
-```
-
----
-
-## `render_call_flow`
-
-Render a Mermaid `flowchart TD` showing the execution path from an entry point through its
-call chain. Component shapes reflect architectural role:
+Component shapes reflect architectural role:
 
 | Shape | Mermaid syntax | Used for |
-|-------|---------------|---------|
+| --- | --- | --- |
 | Rectangle | `[Name]` | SERVICE, REST_RESOURCE, EJB, default |
 | Cylinder | `[(Name)]` | REPOSITORY — persistence store |
 | Parallelogram | `[/Name/]` | HTTP_CLIENT — external call |
@@ -265,10 +240,8 @@ Client shows the HTTP method+path or channel name. No return arrows — executio
 Arguments:
 
 - `entrypointId` string, optional. Entrypoint ID from `find_entrypoints`.
-- `entrypointName` string, optional. Entrypoint name or HTTP path (partial match). Prefix
-  with an HTTP verb to disambiguate same-path endpoints: `"GET /account"` selects the GET
-  handler, `"POST /account"` selects the POST handler.
-- `maxDepth` integer, optional. Default `5`.
+- `entrypointName` string, optional. Entrypoint path, name, or `'METHOD /path'`
+  (e.g. `'GET /account'`) for HTTP-method disambiguation.
 
 Example:
 
@@ -596,7 +569,7 @@ so agents can stitch the cross-phase pipeline without name matching.
 ## `render_pipeline`
 
 Render an end-to-end Mermaid `flowchart TD` for a multi-phase pipeline by stitching
-multiple `DataFlowPath`s across entrypoint boundaries. Where `render_call_flow`
+multiple `DataFlowPath`s across entrypoint boundaries. Where `call_flow`
 shows the call chain rooted at a single entrypoint, and `trace_data_flow` produces
 textual per-path output, `render_pipeline` follows `DataFlowSink.linkedPathIds`
 through the shared workflow linker to produce one connected diagram per chain.
@@ -671,16 +644,6 @@ flowchart TD
 
 ---
 
-## `explain_architecture`
-
-Return an agent-friendly textual summary of the architecture model.
-
-Arguments:
-
-- `appId` string, optional. Partial app ID filter.
-
----
-
 ## `render_source_overview`
 
 Render a package-aware Mermaid source overview with component nodes and dependency edges.
@@ -722,10 +685,6 @@ Arguments: none.
 Query the indexed architecture model as a graph. The graph view includes applications,
 components, entrypoints, interfaces, containers, deployments, runtime flows, data-flow
 paths, data-flow sinks, branch-aware data-flow topology nodes, and their relationships.
-
-Set `SPOON_MCP_CACHE_BACKEND=graph` or `-Dspoonmcp.cache.backend=graph` to eagerly
-maintain the graph projection during cache store/load. With the default JSON backend,
-the tool builds the same graph projection lazily from the cached model.
 
 Arguments:
 
@@ -958,21 +917,6 @@ Example — find every messaging entrypoint bound to an in-memory channel:
 ```json
 { "action": "find_nodes", "label": "Interface", "filters": { "broker": "IN_MEMORY" } }
 ```
-
-## `tool_guidance`
-
-Return compact task-to-tool recipes for agents.
-
-Arguments:
-
-- `task` string, optional. Keyword such as `business`, `component`, `pipeline`,
-  `noise`, or `graph`.
-
-Use this before combining architecture tools when the next step is unclear. The output
-recommends concrete MCP tool sequences and graph filters such as
-`agentCategory=core-workflow`, `supportRole`, and `classificationEvidence`.
-
----
 
 ## `export_architecture_docs`
 

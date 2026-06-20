@@ -16,7 +16,7 @@ class GetComponentDependenciesToolTest {
 
     @Test
     void resolvesComponentByItsId(@TempDir Path tempDir) throws Exception {
-        ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON);
+        ModelCache cache = new ModelCache(tempDir.toString());
         ArchitectureModel model = new ArchitectureModel();
         model.workspacePath = "ws";
         Component a = new Component();

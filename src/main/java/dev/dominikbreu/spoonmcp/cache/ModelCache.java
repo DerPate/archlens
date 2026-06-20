@@ -8,28 +8,25 @@ import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
-import org.apache.commons.lang3.StringUtils;
-import tools.jackson.databind.SerializationFeature;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Stores and loads the current {@link ArchitectureModel} for MCP tool calls.
+ * Stores and loads the current workspace as a GraphSON file.
+ *
+ * <p>The JSON model file is no longer written. The graph is persisted as
+ * {@code architecture-graph.v1.graphson} and loaded back on demand. All tool
+ * calls go through {@link #graph()} (GraphQuery) only.
  */
 public class ModelCache {
 
     private static final String DEFAULT_CACHE_DIR = ".spoon-mcp-cache";
-    private static final String MODEL_SCHEMA_VERSION = "v2";
-    private static final String MODEL_FILE = "architecture-model." + MODEL_SCHEMA_VERSION + ".json";
+    private static final String GRAPH_FILE = "architecture-graph.v1.graphson";
     private static final String WORKSPACES_DIR = "workspaces";
     private static final String ACTIVE_WORKSPACE_FILE = "active-workspace.txt";
-    private static final String BACKEND_PROPERTY = "spoonmcp.cache.backend";
-    private static final String BACKEND_ENV = "SPOON_MCP_CACHE_BACKEND";
 
-    private final JsonMapper mapper;
     private final String cacheDir;
-    private final CacheBackend backend;
     private final GraphStore store = new GraphStore();
     private ArchitectureModel current;
+    private boolean inMemoryOnly = false;
 
     /** Creates a cache using the default local cache directory. */
     public ModelCache() {
@@ -42,70 +39,59 @@ public class ModelCache {
      * @param externalCachePath cache directory path, or null to use the default
      */
     public ModelCache(String externalCachePath) {
-        this(externalCachePath, configuredBackend());
-    }
-
-    /**
-     * Creates a cache with an explicit backend. This constructor is primarily
-     * useful for tests and embedded use.
-     *
-     * @param externalCachePath cache directory path, or null to use the default
-     * @param backend cache backend mode
-     */
-    public ModelCache(String externalCachePath, CacheBackend backend) {
-        this.mapper =
-                JsonMapper.builder().enable(SerializationFeature.INDENT_OUTPUT).build();
         this.cacheDir = externalCachePath != null ? externalCachePath : DEFAULT_CACHE_DIR;
-        this.backend = backend != null ? backend : CacheBackend.JSON;
     }
 
     /**
-     * Persists the supplied model and marks it as the in-memory current model.
+     * Projects the model into the in-memory graph and writes the GraphSON file.
      *
      * @param model architecture model to store
-     * @throws IOException if the model cannot be written
+     * @throws IOException if the graph cannot be written
      */
     public void store(ArchitectureModel model) throws IOException {
         this.current = model;
+        this.inMemoryOnly = false;
+        store.clear();
+        new GraphProjector().project(model, store);
         File dir = workspaceDir(model);
         if (!dir.exists() && !dir.mkdirs()) {
             throw new IOException("Failed to create cache directory: " + dir.getAbsolutePath());
         }
-        mapper.writeValue(new File(dir, MODEL_FILE), model);
+        try {
+            Files.writeString(
+                    new File(dir, GRAPH_FILE).toPath(),
+                    store.serializeGraphSON(),
+                    StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            throw new IOException("Failed to serialize graph: " + e.getMessage(), e);
+        }
         writeActiveWorkspace(workspaceKey(model));
-        new GraphProjector().project(model, store);
+    }
+
+    /**
+     * Projects the model into the in-memory graph without writing to disk.
+     *
+     * <p>Use this in tests to provide a workspace without touching the filesystem.</p>
+     *
+     * @param model architecture model to index
+     */
+    public void indexInMemory(ArchitectureModel model) {
+        this.current = model;
+        this.inMemoryOnly = true;
+        store.clear();
+        if (model != null) new GraphProjector().project(model, store);
     }
 
     /**
      * Clears the active in-memory and on-disk workspace pointer.
      *
-     * <p>Previously stored workspace snapshots remain available on disk, but
-     * subsequent tool calls will not accidentally operate on an older project
-     * after a new index attempt fails.</p>
-     *
      * @throws IOException if the active pointer cannot be removed
      */
     public void clearActive() throws IOException {
         this.current = null;
+        this.inMemoryOnly = false;
         store.clear();
         Files.deleteIfExists(activeWorkspaceFile().toPath());
-    }
-
-    /**
-     * Loads the current model from memory or disk.
-     *
-     * @return cached model, or null when no model has been indexed
-     * @throws IOException if the model file cannot be read
-     */
-    public ArchitectureModel load() throws IOException {
-        if (current != null) return current;
-        String key = readActiveWorkspace();
-        if (key == null) return null;
-        File f = new File(new File(new File(cacheDir, WORKSPACES_DIR), key), MODEL_FILE);
-        if (f.exists()) {
-            current = mapper.readValue(f, ArchitectureModel.class);
-        }
-        return current;
     }
 
     /**
@@ -118,43 +104,29 @@ public class ModelCache {
     }
 
     /**
-     * Serializes the current model as JSON.
-     *
-     * @return model JSON or an empty JSON object when no model exists
-     * @throws IOException if serialization fails
-     */
-    public String exportJson() throws IOException {
-        if (current != null) {
-            return mapper.writeValueAsString(current);
-        } else {
-            return "{}";
-        }
-    }
-
-    /**
      * Returns a read-only graph query handle.
      *
-     * <p>The graph is built lazily on first access from the stored JSON model and
-     * maintained in-memory until {@link #clearActive()} is called.</p>
+     * <p>If the in-memory store is empty, loads the graph from the active workspace's GraphSON
+     * file. Tools should always access the workspace through this method.</p>
      *
      * @return graph query over the current architecture model
-     * @throws IOException if the current model must be loaded and cannot be read
+     * @throws IOException if the GraphSON file cannot be read
      */
     public GraphQuery graph() throws IOException {
-        ArchitectureModel model = load();
-        if (model != null && store.isEmpty()) {
-            new GraphProjector().project(model, store);
+        if (store.isEmpty() && !inMemoryOnly) {
+            String key = readActiveWorkspace();
+            if (key != null) {
+                File f = new File(new File(new File(cacheDir, WORKSPACES_DIR), key), GRAPH_FILE);
+                if (f.exists()) {
+                    try {
+                        store.loadFrom(Files.readString(f.toPath(), StandardCharsets.UTF_8));
+                    } catch (Exception e) {
+                        throw new IOException("Failed to load graph: " + e.getMessage(), e);
+                    }
+                }
+            }
         }
         return new GraphQuery(store);
-    }
-
-    /**
-     * Returns the configured cache backend.
-     *
-     * @return cache backend
-     */
-    public CacheBackend getBackend() {
-        return backend;
     }
 
     /**
@@ -221,33 +193,6 @@ public class ModelCache {
             return HexFormat.of().formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 is not available", e);
-        }
-    }
-
-    private static CacheBackend configuredBackend() {
-        String value = System.getProperty(BACKEND_PROPERTY);
-        if (StringUtils.isBlank(value)) {
-            value = System.getenv(BACKEND_ENV);
-        }
-        return CacheBackend.from(value);
-    }
-
-    /** Supported cache backend modes. */
-    public enum CacheBackend {
-        /** Durable JSON snapshot only. Graph tools build a transient projection. */
-        JSON,
-        /** Durable JSON snapshot with eagerly maintained embedded graph projection. */
-        GRAPH;
-
-        static CacheBackend from(String value) {
-            if (StringUtils.isBlank(value)) {
-                return JSON;
-            }
-            if ("graph".equalsIgnoreCase(value.trim())) {
-                return GRAPH;
-            } else {
-                return JSON;
-            }
         }
     }
 }

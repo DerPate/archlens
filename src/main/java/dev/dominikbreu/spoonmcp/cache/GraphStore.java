@@ -64,6 +64,15 @@ class GraphStore {
         return out.toString(StandardCharsets.UTF_8);
     }
 
+    void loadFrom(String graphSON) throws Exception {
+        clear();
+        ByteArrayInputStream in = new ByteArrayInputStream(graphSON.getBytes(StandardCharsets.UTF_8));
+        graph.io(GraphSONIo.build(GraphSONVersion.V3_0)).reader().create().readGraph(in, graph);
+        g = graph.traversal();
+        graph.vertices().forEachRemaining(v -> verticesById.put(GraphNodeId.of(v.id().toString()), v));
+        projected = true;
+    }
+
     static GraphStore deserializeGraphSON(String json) throws Exception {
         GraphStore store = new GraphStore();
         ByteArrayInputStream in = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));

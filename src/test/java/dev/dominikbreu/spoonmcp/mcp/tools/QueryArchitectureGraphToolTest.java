@@ -21,7 +21,7 @@ class QueryArchitectureGraphToolTest {
 
     @Test
     void returnsGraphSummary(@TempDir Path tempDir) throws Exception {
-        ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.GRAPH);
+        ModelCache cache = new ModelCache(tempDir.toString());
         cache.store(model());
         QueryArchitectureGraphTool tool = new QueryArchitectureGraphTool(cache);
 
@@ -33,7 +33,7 @@ class QueryArchitectureGraphToolTest {
 
     @Test
     void resolvesPathsBetweenComponentIds(@TempDir Path tempDir) throws Exception {
-        ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON);
+        ModelCache cache = new ModelCache(tempDir.toString());
         ArchitectureModel model = model();
         Component repository = new Component();
         repository.id = ComponentId.of("PaymentRepository");
@@ -57,7 +57,7 @@ class QueryArchitectureGraphToolTest {
 
     @Test
     void findsGraphNodes(@TempDir Path tempDir) throws Exception {
-        ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON);
+        ModelCache cache = new ModelCache(tempDir.toString());
         cache.store(model());
         QueryArchitectureGraphTool tool = new QueryArchitectureGraphTool(cache);
 
@@ -69,7 +69,7 @@ class QueryArchitectureGraphToolTest {
 
     @Test
     void rendersAndFiltersAgentClassificationMetadata(@TempDir Path tempDir) throws Exception {
-        ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON);
+        ModelCache cache = new ModelCache(tempDir.toString());
         ArchitectureModel model = new ArchitectureModel("test");
         Component lock = new Component();
         lock.id = ComponentId.of("RedisLock");
@@ -95,7 +95,7 @@ class QueryArchitectureGraphToolTest {
 
     @Test
     void findNodesDefaultsToAllMatchesAndAcceptsLimit(@TempDir Path tempDir) throws Exception {
-        ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON);
+        ModelCache cache = new ModelCache(tempDir.toString());
         ArchitectureModel model = new ArchitectureModel("test");
         for (int i = 0; i < 125; i++) {
             Component component = new Component();
@@ -117,7 +117,7 @@ class QueryArchitectureGraphToolTest {
 
     @Test
     void findsGraphEdgesWithPropertyFilters(@TempDir Path tempDir) throws Exception {
-        ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.GRAPH);
+        ModelCache cache = new ModelCache(tempDir.toString());
         ArchitectureModel model = model();
         Component repository = new Component();
         repository.id = ComponentId.of("PaymentRepository");
@@ -144,7 +144,7 @@ class QueryArchitectureGraphToolTest {
 
     @Test
     void rendersMessagingSinkChannelMetadata(@TempDir Path tempDir) throws Exception {
-        ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.JSON);
+        ModelCache cache = new ModelCache(tempDir.toString());
         ArchitectureModel model = model();
         DataFlowPath path = new DataFlowPath();
         path.id = DataFlowPathId.of(EntrypointId.deserialize("payment"), "payload");

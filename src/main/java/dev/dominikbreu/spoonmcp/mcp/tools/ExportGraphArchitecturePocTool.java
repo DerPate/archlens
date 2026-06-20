@@ -84,9 +84,7 @@ public class ExportGraphArchitecturePocTool {
         sb.append("- Runtime flows: ").append(graph.countByLabel("RuntimeFlow")).append("\n");
         sb.append("- Graph nodes: ").append(summary.nodeCount()).append("\n");
         sb.append("- Graph edges: ").append(summary.edgeCount()).append("\n");
-        sb.append("- Cache backend: ")
-                .append(cache.getBackend().name().toLowerCase())
-                .append("\n\n");
+        sb.append("- Cache backend: graphson\n\n");
 
         sb.append("## Graph Metadata POC\n\n");
         sb.append("This section reflects the embedded property graph projection rather than the plain JSON model.\n");
