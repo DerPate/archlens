@@ -1,9 +1,7 @@
 package dev.dominikbreu.spoonmcp.renderer;
 
-import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
-import dev.dominikbreu.spoonmcp.model.Component;
-import dev.dominikbreu.spoonmcp.model.Dependency;
-import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
+import dev.dominikbreu.spoonmcp.model.ids.GraphNodeId;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -12,91 +10,74 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Renders package-aware source overview diagrams from plain architecture components.
+ * Renders package-aware source overview diagrams from the architecture graph.
  */
 public class MermaidSourceOverviewRenderer {
 
-    /** Creates a source overview renderer. */
     public MermaidSourceOverviewRenderer() {}
 
-    /**
-     * Renders packages as subgraphs and components as nodes, with dependency edges between packages.
-     *
-     * @param model architecture model to render
-     * @param maxComponentsPerPackage maximum component nodes per package before omission
-     * @return Mermaid flowchart text
-     */
-    public String render(ArchitectureModel model, int maxComponentsPerPackage) {
+    public String render(GraphQuery graph, int maxComponentsPerPackage) {
         int maxPerPackage = maxComponentsPerPackage <= 0 ? 25 : maxComponentsPerPackage;
-        Map<String, List<Component>> byPackage = model.components.stream()
+        List<GraphQuery.ComponentNode> components = graph.allComponentNodes();
+
+        Map<String, List<GraphQuery.ComponentNode>> byPackage = components.stream()
                 .collect(Collectors.groupingBy(this::packageName, LinkedHashMap::new, Collectors.toList()));
 
-        Map<ComponentId, String> componentToPackageNode = new LinkedHashMap<>();
+        Map<GraphNodeId, String> componentToPackageNode = new LinkedHashMap<>();
         StringBuilder sb = new StringBuilder("flowchart TD\n");
 
-        for (Map.Entry<String, List<Component>> entry : byPackage.entrySet()) {
+        for (Map.Entry<String, List<GraphQuery.ComponentNode>> entry : byPackage.entrySet()) {
             appendPackageSubgraph(sb, entry.getKey(), entry.getValue(), maxPerPackage, componentToPackageNode);
         }
-        appendPackageEdges(sb, model, componentToPackageNode);
-
+        appendPackageEdges(sb, graph, componentToPackageNode);
         return sb.toString();
     }
 
     private void appendPackageSubgraph(
             StringBuilder sb,
             String pkg,
-            List<Component> components,
+            List<GraphQuery.ComponentNode> components,
             int maxPerPackage,
-            Map<ComponentId, String> componentToPackageNode) {
-        sb.append("    subgraph ")
-                .append(nodeId("pkg:" + pkg))
-                .append("[\"")
-                .append(escape(pkg))
-                .append("\"]\n");
+            Map<GraphNodeId, String> componentToPackageNode) {
+        sb.append("    subgraph ").append(nodeId("pkg:" + pkg))
+                .append("[\"").append(escape(pkg)).append("\"]\n");
 
         int rendered = 0;
-        for (Component component : components) {
+        for (GraphQuery.ComponentNode c : components) {
             if (rendered >= maxPerPackage) break;
-            String compNode = nodeId(component.id.serialize());
-            componentToPackageNode.put(component.id, compNode);
-            sb.append("        ")
-                    .append(compNode)
-                    .append("[\"")
-                    .append(escape(component.name))
-                    .append("\\n")
-                    .append(escape(String.valueOf(component.type)))
+            String compNode = nodeId(c.id().value());
+            componentToPackageNode.put(c.id(), compNode);
+            sb.append("        ").append(compNode).append("[\"")
+                    .append(escape(c.name())).append("\\n")
+                    .append(escape(c.type() != null ? c.type().name() : ""))
                     .append("\"]\n");
             rendered++;
         }
 
         int omitted = components.size() - rendered;
         if (omitted > 0) {
-            sb.append("        ")
-                    .append(nodeId("omitted:" + pkg))
-                    .append("[\"... ")
-                    .append(omitted)
-                    .append(" more\"]\n");
+            sb.append("        ").append(nodeId("omitted:" + pkg))
+                    .append("[\"... ").append(omitted).append(" more\"]\n");
         }
         sb.append("    end\n");
     }
 
     private void appendPackageEdges(
-            StringBuilder sb, ArchitectureModel model, Map<ComponentId, String> componentToPackageNode) {
+            StringBuilder sb, GraphQuery graph, Map<GraphNodeId, String> componentToPackageNode) {
         Set<String> drawn = new LinkedHashSet<>();
-        for (Dependency dependency : model.dependencies) {
-            String from = componentToPackageNode.get(dependency.fromId);
-            String to = componentToPackageNode.get(dependency.toId);
+        for (GraphQuery.GraphEdge dep : graph.dependencyEdges()) {
+            String from = componentToPackageNode.get(dep.fromId());
+            String to = componentToPackageNode.get(dep.toId());
             if (from == null || to == null || from.equals(to)) continue;
             String key = from + "-->" + to;
-            if (drawn.add(key)) {
-                sb.append("    ").append(from).append(" --> ").append(to).append("\n");
-            }
+            if (drawn.add(key)) sb.append("    ").append(from).append(" --> ").append(to).append("\n");
         }
     }
 
-    private String packageName(Component component) {
-        if (component.qualifiedName == null || !component.qualifiedName.contains(".")) return "(default)";
-        return component.qualifiedName.substring(0, component.qualifiedName.lastIndexOf('.'));
+    private String packageName(GraphQuery.ComponentNode c) {
+        String q = c.qualifiedName();
+        if (q == null || !q.contains(".")) return "(default)";
+        return q.substring(0, q.lastIndexOf('.'));
     }
 
     private String nodeId(String input) {

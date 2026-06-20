@@ -1,9 +1,7 @@
 package dev.dominikbreu.spoonmcp.renderer;
 
-import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
-import dev.dominikbreu.spoonmcp.model.Component;
-import dev.dominikbreu.spoonmcp.model.Dependency;
-import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
+import dev.dominikbreu.spoonmcp.model.ids.GraphNodeId;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -19,58 +17,49 @@ public class MermaidDependencyMapRenderer {
 
     private static final String DEFAULT_LABEL = "(default)";
 
-    /** Creates a renderer using the built-in dependency grouping rules. */
     public MermaidDependencyMapRenderer() {}
 
-    /**
-     * Renders dependencies aggregated by source package responsibility.
-     *
-     * @param model architecture model to render
-     * @return Mermaid flowchart text
-     */
-    public String render(ArchitectureModel model) {
-        Map<ComponentId, Component> componentsById = model.components.stream()
-                .collect(Collectors.toMap(
-                        component -> component.id, component -> component, (left, right) -> left, LinkedHashMap::new));
+    public String render(GraphQuery graph) {
+        List<GraphQuery.ComponentNode> components = graph.allComponentNodes();
 
-        String commonPrefix = commonPackagePrefix(model.components);
+        Map<GraphNodeId, GraphQuery.ComponentNode> componentsById = components.stream()
+                .collect(Collectors.toMap(
+                        GraphQuery.ComponentNode::id, c -> c, (l, r) -> l, LinkedHashMap::new));
+
+        String commonPrefix = commonPackagePrefix(components);
 
         Map<String, GroupStats> groups = new TreeMap<>();
         Map<EdgeKey, EdgeStats> edges =
                 new TreeMap<>(Comparator.comparing(EdgeKey::from).thenComparing(EdgeKey::to));
 
-        for (Component component : model.components) {
-            groups.computeIfAbsent(groupName(component, commonPrefix), ignored -> new GroupStats()).components++;
+        for (GraphQuery.ComponentNode c : components) {
+            groups.computeIfAbsent(groupName(c, commonPrefix), k -> new GroupStats()).components++;
         }
 
-        for (Dependency dependency : model.dependencies) {
-            Component from = componentsById.get(dependency.fromId);
-            Component to = componentsById.get(dependency.toId);
+        for (GraphQuery.GraphEdge dep : graph.dependencyEdges()) {
+            GraphQuery.ComponentNode from = componentsById.get(dep.fromId());
+            GraphQuery.ComponentNode to = componentsById.get(dep.toId());
             if (from == null || to == null) continue;
 
             String fromGroup = groupName(from, commonPrefix);
             String toGroup = groupName(to, commonPrefix);
             if (fromGroup.equals(toGroup)) {
-                groups.computeIfAbsent(fromGroup, ignored -> new GroupStats()).internalDependencies++;
+                groups.computeIfAbsent(fromGroup, k -> new GroupStats()).internalDependencies++;
                 continue;
             }
 
-            EdgeStats edge = edges.computeIfAbsent(new EdgeKey(fromGroup, toGroup), ignored -> new EdgeStats());
+            EdgeStats edge = edges.computeIfAbsent(new EdgeKey(fromGroup, toGroup), k -> new EdgeStats());
             edge.count++;
-            edge.kinds.merge(nullToUnknown(dependency.kind), 1, Integer::sum);
+            String kind = dep.properties().get("kind") instanceof String s ? s : null;
+            edge.kinds.merge(nullToUnknown(kind), 1, Integer::sum);
         }
 
         StringBuilder sb = new StringBuilder("flowchart LR\n");
         for (Map.Entry<String, GroupStats> entry : groups.entrySet()) {
             String group = entry.getKey();
             GroupStats stats = entry.getValue();
-            sb.append("    ")
-                    .append(nodeId(group))
-                    .append("[\"")
-                    .append(escape(group))
-                    .append("\\n")
-                    .append(stats.components)
-                    .append(" components");
+            sb.append("    ").append(nodeId(group)).append("[\"")
+                    .append(escape(group)).append("\\n").append(stats.components).append(" components");
             if (stats.internalDependencies > 0) {
                 sb.append("\\n").append(stats.internalDependencies).append(" internal deps");
             }
@@ -80,17 +69,11 @@ public class MermaidDependencyMapRenderer {
         for (Map.Entry<EdgeKey, EdgeStats> entry : edges.entrySet()) {
             EdgeKey key = entry.getKey();
             EdgeStats stats = entry.getValue();
-            sb.append("    ")
-                    .append(nodeId(key.from()))
-                    .append(" -->|")
-                    .append(stats.count)
-                    .append(" ")
-                    .append(stats.count == 1 ? "dep" : "deps")
-                    .append(" / ")
-                    .append(escape(stats.kindSummary()))
-                    .append("| ")
-                    .append(nodeId(key.to()))
-                    .append("\n");
+            sb.append("    ").append(nodeId(key.from())).append(" -->|")
+                    .append(stats.count).append(" ")
+                    .append(stats.count == 1 ? "dep" : "deps").append(" / ")
+                    .append(escape(stats.kindSummary())).append("| ")
+                    .append(nodeId(key.to())).append("\n");
         }
 
         sb.append("    classDef core fill:#243746,stroke:#78a6c8,color:#f2f7fb\n");
@@ -98,25 +81,20 @@ public class MermaidDependencyMapRenderer {
         sb.append("    classDef data fill:#2f4235,stroke:#8bcf9f,color:#f5fff7\n");
         sb.append("    classDef default fill:#30343b,stroke:#9aa4b2,color:#f5f7fa\n");
         for (String group : groups.keySet()) {
-            sb.append("    class ")
-                    .append(nodeId(group))
-                    .append(" ")
-                    .append(className(group))
-                    .append("\n");
+            sb.append("    class ").append(nodeId(group)).append(" ").append(className(group)).append("\n");
         }
 
         return sb.toString();
     }
 
-    private String groupName(Component component, String rootPackage) {
-        String qualifiedName = component.qualifiedName;
+    private String groupName(GraphQuery.ComponentNode c, String rootPackage) {
+        String qualifiedName = c.qualifiedName();
         if (StringUtils.isBlank(qualifiedName)) {
-            return groupFromModule(component);
+            return groupFromModule(c);
         }
         int lastDot = qualifiedName.lastIndexOf('.');
         String packageName = lastDot > 0 ? qualifiedName.substring(0, lastDot) : "";
 
-        // Component is IN the root package itself — use the leaf segment of the package
         if (rootPackage.isEmpty() || packageName.equals(rootPackage)) {
             return leafSegment(packageName);
         }
@@ -126,9 +104,9 @@ public class MermaidDependencyMapRenderer {
         return firstSegmentGroup(afterRoot);
     }
 
-    private String groupFromModule(Component component) {
-        if (component.module != null && !component.module.serialize().isBlank()) {
-            return component.module.serialize();
+    private String groupFromModule(GraphQuery.ComponentNode c) {
+        if (c.module() != null && !c.module().serialize().isBlank()) {
+            return c.module().serialize();
         }
         return DEFAULT_LABEL;
     }
@@ -142,7 +120,6 @@ public class MermaidDependencyMapRenderer {
     private String firstSegmentGroup(String afterRoot) {
         int dot = afterRoot.indexOf('.');
         String first = dot < 0 ? afterRoot : afterRoot.substring(0, dot);
-        // Collapse known two-segment groups (e.g. mcp.tools)
         if (dot >= 0) {
             int dot2 = afterRoot.indexOf('.', dot + 1);
             String second = dot2 < 0 ? afterRoot.substring(dot + 1) : afterRoot.substring(dot + 1, dot2);
@@ -156,10 +133,9 @@ public class MermaidDependencyMapRenderer {
         return "mcp.tools".equals(seg);
     }
 
-    private String commonPackagePrefix(List<Component> components) {
-        // Work on package names (strip simple class name from each qualified name)
+    private String commonPackagePrefix(List<GraphQuery.ComponentNode> components) {
         List<String> packages = components.stream()
-                .map(c -> c.qualifiedName)
+                .map(GraphQuery.ComponentNode::qualifiedName)
                 .filter(q -> q != null && q.contains("."))
                 .map(q -> q.substring(0, q.lastIndexOf('.')))
                 .distinct()
@@ -168,13 +144,9 @@ public class MermaidDependencyMapRenderer {
 
         String prefix = packages.getFirst();
         for (String pkg : packages) {
-            // Shrink prefix until pkg equals it or starts with prefix + "."
             while (!pkg.equals(prefix) && !pkg.startsWith(prefix + ".")) {
                 int dot = prefix.lastIndexOf('.');
-                if (dot < 0) {
-                    prefix = "";
-                    break;
-                }
+                if (dot < 0) { prefix = ""; break; }
                 prefix = prefix.substring(0, dot);
             }
             if (prefix.isEmpty()) break;
@@ -200,11 +172,7 @@ public class MermaidDependencyMapRenderer {
     }
 
     private String nullToUnknown(String input) {
-        if (StringUtils.isBlank(input)) {
-            return "unknown";
-        } else {
-            return input;
-        }
+        return StringUtils.isBlank(input) ? "unknown" : input;
     }
 
     private record EdgeKey(String from, String to) {}
@@ -220,7 +188,7 @@ public class MermaidDependencyMapRenderer {
 
         String kindSummary() {
             return kinds.entrySet().stream()
-                    .map(entry -> entry.getKey() + "=" + entry.getValue())
+                    .map(e -> e.getKey() + "=" + e.getValue())
                     .collect(Collectors.joining(", "));
         }
     }

@@ -2,6 +2,7 @@ package dev.dominikbreu.spoonmcp.renderer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.model.Component;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
@@ -29,7 +30,7 @@ class MermaidDependencyMapRendererTest {
         model.dependencies.add(dependency(tool.id, extractor.id, "field-reference"));
         model.dependencies.add(dependency(extractor.id, scanner.id, "field-reference"));
 
-        String out = renderer.render(model);
+        String out = renderer.render(GraphQuery.from(model));
 
         assertThat(out).startsWith("flowchart LR");
         assertThat(out).contains("mcp.tools\\n1 components");
@@ -48,7 +49,7 @@ class MermaidDependencyMapRendererTest {
         model.components.addAll(List.of(extractor, condenser));
         model.dependencies.add(dependency(extractor.id, condenser.id, "field-reference"));
 
-        String out = renderer.render(model);
+        String out = renderer.render(GraphQuery.from(model));
 
         assertThat(out).contains("extractor\\n2 components\\n1 internal deps");
         assertThat(out).doesNotContain("dep_extractor -->");

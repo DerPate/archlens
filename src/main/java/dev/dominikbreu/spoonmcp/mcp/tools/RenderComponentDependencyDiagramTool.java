@@ -1,8 +1,7 @@
 package dev.dominikbreu.spoonmcp.mcp.tools;
 
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import dev.dominikbreu.spoonmcp.cache.ToolModelIndex;
-import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
 import dev.dominikbreu.spoonmcp.renderer.MermaidDependencySliceRenderer;
 import java.util.Map;
 
@@ -31,16 +30,15 @@ public class RenderComponentDependencyDiagramTool {
      */
     public String execute(Map<String, Object> args) {
         try {
-            ToolModelIndex index = cache.index();
-            ArchitectureModel model = index.rawModel();
-            if (model == null) return "No workspace indexed yet. Call index_workspace first.";
+            GraphQuery graph = cache.graph();
+            if (!graph.isIndexed()) return "No workspace indexed yet. Call index_workspace first.";
 
             String ref = ToolArgs.getString(args, "componentId");
             if (ref == null) ref = ToolArgs.getString(args, "name");
             if (ref == null) return "Error: provide 'componentId' or 'name'.";
 
             int depth = ToolArgs.getInt(args, "depth", 2);
-            return renderer.render(model, ref, depth);
+            return renderer.render(graph, ref, depth);
         } catch (Exception e) {
             return "Error rendering dependency diagram: " + e.getMessage();
         }
