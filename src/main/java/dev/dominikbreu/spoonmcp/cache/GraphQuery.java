@@ -1,13 +1,19 @@
 package dev.dominikbreu.spoonmcp.cache;
 
+import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Chain;
+import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Segment;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
+import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
+import dev.dominikbreu.spoonmcp.model.DataFlowStep;
+import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
 import dev.dominikbreu.spoonmcp.model.MessagingBroker;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
 import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId;
 import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import dev.dominikbreu.spoonmcp.model.ids.GraphNodeId;
 import java.util.ArrayList;
@@ -92,35 +98,35 @@ public class GraphQuery {
         return store.g.V().hasLabel(label).count().next();
     }
 
-    // --- typed lookups (replace ToolModelIndex) ---
+    // --- typed lookups ---
 
-    /** O(1) lookup by ComponentId — replaces {@code ToolModelIndex.component(ComponentId)}. */
+    /** O(1) lookup by ComponentId. */
     public synchronized GraphNode component(ComponentId id) {
         if (id == null) return null;
         Vertex v = store.verticesById.get(GraphNodeId.of(id.serialize()));
         return (v != null && "Component".equals(v.label())) ? toNode(v) : null;
     }
 
-    /** O(1) lookup by EntrypointId — replaces {@code ToolModelIndex.entrypoint(EntrypointId)}. */
+    /** O(1) lookup by EntrypointId. */
     public synchronized GraphNode entrypoint(EntrypointId id) {
         if (id == null) return null;
         Vertex v = store.verticesById.get(GraphNodeId.of(id.serialize()));
         return (v != null && "Entrypoint".equals(v.label())) ? toNode(v) : null;
     }
 
-    /** O(1) lookup by AppId — replaces {@code ToolModelIndex.app(AppId)}. */
+    /** O(1) lookup by AppId. */
     public synchronized GraphNode app(AppId id) {
         if (id == null) return null;
         Vertex v = store.verticesById.get(GraphNodeId.of(id.serialize()));
         return (v != null && "Application".equals(v.label())) ? toNode(v) : null;
     }
 
-    /** All entrypoint nodes — replaces {@code ToolModelIndex.allEntrypoints()}. */
+    /** All entrypoint nodes. */
     public synchronized List<GraphNode> allEntrypoints() {
         return findNodes("Entrypoint", null, Map.of(), 0);
     }
 
-    /** All application nodes — replaces {@code ToolModelIndex.allApps()}. */
+    /** All application nodes. */
     public synchronized List<GraphNode> allApps() {
         return findNodes("Application", null, Map.of(), 0);
     }
@@ -152,6 +158,17 @@ public class GraphQuery {
     /** All DEPENDS_ON edges. */
     public synchronized List<GraphEdge> dependencyEdges() {
         return findEdges("DEPENDS_ON", Map.of(), 100_000);
+    }
+
+    /** All CALLS edges (unbounded — use for building adjacency maps). */
+    public synchronized List<GraphEdge> allCallEdges() {
+        List<GraphEdge> result = new ArrayList<>();
+        Iterator<Edge> it = store.graph.edges();
+        while (it.hasNext()) {
+            Edge e = it.next();
+            if ("CALLS".equals(e.label())) result.add(toEdge(e));
+        }
+        return result;
     }
 
     /** Component IDs owned by the given application node (via OWNS edges). */
@@ -360,6 +377,176 @@ public class GraphQuery {
             while (edgeIt.hasNext()) result.add(toEdge(edgeIt.next()));
         }
         return result;
+    }
+
+    /** Reconstructs all pre-computed pipeline chains from the graph. */
+    public synchronized List<Chain> allPipelineChains() {
+        List<Chain> result = new ArrayList<>();
+        store.g.V().hasLabel("PipelineChain").toList().forEach(chainV -> {
+            Chain chain = reconstructChain(chainV);
+            if (chain != null && chain.segments.size() >= 2) result.add(chain);
+        });
+        return result;
+    }
+
+    /** Diagnostic statistics for explaining why no pipeline chains were produced. */
+    public synchronized PipelineDiagnostic pipelineDiagnostic() {
+        int totalPaths = 0;
+        int linkedPaths = 0;
+        int messagingSinks = 0;
+        int unresolvedMessaging = 0;
+        int persistenceWrites = 0;
+        int persistenceReads = 0;
+        Set<String> consumerTopics = new LinkedHashSet<>();
+        Iterator<Vertex> it = store.graph.vertices();
+        while (it.hasNext()) {
+            Vertex v = it.next();
+            if ("DataFlowPath".equals(v.label())) {
+                totalPaths++;
+                boolean pathLinked = false;
+                Iterator<Edge> reachesIt = v.edges(Direction.OUT, "REACHES");
+                while (reachesIt.hasNext()) {
+                    Vertex sinkV = reachesIt.next().inVertex();
+                    pathLinked |= sinkV.edges(Direction.OUT, "LINKS_TO").hasNext();
+                    String kind = vStr(sinkV, "sinkKind");
+                    if ("messaging".equals(kind) || "event-bus".equals(kind)) {
+                        messagingSinks++;
+                        String dest = vStr(sinkV, "topic");
+                        if (dest == null || dest.isBlank()) dest = vStr(sinkV, "channel");
+                        if (dest == null || dest.isBlank() || dest.contains("${") || "(unresolved)".equals(dest)) {
+                            unresolvedMessaging++;
+                        }
+                    }
+                    if ("persistence".equals(kind)) {
+                        String op = vStr(sinkV, "repositoryOperation");
+                        if (op != null && (op.startsWith("save") || op.startsWith("delete"))) persistenceWrites++;
+                        if (op != null && (op.startsWith("find") || op.startsWith("get")
+                                || op.startsWith("read") || op.startsWith("exists"))) persistenceReads++;
+                    }
+                }
+                if (pathLinked) linkedPaths++;
+            } else if ("Entrypoint".equals(v.label())) {
+                String typeStr = vStr(v, "entrypointType");
+                if ("messaging_consumer".equals(typeStr) || "jms_consumer".equals(typeStr)) {
+                    String ch = vStr(v, "channelName");
+                    if (ch != null && !ch.isBlank() && !"(unresolved)".equals(ch)) consumerTopics.add(ch);
+                }
+            }
+        }
+        return new PipelineDiagnostic(totalPaths, linkedPaths, messagingSinks,
+                unresolvedMessaging, consumerTopics.size(), persistenceWrites, persistenceReads);
+    }
+
+    public record PipelineDiagnostic(int totalPaths, int linkedPaths, int messagingSinks,
+            int unresolvedMessaging, int consumerTopics, int persistenceWrites, int persistenceReads) {}
+
+    private Chain reconstructChain(Vertex chainV) {
+        List<Edge> segEdges = new ArrayList<>();
+        chainV.edges(Direction.OUT, "HAS_SEGMENT").forEachRemaining(segEdges::add);
+        if (segEdges.isEmpty()) return null;
+        segEdges.sort(Comparator.comparingInt(e -> eInt(e, "segmentIndex")));
+        Chain chain = new Chain();
+        Map<String, DataFlowSink> prevSinksByVertexId = null;
+        for (Edge segEdge : segEdges) {
+            Vertex pathV = segEdge.inVertex();
+            DataFlowPath path = reconstructPath(pathV);
+            Map<String, DataFlowSink> sinksByVertexId = buildSinksByVertexId(path.id.serialize(), path);
+            DataFlowSink incomingSink = null;
+            if (prevSinksByVertexId != null) {
+                String incomingSinkId = eStr(segEdge, "incomingSinkId");
+                if (incomingSinkId != null && !incomingSinkId.isEmpty()) {
+                    incomingSink = prevSinksByVertexId.get(incomingSinkId);
+                }
+            }
+            Entrypoint entrypoint = path.entrypointId != null ? reconstructEntrypoint(path.entrypointId) : null;
+            chain.segments.add(new Segment(path, incomingSink, entrypoint));
+            prevSinksByVertexId = sinksByVertexId;
+        }
+        return chain;
+    }
+
+    private DataFlowPath reconstructPath(Vertex pathV) {
+        DataFlowPath path = new DataFlowPath();
+        path.id = DataFlowPathId.deserialize(pathV.id().toString());
+        String epIdStr = vStr(pathV, "entrypointId");
+        if (epIdStr != null && !epIdStr.isEmpty()) path.entrypointId = EntrypointId.deserialize(epIdStr);
+        List<Edge> stepEdges = new ArrayList<>();
+        pathV.edges(Direction.OUT, "HAS_DATA_STEP").forEachRemaining(stepEdges::add);
+        stepEdges.sort(Comparator.comparingInt(e -> eInt(e, "stepIndex")));
+        for (Edge e : stepEdges) path.steps.add(reconstructStep(e.inVertex()));
+        List<Edge> reachesEdges = new ArrayList<>();
+        pathV.edges(Direction.OUT, "REACHES").forEachRemaining(reachesEdges::add);
+        reachesEdges.sort(Comparator.comparingInt(e -> sinkIndexFromVertexId(e.inVertex().id().toString())));
+        for (Edge e : reachesEdges) path.sinks.add(reconstructSink(e.inVertex()));
+        return path;
+    }
+
+    private Map<String, DataFlowSink> buildSinksByVertexId(String pathId, DataFlowPath path) {
+        Map<String, DataFlowSink> result = new LinkedHashMap<>();
+        for (int i = 0; i < path.sinks.size(); i++) result.put(pathId + ":sink:" + i, path.sinks.get(i));
+        return result;
+    }
+
+    private DataFlowSink reconstructSink(Vertex sinkV) {
+        DataFlowSink sink = new DataFlowSink();
+        String sinkKindStr = vStr(sinkV, "sinkKind");
+        if (sinkKindStr != null) sink.kind = DataFlowSink.Kind.from(sinkKindStr);
+        sink.componentId = vComponentId(sinkV, "componentId");
+        sink.componentName = vStr(sinkV, "name");
+        sink.method = vStr(sinkV, "method");
+        sink.fieldName = vStr(sinkV, "fieldName");
+        sink.fieldOwnerComponentId = vComponentId(sinkV, "fieldOwnerComponentId");
+        sink.channel = vStr(sinkV, "channel");
+        sink.broker = vEnum(sinkV, "broker", MessagingBroker.class);
+        sink.topic = vStr(sinkV, "topic");
+        sink.topicPropertyKey = vStr(sinkV, "topicPropertyKey");
+        sink.payloadType = vStr(sinkV, "payloadType");
+        sink.entityType = vStr(sinkV, "entityType");
+        sink.repositoryOperation = vStr(sinkV, "repositoryOperation");
+        sink.linkEvidence = vStr(sinkV, "linkEvidence");
+        sink.calleeQualifiedName = vStr(sinkV, "calleeQualifiedName");
+        return sink;
+    }
+
+    private DataFlowStep reconstructStep(Vertex stepV) {
+        DataFlowStep step = new DataFlowStep();
+        step.index = vInt(stepV, "stepIndex");
+        step.componentId = vComponentId(stepV, "componentId");
+        step.componentName = vStr(stepV, "componentName");
+        step.method = vStr(stepV, "method");
+        step.localName = vStr(stepV, "localName");
+        return step;
+    }
+
+    private Entrypoint reconstructEntrypoint(EntrypointId entrypointId) {
+        Vertex epV = store.verticesById.get(GraphNodeId.of(entrypointId.serialize()));
+        if (epV == null) return null;
+        Entrypoint ep = new Entrypoint();
+        ep.id = entrypointId;
+        ep.name = vStr(epV, "name");
+        ep.type = vEnum(epV, "entrypointType", EntrypointType.class);
+        ep.httpMethod = vStr(epV, "httpMethod");
+        ep.path = vStr(epV, "path");
+        ep.channelName = vStr(epV, "channelName");
+        ep.componentId = vComponentId(epV, "componentId");
+        return ep;
+    }
+
+    private String eStr(Edge e, String key) {
+        var it = e.properties(key);
+        return it.hasNext() ? Objects.toString(it.next().value(), null) : null;
+    }
+
+    private int eInt(Edge e, String key) {
+        var it = e.properties(key);
+        return it.hasNext() ? ((Number) it.next().value()).intValue() : 0;
+    }
+
+    private static int sinkIndexFromVertexId(String vertexId) {
+        int i = vertexId.lastIndexOf(":sink:");
+        if (i < 0) return Integer.MAX_VALUE;
+        try { return Integer.parseInt(vertexId.substring(i + 6)); }
+        catch (NumberFormatException e) { return Integer.MAX_VALUE; }
     }
 
     // --- query methods ---
@@ -603,7 +790,7 @@ public class GraphQuery {
         return Optional.empty();
     }
 
-    /** Resolves an entrypoint reference (id or name) without needing ToolModelIndex. */
+    /** Resolves an entrypoint reference (id or name) to its graph node ID. */
     public synchronized Optional<GraphNodeId> resolveEntrypoint(String ref) {
         if (ref == null || ref.isBlank()) return Optional.empty();
         GraphNodeId direct = GraphNodeId.of(ref);

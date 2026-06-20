@@ -1,7 +1,9 @@
 package dev.dominikbreu.spoonmcp.extractor;
 
+import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.model.*;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
+import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import dev.dominikbreu.spoonmcp.model.ids.UseCaseId;
 import dev.dominikbreu.spoonmcp.workflow.WorkflowTraversalPolicy;
 import java.util.*;
@@ -183,6 +185,84 @@ public class UseCaseDetector {
             sb.append(' ');
         }
         return sb.toString().trim();
+    }
+
+    /**
+     * Detects all use cases from a live graph query — no model load required.
+     *
+     * @param graph  graph query over the current workspace
+     * @param config naming configuration; use {@link UseCaseNamingConfig#empty()} when none
+     * @return list of use cases, one per entrypoint
+     */
+    public List<UseCase> detect(GraphQuery graph, UseCaseNamingConfig config) {
+        Map<ComponentId, Component> compById = buildCompByIdFromGraph(graph);
+        boolean hasCallGraph = graph.hasCallGraph();
+        Map<String, List<CallEdge>> callAdj = buildCallAdjFromGraph(graph);
+        Map<ComponentId, List<ComponentId>> depAdj = buildDepAdjFromGraph(graph);
+
+        List<UseCase> result = new ArrayList<>();
+        for (GraphQuery.GraphNode gpNode : graph.allEntrypoints()) {
+            if (!(gpNode instanceof GraphQuery.EntrypointNode en)) continue;
+            Entrypoint ep = entrypointFromNode(en);
+            if (!traversalPolicy.isWorkflowRoot(ep)) continue;
+            result.add(buildUseCase(ep, null, compById, hasCallGraph, callAdj, depAdj, config));
+        }
+        return result;
+    }
+
+    private Map<ComponentId, Component> buildCompByIdFromGraph(GraphQuery graph) {
+        Map<ComponentId, Component> result = new HashMap<>();
+        for (GraphQuery.ComponentNode cn : graph.allComponentNodes()) {
+            Component c = new Component();
+            c.id = ComponentId.of(cn.id().serialize());
+            c.name = cn.name();
+            c.type = cn.type();
+            c.stereotypes = new ArrayList<>(cn.stereotypes());
+            result.put(c.id, c);
+        }
+        return result;
+    }
+
+    private Map<String, List<CallEdge>> buildCallAdjFromGraph(GraphQuery graph) {
+        Map<String, List<CallEdge>> adj = new HashMap<>();
+        for (GraphQuery.GraphEdge ge : graph.allCallEdges()) {
+            CallEdge ce = new CallEdge();
+            ce.fromComponentId = ComponentId.of(ge.fromId().serialize());
+            ce.toComponentId = ComponentId.of(ge.toId().serialize());
+            ce.fromMethod = strFromEdgeProp(ge, "fromMethod");
+            ce.toMethod = strFromEdgeProp(ge, "toMethod");
+            ce.callKind = strFromEdgeProp(ge, "callKind");
+            ce.ambiguous = Boolean.TRUE.equals(ge.properties().get("ambiguous"));
+            ce.receiverExpansionCapped = Boolean.TRUE.equals(ge.properties().get("receiverExpansionCapped"));
+            adj.computeIfAbsent(ce.fromComponentId.serialize() + "#" + ce.fromMethod, k -> new ArrayList<>()).add(ce);
+        }
+        return adj;
+    }
+
+    private Map<ComponentId, List<ComponentId>> buildDepAdjFromGraph(GraphQuery graph) {
+        Map<ComponentId, List<ComponentId>> adj = new HashMap<>();
+        for (GraphQuery.GraphEdge ge : graph.dependencyEdges()) {
+            adj.computeIfAbsent(ComponentId.of(ge.fromId().serialize()), k -> new ArrayList<>())
+                    .add(ComponentId.of(ge.toId().serialize()));
+        }
+        return adj;
+    }
+
+    private static Entrypoint entrypointFromNode(GraphQuery.EntrypointNode en) {
+        Entrypoint ep = new Entrypoint();
+        ep.id = EntrypointId.deserialize(en.id().serialize());
+        ep.type = en.type();
+        ep.name = en.name();
+        ep.channelName = en.channelName();
+        ep.path = en.path();
+        ep.httpMethod = en.httpMethod();
+        ep.componentId = en.componentId();
+        return ep;
+    }
+
+    private static String strFromEdgeProp(GraphQuery.GraphEdge ge, String key) {
+        Object v = ge.properties().get(key);
+        return v != null ? v.toString() : null;
     }
 
     // ── adjacency builders ────────────────────────────────────────────────────

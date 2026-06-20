@@ -26,7 +26,7 @@ class ExportGraphArchitecturePocToolTest {
     @Test
     void exportsGraphCentricPocDocument(@TempDir Path tempDir) throws Exception {
         Path output = tempDir.resolve("SOURCE_ARCHITECTURE_POC.md");
-        ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.GRAPH);
+        ModelCache cache = new ModelCache(tempDir.toString());
         cache.store(model());
         ExportGraphArchitecturePocTool tool = new ExportGraphArchitecturePocTool(cache);
 
@@ -43,7 +43,7 @@ class ExportGraphArchitecturePocToolTest {
     @Test
     void highSignalComponentsPreferWorkflowRelevantNodesOverInternalStateNoise(@TempDir Path tempDir) throws Exception {
         Path output = tempDir.resolve("SOURCE_ARCHITECTURE_POC.md");
-        ModelCache cache = new ModelCache(tempDir.toString(), ModelCache.CacheBackend.GRAPH);
+        ModelCache cache = new ModelCache(tempDir.toString());
         ArchitectureModel model = model();
         addNoisyInternalGraphComponent(model);
         cache.store(model);

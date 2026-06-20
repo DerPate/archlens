@@ -161,12 +161,9 @@ class UntestedToolsCoverageTest {
     }
 
     private static ModelCache cacheReturning(ArchitectureModel m) {
-        return new ModelCache(null) {
-            @Override
-            public ArchitectureModel load() {
-                return m;
-            }
-        };
+        ModelCache cache = new ModelCache(null);
+        cache.indexInMemory(m);
+        return cache;
     }
 
     private static String projectPath(String name) {

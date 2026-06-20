@@ -160,8 +160,7 @@ class RenderPipelineToolTest {
         ArchitectureModel model = buildTwoChainModel(
                 "shutdown", EntrypointType.CDI_EVENT_OBSERVER,
                 "ingest", EntrypointType.MESSAGING_CONSUMER);
-        ModelCache cache = stubbedCache(model);
-        RenderPipelineTool t = new RenderPipelineTool(cache);
+        RenderPipelineTool t = new RenderPipelineTool(stubbedCache(model));
 
         String out = t.execute(Map.of("maxChains", 10));
 
@@ -174,8 +173,7 @@ class RenderPipelineToolTest {
         ArchitectureModel model = buildTwoChainModel(
                 "shutdown", EntrypointType.CDI_EVENT_OBSERVER,
                 "ingest", EntrypointType.MESSAGING_CONSUMER);
-        ModelCache cache = stubbedCache(model);
-        RenderPipelineTool t = new RenderPipelineTool(cache);
+        RenderPipelineTool t = new RenderPipelineTool(stubbedCache(model));
 
         String out = t.execute(Map.of("maxChains", 10, "includeLifecycle", true));
 
@@ -185,36 +183,30 @@ class RenderPipelineToolTest {
 
     @Test
     void diagnosticExplainsWhyPipelineLinksAreMissing() throws Exception {
-        ModelCache cache = new ModelCache(null, ModelCache.CacheBackend.JSON) {
-            @Override
-            public ArchitectureModel load() {
-                ArchitectureModel model = new ArchitectureModel("diagnostic");
-                DataFlowPath path = new DataFlowPath();
-                path.id = DataFlowPathId.of(EntrypointId.deserialize("publish"), "*");
-                path.entrypointId = EntrypointId.deserialize("publish");
-                DataFlowSink sink = new DataFlowSink();
-                sink.kind = DataFlowSink.Kind.MESSAGING;
-                sink.topic = "${topics.missing}";
-                sink.channel = "${topics.missing}";
-                path.sinks.add(sink);
-                model.dataFlowPaths.add(path);
-                Component compA1 = new Component();
-                compA1.id = ComponentId.of("DiagA");
-                compA1.type = ComponentType.SERVICE;
-                model.components.add(compA1);
-                Component compB1 = new Component();
-                compB1.id = ComponentId.of("DiagB");
-                compB1.type = ComponentType.SERVICE;
-                model.components.add(compB1);
-                CallEdge ce1 = new CallEdge();
-                ce1.fromComponentId = ComponentId.of("DiagA");
-                ce1.toComponentId = ComponentId.of("DiagB");
-                model.callEdges.add(ce1);
-                return model;
-            }
-        };
+        ArchitectureModel model = new ArchitectureModel("diagnostic");
+        DataFlowPath path = new DataFlowPath();
+        path.id = DataFlowPathId.of(EntrypointId.deserialize("publish"), "*");
+        path.entrypointId = EntrypointId.deserialize("publish");
+        DataFlowSink sink = new DataFlowSink();
+        sink.kind = DataFlowSink.Kind.MESSAGING;
+        sink.topic = "${topics.missing}";
+        sink.channel = "${topics.missing}";
+        path.sinks.add(sink);
+        model.dataFlowPaths.add(path);
+        Component compA1 = new Component();
+        compA1.id = ComponentId.of("DiagA");
+        compA1.type = ComponentType.SERVICE;
+        model.components.add(compA1);
+        Component compB1 = new Component();
+        compB1.id = ComponentId.of("DiagB");
+        compB1.type = ComponentType.SERVICE;
+        model.components.add(compB1);
+        CallEdge ce1 = new CallEdge();
+        ce1.fromComponentId = ComponentId.of("DiagA");
+        ce1.toComponentId = ComponentId.of("DiagB");
+        model.callEdges.add(ce1);
 
-        String out = new RenderPipelineTool(cache).execute(Map.of());
+        String out = new RenderPipelineTool(stubbedCache(model)).execute(Map.of());
 
         assertThat(out).contains("messaging sink(s): 1");
         assertThat(out).contains("unresolved messaging destination(s): 1");
@@ -245,45 +237,39 @@ class RenderPipelineToolTest {
 
     @Test
     void diagnostic_countsPersistenceSinksAndConsumerTopics() {
-        ModelCache cache = new ModelCache(null, ModelCache.CacheBackend.JSON) {
-            @Override
-            public ArchitectureModel load() {
-                ArchitectureModel model = new ArchitectureModel("diag2");
-                Entrypoint consumer = new Entrypoint();
-                consumer.id = EntrypointId.deserialize("consume");
-                consumer.type = EntrypointType.MESSAGING_CONSUMER;
-                consumer.channelName = "orders";
-                model.entrypoints.add(consumer);
+        ArchitectureModel model = new ArchitectureModel("diag2");
+        Entrypoint consumer = new Entrypoint();
+        consumer.id = EntrypointId.deserialize("consume");
+        consumer.type = EntrypointType.MESSAGING_CONSUMER;
+        consumer.channelName = "orders";
+        model.entrypoints.add(consumer);
 
-                DataFlowPath path = new DataFlowPath();
-                path.id = DataFlowPathId.of(EntrypointId.deserialize("write"), "*");
-                path.entrypointId = EntrypointId.deserialize("write");
-                DataFlowSink write = new DataFlowSink();
-                write.kind = DataFlowSink.Kind.PERSISTENCE;
-                write.repositoryOperation = "save";
-                DataFlowSink read = new DataFlowSink();
-                read.kind = DataFlowSink.Kind.PERSISTENCE;
-                read.repositoryOperation = "findById";
-                path.sinks.add(write);
-                path.sinks.add(read);
-                model.dataFlowPaths.add(path);
-                Component compA2 = new Component();
-                compA2.id = ComponentId.of("DiagA");
-                compA2.type = ComponentType.SERVICE;
-                model.components.add(compA2);
-                Component compB2 = new Component();
-                compB2.id = ComponentId.of("DiagB");
-                compB2.type = ComponentType.SERVICE;
-                model.components.add(compB2);
-                CallEdge ce2 = new CallEdge();
-                ce2.fromComponentId = ComponentId.of("DiagA");
-                ce2.toComponentId = ComponentId.of("DiagB");
-                model.callEdges.add(ce2);
-                return model;
-            }
-        };
+        DataFlowPath path = new DataFlowPath();
+        path.id = DataFlowPathId.of(EntrypointId.deserialize("write"), "*");
+        path.entrypointId = EntrypointId.deserialize("write");
+        DataFlowSink write = new DataFlowSink();
+        write.kind = DataFlowSink.Kind.PERSISTENCE;
+        write.repositoryOperation = "save";
+        DataFlowSink read = new DataFlowSink();
+        read.kind = DataFlowSink.Kind.PERSISTENCE;
+        read.repositoryOperation = "findById";
+        path.sinks.add(write);
+        path.sinks.add(read);
+        model.dataFlowPaths.add(path);
+        Component compA2 = new Component();
+        compA2.id = ComponentId.of("DiagA");
+        compA2.type = ComponentType.SERVICE;
+        model.components.add(compA2);
+        Component compB2 = new Component();
+        compB2.id = ComponentId.of("DiagB");
+        compB2.type = ComponentType.SERVICE;
+        model.components.add(compB2);
+        CallEdge ce2 = new CallEdge();
+        ce2.fromComponentId = ComponentId.of("DiagA");
+        ce2.toComponentId = ComponentId.of("DiagB");
+        model.callEdges.add(ce2);
 
-        String out = new RenderPipelineTool(cache).execute(Map.of());
+        String out = new RenderPipelineTool(stubbedCache(model)).execute(Map.of());
         assertThat(out)
                 .contains("consumer topic(s): 1")
                 .contains("persistence write sink(s): 1")
@@ -368,14 +354,11 @@ class RenderPipelineToolTest {
         return c;
     }
 
-    /** Creates a ModelCache stub that returns the given model without touching the filesystem. */
+    /** Creates a ModelCache with the given model projected in-memory, no disk I/O. */
     private ModelCache stubbedCache(ArchitectureModel model) {
-        return new ModelCache(null, ModelCache.CacheBackend.JSON) {
-            @Override
-            public ArchitectureModel load() {
-                return model;
-            }
-        };
+        ModelCache cache = new ModelCache(null);
+        cache.indexInMemory(model);
+        return cache;
     }
 
     /**

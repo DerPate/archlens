@@ -46,12 +46,8 @@ class TraceDataFlowToolTest {
                 dataFlowPath("ep:BudgetControlController#get:GET#customerId", budgetEp.id, "customerId");
         model.dataFlowPaths.addAll(List.of(customerPath, budgetPath));
 
-        ModelCache cache = new ModelCache(null, ModelCache.CacheBackend.JSON) {
-            @Override
-            public ArchitectureModel load() {
-                return model;
-            }
-        };
+        ModelCache cache = new ModelCache(null);
+        cache.indexInMemory(model);
         TraceDataFlowTool tool = new TraceDataFlowTool(cache);
 
         String result = tool.execute(Map.of("entrypointName", "/customer"));
@@ -71,12 +67,8 @@ class TraceDataFlowToolTest {
 
     @Test
     void noModel_reportsNoWorkspace() {
-        ModelCache empty = new ModelCache(null, ModelCache.CacheBackend.JSON) {
-            @Override
-            public ArchitectureModel load() {
-                return null;
-            }
-        };
+        ModelCache empty = new ModelCache(null);
+        empty.indexInMemory(null);
         assertThat(new TraceDataFlowTool(empty).execute(Map.of())).contains("No workspace indexed");
     }
 
@@ -184,12 +176,8 @@ class TraceDataFlowToolTest {
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private static TraceDataFlowTool tool(ArchitectureModel model) {
-        ModelCache cache = new ModelCache(null, ModelCache.CacheBackend.JSON) {
-            @Override
-            public ArchitectureModel load() {
-                return model;
-            }
-        };
+        ModelCache cache = new ModelCache(null);
+        cache.indexInMemory(model);
         return new TraceDataFlowTool(cache);
     }
 
