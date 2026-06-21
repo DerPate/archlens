@@ -5,6 +5,7 @@ test("desktop page shows core ArchLens sections", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByRole("heading", { name: "Architecture understanding for real Java systems." })).toBeVisible();
+  await expect(page.getByAltText("ArchLens")).toHaveAttribute("src", "/wordmark.svg");
   await expect(page.getByText("MCP architecture analysis built on Spoon.")).toBeVisible();
   await expect(page.getByText("Entrypoint discovery")).toBeVisible();
   await expect(page.getByText("From Java source to a queryable architecture graph.")).toBeVisible();

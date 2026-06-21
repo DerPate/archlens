@@ -218,6 +218,13 @@ main { overflow: hidden; }
   opacity: 0.7;
 }
 
+.hero-wordmark {
+  display: block;
+  width: clamp(150px, 14vw, 230px);
+  height: auto;
+  margin-bottom: 1.35rem;
+}
+
 h1, h2, h3, p { margin-top: 0; }
 
 h1 {
