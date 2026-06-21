@@ -1,0 +1,118 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  title="query_architecture_graph — ArchLens"
+  description="Query the indexed architecture model as a graph: summaries, node lookups, neighborhoods, paths, and impact slices."
+>
+  <section class="tool-page">
+    <div class="container">
+      <div class="tool-page-header">
+        <h1 class="tool-page-title">query_architecture_graph</h1>
+        <span class="tool-page-badge">Query</span>
+      </div>
+
+      <p class="tool-page-intro">
+        The graph query interface for the indexed model. Use it to summarise the full graph,
+        find nodes by label and property filters, traverse neighborhoods, trace shortest paths
+        between components, and compute change-impact slices. The graph includes applications,
+        components, entrypoints, interfaces, containers, runtime flows, data-flow paths, sinks,
+        and their typed edges. Start with <code>action: "summary"</code> to orient yourself,
+        then drill into specific nodes or paths.
+      </p>
+
+      <h2 class="tool-section-label">Arguments</h2>
+      <table class="arg-table">
+        <thead>
+          <tr><th>Name</th><th>Type</th><th>Required</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>action</td>
+            <td>string</td>
+            <td>—</td>
+            <td>One of <code>summary</code>, <code>find_nodes</code>, <code>find_edges</code>, <code>neighborhood</code>, <code>paths</code>, <code>impacted_by</code>. Default: <code>summary</code>.</td>
+          </tr>
+          <tr>
+            <td>label</td>
+            <td>string</td>
+            <td>—</td>
+            <td>Node label for <code>find_nodes</code> (e.g. <code>Component</code>, <code>Entrypoint</code>); edge label for <code>find_edges</code> (e.g. <code>DEPENDS_ON</code>).</td>
+          </tr>
+          <tr>
+            <td>query</td>
+            <td>string</td>
+            <td>—</td>
+            <td>Free-text node search.</td>
+          </tr>
+          <tr>
+            <td>filters</td>
+            <td>object</td>
+            <td>—</td>
+            <td>Property filters. Supports exact match, partial text, and numeric comparisons like <code>{`{"confidence":"<=0.6"}`}</code>.</td>
+          </tr>
+          <tr>
+            <td>nodeId</td>
+            <td>string</td>
+            <td>—</td>
+            <td>Required for <code>neighborhood</code> and <code>impacted_by</code>.</td>
+          </tr>
+          <tr>
+            <td>fromId / toId</td>
+            <td>string</td>
+            <td>—</td>
+            <td>Required for <code>paths</code>.</td>
+          </tr>
+          <tr>
+            <td>maxDepth</td>
+            <td>integer</td>
+            <td>—</td>
+            <td>Traversal depth for <code>paths</code> or <code>impacted_by</code>.</td>
+          </tr>
+          <tr>
+            <td>limit</td>
+            <td>integer</td>
+            <td>—</td>
+            <td>Cap result set size. Omit to return all matches.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 class="tool-section-label">Example</h2>
+      <div class="terminal-card">
+        <div class="terminal-top">
+          <span></span><span></span><span></span>
+          <strong>tools/call</strong>
+        </div>
+        <pre><code>{`{
+  "name": "query_architecture_graph",
+  "arguments": {
+    "action": "find_nodes",
+    "label": "Component",
+    "filters": { "agentCategory": "core-workflow" }
+  }
+}`}</code></pre>
+      </div>
+
+      <h2 class="tool-section-label">Output</h2>
+      <p class="tool-page-intro">
+        Depends on <code>action</code>. <code>summary</code> returns counts and top-level
+        stats. <code>find_nodes</code> returns matching node records with all properties.
+        <code>neighborhood</code> returns the subgraph around a node. <code>impacted_by</code>
+        returns all nodes reachable from a given node — useful for change-impact analysis
+        before modifying a repository or service.
+      </p>
+
+      <h2 class="tool-section-label">Related tools</h2>
+      <div class="related-pills">
+        <a href="/tools/index-workspace" class="related-pill">index_workspace</a>
+        <a href="/tools/trace-data-flow" class="related-pill">trace_data_flow</a>
+        <a href="/#tools" class="related-pill">find_components</a>
+        <a href="/#tools" class="related-pill">render_architecture_view</a>
+      </div>
+
+      <a href="/#tools" class="tool-back-link">← All tools</a>
+    </div>
+  </section>
+</BaseLayout>

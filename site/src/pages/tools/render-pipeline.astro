@@ -1,0 +1,95 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  title="render_pipeline — ArchLens"
+  description="Stitch multiple data-flow paths into one end-to-end Mermaid pipeline diagram across entrypoint boundaries."
+>
+  <section class="tool-page">
+    <div class="container">
+      <div class="tool-page-header">
+        <h1 class="tool-page-title">render_pipeline</h1>
+        <span class="tool-page-badge">Query</span>
+      </div>
+
+      <p class="tool-page-intro">
+        Where <code>call_flow</code> shows the call chain for a single entrypoint and
+        <code>trace_data_flow</code> produces textual per-path output,
+        <code>render_pipeline</code> follows <code>linkedPathIds</code> through the workflow
+        linker to stitch multiple paths into one connected Mermaid diagram. Use it when the
+        question is "what does the full pipeline look like across brokers, shared state, or
+        persistence handoffs?" Requires <code>index_workspace</code> first; chain quality
+        depends on resolved channel names and field names in source.
+      </p>
+
+      <h2 class="tool-section-label">Arguments</h2>
+      <table class="arg-table">
+        <thead>
+          <tr><th>Name</th><th>Type</th><th>Required</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>entrypointName</td>
+            <td>string</td>
+            <td>—</td>
+            <td>Filter chains whose root entrypoint name or path contains this substring. Prefix with verb: <code>"POST /orders"</code>.</td>
+          </tr>
+          <tr>
+            <td>channel</td>
+            <td>string</td>
+            <td>—</td>
+            <td>Filter chains passing through a messaging link whose channel name contains this substring.</td>
+          </tr>
+          <tr>
+            <td>maxDepth</td>
+            <td>integer</td>
+            <td>—</td>
+            <td>Maximum pipeline segments per chain. Default: <code>8</code>.</td>
+          </tr>
+          <tr>
+            <td>maxChains</td>
+            <td>integer</td>
+            <td>—</td>
+            <td>Maximum distinct chains in one response. Default: <code>5</code>.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 class="tool-section-label">Example</h2>
+      <div class="terminal-card">
+        <div class="terminal-top">
+          <span></span><span></span><span></span>
+          <strong>tools/call</strong>
+        </div>
+        <pre><code>{`{
+  "name": "render_pipeline",
+  "arguments": {
+    "channel": "order-events",
+    "maxDepth": 6
+  }
+}`}</code></pre>
+      </div>
+
+      <h2 class="tool-section-label">Output</h2>
+      <p class="tool-page-intro">
+        One Mermaid <code>flowchart TD</code> per pipeline chain, with segments separated by
+        boundary nodes: cylinders for shared-state stores, rounded rectangles for message
+        broker channels, circles for event buses. When no chains are found, a structured
+        diagnostic returns counts for data-flow paths, linked sinks, messaging sinks,
+        unresolved destinations, and persistence reads and writes — use these to identify
+        what config or extraction data is missing.
+      </p>
+
+      <h2 class="tool-section-label">Related tools</h2>
+      <div class="related-pills">
+        <a href="/tools/trace-data-flow" class="related-pill">trace_data_flow</a>
+        <a href="/#tools" class="related-pill">call_flow</a>
+        <a href="/tools/query-architecture-graph" class="related-pill">query_architecture_graph</a>
+        <a href="/tools/index-workspace" class="related-pill">index_workspace</a>
+      </div>
+
+      <a href="/#tools" class="tool-back-link">← All tools</a>
+    </div>
+  </section>
+</BaseLayout>
