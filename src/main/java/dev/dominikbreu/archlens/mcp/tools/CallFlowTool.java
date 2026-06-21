@@ -27,20 +27,23 @@ public class CallFlowTool {
             if (ref == null) ref = ToolArgs.getString(args, "entrypointName");
             if (ref == null) return "Error: provide 'entrypointId' or 'entrypointName'.";
 
-            GraphQuery.RuntimeFlowNode flow = graph.runtimeFlowForEntrypoint(ref).orElse(null);
+            GraphQuery.RuntimeFlowNode flow =
+                    graph.runtimeFlowForEntrypoint(ref).orElse(null);
             if (flow == null) {
                 return "Entrypoint not found: " + ref + "\n\nAvailable entrypoints:\n" + listEntrypoints(graph);
             }
 
-            GraphQuery.GraphNode epNode = flow.entrypointId() != null
-                    ? graph.entrypoint(flow.entrypointId())
-                    : null;
+            GraphQuery.GraphNode epNode = flow.entrypointId() != null ? graph.entrypoint(flow.entrypointId()) : null;
 
             StringBuilder sb = new StringBuilder();
             sb.append("Runtime flow for: ");
             if (epNode instanceof GraphQuery.EntrypointNode ep) {
-                sb.append("[").append(ep.type() != null ? ep.type().name() : "?").append("] ").append(ep.name());
-                if (ep.httpMethod() != null) sb.append(" [").append(ep.httpMethod()).append("] ").append(ep.path());
+                sb.append("[")
+                        .append(ep.type() != null ? ep.type().name() : "?")
+                        .append("] ")
+                        .append(ep.name());
+                if (ep.httpMethod() != null)
+                    sb.append(" [").append(ep.httpMethod()).append("] ").append(ep.path());
             } else {
                 sb.append(flow.entrypointId() != null ? flow.entrypointId().serialize() : flow.name());
             }
@@ -52,10 +55,21 @@ public class CallFlowTool {
             } else {
                 sb.append("Flow (").append(steps.size()).append(" steps):\n");
                 for (GraphQuery.RuntimeFlowStepNode step : steps) {
-                    sb.append("  ").append(step.order() + 1).append(". [")
-                            .append(step.componentType() != null ? step.componentType().toUpperCase() : "?")
-                            .append("] ").append(step.name())
-                            .append(" (id=").append(step.componentId() != null ? step.componentId().serialize() : "").append(")\n");
+                    sb.append("  ")
+                            .append(step.order() + 1)
+                            .append(". [")
+                            .append(
+                                    step.componentType() != null
+                                            ? step.componentType().toUpperCase()
+                                            : "?")
+                            .append("] ")
+                            .append(step.name())
+                            .append(" (id=")
+                            .append(
+                                    step.componentId() != null
+                                            ? step.componentId().serialize()
+                                            : "")
+                            .append(")\n");
                 }
             }
 
@@ -72,7 +86,11 @@ public class CallFlowTool {
     private String listEntrypoints(GraphQuery graph) {
         StringBuilder sb = new StringBuilder();
         for (GraphQuery.GraphNode node : graph.allEntrypoints()) {
-            sb.append("  - ").append(node.id().serialize()).append(" (").append(node.name()).append(")\n");
+            sb.append("  - ")
+                    .append(node.id().serialize())
+                    .append(" (")
+                    .append(node.name())
+                    .append(")\n");
         }
         return sb.isEmpty() ? "  (none)\n" : sb.toString();
     }

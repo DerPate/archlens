@@ -29,23 +29,27 @@ public final class ReplEngine {
             return new DispatchResult(null, true);
         }
         if (":help".equals(trimmed)) {
-            StringBuilder sb = new StringBuilder("Commands: <tool_name> [key=value ...] | :tools | :help <tool> | :quit\n\n");
+            StringBuilder sb =
+                    new StringBuilder("Commands: <tool_name> [key=value ...] | :tools | :help <tool> | :quit\n\n");
             for (McpServerFeatures.SyncToolSpecification spec : toolsByName.values()) {
-                sb.append(spec.tool().name()).append(" — ").append(spec.tool().description()).append('\n');
+                sb.append(spec.tool().name())
+                        .append(" — ")
+                        .append(spec.tool().description())
+                        .append('\n');
             }
             return new DispatchResult(
-                    new DashboardEvent(trimmed, null, List.of(), 0, sb.toString().stripTrailing(), null), false);
+                    new DashboardEvent(
+                            trimmed, null, List.of(), 0, sb.toString().stripTrailing(), null),
+                    false);
         }
         if (trimmed.startsWith(":help ")) {
             String toolName = trimmed.substring(6).strip();
             McpServerFeatures.SyncToolSpecification spec = toolsByName.get(toolName);
             if (spec == null) {
                 return new DispatchResult(
-                        new DashboardEvent(trimmed, null, List.of(), 0, null, "Unknown tool: " + toolName),
-                        false);
+                        new DashboardEvent(trimmed, null, List.of(), 0, null, "Unknown tool: " + toolName), false);
             }
-            return new DispatchResult(
-                    new DashboardEvent(trimmed, null, List.of(), 0, toolHelpText(spec), null), false);
+            return new DispatchResult(new DashboardEvent(trimmed, null, List.of(), 0, toolHelpText(spec), null), false);
         }
         if (":tools".equals(trimmed)) {
             return new DispatchResult(toolListEvent(trimmed), false);
@@ -106,10 +110,8 @@ public final class ReplEngine {
     private static String toolHelpText(McpServerFeatures.SyncToolSpecification spec) {
         McpSchema.Tool tool = spec.tool();
         McpSchema.JsonSchema schema = tool.inputSchema();
-        Map<String, Object> props =
-                schema != null && schema.properties() != null ? schema.properties() : Map.of();
-        List<String> required =
-                schema != null && schema.required() != null ? schema.required() : List.of();
+        Map<String, Object> props = schema != null && schema.properties() != null ? schema.properties() : Map.of();
+        List<String> required = schema != null && schema.required() != null ? schema.required() : List.of();
 
         StringBuilder sb = new StringBuilder();
         sb.append(tool.name()).append('\n');
@@ -126,12 +128,19 @@ public final class ReplEngine {
                 if ("array".equals(type)) {
                     Object items = meta.get("items");
                     @SuppressWarnings("unchecked")
-                    String itemType = items instanceof Map<?, ?> ? (String) ((Map<String, Object>) items).getOrDefault("type", "string") : "string";
+                    String itemType = items instanceof Map<?, ?>
+                            ? (String) ((Map<String, Object>) items).getOrDefault("type", "string")
+                            : "string";
                     type = itemType + "[]";
                 }
                 boolean req = required.contains(name);
                 String desc = (String) meta.getOrDefault("description", "");
-                sb.append("  ").append(req ? "" : "[").append(name).append(": ").append(type).append(req ? "" : "]");
+                sb.append("  ")
+                        .append(req ? "" : "[")
+                        .append(name)
+                        .append(": ")
+                        .append(type)
+                        .append(req ? "" : "]");
                 if (!desc.isBlank()) sb.append("  — ").append(desc);
                 sb.append('\n');
             }
@@ -150,12 +159,13 @@ public final class ReplEngine {
         for (String name : show) {
             Map<String, Object> meta = (Map<String, Object>) props.getOrDefault(name, Map.of());
             String type = (String) meta.getOrDefault("type", "string");
-            String exVal = switch (type) {
-                case "integer" -> "1";
-                case "boolean" -> "true";
-                case "array" -> "[\"./my-project\"]";
-                default -> "\"value\"";
-            };
+            String exVal =
+                    switch (type) {
+                        case "integer" -> "1";
+                        case "boolean" -> "true";
+                        case "array" -> "[\"./my-project\"]";
+                        default -> "\"value\"";
+                    };
             ex.append(' ').append(name).append('=').append(exVal);
         }
         return ex.toString();

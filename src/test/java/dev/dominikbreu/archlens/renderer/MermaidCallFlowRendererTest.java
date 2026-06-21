@@ -204,8 +204,8 @@ class MermaidCallFlowRendererTest {
         }
         m.runtimeFlows.add(f);
         GraphQuery graph = GraphQuery.from(m);
-        GraphQuery.RuntimeFlowNode flowNode = graph
-                .runtimeFlowForEntrypoint(f.entrypointId != null ? f.entrypointId.serialize() : "")
+        GraphQuery.RuntimeFlowNode flowNode = graph.runtimeFlowForEntrypoint(
+                        f.entrypointId != null ? f.entrypointId.serialize() : "")
                 .orElseThrow(() -> new IllegalStateException("flow not found in graph for ep=" + f.entrypointId));
         return new GraphResult(flowNode, graph);
     }
@@ -235,7 +235,8 @@ class MermaidCallFlowRendererTest {
             s.via = "call";
             f.steps.add(s);
             if (i > 0) {
-                f.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of("Comp" + (i - 1)), ComponentId.of("Comp" + i), "call"));
+                f.edges.add(
+                        new RuntimeFlow.FlowEdge(ComponentId.of("Comp" + (i - 1)), ComponentId.of("Comp" + i), "call"));
             }
         }
         return f;

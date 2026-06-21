@@ -23,8 +23,7 @@ public class MermaidUseCaseTimelineRenderer {
         sb.append("    axisFormat  step %s\n");
 
         for (GraphQuery.RuntimeFlowNode flow : flows) {
-            GraphQuery.GraphNode epNode = flow.entrypointId() != null
-                    ? graph.entrypoint(flow.entrypointId()) : null;
+            GraphQuery.GraphNode epNode = flow.entrypointId() != null ? graph.entrypoint(flow.entrypointId()) : null;
             GraphQuery.EntrypointNode ep = epNode instanceof GraphQuery.EntrypointNode en ? en : null;
             String sectionTitle = sectionLabel(ep, flow);
             sb.append("\n    section ").append(sanitizeSection(sectionTitle)).append("\n");
@@ -35,11 +34,19 @@ public class MermaidUseCaseTimelineRenderer {
                 GraphQuery.RuntimeFlowStepNode step = steps.get(i);
                 String taskLabel = taskLabel(step, graph);
                 String style = i == 0 ? "active, " : "";
-                sb.append("    ").append(pad(taskLabel, 36)).append(":").append(style).append(i).append(", 1\n");
+                sb.append("    ")
+                        .append(pad(taskLabel, 36))
+                        .append(":")
+                        .append(style)
+                        .append(i)
+                        .append(", 1\n");
             }
             if (steps.size() > limit) {
-                sb.append("    ... (").append(steps.size() - limit).append(" more steps) :crit, ")
-                        .append(limit).append(", 1\n");
+                sb.append("    ... (")
+                        .append(steps.size() - limit)
+                        .append(" more steps) :crit, ")
+                        .append(limit)
+                        .append(", 1\n");
             }
         }
         return sb.toString();

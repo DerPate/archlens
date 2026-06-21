@@ -4,13 +4,11 @@ import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.cache.GraphQuery.EntrypointNode;
 import dev.dominikbreu.archlens.cache.GraphQuery.RuntimeFlowNode;
 import dev.dominikbreu.archlens.cache.GraphQuery.RuntimeFlowStepNode;
-import dev.dominikbreu.archlens.model.ids.ComponentId;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.apache.commons.lang3.StringUtils;
 
 /**
  * Renders a Mermaid {@code flowchart TD} from a runtime flow in the architecture graph.
@@ -47,13 +45,14 @@ public class MermaidCallFlowRenderer {
             String compKey = step.componentId() != null ? step.componentId().serialize() : step.name();
             String pid = pidMap.get(compKey);
             String compType = step.componentType();
-            GraphQuery.GraphNode compNode = step.componentId() != null
-                    ? graph.component(step.componentId())
-                    : null;
+            GraphQuery.GraphNode compNode = step.componentId() != null ? graph.component(step.componentId()) : null;
             if (compNode instanceof GraphQuery.ComponentNode cn && cn.type() != null) {
                 compType = cn.type().name().toLowerCase();
             }
-            sb.append("    ").append(pid).append(nodeShape(step.name(), compType)).append("\n");
+            sb.append("    ")
+                    .append(pid)
+                    .append(nodeShape(step.name(), compType))
+                    .append("\n");
         }
         sb.append("\n");
 
@@ -75,7 +74,13 @@ public class MermaidCallFlowRenderer {
             if (fromPid == null || toPid == null || fromPid.equals(toPid)) continue;
             String label = String.valueOf(edge.properties().getOrDefault("label", "call"));
             if (label.isBlank() || "null".equals(label)) label = "call";
-            sb.append("    ").append(fromPid).append(" -->|").append(escape(label)).append("| ").append(toPid).append("\n");
+            sb.append("    ")
+                    .append(fromPid)
+                    .append(" -->|")
+                    .append(escape(label))
+                    .append("| ")
+                    .append(toPid)
+                    .append("\n");
         }
 
         return sb.toString();
@@ -101,8 +106,8 @@ public class MermaidCallFlowRenderer {
     }
 
     private Map<String, String> buildPidMap(List<RuntimeFlowStepNode> steps) {
-        Map<String, Long> freq = steps.stream()
-                .collect(Collectors.groupingBy(s -> sanitize(s.name()), Collectors.counting()));
+        Map<String, Long> freq =
+                steps.stream().collect(Collectors.groupingBy(s -> sanitize(s.name()), Collectors.counting()));
         Map<String, Integer> counter = new HashMap<>();
         Map<String, String> result = new LinkedHashMap<>();
         for (RuntimeFlowStepNode step : steps) {

@@ -33,14 +33,12 @@ class IndexWorkspaceToolTest {
     @Test
     void successfulIndexStoresNewActiveWorkspace(@TempDir Path tempDir) throws Exception {
         IndexWorkspaceTool tool = new IndexWorkspaceTool(
-                new FixedExtractor(model("next-workspace", "NextService")),
-                new ModelCache(tempDir.toString()));
+                new FixedExtractor(model("next-workspace", "NextService")), new ModelCache(tempDir.toString()));
 
         String result = tool.execute(Map.of("paths", List.of(tempDir.toString())));
 
         assertThat(result).contains("Indexed 1 project(s).");
-        assertThat(new ModelCache(tempDir.toString()).graph()
-                .findNodes("Component", "NextService", Map.of(), 10))
+        assertThat(new ModelCache(tempDir.toString()).graph().findNodes("Component", "NextService", Map.of(), 10))
                 .extracting(n -> n.id().serialize())
                 .containsExactly("NextService");
     }

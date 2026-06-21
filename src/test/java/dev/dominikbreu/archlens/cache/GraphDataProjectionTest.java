@@ -178,8 +178,7 @@ class GraphDataProjectionTest {
                         "sink:customer:0->example.KafkaJsonProducer:AT_COMPONENT:3");
     }
 
-    private static GraphQuery.GraphNode node(
-            String id, String label, String name, Map<String, Object> properties) {
+    private static GraphQuery.GraphNode node(String id, String label, String name, Map<String, Object> properties) {
         return new GraphQuery.UnknownNode(GraphNodeId.of(id), label, name, properties);
     }
 
@@ -188,8 +187,7 @@ class GraphDataProjectionTest {
                 GraphNodeId.of(id), id, EntrypointId.deserialize(entrypointId), trackedParam, 1, 1);
     }
 
-    private static GraphQuery.GraphEdge edge(
-            String fromId, String toId, String label, Map<String, Object> properties) {
+    private static GraphQuery.GraphEdge edge(String fromId, String toId, String label, Map<String, Object> properties) {
         return new GraphQuery.GraphEdge(GraphNodeId.of(fromId), GraphNodeId.of(toId), label, properties);
     }
 }

@@ -11,7 +11,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.commons.lang3.StringUtils;
 
 /**
  * Renders a focused Mermaid dependency diagram for one component.
@@ -78,19 +77,26 @@ public class MermaidDependencySliceRenderer {
             StringBuilder sb, Set<GraphNodeId> visibleNodes, Map<GraphNodeId, GraphQuery.ComponentNode> byId) {
         for (GraphNodeId id : visibleNodes) {
             GraphQuery.ComponentNode c = byId.get(id);
-            String label = c != null
-                    ? c.name() + "\\n" + (c.type() != null ? c.type().name() : "")
-                    : id.value();
-            sb.append("    ").append(nodeId(id.value())).append("[\"").append(escape(label)).append("\"]\n");
+            String label =
+                    c != null ? c.name() + "\\n" + (c.type() != null ? c.type().name() : "") : id.value();
+            sb.append("    ")
+                    .append(nodeId(id.value()))
+                    .append("[\"")
+                    .append(escape(label))
+                    .append("\"]\n");
         }
     }
 
     private void appendSliceEdges(StringBuilder sb, Set<GraphQuery.GraphEdge> visibleEdges) {
         for (GraphQuery.GraphEdge dep : visibleEdges) {
             String kind = dep.properties().get("kind") instanceof String s ? s : "";
-            sb.append("    ").append(nodeId(dep.fromId().value()))
-                    .append(" -->|").append(escape(kind)).append("| ")
-                    .append(nodeId(dep.toId().value())).append("\n");
+            sb.append("    ")
+                    .append(nodeId(dep.fromId().value()))
+                    .append(" -->|")
+                    .append(escape(kind))
+                    .append("| ")
+                    .append(nodeId(dep.toId().value()))
+                    .append("\n");
         }
     }
 

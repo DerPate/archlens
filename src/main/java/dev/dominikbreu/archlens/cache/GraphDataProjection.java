@@ -195,8 +195,7 @@ public final class GraphDataProjection {
     }
 
     private static boolean isDataFlowSink(GraphQuery.GraphNode node) {
-        return node instanceof GraphQuery.DataFlowSinkNode
-                || (node != null && "DataFlowSink".equals(node.label()));
+        return node instanceof GraphQuery.DataFlowSinkNode || (node != null && "DataFlowSink".equals(node.label()));
     }
 
     private static String edgeKey(GraphQuery.GraphEdge edge, int index) {

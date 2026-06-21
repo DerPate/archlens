@@ -38,7 +38,8 @@ public final class ExportLikeC4ModelTool {
             }
             String view = ToolArgs.getString(args, "view", "workspace");
             int maxNodes = ToolArgs.getInt(args, "maxNodes", 18);
-            GraphQuery.ApplicationNode app = RenderArchitectureViewTool.resolveApp(graph, ToolArgs.getString(args, "app", ""));
+            GraphQuery.ApplicationNode app =
+                    RenderArchitectureViewTool.resolveApp(graph, ToolArgs.getString(args, "app", ""));
             if ("workspace".equalsIgnoreCase(view)) {
                 return renderer.render(workspaceProjector.projectWorkspace(graph, app, maxNodes));
             }
