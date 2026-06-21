@@ -28,6 +28,7 @@ public class ArchitectureExtractor {
     private static final String SPRING_BOOT = "spring-boot";
     private static final String JAVAEE = "javaee";
     private static final String QUARKUS = "quarkus";
+    private static final String JAVA = "java";
 
     private final SpoonScanner scanner = new SpoonScanner();
     private final QuarkusExtractor quarkusExtractor = new QuarkusExtractor();
@@ -335,7 +336,8 @@ public class ArchitectureExtractor {
         if (pluginText.contains("org.springframework.boot")) return SPRING_BOOT;
 
         File pom = new File(module.root(), "pom.xml");
-        if (pom.exists()) {
+        boolean hasMaven = pom.exists();
+        if (hasMaven) {
             try {
                 String content = Files.readString(pom.toPath()).toLowerCase();
                 if (content.contains(SPRING_BOOT)) return SPRING_BOOT;
@@ -349,7 +351,9 @@ public class ArchitectureExtractor {
             }
         }
 
-        return detectTechnologyFromAnnotations(types);
+        String fromAnnotations = detectTechnologyFromAnnotations(types);
+        if (fromAnnotations != null && !"unknown".equals(fromAnnotations)) return fromAnnotations;
+        return hasMaven || new File(module.root(), "build.gradle").exists() ? JAVA : "unknown";
     }
 
     private String detectTechnologyFromAnnotations(Collection<CtType<?>> types) {
@@ -365,7 +369,7 @@ public class ArchitectureExtractor {
                 if (tech != null) return tech;
             }
         }
-        return "unknown";
+        return null;
     }
 
     private String technologyFromAnnotations(

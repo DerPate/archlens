@@ -7,15 +7,39 @@ import io.modelcontextprotocol.json.McpJsonDefaults;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.function.Function;
+import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
 
 /** Stdio MCP server exposing architecture-analysis tools via the official MCP Java SDK. */
 public class McpServer {
-    public static final String SERVER_VERSION = "1.2.0";
+    public static final String SERVER_VERSION = loadVersion();
+
+    private static String loadVersion() {
+        // Packaged JAR: pom.properties written by Maven at package time
+        try (InputStream in = McpServer.class.getResourceAsStream(
+                "/META-INF/maven/dev.dominikbreu.spoonmcp/spoon-mcp-server/pom.properties")) {
+            if (in != null) {
+                Properties props = new Properties();
+                props.load(in);
+                String v = props.getProperty("version");
+                if (v != null && !v.isBlank()) return v;
+            }
+        } catch (Exception ignored) {}
+        // IDE / test classpath: parse pom.xml from working directory
+        try (InputStream in = McpServer.class.getResourceAsStream("/pom.xml")) {
+            if (in != null) return new MavenXpp3Reader().read(in).getVersion();
+        } catch (Exception ignored) {}
+        try (InputStream in = new java.io.FileInputStream("pom.xml")) {
+            return new MavenXpp3Reader().read(in).getVersion();
+        } catch (Exception ignored) {}
+        return "unknown";
+    }
 
     private final IndexWorkspaceTool indexTool;
     private final ListAppsTool listAppsTool;

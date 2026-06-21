@@ -15,7 +15,7 @@ class McpServerTest {
 
     @Test
     void serverVersion_matchesProjectVersion() {
-        assertThat(McpServer.SERVER_VERSION).isEqualTo("1.2.0");
+        assertThat(McpServer.SERVER_VERSION).isNotBlank().isNotEqualTo("unknown");
     }
 
     @Test
