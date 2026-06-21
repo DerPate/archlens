@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 import json, subprocess, sys
 
-ROOT = "/home/dominik/spoon-mcp-server"
+ROOT = "/home/dominik/archlens"
 PHOENIX = "/home/dominik/phoenix_backend"
-JAR = f"{ROOT}/target/spoon-mcp-server.jar"
+JAR = f"{ROOT}/target/archlens.jar"
 
 proc = subprocess.Popen(
     ["java", "-jar", JAR],

@@ -4,9 +4,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path("/home/dominik/git/spoon-mcp-server")
+ROOT = Path("/home/dominik/git/archlens")
 PHOENIX = Path("/home/dominik/git/g-net-device-state-bizzlogic")
-JAR = ROOT / "target" / "spoon-mcp-server.jar"
+JAR = ROOT / "target" / "archlens.jar"
 OUT = ROOT / "viewer" / "public" / "phoenix-graph.json"
 
 proc = subprocess.Popen(

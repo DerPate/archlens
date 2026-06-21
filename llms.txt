@@ -1,6 +1,6 @@
-# Spoon MCP Server
+# ArchLens
 
-Spoon MCP Server is a Java 21 Maven project that implements a stdio Model Context
+ArchLens is a Java 21 Maven project that implements a stdio Model Context
 Protocol (MCP) server for static architecture analysis of Java workspaces. It uses
 [Spoon](https://spoon.gforge.inria.fr/) to parse and model Java sources, then exposes
 architecture-oriented tools (component listing, dependency tracing, call graph extraction,
@@ -14,10 +14,10 @@ The server is designed for consumption by LLM agents and MCP-capable clients
 
 - Language / runtime: Java 21
 - Build tool: Maven 3.9+
-- Entry point: `dev.dominikbreu.spoonmcp.Main`
-- Packaging: shaded jar via `maven-shade-plugin` → `target/spoon-mcp-server.jar`
+- Entry point: `dev.dominikbreu.archlens.Main`
+- Packaging: shaded jar via `maven-shade-plugin` → `target/archlens.jar`
 - Transport: stdio JSON-RPC 2.0 (MCP protocol version `2024-11-05`)
-- Cache: `.spoon-mcp-cache/` in the working directory (GraphSON format)
+- Cache: `.archlens-cache/` in the working directory (GraphSON format)
 - License: see `LICENSE`
 
 ## Documentation
@@ -138,17 +138,17 @@ Prompts are workflow templates for clients and agents; they do not replace tools
 
 - Test: `mvn test`
 - Package: `mvn package`
-- Run: `java -jar target/spoon-mcp-server.jar`
-- Smoke test: `java -jar target/spoon-mcp-server.jar < examples/jsonrpc/initialize.json`
+- Run: `java -jar target/archlens.jar`
+- Smoke test: `java -jar target/archlens.jar < examples/jsonrpc/initialize.json`
 
 ## Configuration
 
-- Cache directory: `.spoon-mcp-cache/` relative to the working directory.
+- Cache directory: `.archlens-cache/` relative to the working directory.
 
 ## Release Tooling
 
 - Maven Release Plugin configured for local Git releases (no remote push by default).
-- JReleaser config at `./jreleaser.yml` targets `DerPate/spoon-mcp-server` on GitHub.
+- JReleaser config at `./jreleaser.yml` targets `DerPate/archlens` on GitHub.
   - `JRELEASER_GITHUB_TOKEN` required for real publishing.
 
 ## Notes For Agents
@@ -171,7 +171,7 @@ Prompts are workflow templates for clients and agents; they do not replace tools
 - Keep graph-export projections in `cache/GraphDataProjection.java` so MCP tools stay thin
   writers around `cache.graph()` data instead of growing their own graph interpretation layer.
 - The cached architecture model is in-process; tools other than `index_workspace`
-  require a previous `index_workspace` call (or a pre-existing `.spoon-mcp-cache/`).
+  require a previous `index_workspace` call (or a pre-existing `.archlens-cache/`).
 - Stdio examples are JSONL-style request streams: one complete JSON-RPC object per
   physical line. Do not pipe pretty-printed multi-line JSON envelopes directly to stdin.
 - Workflow prompts are intentionally coarse-grained. Add prompts for repeated
@@ -269,7 +269,7 @@ Prompts are workflow templates for clients and agents; they do not replace tools
   loggers, config classes, DTO-ish types, and `UNKNOWN` components as supporting
   infrastructure unless they also bridge entrypoints, sinks, state, messaging, or
   external systems.
-- Gradle and Maven project shape is owned by `dev.dominikbreu.spoonmcp.build`.
+- Gradle and Maven project shape is owned by `dev.dominikbreu.archlens.build`.
   Do not reintroduce build traversal in `SpoonScanner` or framework extractors.
 - Spring Boot extraction lives in `SpringExtractor` and uses `SpringConfigResolver`
   for bounded `application.properties` / YAML evidence.
@@ -298,7 +298,7 @@ Prompts are workflow templates for clients and agents; they do not replace tools
   if still ambiguous, the first registered handler is returned.
 - Tool argument schemas in `McpServer.java` are the authoritative source — keep
   `docs/TOOLS.md` in sync when changing them.
-- Generated artifacts (`target/`, `.spoon-mcp-cache/`, `dependency-reduced-pom.xml`)
+- Generated artifacts (`target/`, `.archlens-cache/`, `dependency-reduced-pom.xml`)
   are git-ignored and must not be committed.
 - This repo intentionally ships no GitHub Actions or pre-commit hooks.
 - Code style is imperative Java 21 (no Mutiny / reactive). Use constructor injection

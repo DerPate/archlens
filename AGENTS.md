@@ -4,7 +4,7 @@ This file gives coding agents the shortest reliable path through the project.
 
 ## Project Shape
 
-Spoon MCP Server is a Java 21 Maven project. It runs as a stdio Model Context Protocol server and exposes architecture-analysis tools built on top of Spoon.
+ArchLens is a Java 21 Maven project. It runs as a stdio Model Context Protocol server and exposes architecture-analysis tools built on top of Spoon.
 
 Important paths:
 
@@ -75,7 +75,7 @@ mvn versions:display-plugin-updates
 Run the MCP server:
 
 ```sh
-java -jar target/spoon-mcp-server.jar
+java -jar target/archlens.jar
 ```
 
 ## Conventions
@@ -106,14 +106,14 @@ java -jar target/spoon-mcp-server.jar
 - When extending `DataFlowTracer` (new sink kind, new propagation rule, new sink
   metadata), also update the "trace_data_flow" section in `docs/TOOLS.md`,
   `DataFlowSink.Kind` Javadoc, and `llms.txt`.
-- Do not commit generated output from `target/`, `.spoon-mcp-cache/`, or `dependency-reduced-pom.xml`.
+- Do not commit generated output from `target/`, `.archlens-cache/`, or `dependency-reduced-pom.xml`.
 - Do not add GitHub Actions, hooks, or release automation unless explicitly requested.
 
 ## Testing Notes
 
 Most behavior has focused tests by package. When changing:
 
-- extractor logic: run relevant tests under `dev.dominikbreu.spoonmcp.extractor`.
+- extractor logic: run relevant tests under `dev.dominikbreu.archlens.extractor`.
 - Mermaid output: run renderer tests.
 - deployment merge behavior: run merger tests.
 - MCP tool surface: run the full suite with `mvn test`.
@@ -137,7 +137,7 @@ Canonical pattern (mirrors `scripts/self-doc.py`):
 ```python
 import json, subprocess, sys
 
-JAR = "target/spoon-mcp-server.jar"
+JAR = "target/archlens.jar"
 PROJECT_ROOT = "."  # working directory for the jar process
 
 proc = subprocess.Popen(

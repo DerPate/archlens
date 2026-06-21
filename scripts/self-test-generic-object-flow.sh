@@ -11,7 +11,7 @@ import json
 import os
 import subprocess
 
-root = "/home/dominik/spoon-mcp-server"
+root = "/home/dominik/archlens"
 projects = [f"{root}/src/test/resources/testprojects/generic-object-flow"]
 worksample = "/home/dominik/Worksample_Stein_Schere_Papier/worksample"
 if os.path.isdir(worksample):
@@ -19,7 +19,7 @@ if os.path.isdir(worksample):
 
 def run_project(project):
     proc = subprocess.Popen(
-        ["java", "-jar", f"{root}/target/spoon-mcp-server.jar"],
+        ["java", "-jar", f"{root}/target/archlens.jar"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

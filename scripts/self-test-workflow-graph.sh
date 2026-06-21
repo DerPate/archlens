@@ -10,10 +10,10 @@ python3 - <<'PY'
 import json
 import subprocess
 
-root = "/home/dominik/spoon-mcp-server"
+root = "/home/dominik/archlens"
 fixture = f"{root}/src/test/resources/testprojects/quarkus-sample"
 proc = subprocess.Popen(
-    ["java", "-jar", f"{root}/target/spoon-mcp-server.jar"],
+    ["java", "-jar", f"{root}/target/archlens.jar"],
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,

@@ -1,9 +1,9 @@
 <div align="center">
-  <img src="site/public/wordmark.svg" alt="Spoon MCP Server" width="420"/>
+  <img src="site/public/wordmark.svg" alt="ArchLens" width="420"/>
   <br/>
   <br/>
 
-  [![Maven Central](https://img.shields.io/badge/download-GitHub_Releases-blue?logo=github)](https://github.com/DerPate/spoon-mcp-server/releases)
+  [![Maven Central](https://img.shields.io/badge/download-GitHub_Releases-blue?logo=github)](https://github.com/DerPate/archlens/releases)
   [![Java 21+](https://img.shields.io/badge/Java-21%2B-orange?logo=openjdk)](https://openjdk.org/)
   [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
   [![Build](https://img.shields.io/badge/build-mvn_package-brightgreen?logo=apachemaven)](docs/INSTALL.md)
@@ -11,7 +11,7 @@
 
 ---
 
-Spoon MCP Server helps you understand large Java systems from the code that actually runs them. It indexes Java workspaces with Spoon, projects the result into an architecture graph, and exposes MCP tools for exploring entrypoints, components, dependencies, runtime paths, data movement, workflow handoffs, and architecture views.
+ArchLens helps you understand large Java systems from the code that actually runs them. It indexes Java workspaces with Spoon, projects the result into an architecture graph, and exposes MCP tools for exploring entrypoints, components, dependencies, runtime paths, data movement, workflow handoffs, and architecture views.
 
 It is built for engineers and code agents working in real Java codebases: Spring, Quarkus, Java EE, messaging consumers, schedulers, repositories, outbound clients, deployment hints, and the awkward glue between them.
 
@@ -25,9 +25,9 @@ It is built for engineers and code agents working in real Java codebases: Spring
 - **Architecture graph**: queryable TinkerGraph-backed model with typed nodes, edges, properties, neighborhoods, paths, and impact slices.
 - **Visual exports**: Mermaid diagrams, LikeC4 text, Markdown architecture docs, graph JSON, and a self-contained HTML graph viewer.
 
-## Why Spoon MCP
+## Why ArchLens
 
-Generic code graph tools can tell you which files import each other. Spoon MCP tries to answer architecture questions that Java teams actually ask:
+Generic code graph tools can tell you which files import each other. ArchLens tries to answer architecture questions that Java teams actually ask:
 
 - Which endpoints, consumers, and schedulers are the real ways into this system?
 - What services, repositories, clients, and external systems does a use case touch?
@@ -49,7 +49,7 @@ mvn package
 Run it as a stdio MCP server:
 
 ```sh
-java -jar target/spoon-mcp-server.jar
+java -jar target/archlens.jar
 ```
 
 From an MCP client, the usual first pass is:
@@ -146,12 +146,12 @@ mvn test
 mvn package
 ```
 
-The packaged server jar is written to `target/spoon-mcp-server.jar`.
+The packaged server jar is written to `target/archlens.jar`.
 
 ## Run
 
 ```sh
-java -jar target/spoon-mcp-server.jar
+java -jar target/archlens.jar
 ```
 
 The server reads JSON-RPC over stdio and writes newline-delimited JSON-RPC responses to stdout. Configure your MCP client to launch the jar with the command above.
@@ -160,7 +160,7 @@ For install instructions and example MCP client configurations for Claude Deskto
 
 ## Cache Backend
 
-The cache stores the indexed architecture graph as GraphSON under `.spoon-mcp-cache/`. The active workspace pointer lives at `.spoon-mcp-cache/active-workspace.txt`, and each workspace snapshot stores `architecture-graph.v1.graphson` under `.spoon-mcp-cache/workspaces/`.
+The cache stores the indexed architecture graph as GraphSON under `.archlens-cache/`. The active workspace pointer lives at `.archlens-cache/active-workspace.txt`, and each workspace snapshot stores `architecture-graph.v1.graphson` under `.archlens-cache/workspaces/`.
 
 The older JSON model backend has been removed. `SPOON_MCP_CACHE_BACKEND` and `spoonmcp.cache.backend` are no longer used; re-run `index_workspace` after upgrading from an older JSON-backed cache.
 
@@ -203,7 +203,7 @@ mvn dependency-check:check
 
 `dependency-check:check` runs the OWASP Dependency-Check and fails on CVEs with CVSS score >= 7. Set `NVD_API_KEY` or pass `-DnvdApiKey=<key>` for faster NVD data downloads. Add false positives to `dependency-check-suppressions.xml`.
 
-Generated files such as `target/`, `.spoon-mcp-cache/`, and `dependency-reduced-pom.xml` are intentionally ignored.
+Generated files such as `target/`, `.archlens-cache/`, and `dependency-reduced-pom.xml` are intentionally ignored.
 
 ## Releases
 
@@ -220,9 +220,9 @@ mvn versions:set -DnewVersion=1.3.0 -DgenerateBackupPoms=false
 mvn clean verify
 git add pom.xml
 git commit -m "chore: release 1.3.0"
-git tag spoon-mcp-server-1.3.0
+git tag archlens-1.3.0
 JRELEASER_GITHUB_TOKEN=<token> mvn jreleaser:full-release
-git push origin main spoon-mcp-server-1.3.0
+git push origin main archlens-1.3.0
 ```
 
 This repository intentionally does not include GitHub Actions release automation. Keep the release tag and `pom.xml` version aligned manually.
@@ -234,7 +234,7 @@ mvn clean verify
 JRELEASER_GITHUB_TOKEN=dummy mvn -Djreleaser.dry.run=true jreleaser:full-release
 ```
 
-JReleaser is configured for GitHub releases under `DerPate/spoon-mcp-server`. It uses the existing `spoon-mcp-server-{{projectVersion}}` tag, publishes the shaded server jar as the runnable distribution artifact, attaches source and Javadoc jars as release files, and appends generated release notes to `CHANGELOG.md`.
+JReleaser is configured for GitHub releases under `DerPate/archlens`. It uses the existing `archlens-{{projectVersion}}` tag, publishes the shaded server jar as the runnable distribution artifact, attaches source and Javadoc jars as release files, and appends generated release notes to `CHANGELOG.md`.
 
 ## Publishing Notes
 
