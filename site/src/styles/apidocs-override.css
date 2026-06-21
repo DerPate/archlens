@@ -1,65 +1,46 @@
 /*
- * ArchLens — Doxygen dark theme override
- * Maps site design tokens onto doxygen-awesome-css variables.
- * Load order: doxygen-awesome.css → this file (via HTML_EXTRA_STYLESHEET).
+ * ArchLens — Doxygen color override
+ * Replaces doxygen-awesome dark palette with site brand tokens.
+ * Load order: doxygen-awesome.css → doxygen-awesome-sidebar-only.css → this file
+ *
+ * Strategy: only override CSS variables, never fight doxygen-awesome layout
+ * with element rules or !important. Let doxygen-awesome handle all layout/spacing.
  *
  * Site token reference (exact values from global.css):
- *   --void-black:        #000000            (deepest bg)
- *   --terminal-charcoal: #0F111A            (panel bg)
- *   --electric-cyan:     #06B6D4            (primary accent)
- *   --matrix-green:      #10B981            (secondary accent)
- *   --agent-orange:      #F4A261            (warning/action)
- *   --text:              #E2E8F0            (body text)
- *   --subtext-1:         #CBD5E1            (secondary text)
- *   --console-gray:      #94A3B8            (muted text)
- *   --border-soft:       rgba(51,65,85,.78) (color-mix approx of --hard-border 78%)
- *   --hard-border:       #334155            (visible border)
- *   --font-mono:         "JetBrains Mono", monospace
- *   --font-heading:      "Inter", sans-serif
+ *   --void-black:        #000000
+ *   --terminal-charcoal: #0F111A
+ *   --electric-cyan:     #06B6D4
+ *   --matrix-green:      #10B981
+ *   --agent-orange:      #F4A261
+ *   --text:              #E2E8F0
+ *   --subtext-1:         #CBD5E1
+ *   --console-gray:      #94A3B8
+ *   --hard-border:       #334155
  */
 
-/* ── Force dark everywhere (no media query — always dark) ──── */
-html, html.dark-mode, html:not(.light-mode) {
+/* ── Override doxygen-awesome dark palette with site tokens ── */
+/* Targets html.dark-mode (set via custom header template)      */
+html.dark-mode {
 
   /* page */
-  --page-background-color:           #000000;
+  --page-background-color:           #0F111A;
   --page-foreground-color:           #E2E8F0;
-  --page-secondary-foreground-color: #CBD5E1;
+  --page-secondary-foreground-color: #94A3B8;
 
-  /* primary = electric cyan */
+  /* primary accent = electric cyan */
   --primary-color:       #06B6D4;
   --primary-dark-color:  #0891b2;
   --primary-light-color: #67e8f9;
-  --on-primary-color:    #000000;
 
-  /* links */
-  --link-color: #06B6D4;
+  /* navigation */
+  --side-nav-background: #0F111A;
 
-  /* separators / borders */
-  --separator-color: rgba(51,65,85,.78);
-  --odd-color:       rgba(255,255,255,.025);
+  /* separators */
+  --separator-color:          #334155;
+  --menu-selected-background: rgba(6,182,212,.12);
 
-  /* navigation sidebar */
-  --side-nav-background:  #0F111A;
-  --side-nav-foreground:  #E2E8F0;
-  --toc-background:       #0F111A;
-  --toc-foreground:       #E2E8F0;
-
-  /* header */
-  --header-background: #000000;
-  --header-foreground: #E2E8F0;
-
-  /* search */
-  --searchbar-background: #0F111A;
-  --searchbar-foreground: #E2E8F0;
-
-  /* menu highlight */
-  --menu-focus-background:    #06B6D4;
-  --menu-focus-foreground:    #000000;
-  --menu-selected-background: rgba(6,182,212,.1);
-
-  /* code blocks / fragments */
-  --fragment-background:            #0F111A;
+  /* code fragments */
+  --fragment-background:            #000000;
   --fragment-foreground:            #E2E8F0;
   --fragment-keyword:               #06B6D4;
   --fragment-keywordtype:           #67e8f9;
@@ -69,24 +50,20 @@ html, html.dark-mode, html:not(.light-mode) {
   --fragment-link:                  #06B6D4;
   --fragment-preprocessor:          #a78bfa;
   --fragment-linenumber-color:      #94A3B8;
-  --fragment-linenumber-background: #000000;
-  --fragment-linenumber-border:     rgba(51,65,85,.78);
+  --fragment-linenumber-background: #0F111A;
+  --fragment-linenumber-border:     #334155;
 
   /* inline code */
-  --code-background: #0F111A;
-  --code-foreground: #E2E8F0;
-  --section-code-background: rgba(6,182,212,.06);
-  --section-code-border:     rgba(6,182,212,.2);
+  --code-background: #000000;
 
   /* tables */
   --tablehead-background: #0F111A;
-  --tablehead-foreground: #E2E8F0;
 
   /* blockquote */
   --blockquote-background: #0F111A;
   --blockquote-foreground: #94A3B8;
 
-  /* callout boxes — muted to not clash with the dark bg */
+  /* callout boxes */
   --note-color:              #0d2232;
   --note-color-dark:         #06B6D4;
   --note-color-darker:       #E2E8F0;
@@ -102,161 +79,23 @@ html, html.dark-mode, html:not(.light-mode) {
   --deprecated-color:        #1a1c22;
   --deprecated-color-dark:   #94A3B8;
   --deprecated-color-darker: #E2E8F0;
-
-  /* shadow */
-  --box-shadow: 0 2px 12px 0 rgba(0,0,0,.6);
-
-  /* zero radius — match site */
-  --border-radius-large:  0px;
-  --border-radius-medium: 0px;
-  --border-radius-small:  0px;
-
-  /* fonts */
-  --font-family:           "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-family-monospace: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
-/* ── Page base — beat doxygen.css hardcoded whites ────────── */
+/* ── Font overrides — apply on top of doxygen-awesome layout ─ */
 body {
-  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace !important;
-  font-size: 0.92rem;
-  line-height: 1.65;
-  color: #E2E8F0 !important;
-  background-color: #000000 !important;
-}
-
-div#doc-content,
-div.contents,
-div.header,
-div#main-nav {
-  background-color: #000000 !important;
-  color: #E2E8F0;
-}
-
-/* ── Typography ────────────────────────────────────────────── */
-h1, h2, h3, h4, h5, h6,
-.title, #projectbrief {
-  font-family: "Inter", sans-serif;
-  color: #E2E8F0 !important;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
 #projectname {
-  color: #06B6D4 !important;
-  font-weight: 700;
+  color: #06B6D4;
 }
 
-/* ── Navigation sidebar — beat navtree.css #nav-tree hardcode */
-#nav-tree {
-  background-color: #0F111A !important;
-  background-image: none !important;
-}
-
-#side-nav {
-  background-color: #0F111A !important;
-  border-right: 1px solid rgba(51,65,85,.78) !important;
-}
-
-#nav-tree a { color: #CBD5E1 !important; }
-#nav-tree a:hover { color: #06B6D4 !important; }
-
-#nav-tree .selected,
-#nav-tree .item.selected > a {
-  color: #06B6D4 !important;
-  background: rgba(6,182,212,.08) !important;
-}
-
-/* ── Header / titlearea — beat doxygen.css ─────────────────── */
-#top,
-#titlearea,
-div#titlearea {
-  background-color: #000000 !important;
-  border-bottom: 1px solid rgba(51,65,85,.78) !important;
-}
-
-/* ── Tabs bar ──────────────────────────────────────────────── */
-div.tabs, div.tabs2, div.tabs3,
-.tablist, .tablist li, .tablist a {
-  background: #0F111A !important;
-  border-color: rgba(51,65,85,.78) !important;
-}
-
-.tablist a { color: #CBD5E1 !important; }
-.tablist a:hover, .tablist li.current a { color: #06B6D4 !important; }
-
-/* ── Tables ────────────────────────────────────────────────── */
-table.doxtable {
-  border-collapse: collapse;
-  border: 1px solid rgba(51,65,85,.78);
-}
-
-table.doxtable th {
-  background-color: #0F111A !important;
-  color: #E2E8F0 !important;
-  border-bottom: 1px solid #334155;
-  font-family: "Inter", sans-serif;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-table.doxtable td {
-  border-bottom: 1px solid rgba(51,65,85,.78);
-  color: #E2E8F0;
-}
-
-table.doxtable tr:hover td { background: rgba(6,182,212,.04); }
-
-/* ── Member entries ────────────────────────────────────────── */
-.memitem {
-  border: 1px solid rgba(51,65,85,.78) !important;
-  background-color: #0F111A !important;
-}
-
-.memproto {
-  background-color: #000000 !important;
-  border-bottom: 1px solid rgba(51,65,85,.78) !important;
-}
-
-.memdoc {
-  background-color: #0F111A !important;
-  border-color: rgba(51,65,85,.78) !important;
-}
-
-.memname, .memname td { color: #06B6D4 !important; }
-
-/* ── Search ────────────────────────────────────────────────── */
-#MSearchBox,
-#MSearchBox input,
-#searchli input,
-.SRPage {
-  background-color: #0F111A !important;
-  border-color: rgba(51,65,85,.78) !important;
-  color: #E2E8F0 !important;
-}
-
-#MSearchResultsWindow {
-  background-color: #0F111A !important;
-  border: 1px solid rgba(51,65,85,.78) !important;
-}
-
-/* ── Links ─────────────────────────────────────────────────── */
 a, a:link { color: #06B6D4; }
 a:visited  { color: #0891b2; }
 a:hover    { color: #67e8f9; }
 
-/* ── Splitbar / resizer ────────────────────────────────────── */
-#splitbar, .ui-resizable-e {
-  background-color: rgba(51,65,85,.78) !important;
-  background-image: none !important;
-}
-
-/* ── Scrollbar (webkit) ────────────────────────────────────── */
+/* ── Scrollbar ─────────────────────────────────────────────── */
 ::-webkit-scrollbar              { width: 6px; height: 6px; }
-::-webkit-scrollbar-track        { background: #000000; }
+::-webkit-scrollbar-track        { background: #0F111A; }
 ::-webkit-scrollbar-thumb        { background: #334155; }
 ::-webkit-scrollbar-thumb:hover  { background: #06B6D4; }
-
-/* ── Hide Oracle-style frames header if present ────────────── */
-frame[name="packageFrame"],
-frame[name="classFrame"] { display: none; }
