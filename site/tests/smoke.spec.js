@@ -25,3 +25,20 @@ test("mobile page keeps navigation and primary CTA visible", async ({ page }) =>
   await expect(page.getByRole("link", { name: "View on GitHub" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Read install guide" })).toBeVisible();
 });
+
+test("analytics waits for cookie consent", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(page.getByText("We use cookies")).toBeVisible();
+  await expect(page.locator("script[src=\"https://www.googletagmanager.com/gtag/js?id=G-N4J5QGY48M\"]")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Accept all" }).click();
+
+  await expect(page.locator("script[src=\"https://www.googletagmanager.com/gtag/js?id=G-N4J5QGY48M\"]")).toHaveCount(1);
+  await expect.poll(async () => page.evaluate(() => {
+    return window.dataLayer?.some((entry) => {
+      const args = Array.from(entry);
+      return args[0] === "config" && args[1] === "G-N4J5QGY48M";
+    }) ?? false;
+  })).toBe(true);
+});
