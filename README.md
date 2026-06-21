@@ -1,4 +1,15 @@
-# Spoon MCP Server
+<div align="center">
+  <img src="site/public/wordmark.svg" alt="Spoon MCP Server" width="420"/>
+  <br/>
+  <br/>
+
+  [![Maven Central](https://img.shields.io/badge/download-GitHub_Releases-blue?logo=github)](https://github.com/DerPate/spoon-mcp-server/releases)
+  [![Java 21+](https://img.shields.io/badge/Java-21%2B-orange?logo=openjdk)](https://openjdk.org/)
+  [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+  [![Build](https://img.shields.io/badge/build-mvn_package-brightgreen?logo=apachemaven)](docs/INSTALL.md)
+</div>
+
+---
 
 Spoon MCP Server helps you understand large Java systems from the code that actually runs them. It indexes Java workspaces with Spoon, projects the result into an architecture graph, and exposes MCP tools for exploring entrypoints, components, dependencies, runtime paths, data movement, workflow handoffs, and architecture views.
 
@@ -126,7 +137,7 @@ Messaging entrypoints carry `channelName`, `broker` (`KAFKA`, `MQTT`, `AMQP`, `R
 
 - Java 21 or newer
 - Maven 3.9 or newer
-- An MCP-capable client for interactive use
+- An MCP-capable client for interactive use, **or** run the jar directly in a terminal for the standalone REPL dashboard
 
 ## Build
 
@@ -205,13 +216,13 @@ Release:
 ```sh
 git switch main
 git pull --ff-only
-mvn versions:set -DnewVersion=1.2.0 -DgenerateBackupPoms=false
+mvn versions:set -DnewVersion=1.3.0 -DgenerateBackupPoms=false
 mvn clean verify
 git add pom.xml
-git commit -m "chore: release 1.2.0"
-git tag spoon-mcp-server-1.2.0
+git commit -m "chore: release 1.3.0"
+git tag spoon-mcp-server-1.3.0
 JRELEASER_GITHUB_TOKEN=<token> mvn jreleaser:full-release
-git push origin main spoon-mcp-server-1.2.0
+git push origin main spoon-mcp-server-1.3.0
 ```
 
 This repository intentionally does not include GitHub Actions release automation. Keep the release tag and `pom.xml` version aligned manually.
