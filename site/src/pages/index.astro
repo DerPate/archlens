@@ -1,0 +1,171 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const proofItems = ["Java 21", "Spoon", "MCP stdio", "TinkerGraph", "Mermaid", "LikeC4"];
+
+const capabilities = [
+  {
+    title: "Entrypoint discovery",
+    text: "Find REST endpoints, messaging consumers and producers, schedulers, EJB methods, event observers, EventBus consumers, WebSocket/SSE/gRPC methods, and main methods.",
+  },
+  {
+    title: "Runtime flow",
+    text: "Trace source-derived call paths from an entrypoint through services, repositories, outbound clients, and asynchronous boundaries.",
+  },
+  {
+    title: "Data-flow tracing",
+    text: "Follow request parameters and message payloads to persistence, messaging, HTTP outbound calls, event bus, file/object storage, and shared-state stores.",
+  },
+  {
+    title: "Workflow stitching",
+    text: "Connect multi-step workflows across brokers, event buses, shared fields, and repository handoffs without reconstructing chains by hand.",
+  },
+  {
+    title: "Graph querying",
+    text: "Query neighborhoods, paths, dependencies, and impact slices from a TinkerGraph-backed architecture model through typed MCP tools.",
+  },
+  {
+    title: "Visual exports",
+    text: "Export Mermaid diagrams, LikeC4 text, Markdown architecture docs, graph JSON, and a self-contained HTML graph viewer.",
+  },
+];
+
+const steps = [
+  ["Java workspace", "Scan Maven, Gradle, Kotlin DSL, and plain Java roots with source-level framework evidence."],
+  ["Spoon extraction", "Build components, entrypoints, call edges, data-flow paths, source facts, and workflow links."],
+  ["Architecture graph", "Project the indexed model into TinkerGraph so the graph becomes the runtime source of truth."],
+  ["MCP tools", "Expose typed architecture queries, flow tracing, renderers, and export tools to MCP-capable clients."],
+  ["Visual exports", "Generate Mermaid, LikeC4, Markdown docs, JSON graph data, and a standalone graph viewer."],
+];
+
+const questions = [
+  "Which endpoints, consumers, and schedulers are the real ways into this system?",
+  "What services, repositories, clients, and external systems does a use case touch?",
+  "Where does a request parameter or message payload end up?",
+  "Which async chains continue through a broker, event bus, shared field, or repository?",
+  "What components are impacted if this repository, service, or integration changes?",
+];
+---
+
+<BaseLayout>
+  <section id="overview" class="hero">
+    <div class="container hero-grid">
+      <div class="hero-copy">
+        <span class="eyebrow">ArchLens</span>
+        <h1>Architecture understanding for real Java systems.</h1>
+        <p class="hero-subtitle">
+          MCP architecture analysis built on Spoon. ArchLens indexes Java workspaces, projects architecture facts into a graph,
+          and gives agents and engineers practical tools for tracing entrypoints, runtime paths, data movement, and impact.
+        </p>
+        <div class="hero-actions">
+          <a href="https://github.com/derPate/spoon-mcp-server" class="btn btn-primary" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+          <a href="https://github.com/derPate/spoon-mcp-server/blob/main/docs/INSTALL.md" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">Read install guide</a>
+        </div>
+      </div>
+
+      <aside class="hero-panel" aria-label="ArchLens workflow preview">
+        <div class="terminal-card">
+          <div class="terminal-top">
+            <span></span><span></span><span></span>
+            <strong>MCP first tour</strong>
+          </div>
+          <pre><code>index_workspace
+list_apps
+find_entrypoints
+trace_data_flow
+query_architecture_graph
+export_graph_viewer</code></pre>
+        </div>
+        <div class="graph-card" aria-label="Architecture graph preview">
+          <div class="graph-node graph-node-entry">entrypoint</div>
+          <div class="graph-line graph-line-a"></div>
+          <div class="graph-node graph-node-service">service</div>
+          <div class="graph-line graph-line-b"></div>
+          <div class="graph-node graph-node-store">repository</div>
+          <div class="graph-line graph-line-c"></div>
+          <div class="graph-node graph-node-external">broker</div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <section class="proof-strip" aria-label="Core technologies">
+    <div class="container proof-grid">
+      {proofItems.map((item) => <span>{item}</span>)}
+    </div>
+  </section>
+
+  <section id="capabilities" class="section">
+    <div class="container">
+      <div class="section-heading">
+        <span class="section-kicker">Capabilities</span>
+        <h2 class="section-title">Architecture facts that agents can actually query.</h2>
+      </div>
+      <div class="capability-grid">
+        {capabilities.map((item) => (
+          <article class="capability-card">
+            <h3>{item.title}</h3>
+            <p>{item.text}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section id="workflow" class="section workflow-section">
+    <div class="container">
+      <div class="section-heading">
+        <span class="section-kicker">How it works</span>
+        <h2 class="section-title">From Java source to a queryable architecture graph.</h2>
+      </div>
+      <div class="workflow-steps">
+        {steps.map(([title, text], index) => (
+          <article class="workflow-step">
+            <span>{String(index + 1).padStart(2, "0")}</span>
+            <h3>{title}</h3>
+            <p>{text}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section questions-section">
+    <div class="container split-layout">
+      <div>
+        <span class="section-kicker">Use cases</span>
+        <h2 class="section-title">Questions large Java systems make expensive.</h2>
+      </div>
+      <div class="question-list">
+        {questions.map((question) => (
+          <div class="question-item">{question}</div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section id="install" class="section install-section">
+    <div class="container install-grid">
+      <div>
+        <span class="section-kicker">Install</span>
+        <h2 class="section-title">Build the server, then let your MCP client ask better questions.</h2>
+        <p class="section-copy">
+          ArchLens runs as a stdio Model Context Protocol server. The usual first pass is to index a workspace,
+          list applications, find entrypoints and components, then render or query focused architecture views.
+        </p>
+      </div>
+      <div class="code-stack">
+        <pre><code>mvn test
+mvn package
+java -jar target/spoon-mcp-server.jar</code></pre>
+        <pre><code>index_workspace -> list_apps -> find_entrypoints
+find_components -> render_architecture_view</code></pre>
+        <pre><code>call_flow
+trace_data_flow
+render_pipeline
+query_architecture_graph
+export_graph_viewer</code></pre>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
