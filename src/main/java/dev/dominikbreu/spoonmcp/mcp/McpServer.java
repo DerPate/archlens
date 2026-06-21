@@ -15,7 +15,7 @@ import java.util.function.Function;
 
 /** Stdio MCP server exposing architecture-analysis tools via the official MCP Java SDK. */
 public class McpServer {
-    static final String SERVER_VERSION = "1.2.0";
+    public static final String SERVER_VERSION = "1.2.0";
 
     private final IndexWorkspaceTool indexTool;
     private final ListAppsTool listAppsTool;
@@ -99,7 +99,7 @@ public class McpServer {
 
     // ── tool registration ─────────────────────────────────────────────────────
 
-    List<McpServerFeatures.SyncToolSpecification> buildToolSpecifications() {
+    public List<McpServerFeatures.SyncToolSpecification> buildToolSpecifications() {
         List<McpServerFeatures.SyncToolSpecification> specs = new ArrayList<>();
 
         specs.add(toolSpec(

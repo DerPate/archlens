@@ -32,6 +32,7 @@
         <otel.version>1.40.0</otel.version>
         <tinkerpop.version>3.8.1</tinkerpop.version>
         <jreleaser.version>1.23.0</jreleaser.version>
+        <jline.version>3.27.1</jline.version>
     </properties>
 
     <dependencies>
@@ -107,6 +108,11 @@
             <groupId>io.modelcontextprotocol.sdk</groupId>
             <artifactId>mcp</artifactId>
             <version>1.1.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jline</groupId>
+            <artifactId>jline</artifactId>
+            <version>${jline.version}</version>
         </dependency>
     </dependencies>
 
