@@ -240,7 +240,9 @@ public class MermaidPipelineRenderer {
                         callerNodeIds.put(dn.componentId().serialize(), mermaidId);
                     lastMethodNodeId = mermaidId;
                 }
-                // "sink" nodes: skip — handled by renderTerminalSinks
+                default -> {
+                    // "sink" and unknown node kinds: skip — handled by renderTerminalSinks
+                }
             }
         }
 
