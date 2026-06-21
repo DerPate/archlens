@@ -180,4 +180,40 @@ export_graph_viewer</code></pre>
       </div>
     </div>
   </section>
+
+  <section id="quickstart" class="section">
+    <div class="container">
+      <div class="section-heading">
+        <span class="section-kicker">Get started</span>
+        <h2 class="section-title">From source to your first architecture query.</h2>
+      </div>
+      <div class="quickstart-grid">
+        <div class="terminal-card quickstart-card">
+          <div class="terminal-top">
+            <span></span><span></span><span></span>
+            <strong>build</strong>
+          </div>
+          <pre><code>git clone https://github.com/derPate/spoon-mcp-server.git
+cd spoon-mcp-server
+mvn clean package</code></pre>
+        </div>
+        <div class="terminal-card quickstart-card">
+          <div class="terminal-top">
+            <span></span><span></span><span></span>
+            <strong>smoke test</strong>
+          </div>
+          <pre><code>java -jar target/spoon-mcp-server.jar \
+  &lt; examples/jsonrpc/initialize.json</code></pre>
+        </div>
+        <div class="terminal-card quickstart-card">
+          <div class="terminal-top">
+            <span></span><span></span><span></span>
+            <strong>wire client</strong>
+          </div>
+          <pre><code>claude mcp add spoon -- java -jar \
+  /path/to/spoon-mcp-server.jar</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
 </BaseLayout>
