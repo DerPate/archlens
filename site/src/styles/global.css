@@ -108,22 +108,16 @@ main { overflow: hidden; }
 }
 
 .logo-mark { width: 34px; height: 34px; overflow: visible; }
-.astrolabe-mark * { vector-effect: non-scaling-stroke; }
-.mark-ring,
-.mark-axis,
-.mark-bracket {
-  fill: none;
+.monogram-frame {
+  fill: var(--terminal-charcoal);
   stroke: var(--electric-cyan);
-  stroke-width: 5;
-  stroke-linecap: square;
+  stroke-width: 4;
+  shape-rendering: crispEdges;
 }
-.mark-ring-outer { stroke-width: 6; }
-.mark-axis {
-  stroke: color-mix(in srgb, var(--console-gray) 70%, transparent);
-  stroke-width: 2;
+.monogram-letter {
+  fill: var(--agent-orange);
+  shape-rendering: geometricPrecision;
 }
-.mark-bracket { stroke: var(--matrix-green); }
-.mark-center { fill: var(--agent-orange); }
 
 .nav-menu {
   display: flex;
