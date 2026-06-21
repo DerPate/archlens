@@ -26,8 +26,20 @@ jobs:
       - name: Build and test
         run: mvn verify -B -q
 
+      - name: Cache OWASP dependency-check data
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        with:
+          path: ~/.cache/dependency-check
+          key: ${{ runner.os }}-dependency-check-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-dependency-check-
+
       - name: OWASP dependency check
-        run: mvn dependency-check:check -B -q -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
+        run: >-
+          mvn dependency-check:check -B -q
+          -DdataDirectory=$HOME/.cache/dependency-check
+          -DnvdValidForHours=24
+          -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         continue-on-error: true
