@@ -7,9 +7,9 @@ import subprocess
 import sys
 import tempfile
 
-ROOT = "/home/dominik/spoon-mcp-server"
+ROOT = "/home/dominik/archlens"
 PHOENIX = "/home/dominik/phoenix_backend"
-JAR = f"{ROOT}/target/spoon-mcp-server.jar"
+JAR = f"{ROOT}/target/archlens.jar"
 ENTRYPOINT = sys.argv[1] if len(sys.argv) > 1 else "PUT /employeeCandidature/{id}"
 
 proc = subprocess.Popen(

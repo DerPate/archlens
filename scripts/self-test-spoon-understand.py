@@ -14,9 +14,9 @@ import json
 import subprocess
 import sys
 
-ROOT = "/home/dominik/spoon-mcp-server"
+ROOT = "/home/dominik/archlens"
 WORKSPACE = sys.argv[1] if len(sys.argv) > 1 else "/home/dominik/phoenix_backend"
-JAR = f"{ROOT}/target/spoon-mcp-server.jar"
+JAR = f"{ROOT}/target/archlens.jar"
 
 proc = subprocess.Popen(
     ["java", "-jar", JAR],

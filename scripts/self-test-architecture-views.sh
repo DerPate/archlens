@@ -10,8 +10,8 @@ python3 - <<'PY'
 import json
 import subprocess
 
-root = "/home/dominik/spoon-mcp-server"
-jar = f"{root}/target/spoon-mcp-server.jar"
+root = "/home/dominik/archlens"
+jar = f"{root}/target/archlens.jar"
 proc = subprocess.Popen(
     ["java", "-jar", jar],
     stdin=subprocess.PIPE,
@@ -56,13 +56,13 @@ def tool(name, arguments):
 tool("index_workspace", {"paths": [root]})
 
 diagram = tool("render_architecture_view", {
-    "app": "spoon-mcp-server",
+    "app": "archlens",
     "view": "component",
     "maxNodes": 50
 })
 
 likec4 = tool("export_likec4_model", {
-    "app": "spoon-mcp-server",
+    "app": "archlens",
     "view": "component",
     "maxNodes": 18
 })

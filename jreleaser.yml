@@ -1,5 +1,5 @@
 project:
-  name: spoon-mcp-server
+  name: archlens
   description: Stdio MCP server for Java architecture analysis with Spoon.
   longDescription: Stdio Model Context Protocol server that indexes Java workspaces, extracts architecture metadata, and renders Mermaid diagrams.
   authors:
@@ -7,27 +7,27 @@ project:
   inceptionYear: "2026"
   license: MIT
   links:
-    homepage: "https://github.com/DerPate/spoon-mcp-server"
-    vcsBrowser: "https://github.com/DerPate/spoon-mcp-server"
+    homepage: "https://github.com/DerPate/archlens"
+    vcsBrowser: "https://github.com/DerPate/archlens"
   languages:
     java:
-      groupId: dev.dominikbreu.spoonmcp
-      artifactId: spoon-mcp-server
+      groupId: dev.dominikbreu.archlens
+      artifactId: archlens
       version: 25
-      mainClass: dev.dominikbreu.spoonmcp.Main
+      mainClass: dev.dominikbreu.archlens.Main
 
 release:
   github:
     enabled: true
     owner: DerPate
-    name: spoon-mcp-server
+    name: archlens
     branch: main
     # Releases are triggered by canonical tags such as
-    # spoon-mcp-server-1.0.2. JReleaser publishes against that existing
+    # archlens-1.0.2. JReleaser publishes against that existing
     # tag rather than creating a duplicate "v{{projectVersion}}" tag,
     # which keeps previous-release lookup and changelog generation aligned.
-    tagName: spoon-mcp-server-{{projectVersion}}
-    previousTagName: spoon-mcp-server-{{previousVersion}}
+    tagName: archlens-{{projectVersion}}
+    previousTagName: archlens-{{previousVersion}}
     skipTag: true
     changelog:
       enabled: true
@@ -105,16 +105,16 @@ release:
       enabled: false
 
 distributions:
-  spoon-mcp-server:
+  archlens:
     type: SINGLE_JAR
     stereotype: CLI
     artifacts:
-      - path: target/spoon-mcp-server.jar
-        transform: spoon-mcp-server/spoon-mcp-server-{{projectEffectiveVersion}}.jar
+      - path: target/archlens.jar
+        transform: archlens/archlens-{{projectEffectiveVersion}}.jar
 
 files:
   artifacts:
-    - path: target/spoon-mcp-server-sources.jar
-      transform: spoon-mcp-server-{{projectEffectiveVersion}}-sources.jar
-    - path: target/spoon-mcp-server-javadoc.jar
-      transform: spoon-mcp-server-{{projectEffectiveVersion}}-javadoc.jar
+    - path: target/archlens-sources.jar
+      transform: archlens-{{projectEffectiveVersion}}-sources.jar
+    - path: target/archlens-javadoc.jar
+      transform: archlens-{{projectEffectiveVersion}}-javadoc.jar

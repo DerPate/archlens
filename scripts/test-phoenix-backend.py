@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Test the spoon-mcp-server against the phoenix_backend project."""
+"""Test the archlens against the phoenix_backend project."""
 
 import json
 import subprocess
 import sys
 
-ROOT = "/home/dominik/spoon-mcp-server"
+ROOT = "/home/dominik/archlens"
 PHOENIX = "/home/dominik/phoenix_backend"
-JAR = f"{ROOT}/target/spoon-mcp-server.jar"
+JAR = f"{ROOT}/target/archlens.jar"
 
 proc = subprocess.Popen(
     ["java", "-jar", JAR],

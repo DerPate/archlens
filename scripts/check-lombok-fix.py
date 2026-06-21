@@ -6,7 +6,7 @@ no longer produce spurious ACCESSOR_RETURN edges to unrelated components.
 """
 import json, subprocess, sys
 
-JAR = "target/spoon-mcp-server.jar"
+JAR = "target/archlens.jar"
 PROJECT_ROOT = "."
 
 proc = subprocess.Popen(

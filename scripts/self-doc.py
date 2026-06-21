@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Drive the spoon-mcp-server against its own source to regenerate docs."""
+"""Drive the archlens against its own source to regenerate docs."""
 
 import glob
 import json
@@ -9,11 +9,11 @@ import os
 
 _target = os.path.join(os.path.dirname(__file__), "..", "target")
 _candidates = [
-    j for j in glob.glob(os.path.join(_target, "spoon-mcp-server*.jar"))
+    j for j in glob.glob(os.path.join(_target, "archlens*.jar"))
     if not any(x in os.path.basename(j) for x in ("-sources", "-javadoc", "original-"))
 ]
 if not _candidates:
-    raise FileNotFoundError(f"No spoon-mcp-server jar found in {_target}. Run 'mvn package' first.")
+    raise FileNotFoundError(f"No archlens jar found in {_target}. Run 'mvn package' first.")
 JAR = max(_candidates, key=os.path.getmtime)
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
