@@ -246,7 +246,7 @@ public class MermaidPipelineRenderer {
 
         Set<GraphNodeId> sinkNodeIds = nodes.stream()
                 .filter(n -> "sink".equals(n.nodeKind()))
-                .map(GraphQuery.DataFlowNodeNode::id)
+                .map(dn -> dn.id())
                 .collect(Collectors.toSet());
 
         for (GraphQuery.GraphEdge edge : edges) {
