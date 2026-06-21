@@ -19,6 +19,8 @@ test("mobile page keeps navigation and primary CTA visible", async ({ page }) =>
 
   await expect(page.getByLabel("ArchLens home")).toBeVisible();
   await expect(page.locator(".nav-logo img")).toHaveAttribute("src", "/nav-logo.svg");
+  await expect(page.locator(".nav-logo source[media=\"(prefers-color-scheme: light)\"]")).toHaveAttribute("srcset", "/nav-logo-light.svg");
+  await expect(page.locator(".nav-logo source[media=\"(prefers-color-scheme: dark)\"]")).toHaveAttribute("srcset", "/nav-logo-dark.svg");
   await expect(page.getByRole("link", { name: "View on GitHub" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Read install guide" })).toBeVisible();
 });
