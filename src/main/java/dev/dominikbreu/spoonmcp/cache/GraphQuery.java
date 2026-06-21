@@ -614,6 +614,7 @@ public class GraphQuery {
             P<Object> pred = toGremlinPredicate(entry.getValue());
             if (pred != null) traversal = traversal.has(entry.getKey(), pred);
         }
+        TraversalRecorder.capture(traversal);
         return traversal.toList().stream()
                 .filter(v -> normalizedLabel == null || v.label().equalsIgnoreCase(normalizedLabel))
                 .map(this::toNode)
@@ -684,6 +685,7 @@ public class GraphQuery {
             P<Object> pred = toGremlinPredicate(entry.getValue());
             if (pred != null) traversal = traversal.has(entry.getKey(), pred);
         }
+        TraversalRecorder.capture(traversal);
         return traversal.toList().stream()
                 .filter(e -> normalizedLabel == null || e.label().equalsIgnoreCase(normalizedLabel))
                 .map(this::toEdge)
@@ -716,17 +718,15 @@ public class GraphQuery {
         int depthLimit = Math.clamp(maxDepth <= 0 ? 5 : maxDepth, 1, 8);
         int resultLimit = normalizeLimit(limit);
 
-        return store.g
+        var traversal = store.g
                 .V(fromId.value())
                 .repeat(__.outE().inV().simplePath())
                 .until(__.hasId(toId.value()).or().loops().is(P.gte(depthLimit)))
                 .hasId(toId.value())
                 .path()
-                .limit(resultLimit)
-                .toList()
-                .stream()
-                .map(this::pathToGraphPath)
-                .toList();
+                .limit(resultLimit);
+        TraversalRecorder.capture(traversal);
+        return traversal.toList().stream().map(this::pathToGraphPath).toList();
     }
 
     public synchronized List<GraphNode> impactedBy(GraphNodeId targetId, int maxDepth, int limit) {
@@ -736,18 +736,16 @@ public class GraphQuery {
         int depthLimit = Math.clamp(maxDepth <= 0 ? 3 : maxDepth, 1, 8);
         int resultLimit = normalizeLimit(limit);
 
-        return store.g
+        var traversal = store.g
                 .V(targetId.value())
                 .repeat(__.in())
                 .emit()
                 .times(depthLimit)
                 .dedup()
                 .not(__.hasId(targetId.value()))
-                .limit(resultLimit)
-                .toList()
-                .stream()
-                .map(this::toNode)
-                .toList();
+                .limit(resultLimit);
+        TraversalRecorder.capture(traversal);
+        return traversal.toList().stream().map(this::toNode).toList();
     }
 
     public synchronized List<GraphNode> reachable(
@@ -756,17 +754,15 @@ public class GraphQuery {
         int depthLimit = Math.clamp(depth <= 0 ? 1 : depth, 1, 10);
         int resultLimit = normalizeLimit(limit);
 
-        return store.g
+        var traversal = store.g
                 .V(from.value())
                 .repeat(directedStep(direction, edgeLabel))
                 .emit()
                 .times(depthLimit)
                 .dedup()
-                .limit(resultLimit)
-                .toList()
-                .stream()
-                .map(this::toNode)
-                .toList();
+                .limit(resultLimit);
+        TraversalRecorder.capture(traversal);
+        return traversal.toList().stream().map(this::toNode).toList();
     }
 
     public synchronized Optional<GraphNodeId> resolveComponent(String nameOrId) {
