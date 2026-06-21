@@ -5,7 +5,8 @@
   --electric-cyan: #06B6D4;
   --console-gray: #94A3B8;
   --matrix-green: #10B981;
-  --agent-orange: #D97706;
+  --instrument-navy: #0D1B2A;
+  --agent-orange: #F4A261;
   --text: #E2E8F0;
   --subtext-1: #CBD5E1;
   --subtext-0: var(--console-gray);
@@ -107,17 +108,33 @@ main { overflow: hidden; }
   text-decoration: none;
 }
 
-.logo-mark { width: 34px; height: 34px; overflow: visible; }
-.monogram-frame {
-  fill: var(--terminal-charcoal);
+.logo-mark { width: 36px; height: 36px; overflow: visible; }
+.instrument-ring {
+  fill: none;
   stroke: var(--electric-cyan);
-  stroke-width: 4;
-  shape-rendering: crispEdges;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
 }
-.monogram-letter {
-  fill: var(--agent-orange);
-  shape-rendering: geometricPrecision;
+.instrument-ring-inner {
+  stroke: color-mix(in srgb, var(--console-gray) 72%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 4;
 }
+.instrument-ticks {
+  fill: none;
+  stroke: var(--electric-cyan);
+  stroke-width: 3;
+  stroke-linecap: square;
+  vector-effect: non-scaling-stroke;
+}
+.instrument-needle {
+  fill: none;
+  stroke: var(--agent-orange);
+  stroke-width: 6;
+  stroke-linecap: square;
+}
+.instrument-center { fill: var(--agent-orange); }
+.instrument-core { fill: var(--void-black); }
 
 .nav-menu {
   display: flex;
@@ -150,10 +167,48 @@ main { overflow: hidden; }
 }
 
 .hero {
+  position: relative;
   min-height: 92vh;
   display: grid;
   align-items: start;
   padding: 112px 0 72px;
+}
+
+.hero-instrument {
+  position: absolute;
+  top: clamp(82px, 9vw, 138px);
+  right: max(2rem, 5vw);
+  width: clamp(280px, 35vw, 620px);
+  color: var(--electric-cyan);
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+.hero-instrument .instrument-ring {
+  stroke-width: 1.8;
+}
+
+.hero-instrument .instrument-ring-inner {
+  stroke: var(--agent-orange);
+  stroke-width: 1;
+  stroke-dasharray: 6 8;
+}
+
+.hero-instrument .instrument-ticks {
+  stroke-width: 2;
+}
+
+.hero-instrument .instrument-needle {
+  stroke-width: 5;
+}
+
+.hero-instrument .instrument-core {
+  fill: var(--text);
+}
+
+.hero-grid {
+  position: relative;
+  z-index: 1;
 }
 
 .hero-grid,
@@ -494,7 +549,14 @@ pre {
 
   .hero {
     min-height: auto;
-    padding-top: 132px;
+    padding-top: 112px;
+  }
+
+  .hero-instrument {
+    top: 90px;
+    right: -120px;
+    width: 360px;
+    opacity: 0.11;
   }
 
   h1 {
