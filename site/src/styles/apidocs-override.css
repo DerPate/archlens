@@ -116,45 +116,72 @@ html, html.dark-mode, html:not(.light-mode) {
   --font-family-monospace: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
-/* ── Typography tweaks ─────────────────────────────────────── */
-body, .contents {
-  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+/* ── Page base — beat doxygen.css hardcoded whites ────────── */
+body {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace !important;
   font-size: 0.92rem;
   line-height: 1.65;
-  color: #E2E8F0;
-  background: #000000;
+  color: #E2E8F0 !important;
+  background-color: #000000 !important;
 }
 
+div#doc-content,
+div.contents,
+div.header,
+div#main-nav {
+  background-color: #000000 !important;
+  color: #E2E8F0;
+}
+
+/* ── Typography ────────────────────────────────────────────── */
 h1, h2, h3, h4, h5, h6,
-.title, #projectname, #projectbrief {
+.title, #projectbrief {
   font-family: "Inter", sans-serif;
-  color: #E2E8F0;
+  color: #E2E8F0 !important;
 }
 
-/* project name in header — cyan accent */
 #projectname {
-  color: #06B6D4;
+  color: #06B6D4 !important;
   font-weight: 700;
 }
 
-/* ── Navigation ────────────────────────────────────────────── */
-#nav-tree, #side-nav {
-  background: #0F111A;
-  border-right: 1px solid rgba(51,65,85,.78);
+/* ── Navigation sidebar — beat navtree.css #nav-tree hardcode */
+#nav-tree {
+  background-color: #0F111A !important;
+  background-image: none !important;
 }
 
+#side-nav {
+  background-color: #0F111A !important;
+  border-right: 1px solid rgba(51,65,85,.78) !important;
+}
+
+#nav-tree a { color: #CBD5E1 !important; }
+#nav-tree a:hover { color: #06B6D4 !important; }
+
+#nav-tree .selected,
 #nav-tree .item.selected > a {
-  color: #06B6D4;
-  background: rgba(6,182,212,.08);
+  color: #06B6D4 !important;
+  background: rgba(6,182,212,.08) !important;
 }
 
-#nav-tree a:hover { color: #06B6D4; }
-
-/* top header bar */
-#top, #titlearea {
-  background: #000000;
-  border-bottom: 1px solid rgba(51,65,85,.78);
+/* ── Header / titlearea — beat doxygen.css ─────────────────── */
+#top,
+#titlearea,
+div#titlearea {
+  background-color: #000000 !important;
+  border-bottom: 1px solid rgba(51,65,85,.78) !important;
 }
+
+/* ── Tabs bar ──────────────────────────────────────────────── */
+div.tabs, div.tabs2, div.tabs3,
+.tablist, .tablist li, .tablist a {
+  background: #0F111A !important;
+  border-color: rgba(51,65,85,.78) !important;
+}
+
+.tablist a { color: #CBD5E1 !important; }
+.tablist a:hover, .tablist li.current a { color: #06B6D4 !important; }
 
 /* ── Tables ────────────────────────────────────────────────── */
 table.doxtable {
@@ -163,8 +190,8 @@ table.doxtable {
 }
 
 table.doxtable th {
-  background: #0F111A;
-  color: #E2E8F0;
+  background-color: #0F111A !important;
+  color: #E2E8F0 !important;
   border-bottom: 1px solid #334155;
   font-family: "Inter", sans-serif;
   font-size: 0.8rem;
@@ -182,28 +209,47 @@ table.doxtable tr:hover td { background: rgba(6,182,212,.04); }
 
 /* ── Member entries ────────────────────────────────────────── */
 .memitem {
-  border: 1px solid rgba(51,65,85,.78);
-  background: #0F111A;
+  border: 1px solid rgba(51,65,85,.78) !important;
+  background-color: #0F111A !important;
 }
 
 .memproto {
-  background: #000000;
-  border-bottom: 1px solid rgba(51,65,85,.78);
+  background-color: #000000 !important;
+  border-bottom: 1px solid rgba(51,65,85,.78) !important;
 }
 
-.memname, .memname td { color: #06B6D4; }
+.memdoc {
+  background-color: #0F111A !important;
+  border-color: rgba(51,65,85,.78) !important;
+}
 
-/* ── Search box ────────────────────────────────────────────── */
-#MSearchBox, #searchli input {
-  background: #0F111A;
-  border: 1px solid rgba(51,65,85,.78);
-  color: #E2E8F0;
+.memname, .memname td { color: #06B6D4 !important; }
+
+/* ── Search ────────────────────────────────────────────────── */
+#MSearchBox,
+#MSearchBox input,
+#searchli input,
+.SRPage {
+  background-color: #0F111A !important;
+  border-color: rgba(51,65,85,.78) !important;
+  color: #E2E8F0 !important;
+}
+
+#MSearchResultsWindow {
+  background-color: #0F111A !important;
+  border: 1px solid rgba(51,65,85,.78) !important;
 }
 
 /* ── Links ─────────────────────────────────────────────────── */
 a, a:link { color: #06B6D4; }
 a:visited  { color: #0891b2; }
 a:hover    { color: #67e8f9; }
+
+/* ── Splitbar / resizer ────────────────────────────────────── */
+#splitbar, .ui-resizable-e {
+  background-color: rgba(51,65,85,.78) !important;
+  background-image: none !important;
+}
 
 /* ── Scrollbar (webkit) ────────────────────────────────────── */
 ::-webkit-scrollbar              { width: 6px; height: 6px; }
