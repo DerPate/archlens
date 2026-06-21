@@ -11,6 +11,9 @@ fi
 VPS_USER_HOST="$1"
 REMOTE_PATH="$2"
 
+# Always run from the site/ directory regardless of where the script is called from
+cd "$(dirname "$0")"
+
 echo "Deploying archlens site to ${VPS_USER_HOST}:${REMOTE_PATH}"
 echo ""
 
