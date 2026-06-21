@@ -75,3 +75,5 @@ skills/
 
 # Temporary files
 tmp/
+.ai/
+.zed/
