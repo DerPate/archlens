@@ -25,10 +25,10 @@ public final class ReplEngine {
 
     public DispatchResult dispatch(String line) {
         String trimmed = line.strip();
-        if (trimmed.equals(":quit")) {
+        if (":quit".equals(trimmed)) {
             return new DispatchResult(null, true);
         }
-        if (trimmed.equals(":help")) {
+        if (":help".equals(trimmed)) {
             return new DispatchResult(
                     new DashboardEvent(
                             trimmed,
@@ -39,7 +39,7 @@ public final class ReplEngine {
                             null),
                     false);
         }
-        if (trimmed.equals(":tools")) {
+        if (":tools".equals(trimmed)) {
             return new DispatchResult(toolListEvent(trimmed), false);
         }
 
@@ -66,8 +66,8 @@ public final class ReplEngine {
         TraversalRecorder.enable();
         long start = System.nanoTime();
         try {
-            McpSchema.CallToolResult result = spec.callHandler()
-                    .apply(null, new McpSchema.CallToolRequest(command.toolName(), command.args()));
+            McpSchema.CallToolResult result =
+                    spec.callHandler().apply(null, new McpSchema.CallToolRequest(command.toolName(), command.args()));
             long durationMillis = (System.nanoTime() - start) / 1_000_000;
             return new DispatchResult(
                     new DashboardEvent(

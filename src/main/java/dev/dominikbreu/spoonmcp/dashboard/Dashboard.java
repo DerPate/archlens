@@ -45,8 +45,10 @@ public final class Dashboard {
     }
 
     private void runLoop(Terminal terminal) {
-        LineReader reader =
-                LineReaderBuilder.builder().terminal(terminal).completer(toolNameCompleter()).build();
+        LineReader reader = LineReaderBuilder.builder()
+                .terminal(terminal)
+                .completer(toolNameCompleter())
+                .build();
 
         redraw(terminal);
         while (true) {
@@ -64,7 +66,8 @@ public final class Dashboard {
             if (result.quit()) {
                 return;
             }
-            if ("index_workspace".equals(result.event().toolName()) && !result.event().isError()) {
+            if ("index_workspace".equals(result.event().toolName())
+                    && !result.event().isError()) {
                 state.logSystemMessage(firstLine(result.event().resultText()));
             }
             state.recordEvent(result.event());

@@ -11,6 +11,20 @@
         <Or>
             <Class name="~dev\.dominikbreu\.spoonmcp\.cache\.ArchitectureGraph\$.*"/>
             <Class name="dev.dominikbreu.spoonmcp.cache.ModelCache"/>
+            <Class name="~dev\.dominikbreu\.spoonmcp\.cache\.GraphQuery\$.*"/>
+        </Or>
+    </Match>
+
+    <!--
+        Dashboard REPL records are read-only data containers passed between ReplCommandParser,
+        ReplEngine, and DashboardState within a single process — same rationale as the
+        ArchitectureGraph/GraphQuery records above.
+    -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+        <Or>
+            <Class name="dev.dominikbreu.spoonmcp.dashboard.DashboardEvent"/>
+            <Class name="dev.dominikbreu.spoonmcp.dashboard.ParsedCommand"/>
         </Or>
     </Match>
 

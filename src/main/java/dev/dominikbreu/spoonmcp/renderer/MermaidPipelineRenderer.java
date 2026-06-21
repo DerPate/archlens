@@ -37,7 +37,7 @@ public class MermaidPipelineRenderer {
      * Renders {@code chain} as Mermaid text.
      *
      * @param chain pipeline chain to render
-     * @param index tool model index for component lookups
+     * @param graph graph query for component lookups
      * @return Mermaid flowchart text
      */
     public String render(Chain chain, GraphQuery graph) {
@@ -142,10 +142,14 @@ public class MermaidPipelineRenderer {
         return headerNodeId;
     }
 
-    private String renderSteps(RenderState st, Segment seg, int segIdx, String headerNodeId,
-            GraphQuery graph, Map<String, String> callerNodeIds) {
-        List<GraphQuery.DataFlowNodeNode> topoNodes =
-                graph.pathFlowNodes(GraphNodeId.of(seg.path.id.serialize()));
+    private String renderSteps(
+            RenderState st,
+            Segment seg,
+            int segIdx,
+            String headerNodeId,
+            GraphQuery graph,
+            Map<String, String> callerNodeIds) {
+        List<GraphQuery.DataFlowNodeNode> topoNodes = graph.pathFlowNodes(GraphNodeId.of(seg.path.id.serialize()));
         if (!topoNodes.isEmpty()) {
             return renderStepsFromTopology(st, seg, segIdx, headerNodeId, graph, callerNodeIds, topoNodes);
         }
@@ -197,11 +201,14 @@ public class MermaidPipelineRenderer {
     }
 
     private String renderStepsFromTopology(
-            RenderState st, Segment seg, int segIdx, String headerNodeId,
-            GraphQuery graph, Map<String, String> callerNodeIds,
+            RenderState st,
+            Segment seg,
+            int segIdx,
+            String headerNodeId,
+            GraphQuery graph,
+            Map<String, String> callerNodeIds,
             List<GraphQuery.DataFlowNodeNode> nodes) {
-        List<GraphQuery.GraphEdge> edges =
-                graph.pathFlowEdges(GraphNodeId.of(seg.path.id.serialize()));
+        List<GraphQuery.GraphEdge> edges = graph.pathFlowEdges(GraphNodeId.of(seg.path.id.serialize()));
 
         Map<GraphNodeId, String> nodeIdMap = new HashMap<>();
         String lastMethodNodeId = headerNodeId;
@@ -224,8 +231,11 @@ public class MermaidPipelineRenderer {
                     ComponentType type = compNode != null ? compNode.type() : null;
                     String label = (dn.componentName() != null ? dn.componentName() : "?")
                             + (dn.method() != null ? "." + dn.method() : "");
-                    st.nodes.append("    ").append(mermaidId)
-                            .append(nodeShape(label, type)).append("\n");
+                    st.nodes
+                            .append("    ")
+                            .append(mermaidId)
+                            .append(nodeShape(label, type))
+                            .append("\n");
                     if (dn.componentId() != null)
                         callerNodeIds.put(dn.componentId().serialize(), mermaidId);
                     lastMethodNodeId = mermaidId;
@@ -254,8 +264,11 @@ public class MermaidPipelineRenderer {
             if (labelStr.isEmpty()) {
                 st.edges.append(conditional ? " -.-> " : " --> ");
             } else {
-                st.edges.append(conditional ? CONDITIONAL_EDGE_LABEL_OPEN : EDGE_LABEL_OPEN)
-                        .append("\"").append(escape(labelStr)).append("\"| ");
+                st.edges
+                        .append(conditional ? CONDITIONAL_EDGE_LABEL_OPEN : EDGE_LABEL_OPEN)
+                        .append("\"")
+                        .append(escape(labelStr))
+                        .append("\"| ");
             }
             st.edges.append(toMermaid).append("\n");
         }
@@ -267,8 +280,13 @@ public class MermaidPipelineRenderer {
         return step.componentId != null ? step.componentId.serialize() : step.componentName;
     }
 
-    private void renderTerminalSinks(RenderState st, Chain chain, Segment seg, int segIdx,
-            String previousNodeInSeg, Map<String, String> callerNodeIds) {
+    private void renderTerminalSinks(
+            RenderState st,
+            Chain chain,
+            Segment seg,
+            int segIdx,
+            String previousNodeInSeg,
+            Map<String, String> callerNodeIds) {
         // Deduplicate sinks by (componentName, method, kind, channel/topic) and group by caller
         // so each distinct sink appears once, wired from the step that actually called it.
         // Key = dedup key; value = first sink seen with that key.
