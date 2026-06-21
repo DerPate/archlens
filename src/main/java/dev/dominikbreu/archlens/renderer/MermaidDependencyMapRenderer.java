@@ -23,8 +23,7 @@ public class MermaidDependencyMapRenderer {
         List<GraphQuery.ComponentNode> components = graph.allComponentNodes();
 
         Map<GraphNodeId, GraphQuery.ComponentNode> componentsById = components.stream()
-                .collect(Collectors.toMap(
-                        GraphQuery.ComponentNode::id, c -> c, (l, r) -> l, LinkedHashMap::new));
+                .collect(Collectors.toMap(GraphQuery.ComponentNode::id, c -> c, (l, r) -> l, LinkedHashMap::new));
 
         String commonPrefix = commonPackagePrefix(components);
 
@@ -58,8 +57,13 @@ public class MermaidDependencyMapRenderer {
         for (Map.Entry<String, GroupStats> entry : groups.entrySet()) {
             String group = entry.getKey();
             GroupStats stats = entry.getValue();
-            sb.append("    ").append(nodeId(group)).append("[\"")
-                    .append(escape(group)).append("\\n").append(stats.components).append(" components");
+            sb.append("    ")
+                    .append(nodeId(group))
+                    .append("[\"")
+                    .append(escape(group))
+                    .append("\\n")
+                    .append(stats.components)
+                    .append(" components");
             if (stats.internalDependencies > 0) {
                 sb.append("\\n").append(stats.internalDependencies).append(" internal deps");
             }
@@ -69,11 +73,17 @@ public class MermaidDependencyMapRenderer {
         for (Map.Entry<EdgeKey, EdgeStats> entry : edges.entrySet()) {
             EdgeKey key = entry.getKey();
             EdgeStats stats = entry.getValue();
-            sb.append("    ").append(nodeId(key.from())).append(" -->|")
-                    .append(stats.count).append(" ")
-                    .append(stats.count == 1 ? "dep" : "deps").append(" / ")
-                    .append(escape(stats.kindSummary())).append("| ")
-                    .append(nodeId(key.to())).append("\n");
+            sb.append("    ")
+                    .append(nodeId(key.from()))
+                    .append(" -->|")
+                    .append(stats.count)
+                    .append(" ")
+                    .append(stats.count == 1 ? "dep" : "deps")
+                    .append(" / ")
+                    .append(escape(stats.kindSummary()))
+                    .append("| ")
+                    .append(nodeId(key.to()))
+                    .append("\n");
         }
 
         sb.append("    classDef core fill:#243746,stroke:#78a6c8,color:#f2f7fb\n");
@@ -81,7 +91,11 @@ public class MermaidDependencyMapRenderer {
         sb.append("    classDef data fill:#2f4235,stroke:#8bcf9f,color:#f5fff7\n");
         sb.append("    classDef default fill:#30343b,stroke:#9aa4b2,color:#f5f7fa\n");
         for (String group : groups.keySet()) {
-            sb.append("    class ").append(nodeId(group)).append(" ").append(className(group)).append("\n");
+            sb.append("    class ")
+                    .append(nodeId(group))
+                    .append(" ")
+                    .append(className(group))
+                    .append("\n");
         }
 
         return sb.toString();
@@ -146,7 +160,10 @@ public class MermaidDependencyMapRenderer {
         for (String pkg : packages) {
             while (!pkg.equals(prefix) && !pkg.startsWith(prefix + ".")) {
                 int dot = prefix.lastIndexOf('.');
-                if (dot < 0) { prefix = ""; break; }
+                if (dot < 0) {
+                    prefix = "";
+                    break;
+                }
                 prefix = prefix.substring(0, dot);
             }
             if (prefix.isEmpty()) break;

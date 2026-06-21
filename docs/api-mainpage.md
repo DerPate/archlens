@@ -8,16 +8,16 @@ contributors and anyone tracing a problem to its source.
 
 | Package | Responsibility |
 |---|---|
-| `dev.dominikbreu.spoonmcp.mcp.tools` | MCP tool handlers — one class per tool, entry point for all client requests |
-| `dev.dominikbreu.spoonmcp.cache` | Architecture graph store, graph queries, projections, and component classification |
-| `dev.dominikbreu.spoonmcp.extractor` | Spoon-based extractors: call graph, data flow, entrypoints, source facts |
-| `dev.dominikbreu.spoonmcp.scanner` | Workspace scanner — drives Spoon over input paths and populates the model |
-| `dev.dominikbreu.spoonmcp.renderer` | Mermaid, LikeC4, Markdown, and HTML output renderers |
-| `dev.dominikbreu.spoonmcp.model` | Immutable domain model: nodes, edges, identifiers, entrypoint types |
-| `dev.dominikbreu.spoonmcp.view` | Architecture view projections and view kinds |
-| `dev.dominikbreu.spoonmcp.build` | Build system detection (Maven, Gradle) |
-| `dev.dominikbreu.spoonmcp.likec4` | LikeC4 model projection and document structure |
-| `dev.dominikbreu.spoonmcp.tracing` | OpenTelemetry span helpers |
+| `dev.dominikbreu.archlens.mcp.tools` | MCP tool handlers — one class per tool, entry point for all client requests |
+| `dev.dominikbreu.archlens.cache` | Architecture graph store, graph queries, projections, and component classification |
+| `dev.dominikbreu.archlens.extractor` | Spoon-based extractors: call graph, data flow, entrypoints, source facts |
+| `dev.dominikbreu.archlens.scanner` | Workspace scanner — drives Spoon over input paths and populates the model |
+| `dev.dominikbreu.archlens.renderer` | Mermaid, LikeC4, Markdown, and HTML output renderers |
+| `dev.dominikbreu.archlens.model` | Immutable domain model: nodes, edges, identifiers, entrypoint types |
+| `dev.dominikbreu.archlens.view` | Architecture view projections and view kinds |
+| `dev.dominikbreu.archlens.build` | Build system detection (Maven, Gradle) |
+| `dev.dominikbreu.archlens.likec4` | LikeC4 model projection and document structure |
+| `dev.dominikbreu.archlens.tracing` | OpenTelemetry span helpers |
 
 ## Key entry points
 
@@ -28,4 +28,4 @@ contributors and anyone tracing a problem to its source.
 
 ## Source
 
-[github.com/derPate/spoon-mcp-server](https://github.com/derPate/spoon-mcp-server)
+[github.com/DerPate/archlens](https://github.com/DerPate/archlens)

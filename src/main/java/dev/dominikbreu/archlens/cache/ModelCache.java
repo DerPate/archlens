@@ -58,10 +58,7 @@ public class ModelCache {
             throw new IOException("Failed to create cache directory: " + dir.getAbsolutePath());
         }
         try {
-            Files.writeString(
-                    new File(dir, GRAPH_FILE).toPath(),
-                    store.serializeGraphSON(),
-                    StandardCharsets.UTF_8);
+            Files.writeString(new File(dir, GRAPH_FILE).toPath(), store.serializeGraphSON(), StandardCharsets.UTF_8);
         } catch (Exception e) {
             throw new IOException("Failed to serialize graph: " + e.getMessage(), e);
         }

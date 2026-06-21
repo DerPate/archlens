@@ -36,8 +36,8 @@ class ModelCacheSchemaVersionTest {
         // Simulate a pre-migration cache: rename the graph file to an unknown name.
         Path graphFile;
         try (var paths = Files.walk(tempDir)) {
-            graphFile = paths.filter(p ->
-                            "architecture-graph.v1.graphson".equals(p.getFileName().toString()))
+            graphFile = paths.filter(p -> "architecture-graph.v1.graphson"
+                            .equals(p.getFileName().toString()))
                     .findFirst()
                     .orElseThrow();
         }

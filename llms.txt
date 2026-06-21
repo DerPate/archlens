@@ -22,31 +22,32 @@ The server is designed for consumption by LLM agents and MCP-capable clients
 
 ## Documentation
 
-- Project README: ./README.md
-- Install & client wiring (Linux/macOS/Windows): ./docs/INSTALL.md
-- MCP tool and prompt reference (arguments, examples): ./docs/TOOLS.md
-- Architecture & package responsibilities: ./docs/ARCHITECTURE.md
-- Graph-based source architecture POC: ./docs/SOURCE_ARCHITECTURE_POC.md
-- Agent contributor guide: ./AGENTS.md
-- Contributing guide: ./CONTRIBUTING.md
-- Security policy: ./SECURITY.md
-- Changelog: ./CHANGELOG.md
-- JSON-RPC request examples: ./examples/jsonrpc/
+- [Project README](https://github.com/DerPate/archlens/blob/main/README.md)
+- [Install & client wiring](https://github.com/DerPate/archlens/blob/main/docs/INSTALL.md)
+- [MCP tool and prompt reference](https://github.com/DerPate/archlens/blob/main/docs/TOOLS.md)
+- [Architecture & package responsibilities](https://github.com/DerPate/archlens/blob/main/docs/ARCHITECTURE.md)
+- [Graph-based source architecture POC](https://github.com/DerPate/archlens/blob/main/docs/SOURCE_ARCHITECTURE_POC.md)
+- [Agent contributor guide](https://github.com/DerPate/archlens/blob/main/AGENTS.md)
+- [Contributing guide](https://github.com/DerPate/archlens/blob/main/CONTRIBUTING.md)
+- [Security policy](https://github.com/DerPate/archlens/blob/main/SECURITY.md)
+- [Changelog](https://github.com/DerPate/archlens/blob/main/CHANGELOG.md)
+- [Java API Reference](https://archlens.dominikbreu.dev/api/)
+- [JSON-RPC examples](https://github.com/DerPate/archlens/tree/main/examples/jsonrpc)
   - `initialize.json`, `tools-list.json`, `index-workspace.json`, `render-flowchart.json`
   - `prompts-list.json`, `prompt-get-analyze-workspace.json`
 
 ## Source Map
 
 - Maven project: ./pom.xml
-- Main class: ./src/main/java/dev/dominikbreu/spoonmcp/Main.java
-- MCP dispatch: ./src/main/java/dev/dominikbreu/spoonmcp/mcp/McpServer.java
-- Tool implementations: ./src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/
-- Spoon-based scanners: ./src/main/java/dev/dominikbreu/spoonmcp/scanner/
-- Component extractors: ./src/main/java/dev/dominikbreu/spoonmcp/extractor/
-- Source fact indexes: ./src/main/java/dev/dominikbreu/spoonmcp/extractor/sourcefacts/
-- Deployment / asset mergers: ./src/main/java/dev/dominikbreu/spoonmcp/merger/
-- Architecture model: ./src/main/java/dev/dominikbreu/spoonmcp/model/
-- Cache & graph projection: ./src/main/java/dev/dominikbreu/spoonmcp/cache/
+- Main class: ./src/main/java/dev/dominikbreu/archlens/Main.java
+- MCP dispatch: ./src/main/java/dev/dominikbreu/archlens/mcp/McpServer.java
+- Tool implementations: ./src/main/java/dev/dominikbreu/archlens/mcp/tools/
+- Spoon-based scanners: ./src/main/java/dev/dominikbreu/archlens/scanner/
+- Component extractors: ./src/main/java/dev/dominikbreu/archlens/extractor/
+- Source fact indexes: ./src/main/java/dev/dominikbreu/archlens/extractor/sourcefacts/
+- Deployment / asset mergers: ./src/main/java/dev/dominikbreu/archlens/merger/
+- Architecture model: ./src/main/java/dev/dominikbreu/archlens/model/
+- Cache & graph projection: ./src/main/java/dev/dominikbreu/archlens/cache/
   - `ModelCache.java` — stores the architecture model as GraphSON; exposes `graph()` (GraphQuery)
   - `GraphStore.java` — owns TinkerGraph; GraphSON serialize/deserialize
   - `GraphProjector.java` — projects `ArchitectureModel` into `GraphStore` at index time
@@ -54,7 +55,7 @@ The server is designed for consumption by LLM agents and MCP-capable clients
     with per-label records (`ComponentNode`, `EntrypointNode`, etc.)
   - `GraphDataProjection.java` — graph-export view indexes derived from graph snapshots;
     keep viewer/export projections here rather than in MCP tool adapters
-- Mermaid renderers: ./src/main/java/dev/dominikbreu/spoonmcp/renderer/
+- Mermaid renderers: ./src/main/java/dev/dominikbreu/archlens/renderer/
   - flowchart, call flow, dependency map, dependency slice, source overview, use case timeline
 - Tests: ./src/test/java/
 
