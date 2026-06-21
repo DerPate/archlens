@@ -100,19 +100,16 @@ main { overflow: hidden; }
 .nav-logo {
   display: inline-grid;
   place-items: center;
-  width: 46px;
-  height: 46px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--terminal-charcoal);
+  min-width: 46px;
+  min-height: 46px;
   text-decoration: none;
 }
 
 .logo-picture,
 .logo-mark {
   display: block;
-  width: 36px;
-  height: 36px;
+  width: 42px;
+  height: 42px;
 }
 
 .logo-mark {
