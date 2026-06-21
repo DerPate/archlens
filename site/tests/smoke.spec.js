@@ -9,6 +9,8 @@ test("desktop page shows core ArchLens sections", async ({ page }) => {
   await expect(page.getByText("Entrypoint discovery")).toBeVisible();
   await expect(page.getByText("From Java source to a queryable architecture graph.")).toBeVisible();
   await expect(page.getByText("Build the server, then let your MCP client ask better questions.")).toBeVisible();
+  await expect(page.locator("link[rel=\"icon\"][media=\"(prefers-color-scheme: light)\"]")).toHaveAttribute("href", "/favicon-light.svg");
+  await expect(page.locator("link[rel=\"icon\"][media=\"(prefers-color-scheme: dark)\"]")).toHaveAttribute("href", "/favicon-dark.svg");
 });
 
 test("mobile page keeps navigation and primary CTA visible", async ({ page }) => {
