@@ -18,11 +18,12 @@ echo "Deploying archlens site to ${VPS_USER_HOST}:${REMOTE_PATH}"
 echo ""
 
 echo "📚 Generating API docs (Doxygen)..."
-if ! command -v doxygen &>/dev/null; then
-    echo "⚠️  doxygen not found — skipping API docs (install doxygen to include /api/)"
+DOXYGEN_BIN="${DOXYGEN:-doxygen}"
+if ! command -v "$DOXYGEN_BIN" &>/dev/null; then
+    echo "⚠️  doxygen not found — skipping API docs (set DOXYGEN=/path/to/doxygen or install doxygen)"
 else
     # Run from repo root so Doxyfile paths resolve correctly
-    (cd "$(dirname "$0")/.." && doxygen Doxyfile)
+    (cd "$(dirname "$0")/.." && "$DOXYGEN_BIN" Doxyfile)
     if [ $? -ne 0 ]; then
         echo "❌ Doxygen generation failed!"
         exit 1
