@@ -152,8 +152,8 @@ main { overflow: hidden; }
 .hero {
   min-height: 92vh;
   display: grid;
-  align-items: center;
-  padding: 120px 0 72px;
+  align-items: start;
+  padding: 112px 0 72px;
 }
 
 .hero-grid,
