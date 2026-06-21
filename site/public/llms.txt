@@ -1,0 +1,32 @@
+# ArchLens
+
+ArchLens is MCP architecture analysis for real Java systems, built on Spoon and backed by a queryable architecture graph.
+
+It indexes Java workspaces, projects architecture facts into a TinkerGraph model, and exposes typed MCP tools for tracing entrypoints, runtime paths, data movement, and change impact to agents and engineers.
+
+## What it does
+
+- Discovers entrypoints: REST endpoints, JMS/Reactive messaging consumers and producers, schedulers, EJB methods, event observers, WebSocket/SSE/gRPC methods
+- Traces runtime call paths from entrypoints through services, repositories, outbound clients, and async boundaries
+- Follows request parameters and message payloads to persistence, messaging, HTTP outbound, event bus, file/object storage
+- Stitches multi-step workflows across brokers, event buses, shared fields, and repository handoffs
+- Queries architecture neighborhoods, paths, dependencies, and impact slices from a TinkerGraph model
+- Exports Mermaid diagrams, LikeC4 text, Markdown architecture docs, graph JSON, and a self-contained HTML graph viewer
+
+## How it works
+
+1. Scan Maven, Gradle, Kotlin DSL, and plain Java roots
+2. Build components, entrypoints, call edges, data-flow paths, and workflow links with Spoon
+3. Project the model into TinkerGraph
+4. Expose typed architecture queries and renderers over MCP stdio
+5. Generate Mermaid, LikeC4, Markdown docs, JSON graph data, and a standalone graph viewer
+
+## Tech stack
+
+Java 21, Spoon, MCP stdio, TinkerGraph, Mermaid, LikeC4
+
+## Links
+
+- GitHub: https://github.com/derPate/spoon-mcp-server
+- Install guide: https://github.com/derPate/spoon-mcp-server/blob/main/docs/INSTALL.md
+- Tool reference: https://github.com/derPate/spoon-mcp-server/blob/main/docs/TOOLS.md

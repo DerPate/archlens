@@ -63,3 +63,15 @@ site/dist/
 site/.astro/
 site/test-results/
 site/playwright-report/
+site/public/api/
+
+# Doxygen installer and backup files
+doxygen-*.tar.gz
+*.bak
+
+# Claude Code local config and skills cache
+.claude/
+skills/
+
+# Temporary files
+tmp/
