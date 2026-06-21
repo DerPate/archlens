@@ -234,7 +234,8 @@ public class UseCaseDetector {
             ce.callKind = strFromEdgeProp(ge, "callKind");
             ce.ambiguous = Boolean.TRUE.equals(ge.properties().get("ambiguous"));
             ce.receiverExpansionCapped = Boolean.TRUE.equals(ge.properties().get("receiverExpansionCapped"));
-            adj.computeIfAbsent(ce.fromComponentId.serialize() + "#" + ce.fromMethod, k -> new ArrayList<>()).add(ce);
+            adj.computeIfAbsent(ce.fromComponentId.serialize() + "#" + ce.fromMethod, k -> new ArrayList<>())
+                    .add(ce);
         }
         return adj;
     }

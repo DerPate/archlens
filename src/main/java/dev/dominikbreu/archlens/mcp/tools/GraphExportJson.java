@@ -1,7 +1,7 @@
 package dev.dominikbreu.archlens.mcp.tools;
 
-import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.cache.GraphDataProjection;
+import dev.dominikbreu.archlens.cache.GraphQuery;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -67,9 +67,7 @@ final class GraphExportJson {
     }
 
     private static GraphQuery.GraphSnapshotMetadata publicMetadata(
-            GraphQuery.GraphSnapshotMetadata raw,
-            List<GraphQuery.GraphNode> nodes,
-            List<GraphQuery.GraphEdge> edges) {
+            GraphQuery.GraphSnapshotMetadata raw, List<GraphQuery.GraphNode> nodes, List<GraphQuery.GraphEdge> edges) {
         return new GraphQuery.GraphSnapshotMetadata(
                 raw.nodeCount(),
                 raw.edgeCount(),

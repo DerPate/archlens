@@ -40,9 +40,13 @@ public class FindEntrypointsTool {
                     .filter(n -> {
                         GraphQuery.EntrypointNode en = (GraphQuery.EntrypointNode) n;
                         if (ownedComponentIds != null
-                                && (en.componentId() == null || !ownedComponentIds.contains(en.componentId().serialize())))
-                            return false;
-                        if (typeFilter != null && (en.type() == null || !typeFilter.equalsIgnoreCase(en.type().name()))) return false;
+                                && (en.componentId() == null
+                                        || !ownedComponentIds.contains(
+                                                en.componentId().serialize()))) return false;
+                        if (typeFilter != null
+                                && (en.type() == null
+                                        || !typeFilter.equalsIgnoreCase(
+                                                en.type().name()))) return false;
                         if (methodFilter != null && !methodFilter.equalsIgnoreCase(en.httpMethod())) return false;
                         if (pathFilter != null && !pathPrefixMatchesForDiscovery(en.path(), pathFilter)) return false;
                         return true;
@@ -55,18 +59,29 @@ public class FindEntrypointsTool {
             sb.append("Found ").append(nodes.size()).append(" entrypoint(s):\n\n");
             for (GraphQuery.GraphNode node : nodes) {
                 GraphQuery.EntrypointNode en = (GraphQuery.EntrypointNode) node;
-                sb.append("- [").append(en.type() != null ? en.type().name() : "?").append("] ").append(en.name());
-                if (en.httpMethod() != null) sb.append(" [").append(en.httpMethod()).append("]");
+                sb.append("- [")
+                        .append(en.type() != null ? en.type().name() : "?")
+                        .append("] ")
+                        .append(en.name());
+                if (en.httpMethod() != null)
+                    sb.append(" [").append(en.httpMethod()).append("]");
                 if (en.path() != null && !en.path().isEmpty()) sb.append(" ").append(en.path());
                 sb.append("\n");
                 sb.append("  ID: ").append(en.id().serialize()).append("\n");
-                sb.append("  Component: ").append(en.componentId() != null ? en.componentId().serialize() : "").append("\n");
+                sb.append("  Component: ")
+                        .append(en.componentId() != null ? en.componentId().serialize() : "")
+                        .append("\n");
                 Map<String, Object> props = en.properties();
                 if (props.get("sourceFile") != null) {
-                    sb.append("  Source: ").append(props.get("sourceFile"))
-                            .append(":").append(props.get("sourceLine"))
-                            .append(" [").append(props.get("derivedFrom"))
-                            .append(", confidence=").append(props.get("confidence")).append("]\n");
+                    sb.append("  Source: ")
+                            .append(props.get("sourceFile"))
+                            .append(":")
+                            .append(props.get("sourceLine"))
+                            .append(" [")
+                            .append(props.get("derivedFrom"))
+                            .append(", confidence=")
+                            .append(props.get("confidence"))
+                            .append("]\n");
                 }
                 sb.append("\n");
             }

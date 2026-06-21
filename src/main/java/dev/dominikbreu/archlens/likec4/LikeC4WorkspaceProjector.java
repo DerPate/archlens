@@ -47,8 +47,7 @@ public final class LikeC4WorkspaceProjector {
      * @param maxNodes the maximum number of component nodes to include
      * @return the projected LikeC4 document
      */
-    public LikeC4Document projectWorkspace(
-            GraphQuery graph, GraphQuery.ApplicationNode app, int maxNodes) {
+    public LikeC4Document projectWorkspace(GraphQuery graph, GraphQuery.ApplicationNode app, int maxNodes) {
         LikeC4Element system = systemElement(app);
         int nodeLimit = Math.max(1, maxNodes);
 
@@ -277,20 +276,18 @@ public final class LikeC4WorkspaceProjector {
         return String.valueOf(node.properties().getOrDefault("topic", "")).trim();
     }
 
-    private static List<GraphQuery.GraphNode> scopedComponents(
-            GraphQuery graph, GraphQuery.ApplicationNode app) {
+    private static List<GraphQuery.GraphNode> scopedComponents(GraphQuery graph, GraphQuery.ApplicationNode app) {
         if (app != null) {
             return graph.componentNodesOwnedBy(AppId.deserialize(app.id().value()));
         }
         return graph.findNodes("Component", null, Map.of(), 0);
     }
 
-    private static List<GraphQuery.GraphNode> scopedEntrypoints(
-            GraphQuery graph, GraphQuery.ApplicationNode app) {
+    private static List<GraphQuery.GraphNode> scopedEntrypoints(GraphQuery graph, GraphQuery.ApplicationNode app) {
         if (app != null) {
             List<GraphNodeId> compIds = graph.componentIdsOwnedBy(app.id());
-            Set<String> compIdSet = compIds.stream().map(GraphNodeId::value)
-                    .collect(java.util.stream.Collectors.toSet());
+            Set<String> compIdSet =
+                    compIds.stream().map(GraphNodeId::value).collect(java.util.stream.Collectors.toSet());
             return graph.findNodes("Entrypoint", null, Map.of(), 0).stream()
                     .filter(ep -> {
                         Object compId = ep.properties().get("componentId");
@@ -348,10 +345,7 @@ public final class LikeC4WorkspaceProjector {
     }
 
     private static void addSelected(
-            List<GraphQuery.GraphNode> selected,
-            Set<GraphNodeId> selectedIds,
-            GraphQuery.GraphNode node,
-            int limit) {
+            List<GraphQuery.GraphNode> selected, Set<GraphNodeId> selectedIds, GraphQuery.GraphNode node, int limit) {
         if (selected.size() < limit && selectedIds.add(node.id())) {
             selected.add(node);
         }
@@ -399,8 +393,7 @@ public final class LikeC4WorkspaceProjector {
                 .thenComparing(GraphQuery.GraphNode::name);
     }
 
-    private static int primaryConnectionCount(
-            GraphQuery graph, GraphNodeId nodeId, Set<GraphNodeId> primaryIds) {
+    private static int primaryConnectionCount(GraphQuery graph, GraphNodeId nodeId, Set<GraphNodeId> primaryIds) {
         Set<GraphNodeId> ids = new HashSet<>(primaryIds);
         ids.add(nodeId);
         return (int) graph.findEdgesBetween(ids, VIEW_RELATIONSHIPS).stream()

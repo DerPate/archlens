@@ -73,14 +73,15 @@ public class ExportGraphArchitecturePocTool {
         GraphQuery.GraphSummary summary = graph.summary();
         StringBuilder sb = new StringBuilder();
         sb.append("# Generated Architecture Graph POC\n\n");
-        sb.append(
-                "Generated from the indexed workspace by the MCP tool `export_graph_architecture_poc`.\n\n");
+        sb.append("Generated from the indexed workspace by the MCP tool `export_graph_architecture_poc`.\n\n");
         sb.append("## Summary\n\n");
         sb.append("- Applications: ").append(graph.countByLabel("Application")).append("\n");
         sb.append("- Components: ").append(graph.countByLabel("Component")).append("\n");
         sb.append("- Entrypoints: ").append(graph.countByLabel("Entrypoint")).append("\n");
         sb.append("- Interfaces: ").append(graph.countByLabel("Interface")).append("\n");
-        sb.append("- Dependencies: ").append(summary.edges().getOrDefault("DEPENDS_ON", 0)).append("\n");
+        sb.append("- Dependencies: ")
+                .append(summary.edges().getOrDefault("DEPENDS_ON", 0))
+                .append("\n");
         sb.append("- Runtime flows: ").append(graph.countByLabel("RuntimeFlow")).append("\n");
         sb.append("- Graph nodes: ").append(summary.nodeCount()).append("\n");
         sb.append("- Graph edges: ").append(summary.edgeCount()).append("\n");
@@ -143,9 +144,8 @@ public class ExportGraphArchitecturePocTool {
 
     private void appendHighSignalComponents(StringBuilder sb, GraphQuery graph) {
         sb.append("## High Signal Components\n\n");
-        Comparator<GraphQuery.GraphNode> signalOrder = Comparator.comparingInt(
-                        (GraphQuery.GraphNode node) ->
-                                booleanRank(node.properties().get("workflowRelevant")))
+        Comparator<GraphQuery.GraphNode> signalOrder = Comparator.comparingInt((GraphQuery.GraphNode node) ->
+                        booleanRank(node.properties().get("workflowRelevant")))
                 .reversed()
                 .thenComparing(Comparator.comparingInt((GraphQuery.GraphNode node) ->
                                 booleanRank(node.properties().get("businessRelevant")))
