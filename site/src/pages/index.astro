@@ -49,6 +49,14 @@ const questions = [
 
 <BaseLayout>
   <section id="overview" class="hero">
+    <svg class="hero-instrument" viewBox="0 0 200 200" aria-hidden="true">
+      <circle class="instrument-ring" cx="100" cy="100" r="90" />
+      <circle class="instrument-ring instrument-ring-inner" cx="100" cy="100" r="60" />
+      <path class="instrument-ticks" d="M100 10V25 M100 175V190 M10 100H25 M175 100H190" />
+      <path class="instrument-needle" d="M60 140L140 60" />
+      <circle class="instrument-center" cx="100" cy="100" r="16" />
+      <circle class="instrument-core" cx="100" cy="100" r="6" />
+    </svg>
     <div class="container hero-grid">
       <div class="hero-copy">
         <span class="eyebrow">ArchLens</span>
