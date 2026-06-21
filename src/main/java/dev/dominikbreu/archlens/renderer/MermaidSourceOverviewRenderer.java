@@ -39,16 +39,22 @@ public class MermaidSourceOverviewRenderer {
             List<GraphQuery.ComponentNode> components,
             int maxPerPackage,
             Map<GraphNodeId, String> componentToPackageNode) {
-        sb.append("    subgraph ").append(nodeId("pkg:" + pkg))
-                .append("[\"").append(escape(pkg)).append("\"]\n");
+        sb.append("    subgraph ")
+                .append(nodeId("pkg:" + pkg))
+                .append("[\"")
+                .append(escape(pkg))
+                .append("\"]\n");
 
         int rendered = 0;
         for (GraphQuery.ComponentNode c : components) {
             if (rendered >= maxPerPackage) break;
             String compNode = nodeId(c.id().value());
             componentToPackageNode.put(c.id(), compNode);
-            sb.append("        ").append(compNode).append("[\"")
-                    .append(escape(c.name())).append("\\n")
+            sb.append("        ")
+                    .append(compNode)
+                    .append("[\"")
+                    .append(escape(c.name()))
+                    .append("\\n")
                     .append(escape(c.type() != null ? c.type().name() : ""))
                     .append("\"]\n");
             rendered++;
@@ -56,8 +62,11 @@ public class MermaidSourceOverviewRenderer {
 
         int omitted = components.size() - rendered;
         if (omitted > 0) {
-            sb.append("        ").append(nodeId("omitted:" + pkg))
-                    .append("[\"... ").append(omitted).append(" more\"]\n");
+            sb.append("        ")
+                    .append(nodeId("omitted:" + pkg))
+                    .append("[\"... ")
+                    .append(omitted)
+                    .append(" more\"]\n");
         }
         sb.append("    end\n");
     }
@@ -70,7 +79,8 @@ public class MermaidSourceOverviewRenderer {
             String to = componentToPackageNode.get(dep.toId());
             if (from == null || to == null || from.equals(to)) continue;
             String key = from + "-->" + to;
-            if (drawn.add(key)) sb.append("    ").append(from).append(" --> ").append(to).append("\n");
+            if (drawn.add(key))
+                sb.append("    ").append(from).append(" --> ").append(to).append("\n");
         }
     }
 

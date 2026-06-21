@@ -457,8 +457,7 @@ class ArchitectureGraphTest {
 
         GraphQuery graph = buildGraph(model);
 
-        List<GraphQuery.GraphNode> sinks =
-                graph.findNodes("DataFlowSink", null, Map.of("sinkKind", "messaging"), 10);
+        List<GraphQuery.GraphNode> sinks = graph.findNodes("DataFlowSink", null, Map.of("sinkKind", "messaging"), 10);
 
         assertThat(sinks).hasSize(1);
         assertThat(sinks.getFirst().properties())

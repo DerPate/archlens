@@ -614,7 +614,8 @@ class CallGraphExtractorTest extends ExtractorTestBase {
                 .toList();
 
         assertThat(processEdges).hasSize(2);
-        assertThat(processEdges).extracting(edge -> edge.branchLabel)
+        assertThat(processEdges)
+                .extracting(edge -> edge.branchLabel)
                 .containsExactlyInAnyOrder("if value == null", "else: !(value == null)");
         assertThat(processEdges)
                 .extracting(edge -> edge.branchGroupId)

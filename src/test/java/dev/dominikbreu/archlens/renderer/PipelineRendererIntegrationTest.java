@@ -317,22 +317,30 @@ class PipelineRendererIntegrationTest {
 
         DataFlowPath p = path("handle", "handle", "body");
         DataFlowNode root = new DataFlowNode(
-                "N0", DataFlowNode.Kind.ROOT,
-                ComponentId.of("AccountService"), "AccountService", "handle", "body", null);
+                "N0",
+                DataFlowNode.Kind.ROOT,
+                ComponentId.of("AccountService"),
+                "AccountService",
+                "handle",
+                "body",
+                null);
         DataFlowNode addNode = new DataFlowNode(
-                "N1", DataFlowNode.Kind.METHOD,
-                ComponentId.of("AccountService"), "AccountService", "add", null, null);
+                "N1", DataFlowNode.Kind.METHOD, ComponentId.of("AccountService"), "AccountService", "add", null, null);
         DataFlowNode updateNode = new DataFlowNode(
-                "N2", DataFlowNode.Kind.METHOD,
-                ComponentId.of("AccountService"), "AccountService", "update", null, null);
+                "N2",
+                DataFlowNode.Kind.METHOD,
+                ComponentId.of("AccountService"),
+                "AccountService",
+                "update",
+                null,
+                null);
         p.flowNodes.add(root);
         p.flowNodes.add(addNode);
         p.flowNodes.add(updateNode);
 
-        p.flowEdges.add(new DataFlowEdge(
-                "N0", "N1", DataFlowEdge.Kind.CONDITIONAL, "B0", "B0_0", "if accountId == null"));
-        p.flowEdges.add(new DataFlowEdge(
-                "N0", "N2", DataFlowEdge.Kind.UNCONDITIONAL, null, null, null));
+        p.flowEdges.add(
+                new DataFlowEdge("N0", "N1", DataFlowEdge.Kind.CONDITIONAL, "B0", "B0_0", "if accountId == null"));
+        p.flowEdges.add(new DataFlowEdge("N0", "N2", DataFlowEdge.Kind.UNCONDITIONAL, null, null, null));
 
         model.dataFlowPaths.add(p);
 
@@ -342,7 +350,7 @@ class PipelineRendererIntegrationTest {
         String mermaid = new MermaidPipelineRenderer().render(chain, GraphQuery.from(model));
 
         assertThat(mermaid).contains("-.->|\"if accountId == null\"|");
-        assertThat(mermaid).contains(" --> ");   // unlabeled unconditional edge: bare arrow
+        assertThat(mermaid).contains(" --> "); // unlabeled unconditional edge: bare arrow
         assertThat(mermaid).doesNotContain("-.->||");
         assertThat(mermaid).doesNotContain("-->||");
     }

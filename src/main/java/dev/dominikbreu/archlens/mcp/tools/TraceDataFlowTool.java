@@ -82,7 +82,8 @@ public class TraceDataFlowTool {
         if (paramFilter == null) return paths;
         return paths.stream()
                 .filter(p -> p.trackedParam() != null
-                        && (p.trackedParam().equals(paramFilter) || p.trackedParam().contains(paramFilter)))
+                        && (p.trackedParam().equals(paramFilter)
+                                || p.trackedParam().contains(paramFilter)))
                 .toList();
     }
 
@@ -92,7 +93,8 @@ public class TraceDataFlowTool {
         String lower = sinkFilter.toLowerCase();
         return paths.stream()
                 .filter(p -> graph.pathSinks(p.id()).stream()
-                        .anyMatch(s -> s.sinkKind() != null && s.sinkKind().value().equalsIgnoreCase(lower)))
+                        .anyMatch(s ->
+                                s.sinkKind() != null && s.sinkKind().value().equalsIgnoreCase(lower)))
                 .toList();
     }
 
@@ -152,7 +154,7 @@ public class TraceDataFlowTool {
     private void formatTopology(
             StringBuilder sb, DataFlowPathNode path, List<DataFlowNodeNode> flowNodes, GraphQuery graph) {
         // alias by original flowNodeId (e.g. "n0") for branch-arm lookups, AND by graph vertex ID for edge lookups
-        Map<String, String> flowIdAlias = new LinkedHashMap<>();   // flowNodeId → "N0"
+        Map<String, String> flowIdAlias = new LinkedHashMap<>(); // flowNodeId → "N0"
         Map<String, String> vertexIdAlias = new LinkedHashMap<>(); // graphVertexId → "N0"
         for (int i = 0; i < flowNodes.size(); i++) {
             String alias = "N" + i;
@@ -222,13 +224,21 @@ public class TraceDataFlowTool {
         sb.append("  edges:\n");
         for (GraphEdge edge : edges) {
             Map<String, Object> p = edge.properties();
-            String fromAlias = vertexIdAlias.getOrDefault(edge.fromId().value(), edge.fromId().value());
-            String toAlias = vertexIdAlias.getOrDefault(edge.toId().value(), edge.toId().value());
+            String fromAlias = vertexIdAlias.getOrDefault(
+                    edge.fromId().value(), edge.fromId().value());
+            String toAlias =
+                    vertexIdAlias.getOrDefault(edge.toId().value(), edge.toId().value());
             Object labelVal = p.get("label");
             String label = (labelVal != null && !String.valueOf(labelVal).isBlank())
-                    ? String.valueOf(labelVal) : String.valueOf(p.getOrDefault("edgeKind", ""));
-            sb.append("    ").append(fromAlias).append(" -> ").append(toAlias)
-                    .append(" [").append(label).append("]");
+                    ? String.valueOf(labelVal)
+                    : String.valueOf(p.getOrDefault("edgeKind", ""));
+            sb.append("    ")
+                    .append(fromAlias)
+                    .append(" -> ")
+                    .append(toAlias)
+                    .append(" [")
+                    .append(label)
+                    .append("]");
             Object branchIdObj = p.get("branchId");
             Object branchArmIdObj = p.get("branchArmId");
             if (branchIdObj != null) {

@@ -214,8 +214,7 @@ class GraphExportJsonTest {
                 .doesNotContain("\"label\" : \"VISITS\"");
     }
 
-    private static GraphQuery.GraphEdge edge(
-            String fromId, String toId, String label, Map<String, Object> properties) {
+    private static GraphQuery.GraphEdge edge(String fromId, String toId, String label, Map<String, Object> properties) {
         return new GraphQuery.GraphEdge(GraphNodeId.of(fromId), GraphNodeId.of(toId), label, properties);
     }
 }

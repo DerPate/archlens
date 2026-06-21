@@ -7,15 +7,14 @@ import dev.dominikbreu.archlens.model.AppEntry;
 import dev.dominikbreu.archlens.model.ArchitectureModel;
 import dev.dominikbreu.archlens.model.CallEdge;
 import dev.dominikbreu.archlens.model.Component;
-import dev.dominikbreu.archlens.model.ComponentType;
 import dev.dominikbreu.archlens.model.Container;
 import dev.dominikbreu.archlens.model.DataFlowBranch;
 import dev.dominikbreu.archlens.model.DataFlowBranchArm;
 import dev.dominikbreu.archlens.model.DataFlowEdge;
 import dev.dominikbreu.archlens.model.DataFlowNode;
 import dev.dominikbreu.archlens.model.DataFlowPath;
-import dev.dominikbreu.archlens.model.DataFlowStep;
 import dev.dominikbreu.archlens.model.DataFlowSink;
+import dev.dominikbreu.archlens.model.DataFlowStep;
 import dev.dominikbreu.archlens.model.Dependency;
 import dev.dominikbreu.archlens.model.DeploymentEntry;
 import dev.dominikbreu.archlens.model.Entrypoint;
@@ -25,7 +24,6 @@ import dev.dominikbreu.archlens.model.InterfaceEntry;
 import dev.dominikbreu.archlens.model.RuntimeFlow;
 import dev.dominikbreu.archlens.model.RuntimeFlowStep;
 import dev.dominikbreu.archlens.model.SourceInfo;
-import dev.dominikbreu.archlens.model.ids.ComponentId;
 import dev.dominikbreu.archlens.model.ids.GraphNodeId;
 import dev.dominikbreu.archlens.workflow.WorkflowLink;
 import dev.dominikbreu.archlens.workflow.WorkflowLinker;
@@ -99,14 +97,20 @@ class GraphProjector {
                 app.id.serialize(), componentId.serialize(), "OWNS", Map.of(SOURCE, "application.componentIds"))));
         sourceModel.entrypoints.forEach(entrypoint -> {
             if (entrypoint.componentId != null) {
-                addEdge(entrypoint.id.serialize(), entrypoint.componentId.serialize(),
-                        REL_STARTS_AT, Map.of(SOURCE, "entrypoint.componentId"));
+                addEdge(
+                        entrypoint.id.serialize(),
+                        entrypoint.componentId.serialize(),
+                        REL_STARTS_AT,
+                        Map.of(SOURCE, "entrypoint.componentId"));
             }
         });
         sourceModel.interfaces.forEach(interfaceEntry -> {
             if (interfaceEntry.componentId != null) {
-                addEdge(interfaceEntry.id, interfaceEntry.componentId.serialize(),
-                        "EXPOSES", Map.of(SOURCE, "interface.componentId"));
+                addEdge(
+                        interfaceEntry.id,
+                        interfaceEntry.componentId.serialize(),
+                        "EXPOSES",
+                        Map.of(SOURCE, "interface.componentId"));
             }
         });
         sourceModel.containers.forEach(container -> container.componentIds.forEach(componentId ->
@@ -443,7 +447,10 @@ class GraphProjector {
         set(sinkVertex, "repositoryOperation", sink.repositoryOperation);
         set(sinkVertex, "linkEvidence", sink.linkEvidence);
         set(sinkVertex, "calleeQualifiedName", sink.calleeQualifiedName);
-        set(sinkVertex, "callerComponentId", sink.callerComponentId != null ? sink.callerComponentId.serialize() : null);
+        set(
+                sinkVertex,
+                "callerComponentId",
+                sink.callerComponentId != null ? sink.callerComponentId.serialize() : null);
         setSource(sinkVertex, sink.source);
     }
 
@@ -787,9 +794,19 @@ class GraphProjector {
 
     @SuppressWarnings("unchecked")
     private Set<String> reachableFromEntrypoints() {
-        return store.g.V().hasLabel("Entrypoint")
+        return store.g
+                .V()
+                .hasLabel("Entrypoint")
                 .aggregate("seen")
-                .repeat(org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out(
+                .repeat(org.apache
+                        .tinkerpop
+                        .gremlin
+                        .process
+                        .traversal
+                        .dsl
+                        .graph
+                        .__
+                        .out(
                                 REL_STARTS_AT,
                                 "CALLS",
                                 REL_DEPENDS_ON,
