@@ -179,38 +179,6 @@ main { overflow: hidden; }
   padding: 112px 0 72px;
 }
 
-.hero-instrument {
-  position: absolute;
-  top: clamp(82px, 9vw, 138px);
-  right: max(2rem, 5vw);
-  width: clamp(280px, 35vw, 620px);
-  color: var(--electric-cyan);
-  opacity: 0.16;
-  pointer-events: none;
-}
-
-.hero-instrument .instrument-ring {
-  stroke-width: 1.8;
-}
-
-.hero-instrument .instrument-ring-inner {
-  stroke: var(--agent-orange);
-  stroke-width: 1;
-  stroke-dasharray: 6 8;
-}
-
-.hero-instrument .instrument-ticks {
-  stroke-width: 2;
-}
-
-.hero-instrument .instrument-needle {
-  stroke-width: 5;
-}
-
-.hero-instrument .instrument-core {
-  fill: var(--text);
-}
-
 .hero-grid {
   position: relative;
   z-index: 1;
@@ -555,13 +523,6 @@ pre {
   .hero {
     min-height: auto;
     padding-top: 112px;
-  }
-
-  .hero-instrument {
-    top: 90px;
-    right: -120px;
-    width: 360px;
-    opacity: 0.11;
   }
 
   h1 {
