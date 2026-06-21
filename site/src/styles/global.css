@@ -1,29 +1,37 @@
 :root {
-  --rosewater: #f5e0dc;
-  --red: #f38ba8;
-  --peach: #fab387;
-  --green: #a6e3a1;
-  --teal: #94e2d5;
-  --sapphire: #74c7ec;
-  --blue: #89b4fa;
-  --lavender: #b4befe;
-  --text: #cdd6f4;
-  --subtext-1: #bac2de;
-  --subtext-0: #a6adc8;
-  --surface-2: #585b70;
-  --surface-1: #45475a;
-  --surface-0: #313244;
-  --base: #1e1e2e;
-  --mantle: #181825;
-  --crust: #11111b;
-  --bg: var(--crust);
-  --panel: color-mix(in srgb, var(--surface-0) 74%, var(--base));
-  --border: color-mix(in srgb, var(--surface-2) 42%, transparent);
-  --border-soft: color-mix(in srgb, var(--surface-1) 38%, transparent);
+  --void-black: #000000;
+  --terminal-charcoal: #0F111A;
+  --hard-border: #334155;
+  --electric-cyan: #06B6D4;
+  --console-gray: #94A3B8;
+  --matrix-green: #10B981;
+  --agent-orange: #F97316;
+  --text: #E2E8F0;
+  --subtext-1: #CBD5E1;
+  --subtext-0: var(--console-gray);
+  --surface-2: var(--hard-border);
+  --surface-1: #1E293B;
+  --surface-0: var(--terminal-charcoal);
+  --base: var(--terminal-charcoal);
+  --mantle: #05070D;
+  --crust: var(--void-black);
+  --red: var(--agent-orange);
+  --peach: var(--agent-orange);
+  --green: var(--matrix-green);
+  --teal: var(--electric-cyan);
+  --sapphire: var(--electric-cyan);
+  --blue: var(--electric-cyan);
+  --lavender: var(--matrix-green);
+  --bg: var(--void-black);
+  --panel: var(--terminal-charcoal);
+  --border: var(--hard-border);
+  --border-soft: color-mix(in srgb, var(--hard-border) 78%, transparent);
   --container: clamp(1180px, 82vw, 1880px);
-  --radius: 8px;
-  --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --shadow: 0 20px 70px rgba(0, 0, 0, 0.28);
+  --radius: 0;
+  --font-mono: "JetBrains Mono", "Cascadia Code", "Fira Code", ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  --font-heading: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font: var(--font-mono);
+  --shadow: none;
 }
 
 * { box-sizing: border-box; }
@@ -36,10 +44,7 @@ html {
 body {
   margin: 0;
   min-width: 320px;
-  background:
-    linear-gradient(180deg, rgba(137, 180, 250, 0.07), transparent 460px),
-    linear-gradient(90deg, rgba(148, 226, 213, 0.05), transparent 42%),
-    var(--bg);
+  background: var(--bg);
   color: var(--text);
   font-family: var(--font);
   line-height: 1.6;
@@ -53,10 +58,14 @@ body::before {
   inset: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(205, 214, 244, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(205, 214, 244, 0.025) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: linear-gradient(to bottom, black, transparent 72%);
+    radial-gradient(circle at 18% 24%, color-mix(in srgb, var(--electric-cyan) 16%, transparent) 0 1px, transparent 2px),
+    radial-gradient(circle at 72% 18%, color-mix(in srgb, var(--matrix-green) 14%, transparent) 0 1px, transparent 2px),
+    radial-gradient(circle at 42% 74%, color-mix(in srgb, var(--agent-orange) 12%, transparent) 0 1px, transparent 2px),
+    linear-gradient(rgba(6, 182, 212, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(6, 182, 212, 0.08) 1px, transparent 1px);
+  background-size: 520px 520px, 460px 460px, 610px 610px, 48px 48px, 48px 48px;
+  opacity: 0.42;
+  mask-image: linear-gradient(to bottom, black, transparent 78%);
 }
 
 a { color: inherit; }
@@ -73,7 +82,7 @@ main { overflow: hidden; }
   inset: 0 0 auto;
   z-index: 20;
   border-bottom: 1px solid var(--border-soft);
-  background: color-mix(in srgb, var(--crust) 84%, transparent);
+  background: color-mix(in srgb, var(--void-black) 90%, transparent);
   backdrop-filter: blur(18px);
 }
 
@@ -94,22 +103,27 @@ main { overflow: hidden; }
   height: 46px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: linear-gradient(135deg, var(--surface-0), var(--crust));
+  background: var(--terminal-charcoal);
   text-decoration: none;
 }
 
 .logo-mark { width: 34px; height: 34px; overflow: visible; }
-.logo-arc { fill: none; stroke-linecap: round; stroke-width: 9; }
-.logo-arc-a { stroke: var(--teal); }
-.logo-arc-b { stroke: var(--blue); }
-.logo-arc-c { stroke: var(--lavender); }
-.logo-node { fill: var(--mantle); stroke-width: 5.5; }
-.logo-node-a { stroke: var(--teal); }
-.logo-node-b { stroke: var(--blue); }
-.logo-node-c { stroke: var(--lavender); }
-.logo-dot-a { fill: var(--teal); }
-.logo-dot-b { fill: var(--blue); }
-.logo-dot-c { fill: var(--lavender); }
+.astrolabe-mark * { vector-effect: non-scaling-stroke; }
+.mark-ring,
+.mark-axis,
+.mark-bracket {
+  fill: none;
+  stroke: var(--electric-cyan);
+  stroke-width: 5;
+  stroke-linecap: square;
+}
+.mark-ring-outer { stroke-width: 6; }
+.mark-axis {
+  stroke: color-mix(in srgb, var(--console-gray) 70%, transparent);
+  stroke-width: 2;
+}
+.mark-bracket { stroke: var(--matrix-green); }
+.mark-center { fill: var(--agent-orange); }
 
 .nav-menu {
   display: flex;
@@ -120,7 +134,7 @@ main { overflow: hidden; }
   list-style: none;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--mantle) 72%, transparent);
+  background: var(--terminal-charcoal);
 }
 
 .nav-link {
@@ -128,17 +142,17 @@ main { overflow: hidden; }
   align-items: center;
   min-height: 36px;
   padding: 0 0.85rem;
-  border-radius: 6px;
-  color: var(--subtext-0);
+  border-radius: 0;
+  color: var(--console-gray);
   text-decoration: none;
   font-size: 0.9rem;
-  font-weight: 650;
+  font-weight: 700;
 }
 
 .nav-link:hover,
 .nav-link-strong {
   color: var(--text);
-  background: color-mix(in srgb, var(--surface-0) 62%, transparent);
+  background: color-mix(in srgb, var(--electric-cyan) 14%, var(--terminal-charcoal));
 }
 
 .hero {
@@ -162,7 +176,7 @@ main { overflow: hidden; }
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
-  color: var(--teal);
+  color: var(--electric-cyan);
   font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -181,6 +195,7 @@ main { overflow: hidden; }
 h1, h2, h3, p { margin-top: 0; }
 
 h1 {
+  font-family: var(--font-heading);
   max-width: 12ch;
   margin-bottom: 1.4rem;
   font-size: clamp(3rem, 6vw, 7.2rem);
@@ -216,13 +231,13 @@ h1 {
 }
 
 .btn-primary {
-  color: var(--crust);
-  background: linear-gradient(135deg, var(--blue), var(--sapphire));
+  color: var(--void-black);
+  background: var(--agent-orange);
 }
 
 .btn-secondary {
-  color: var(--text);
-  background: color-mix(in srgb, var(--surface-0) 58%, transparent);
+  color: var(--electric-cyan);
+  background: var(--terminal-charcoal);
   border-color: var(--border);
 }
 
@@ -239,11 +254,10 @@ h1 {
 .code-stack pre {
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 96%, transparent), color-mix(in srgb, var(--base) 92%, transparent));
+  background: var(--panel);
 }
 
 .terminal-card {
-  box-shadow: var(--shadow);
   overflow: hidden;
 }
 
@@ -254,14 +268,14 @@ h1 {
   gap: 0.45rem;
   padding: 0 1rem;
   border-bottom: 1px solid var(--border-soft);
-  color: var(--subtext-0);
+  color: var(--console-gray);
   font-size: 0.82rem;
 }
 
 .terminal-top span {
   width: 10px;
   height: 10px;
-  border-radius: 50%;
+  border-radius: 0;
   background: var(--surface-2);
 }
 
@@ -314,7 +328,7 @@ pre {
 
 .graph-node-svg text {
   fill: var(--text);
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 17px;
   font-weight: 760;
   text-anchor: middle;
@@ -327,7 +341,7 @@ pre {
 
 .proof-strip {
   border-block: 1px solid var(--border-soft);
-  background: color-mix(in srgb, var(--mantle) 84%, transparent);
+  background: var(--terminal-charcoal);
 }
 
 .proof-grid {
@@ -354,7 +368,7 @@ pre {
 
 .workflow-section,
 .install-section {
-  background: color-mix(in srgb, var(--mantle) 58%, transparent);
+  background: color-mix(in srgb, var(--terminal-charcoal) 74%, var(--void-black));
 }
 
 .section-heading {
@@ -363,6 +377,7 @@ pre {
 }
 
 .section-title {
+  font-family: var(--font-heading);
   margin: 0.7rem 0 0;
   color: var(--text);
   font-size: clamp(2rem, 4vw, 3.5rem);
@@ -385,7 +400,7 @@ pre {
 .capability-card h3,
 .workflow-step h3 {
   margin-bottom: 0.7rem;
-  color: var(--lavender);
+  color: var(--matrix-green);
   font-size: 1.08rem;
 }
 
@@ -404,7 +419,7 @@ pre {
 .workflow-step span {
   display: inline-flex;
   margin-bottom: 1rem;
-  color: var(--peach);
+  color: var(--agent-orange);
   font-weight: 850;
 }
 
@@ -415,7 +430,7 @@ pre {
 
 .question-item {
   color: var(--subtext-1);
-  font-weight: 650;
+  font-weight: 700;
 }
 
 .code-stack {
@@ -434,7 +449,7 @@ pre {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  color: var(--subtext-0);
+  color: var(--console-gray);
   font-size: 0.9rem;
 }
 
