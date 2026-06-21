@@ -550,7 +550,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         assertThat(reject.branchArmId).endsWith(":then");
         assertThat(reject.controlSource.line).isPositive();
         assertThat(accept.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.IF_ELSE);
-        assertThat(accept.branchLabel).isEqualTo("else: !value == null");
+        assertThat(accept.branchLabel).isEqualTo("else: !(value == null)");
         assertThat(accept.branchGroupId).isEqualTo(reject.branchGroupId);
         assertThat(accept.branchArmId).endsWith(":else");
     }
@@ -583,7 +583,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         assertThat(reject.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.IF_THEN);
         assertThat(reject.branchLabel).isEqualTo("if value == null");
         assertThat(accept.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.IF_ELSE);
-        assertThat(accept.branchLabel).isEqualTo("else: !value == null");
+        assertThat(accept.branchLabel).isEqualTo("else: !(value == null)");
         assertThat(accept.branchGroupId).isEqualTo(reject.branchGroupId);
         assertThat(accept.branchArmId).isNotEqualTo(reject.branchArmId);
     }
@@ -615,7 +615,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
 
         assertThat(processEdges).hasSize(2);
         assertThat(processEdges).extracting(edge -> edge.branchLabel)
-                .containsExactlyInAnyOrder("if value == null", "else: !value == null");
+                .containsExactlyInAnyOrder("if value == null", "else: !(value == null)");
         assertThat(processEdges)
                 .extracting(edge -> edge.branchGroupId)
                 .containsOnly(processEdges.getFirst().branchGroupId);
@@ -752,7 +752,7 @@ class CallGraphExtractorTest extends ExtractorTestBase {
         assertThat(accept.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.TERNARY_THEN);
         assertThat(accept.branchLabel).isEqualTo("if valid");
         assertThat(reject.controlFlowKind).isEqualTo(CallEdge.ControlFlowKind.TERNARY_ELSE);
-        assertThat(reject.branchLabel).isEqualTo("else: !valid");
+        assertThat(reject.branchLabel).isEqualTo("else: !(valid)");
         assertThat(reject.branchGroupId).isEqualTo(accept.branchGroupId);
     }
 

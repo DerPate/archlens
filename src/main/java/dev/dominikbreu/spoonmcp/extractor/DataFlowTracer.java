@@ -630,6 +630,10 @@ public class DataFlowTracer {
         };
     }
 
+    // CallGraphExtractor always sets a non-blank branchLabel today, so this fallback never
+    // fires for its output — it exists for any other CallEdge producer (alternate-language
+    // extractor, hand-built/cached edge) that sets branchGroupId/controlFlowKind but omits
+    // the label. See DataFlowTracerTest.topologyEdgesReferenceSynthesizedBranchArmIds.
     private String branchLabel(CallEdge edge) {
         if (StringUtils.isNotBlank(edge.branchLabel)) return edge.branchLabel;
         return switch (edge.controlFlowKind) {

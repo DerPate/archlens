@@ -821,7 +821,7 @@ public class CallGraphExtractor {
             return new BranchContext(CallEdge.ControlFlowKind.IF_THEN, groupId, groupId + ":then", "if " + cond, source);
         }
         if (isWithin(invocation, ctIf.getElseStatement())) {
-            return new BranchContext(CallEdge.ControlFlowKind.IF_ELSE, groupId, groupId + ":else", "else: !" + cond, source);
+            return new BranchContext(CallEdge.ControlFlowKind.IF_ELSE, groupId, groupId + ":else", "else: !(" + cond + ")", source);
         }
         return null;
     }
@@ -834,7 +834,7 @@ public class CallGraphExtractor {
             return new BranchContext(CallEdge.ControlFlowKind.TERNARY_THEN, groupId, groupId + ":then", "if " + cond, source);
         }
         if (isWithin(invocation, conditional.getElseExpression())) {
-            return new BranchContext(CallEdge.ControlFlowKind.TERNARY_ELSE, groupId, groupId + ":else", "else: !" + cond, source);
+            return new BranchContext(CallEdge.ControlFlowKind.TERNARY_ELSE, groupId, groupId + ":else", "else: !(" + cond + ")", source);
         }
         return null;
     }
