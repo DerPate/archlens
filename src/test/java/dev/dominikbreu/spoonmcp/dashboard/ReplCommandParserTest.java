@@ -44,8 +44,8 @@ class ReplCommandParserTest {
 
     @Test
     void parse_jsonObjectValue() throws ReplParseException {
-        ParsedCommand command =
-                ReplCommandParser.parse("query_architecture_graph action=find_nodes filters={\"confidence\":\"<=0.6\"}");
+        ParsedCommand command = ReplCommandParser.parse(
+                "query_architecture_graph action=find_nodes filters={\"confidence\":\"<=0.6\"}");
 
         assertThat(command.args()).containsKey("filters");
         @SuppressWarnings("unchecked")

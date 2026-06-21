@@ -31,7 +31,10 @@ public final class DashboardRenderer {
             right = rightPaneLines(state.currentEvent());
         }
 
-        sb.append(pad("TRAVERSAL TRACE", paneWidth)).append(" | ").append("COMMAND + RESULT").append('\n');
+        sb.append(pad("TRAVERSAL TRACE", paneWidth))
+                .append(" | ")
+                .append("COMMAND + RESULT")
+                .append('\n');
         int rows = Math.max(left.size(), right.size());
         for (int i = 0; i < rows; i++) {
             String l = i < left.size() ? left.get(i) : "";

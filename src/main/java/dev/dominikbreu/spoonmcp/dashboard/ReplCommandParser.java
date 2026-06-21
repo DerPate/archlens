@@ -8,7 +8,7 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * Parses REPL input lines of the form {@code tool_name key=value key2="quoted value" key3=[1,2]}.
- * Values starting with {@code [} or {@code {} are decoded as JSON; quoted values have their
+ * Values starting with {@code [} or {@code {} } are decoded as JSON; quoted values have their
  * quotes stripped; anything else is kept as a literal string.
  */
 public final class ReplCommandParser {

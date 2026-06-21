@@ -3,6 +3,7 @@ package dev.dominikbreu.spoonmcp.cache;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Chain;
 import dev.dominikbreu.spoonmcp.extractor.PipelineGraphBuilder.Segment;
 import dev.dominikbreu.spoonmcp.model.ArchitectureModel;
+import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.DataFlowPath;
 import dev.dominikbreu.spoonmcp.model.DataFlowSink;
 import dev.dominikbreu.spoonmcp.model.DataFlowStep;
@@ -10,7 +11,6 @@ import dev.dominikbreu.spoonmcp.model.Entrypoint;
 import dev.dominikbreu.spoonmcp.model.EntrypointType;
 import dev.dominikbreu.spoonmcp.model.MessagingBroker;
 import dev.dominikbreu.spoonmcp.model.SourceInfo;
-import dev.dominikbreu.spoonmcp.model.ComponentType;
 import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import dev.dominikbreu.spoonmcp.model.ids.DataFlowPathId;
@@ -134,25 +134,33 @@ public class GraphQuery {
     /** All application nodes as typed list. */
     public synchronized List<ApplicationNode> allApplicationNodes() {
         return findNodes("Application", null, Map.of(), 0).stream()
-                .filter(n -> n instanceof ApplicationNode).map(n -> (ApplicationNode) n).toList();
+                .filter(n -> n instanceof ApplicationNode)
+                .map(n -> (ApplicationNode) n)
+                .toList();
     }
 
     /** All component nodes as typed list. */
     public synchronized List<ComponentNode> allComponentNodes() {
         return findNodes("Component", null, Map.of(), 0).stream()
-                .filter(n -> n instanceof ComponentNode).map(n -> (ComponentNode) n).toList();
+                .filter(n -> n instanceof ComponentNode)
+                .map(n -> (ComponentNode) n)
+                .toList();
     }
 
     /** All container nodes as typed list. */
     public synchronized List<ContainerNode> allContainerNodes() {
         return findNodes("Container", null, Map.of(), 0).stream()
-                .filter(n -> n instanceof ContainerNode).map(n -> (ContainerNode) n).toList();
+                .filter(n -> n instanceof ContainerNode)
+                .map(n -> (ContainerNode) n)
+                .toList();
     }
 
     /** All external-system nodes as typed list. */
     public synchronized List<ExternalSystemNode> allExternalSystemNodes() {
         return findNodes("ExternalSystem", null, Map.of(), 0).stream()
-                .filter(n -> n instanceof ExternalSystemNode).map(n -> (ExternalSystemNode) n).toList();
+                .filter(n -> n instanceof ExternalSystemNode)
+                .map(n -> (ExternalSystemNode) n)
+                .toList();
     }
 
     /** All DEPENDS_ON edges. */
@@ -205,7 +213,8 @@ public class GraphQuery {
         if (parentId == null) return List.of();
         String key = parentId.serialize();
         return allApplicationNodes().stream()
-                .filter(a -> a.parentAppId() != null && key.equals(a.parentAppId().serialize()))
+                .filter(a ->
+                        a.parentAppId() != null && key.equals(a.parentAppId().serialize()))
                 .toList();
     }
 
@@ -238,7 +247,10 @@ public class GraphQuery {
         Optional<GraphNodeId> epNodeId = resolveEntrypoint(ref);
         if (epNodeId.isEmpty()) return Optional.empty();
         String epIdStr = epNodeId.get().value();
-        return store.g.V().hasLabel("RuntimeFlow").has("entrypointId", P.eq(epIdStr))
+        return store.g
+                .V()
+                .hasLabel("RuntimeFlow")
+                .has("entrypointId", P.eq(epIdStr))
                 .tryNext()
                 .map(v -> toNode(v) instanceof RuntimeFlowNode rfn ? rfn : null);
     }
@@ -281,7 +293,9 @@ public class GraphQuery {
     /** All RuntimeFlow nodes as a typed list. */
     public synchronized List<RuntimeFlowNode> allRuntimeFlows() {
         return findNodes("RuntimeFlow", null, Map.of(), 0).stream()
-                .filter(n -> n instanceof RuntimeFlowNode).map(n -> (RuntimeFlowNode) n).toList();
+                .filter(n -> n instanceof RuntimeFlowNode)
+                .map(n -> (RuntimeFlowNode) n)
+                .toList();
     }
 
     /** All DataFlowPath nodes. */
@@ -420,8 +434,11 @@ public class GraphQuery {
                     if ("persistence".equals(kind)) {
                         String op = vStr(sinkV, "repositoryOperation");
                         if (op != null && (op.startsWith("save") || op.startsWith("delete"))) persistenceWrites++;
-                        if (op != null && (op.startsWith("find") || op.startsWith("get")
-                                || op.startsWith("read") || op.startsWith("exists"))) persistenceReads++;
+                        if (op != null
+                                && (op.startsWith("find")
+                                        || op.startsWith("get")
+                                        || op.startsWith("read")
+                                        || op.startsWith("exists"))) persistenceReads++;
                     }
                 }
                 if (pathLinked) linkedPaths++;
@@ -433,12 +450,24 @@ public class GraphQuery {
                 }
             }
         }
-        return new PipelineDiagnostic(totalPaths, linkedPaths, messagingSinks,
-                unresolvedMessaging, consumerTopics.size(), persistenceWrites, persistenceReads);
+        return new PipelineDiagnostic(
+                totalPaths,
+                linkedPaths,
+                messagingSinks,
+                unresolvedMessaging,
+                consumerTopics.size(),
+                persistenceWrites,
+                persistenceReads);
     }
 
-    public record PipelineDiagnostic(int totalPaths, int linkedPaths, int messagingSinks,
-            int unresolvedMessaging, int consumerTopics, int persistenceWrites, int persistenceReads) {}
+    public record PipelineDiagnostic(
+            int totalPaths,
+            int linkedPaths,
+            int messagingSinks,
+            int unresolvedMessaging,
+            int consumerTopics,
+            int persistenceWrites,
+            int persistenceReads) {}
 
     private Chain reconstructChain(Vertex chainV) {
         List<Edge> segEdges = new ArrayList<>();
@@ -476,7 +505,8 @@ public class GraphQuery {
         for (Edge e : stepEdges) path.steps.add(reconstructStep(e.inVertex()));
         List<Edge> reachesEdges = new ArrayList<>();
         pathV.edges(Direction.OUT, "REACHES").forEachRemaining(reachesEdges::add);
-        reachesEdges.sort(Comparator.comparingInt(e -> sinkIndexFromVertexId(e.inVertex().id().toString())));
+        reachesEdges.sort(Comparator.comparingInt(
+                e -> sinkIndexFromVertexId(e.inVertex().id().toString())));
         for (Edge e : reachesEdges) path.sinks.add(reconstructSink(e.inVertex()));
         return path;
     }
@@ -546,8 +576,11 @@ public class GraphQuery {
     private static int sinkIndexFromVertexId(String vertexId) {
         int i = vertexId.lastIndexOf(":sink:");
         if (i < 0) return Integer.MAX_VALUE;
-        try { return Integer.parseInt(vertexId.substring(i + 6)); }
-        catch (NumberFormatException e) { return Integer.MAX_VALUE; }
+        try {
+            return Integer.parseInt(vertexId.substring(i + 6));
+        } catch (NumberFormatException e) {
+            return Integer.MAX_VALUE;
+        }
     }
 
     // --- query methods ---
@@ -567,7 +600,8 @@ public class GraphQuery {
             edgeCounts.merge(edge.label(), 1, Integer::sum);
         }
 
-        int nodeCount = labelCounts.values().stream().mapToInt(Integer::intValue).sum();
+        int nodeCount =
+                labelCounts.values().stream().mapToInt(Integer::intValue).sum();
         int edgeCount = edgeCounts.values().stream().mapToInt(Integer::intValue).sum();
         return new GraphSummary(nodeCount, edgeCount, labelCounts, edgeCounts);
     }
@@ -1165,16 +1199,21 @@ public class GraphQuery {
                     PipelineChainNode,
                     UnknownNode {
         GraphNodeId id();
+
         String name();
+
         String label();
+
         Map<String, Object> properties();
+
         boolean matches(String query);
 
         private static Map<String, Object> propsOf(Object... keysAndValues) {
             Map<String, Object> map = new LinkedHashMap<>();
             for (int i = 0; i + 1 < keysAndValues.length; i += 2) {
                 Object val = keysAndValues[i + 1];
-                if (val != null) map.put((String) keysAndValues[i], val.toString().isBlank() ? null : val);
+                if (val != null)
+                    map.put((String) keysAndValues[i], val.toString().isBlank() ? null : val);
             }
             map.entrySet().removeIf(e -> e.getValue() == null);
             return map;
@@ -1195,20 +1234,31 @@ public class GraphQuery {
             AppId parentAppId)
             implements GraphNode {
         @Override
-        public String label() { return "Application"; }
+        public String label() {
+            return "Application";
+        }
 
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
-                    "technology", technology, "packagingType", packagingType,
-                    "role", role, "rootPath", rootPath,
-                    "parentAppId", parentAppId != null ? parentAppId.serialize() : null);
+                    "technology",
+                    technology,
+                    "packagingType",
+                    packagingType,
+                    "role",
+                    role,
+                    "rootPath",
+                    rootPath,
+                    "parentAppId",
+                    parentAppId != null ? parentAppId.serialize() : null);
         }
 
         @Override
         public boolean matches(String query) {
-            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name)
-                    || GraphNode.q(query, technology) || GraphNode.q(query, role);
+            return GraphNode.q(query, id.serialize())
+                    || GraphNode.q(query, name)
+                    || GraphNode.q(query, technology)
+                    || GraphNode.q(query, role);
         }
     }
 
@@ -1239,12 +1289,17 @@ public class GraphQuery {
             String classificationEvidence)
             implements GraphNode {
         @Override
-        public String label() { return "Component"; }
+        public String label() {
+            return "Component";
+        }
 
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> m = new LinkedHashMap<>();
-            if (type != null) { m.put("type", type.name()); m.put("componentType", type.name()); }
+            if (type != null) {
+                m.put("type", type.name());
+                m.put("componentType", type.name());
+            }
             m.put("qualifiedName", qualifiedName);
             m.put("packageName", packageName);
             m.put("simpleName", name);
@@ -1257,13 +1312,16 @@ public class GraphQuery {
                 m.put("derivedFrom", source.derivedFrom);
                 m.put("confidence", source.confidence);
             }
-            m.put("fanIn", fanIn); m.put("fanOut", fanOut); m.put("degree", degree);
+            m.put("fanIn", fanIn);
+            m.put("fanOut", fanOut);
+            m.put("degree", degree);
             m.put("ownedEntrypointCount", ownedEntrypointCount);
             m.put("architecturalWeight", architecturalWeight);
             m.put("workflowRelevant", workflowRelevant);
             m.put("businessRelevant", businessRelevant);
             if (infrastructureRole != null) m.put("infrastructureRole", infrastructureRole);
-            m.put("noiseScore", noiseScore); m.put("workflowBridgeScore", workflowBridgeScore);
+            m.put("noiseScore", noiseScore);
+            m.put("workflowBridgeScore", workflowBridgeScore);
             m.put("entrypointReachable", entrypointReachable);
             if (primaryRole != null) m.put("primaryRole", primaryRole);
             if (supportRole != null) m.put("supportRole", supportRole);
@@ -1275,10 +1333,14 @@ public class GraphQuery {
 
         @Override
         public boolean matches(String query) {
-            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name)
-                    || GraphNode.q(query, qualifiedName) || GraphNode.q(query, technology)
-                    || GraphNode.q(query, primaryRole) || GraphNode.q(query, supportRole)
-                    || GraphNode.q(query, agentCategory) || GraphNode.q(query, classificationEvidence)
+            return GraphNode.q(query, id.serialize())
+                    || GraphNode.q(query, name)
+                    || GraphNode.q(query, qualifiedName)
+                    || GraphNode.q(query, technology)
+                    || GraphNode.q(query, primaryRole)
+                    || GraphNode.q(query, supportRole)
+                    || GraphNode.q(query, agentCategory)
+                    || GraphNode.q(query, classificationEvidence)
                     || (type != null && GraphNode.q(query, type.name()))
                     || (module != null && GraphNode.q(query, module.serialize()));
         }
@@ -1299,13 +1361,19 @@ public class GraphQuery {
             SourceInfo source)
             implements GraphNode {
         @Override
-        public String label() { return "Entrypoint"; }
+        public String label() {
+            return "Entrypoint";
+        }
 
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> m = new LinkedHashMap<>();
-            if (type != null) { m.put("type", type.name()); m.put("entrypointType", type.name()); }
-            m.put("httpMethod", httpMethod); m.put("path", path);
+            if (type != null) {
+                m.put("type", type.name());
+                m.put("entrypointType", type.name());
+            }
+            m.put("httpMethod", httpMethod);
+            m.put("path", path);
             m.put("channelName", channelName);
             if (broker != null) m.put("broker", broker.name());
             m.put("topic", topic);
@@ -1313,8 +1381,10 @@ public class GraphQuery {
             m.put("protocol", protocol);
             if (componentId != null) m.put("componentId", componentId.serialize());
             if (source != null) {
-                m.put("sourceFile", source.file); m.put("sourceLine", source.line);
-                m.put("derivedFrom", source.derivedFrom); m.put("confidence", source.confidence);
+                m.put("sourceFile", source.file);
+                m.put("sourceLine", source.line);
+                m.put("derivedFrom", source.derivedFrom);
+                m.put("confidence", source.confidence);
             }
             m.entrySet().removeIf(e -> e.getValue() == null);
             return m;
@@ -1322,9 +1392,12 @@ public class GraphQuery {
 
         @Override
         public boolean matches(String query) {
-            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name)
-                    || GraphNode.q(query, path) || GraphNode.q(query, channelName)
-                    || GraphNode.q(query, topic) || (type != null && GraphNode.q(query, type.name()));
+            return GraphNode.q(query, id.serialize())
+                    || GraphNode.q(query, name)
+                    || GraphNode.q(query, path)
+                    || GraphNode.q(query, channelName)
+                    || GraphNode.q(query, topic)
+                    || (type != null && GraphNode.q(query, type.name()));
         }
     }
 
@@ -1342,36 +1415,58 @@ public class GraphQuery {
             SourceInfo source)
             implements GraphNode {
         @Override
-        public String label() { return "Interface"; }
+        public String label() {
+            return "Interface";
+        }
 
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
-                    "interfaceType", type, "type", type, "path", path,
-                    "componentId", componentId != null ? componentId.serialize() : null,
-                    "module", module != null ? module.serialize() : null,
-                    "technology", technology,
-                    "broker", broker != null ? broker.name() : null,
-                    "topic", topic, "externalServiceName", externalServiceName);
+                    "interfaceType",
+                    type,
+                    "type",
+                    type,
+                    "path",
+                    path,
+                    "componentId",
+                    componentId != null ? componentId.serialize() : null,
+                    "module",
+                    module != null ? module.serialize() : null,
+                    "technology",
+                    technology,
+                    "broker",
+                    broker != null ? broker.name() : null,
+                    "topic",
+                    topic,
+                    "externalServiceName",
+                    externalServiceName);
         }
 
         @Override
         public boolean matches(String query) {
-            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name)
-                    || GraphNode.q(query, path) || GraphNode.q(query, type);
+            return GraphNode.q(query, id.serialize())
+                    || GraphNode.q(query, name)
+                    || GraphNode.q(query, path)
+                    || GraphNode.q(query, type);
         }
     }
 
     public record ContainerNode(GraphNodeId id, String name, AppId appId, String technology, String derivedFrom)
             implements GraphNode {
         @Override
-        public String label() { return "Container"; }
+        public String label() {
+            return "Container";
+        }
 
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
-                    "appId", appId != null ? appId.serialize() : null,
-                    "technology", technology, "derivedFrom", derivedFrom);
+                    "appId",
+                    appId != null ? appId.serialize() : null,
+                    "technology",
+                    technology,
+                    "derivedFrom",
+                    derivedFrom);
         }
 
         @Override
@@ -1381,20 +1476,34 @@ public class GraphQuery {
     }
 
     public record DeploymentNode(
-            GraphNodeId id, String name, String type,
-            List<String> ports, List<String> dependsOn, List<String> roles, List<String> hosts)
+            GraphNodeId id,
+            String name,
+            String type,
+            List<String> ports,
+            List<String> dependsOn,
+            List<String> roles,
+            List<String> hosts)
             implements GraphNode {
         @Override
-        public String label() { return "Deployment"; }
+        public String label() {
+            return "Deployment";
+        }
 
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
-                    "type", type, "deploymentType", type,
-                    "ports", ports.isEmpty() ? null : String.join(",", ports),
-                    "dependsOn", dependsOn.isEmpty() ? null : String.join(",", dependsOn),
-                    "roles", roles.isEmpty() ? null : String.join(",", roles),
-                    "hosts", hosts.isEmpty() ? null : String.join(",", hosts));
+                    "type",
+                    type,
+                    "deploymentType",
+                    type,
+                    "ports",
+                    ports.isEmpty() ? null : String.join(",", ports),
+                    "dependsOn",
+                    dependsOn.isEmpty() ? null : String.join(",", dependsOn),
+                    "roles",
+                    roles.isEmpty() ? null : String.join(",", roles),
+                    "hosts",
+                    hosts.isEmpty() ? null : String.join(",", hosts));
         }
 
         @Override
@@ -1403,10 +1512,11 @@ public class GraphQuery {
         }
     }
 
-    public record ExternalSystemNode(GraphNodeId id, String name, String kind, String technology)
-            implements GraphNode {
+    public record ExternalSystemNode(GraphNodeId id, String name, String kind, String technology) implements GraphNode {
         @Override
-        public String label() { return "ExternalSystem"; }
+        public String label() {
+            return "ExternalSystem";
+        }
 
         @Override
         public Map<String, Object> properties() {
@@ -1416,43 +1526,61 @@ public class GraphQuery {
 
         @Override
         public boolean matches(String query) {
-            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name)
-                    || GraphNode.q(query, kind) || GraphNode.q(query, technology);
+            return GraphNode.q(query, id.serialize())
+                    || GraphNode.q(query, name)
+                    || GraphNode.q(query, kind)
+                    || GraphNode.q(query, technology);
         }
     }
 
     public record RuntimeFlowNode(GraphNodeId id, String name, EntrypointId entrypointId, int stepCount)
             implements GraphNode {
         @Override
-        public String label() { return "RuntimeFlow"; }
+        public String label() {
+            return "RuntimeFlow";
+        }
 
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
-                    "entrypointId", entrypointId != null ? entrypointId.serialize() : null,
-                    "stepCount", stepCount);
+                    "entrypointId", entrypointId != null ? entrypointId.serialize() : null, "stepCount", stepCount);
         }
 
         @Override
         public boolean matches(String query) {
-            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name)
+            return GraphNode.q(query, id.serialize())
+                    || GraphNode.q(query, name)
                     || (entrypointId != null && GraphNode.q(query, entrypointId.serialize()));
         }
     }
 
     public record RuntimeFlowStepNode(
-            GraphNodeId id, String name, String flowId, int order,
-            ComponentId componentId, String componentType, String via)
+            GraphNodeId id,
+            String name,
+            String flowId,
+            int order,
+            ComponentId componentId,
+            String componentType,
+            String via)
             implements GraphNode {
         @Override
-        public String label() { return "RuntimeFlowStep"; }
+        public String label() {
+            return "RuntimeFlowStep";
+        }
 
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
-                    "flowId", flowId, "order", order,
-                    "componentId", componentId != null ? componentId.serialize() : null,
-                    "componentType", componentType, "via", via);
+                    "flowId",
+                    flowId,
+                    "order",
+                    order,
+                    "componentId",
+                    componentId != null ? componentId.serialize() : null,
+                    "componentType",
+                    componentType,
+                    "via",
+                    via);
         }
 
         @Override
@@ -1462,17 +1590,24 @@ public class GraphQuery {
     }
 
     public record DataFlowPathNode(
-            GraphNodeId id, String name, EntrypointId entrypointId,
-            String trackedParam, int stepCount, int sinkCount)
+            GraphNodeId id, String name, EntrypointId entrypointId, String trackedParam, int stepCount, int sinkCount)
             implements GraphNode {
         @Override
-        public String label() { return "DataFlowPath"; }
+        public String label() {
+            return "DataFlowPath";
+        }
 
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
-                    "entrypointId", entrypointId != null ? entrypointId.serialize() : null,
-                    "trackedParam", trackedParam, "stepCount", stepCount, "sinkCount", sinkCount);
+                    "entrypointId",
+                    entrypointId != null ? entrypointId.serialize() : null,
+                    "trackedParam",
+                    trackedParam,
+                    "stepCount",
+                    stepCount,
+                    "sinkCount",
+                    sinkCount);
         }
 
         @Override
@@ -1482,57 +1617,108 @@ public class GraphQuery {
     }
 
     public record DataFlowSinkNode(
-            GraphNodeId id, String name, DataFlowSink.Kind sinkKind, String pathId,
-            ComponentId componentId, String method, String fieldName,
-            ComponentId fieldOwnerComponentId, String channel, MessagingBroker broker,
-            String topic, String topicPropertyKey, String payloadType, String entityType,
-            String repositoryOperation, String linkEvidence, String calleeQualifiedName,
+            GraphNodeId id,
+            String name,
+            DataFlowSink.Kind sinkKind,
+            String pathId,
+            ComponentId componentId,
+            String method,
+            String fieldName,
+            ComponentId fieldOwnerComponentId,
+            String channel,
+            MessagingBroker broker,
+            String topic,
+            String topicPropertyKey,
+            String payloadType,
+            String entityType,
+            String repositoryOperation,
+            String linkEvidence,
+            String calleeQualifiedName,
             SourceInfo source)
             implements GraphNode {
         @Override
-        public String label() { return "DataFlowSink"; }
+        public String label() {
+            return "DataFlowSink";
+        }
 
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
-                    "sinkKind", sinkKind != null ? sinkKind.value() : null,
-                    "pathId", pathId,
-                    "componentId", componentId != null ? componentId.serialize() : null,
-                    "method", method, "fieldName", fieldName,
-                    "fieldOwnerComponentId", fieldOwnerComponentId != null ? fieldOwnerComponentId.serialize() : null,
-                    "channel", channel,
-                    "broker", broker != null ? broker.name() : null,
-                    "topic", topic, "topicPropertyKey", topicPropertyKey,
-                    "payloadType", payloadType, "entityType", entityType,
-                    "repositoryOperation", repositoryOperation, "linkEvidence", linkEvidence,
-                    "calleeQualifiedName", calleeQualifiedName);
+                    "sinkKind",
+                    sinkKind != null ? sinkKind.value() : null,
+                    "pathId",
+                    pathId,
+                    "componentId",
+                    componentId != null ? componentId.serialize() : null,
+                    "method",
+                    method,
+                    "fieldName",
+                    fieldName,
+                    "fieldOwnerComponentId",
+                    fieldOwnerComponentId != null ? fieldOwnerComponentId.serialize() : null,
+                    "channel",
+                    channel,
+                    "broker",
+                    broker != null ? broker.name() : null,
+                    "topic",
+                    topic,
+                    "topicPropertyKey",
+                    topicPropertyKey,
+                    "payloadType",
+                    payloadType,
+                    "entityType",
+                    entityType,
+                    "repositoryOperation",
+                    repositoryOperation,
+                    "linkEvidence",
+                    linkEvidence,
+                    "calleeQualifiedName",
+                    calleeQualifiedName);
         }
 
         @Override
         public boolean matches(String query) {
-            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name)
+            return GraphNode.q(query, id.serialize())
+                    || GraphNode.q(query, name)
                     || (sinkKind != null && GraphNode.q(query, sinkKind.value()))
-                    || GraphNode.q(query, method) || GraphNode.q(query, channel);
+                    || GraphNode.q(query, method)
+                    || GraphNode.q(query, channel);
         }
     }
 
     public record DataFlowNodeNode(
-            GraphNodeId id, String name, String pathId, String flowNodeId, int nodeOrder, String nodeKind,
-            ComponentId componentId, String componentName, String method, String localName,
+            GraphNodeId id,
+            String name,
+            String pathId,
+            String flowNodeId,
+            int nodeOrder,
+            String nodeKind,
+            ComponentId componentId,
+            String componentName,
+            String method,
+            String localName,
             SourceInfo source)
             implements GraphNode {
         @Override
-        public String label() { return "DataFlowNode"; }
+        public String label() {
+            return "DataFlowNode";
+        }
 
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> m = new LinkedHashMap<>();
-            m.put("pathId", pathId); m.put("flowNodeId", flowNodeId); m.put("nodeKind", nodeKind);
+            m.put("pathId", pathId);
+            m.put("flowNodeId", flowNodeId);
+            m.put("nodeKind", nodeKind);
             if (componentId != null) m.put("componentId", componentId.serialize());
-            m.put("componentName", componentName); m.put("method", method); m.put("localName", localName);
+            m.put("componentName", componentName);
+            m.put("method", method);
+            m.put("localName", localName);
             if (source != null) {
-                m.put("sourceFile", source.file); m.put("sourceLine", source.line);
-                m.put("derivedFrom", source.derivedFrom); m.put("confidence", source.confidence);
+                m.put("sourceFile", source.file);
+                m.put("sourceLine", source.line);
+                m.put("derivedFrom", source.derivedFrom);
+                m.put("confidence", source.confidence);
             }
             m.entrySet().removeIf(e -> e.getValue() == null);
             return m;
@@ -1540,10 +1726,14 @@ public class GraphQuery {
 
         @Override
         public boolean matches(String query) {
-            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name)
-                    || GraphNode.q(query, pathId) || GraphNode.q(query, flowNodeId)
-                    || GraphNode.q(query, nodeKind) || GraphNode.q(query, componentName)
-                    || GraphNode.q(query, method) || GraphNode.q(query, localName);
+            return GraphNode.q(query, id.serialize())
+                    || GraphNode.q(query, name)
+                    || GraphNode.q(query, pathId)
+                    || GraphNode.q(query, flowNodeId)
+                    || GraphNode.q(query, nodeKind)
+                    || GraphNode.q(query, componentName)
+                    || GraphNode.q(query, method)
+                    || GraphNode.q(query, localName);
         }
     }
 
@@ -1551,15 +1741,21 @@ public class GraphQuery {
             GraphNodeId id, String name, String pathId, String branchId, String branchKind, SourceInfo source)
             implements GraphNode {
         @Override
-        public String label() { return "DataFlowBranch"; }
+        public String label() {
+            return "DataFlowBranch";
+        }
 
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> m = new LinkedHashMap<>();
-            m.put("pathId", pathId); m.put("branchId", branchId); m.put("branchKind", branchKind);
+            m.put("pathId", pathId);
+            m.put("branchId", branchId);
+            m.put("branchKind", branchKind);
             if (source != null) {
-                m.put("sourceFile", source.file); m.put("sourceLine", source.line);
-                m.put("derivedFrom", source.derivedFrom); m.put("confidence", source.confidence);
+                m.put("sourceFile", source.file);
+                m.put("sourceLine", source.line);
+                m.put("derivedFrom", source.derivedFrom);
+                m.put("confidence", source.confidence);
             }
             m.entrySet().removeIf(e -> e.getValue() == null);
             return m;
@@ -1567,53 +1763,94 @@ public class GraphQuery {
 
         @Override
         public boolean matches(String query) {
-            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name)
-                    || GraphNode.q(query, pathId) || GraphNode.q(query, branchId) || GraphNode.q(query, branchKind);
+            return GraphNode.q(query, id.serialize())
+                    || GraphNode.q(query, name)
+                    || GraphNode.q(query, pathId)
+                    || GraphNode.q(query, branchId)
+                    || GraphNode.q(query, branchKind);
         }
     }
 
     public record DataFlowBranchArmNode(
-            GraphNodeId id, String name, String pathId, String branchId,
-            String branchArmId, String armLabel, String entryNodeId)
+            GraphNodeId id,
+            String name,
+            String pathId,
+            String branchId,
+            String branchArmId,
+            String armLabel,
+            String entryNodeId)
             implements GraphNode {
         @Override
-        public String label() { return "DataFlowBranchArm"; }
+        public String label() {
+            return "DataFlowBranchArm";
+        }
 
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
-                    "pathId", pathId, "branchId", branchId, "branchArmId", branchArmId,
-                    "label", armLabel, "entryNodeId", entryNodeId);
+                    "pathId",
+                    pathId,
+                    "branchId",
+                    branchId,
+                    "branchArmId",
+                    branchArmId,
+                    "label",
+                    armLabel,
+                    "entryNodeId",
+                    entryNodeId);
         }
 
         @Override
         public boolean matches(String query) {
-            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name)
-                    || GraphNode.q(query, pathId) || GraphNode.q(query, branchId)
-                    || GraphNode.q(query, branchArmId) || GraphNode.q(query, armLabel)
+            return GraphNode.q(query, id.serialize())
+                    || GraphNode.q(query, name)
+                    || GraphNode.q(query, pathId)
+                    || GraphNode.q(query, branchId)
+                    || GraphNode.q(query, branchArmId)
+                    || GraphNode.q(query, armLabel)
                     || GraphNode.q(query, entryNodeId);
         }
     }
 
     public record DataFlowStepNode(
-            GraphNodeId id, String name, String pathId, int stepIndex,
-            ComponentId componentId, String componentName, String method, String localName)
+            GraphNodeId id,
+            String name,
+            String pathId,
+            int stepIndex,
+            ComponentId componentId,
+            String componentName,
+            String method,
+            String localName)
             implements GraphNode {
         @Override
-        public String label() { return "DataFlowStep"; }
+        public String label() {
+            return "DataFlowStep";
+        }
 
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
-                    "pathId", pathId, "stepIndex", stepIndex,
-                    "componentId", componentId != null ? componentId.serialize() : null,
-                    "componentName", componentName, "method", method, "localName", localName);
+                    "pathId",
+                    pathId,
+                    "stepIndex",
+                    stepIndex,
+                    "componentId",
+                    componentId != null ? componentId.serialize() : null,
+                    "componentName",
+                    componentName,
+                    "method",
+                    method,
+                    "localName",
+                    localName);
         }
 
         @Override
         public boolean matches(String query) {
-            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name)
-                    || GraphNode.q(query, pathId) || GraphNode.q(query, componentName) || GraphNode.q(query, method);
+            return GraphNode.q(query, id.serialize())
+                    || GraphNode.q(query, name)
+                    || GraphNode.q(query, pathId)
+                    || GraphNode.q(query, componentName)
+                    || GraphNode.q(query, method);
         }
     }
 
@@ -1621,13 +1858,19 @@ public class GraphQuery {
             GraphNodeId id, String name, int segmentCount, String rootEntrypointId, List<String> linkKinds)
             implements GraphNode {
         @Override
-        public String label() { return "PipelineChain"; }
+        public String label() {
+            return "PipelineChain";
+        }
 
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
-                    "segmentCount", segmentCount, "rootEntrypointId", rootEntrypointId,
-                    "linkKinds", linkKinds.isEmpty() ? null : String.join(",", linkKinds));
+                    "segmentCount",
+                    segmentCount,
+                    "rootEntrypointId",
+                    rootEntrypointId,
+                    "linkKinds",
+                    linkKinds.isEmpty() ? null : String.join(",", linkKinds));
         }
 
         @Override
@@ -1639,11 +1882,15 @@ public class GraphQuery {
     public record UnknownNode(GraphNodeId id, String label, String name, Map<String, Object> rawProperties)
             implements GraphNode {
         @Override
-        public Map<String, Object> properties() { return rawProperties; }
+        public Map<String, Object> properties() {
+            return rawProperties;
+        }
 
         @Override
         public boolean matches(String query) {
-            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, label) || GraphNode.q(query, name)
+            return GraphNode.q(query, id.serialize())
+                    || GraphNode.q(query, label)
+                    || GraphNode.q(query, name)
                     || rawProperties.values().stream()
                             .filter(Objects::nonNull)
                             .anyMatch(v -> GraphNode.q(query, v.toString()));
