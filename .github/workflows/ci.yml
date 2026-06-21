@@ -27,7 +27,7 @@ jobs:
         run: mvn verify -B -q
 
       - name: OWASP dependency check
-        run: mvn dependency-check:check -B -q
+        run: mvn dependency-check:check -B -q -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         continue-on-error: true
