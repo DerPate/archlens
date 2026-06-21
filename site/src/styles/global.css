@@ -108,7 +108,12 @@ main { overflow: hidden; }
   text-decoration: none;
 }
 
-.logo-mark { width: 36px; height: 36px; overflow: visible; }
+.logo-mark {
+  display: block;
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
 .instrument-ring {
   fill: none;
   stroke: var(--electric-cyan);
