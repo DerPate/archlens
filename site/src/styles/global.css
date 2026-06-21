@@ -313,7 +313,26 @@ h1 {
 }
 
 .terminal-card {
+  position: relative;
   overflow: hidden;
+}
+
+.terminal-card::before {
+  content: "";
+  position: absolute;
+  right: 1rem;
+  bottom: -2.2rem;
+  width: clamp(130px, 28%, 190px);
+  aspect-ratio: 1;
+  background: url("/nav-logo.svg") center/contain no-repeat;
+  opacity: 0.08;
+  pointer-events: none;
+}
+
+.terminal-card .terminal-top,
+.terminal-card pre {
+  position: relative;
+  z-index: 1;
 }
 
 .terminal-top {
