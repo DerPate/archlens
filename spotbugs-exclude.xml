@@ -9,9 +9,9 @@
     <Match>
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
         <Or>
-            <Class name="~dev\.dominikbreu\.spoonmcp\.cache\.ArchitectureGraph\$.*"/>
-            <Class name="dev.dominikbreu.spoonmcp.cache.ModelCache"/>
-            <Class name="~dev\.dominikbreu\.spoonmcp\.cache\.GraphQuery\$.*"/>
+            <Class name="~dev\.dominikbreu\.archlens\.cache\.ArchitectureGraph\$.*"/>
+            <Class name="dev.dominikbreu.archlens.cache.ModelCache"/>
+            <Class name="~dev\.dominikbreu\.archlens\.cache\.GraphQuery\$.*"/>
         </Or>
     </Match>
 
@@ -23,8 +23,8 @@
     <Match>
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
         <Or>
-            <Class name="dev.dominikbreu.spoonmcp.dashboard.DashboardEvent"/>
-            <Class name="dev.dominikbreu.spoonmcp.dashboard.ParsedCommand"/>
+            <Class name="dev.dominikbreu.archlens.dashboard.DashboardEvent"/>
+            <Class name="dev.dominikbreu.archlens.dashboard.ParsedCommand"/>
         </Or>
     </Match>
 
@@ -34,7 +34,7 @@
     -->
     <Match>
         <Bug pattern="EI_EXPOSE_REP2"/>
-        <Class name="~dev\.dominikbreu\.spoonmcp\.mcp\.tools\..*Tool"/>
+        <Class name="~dev\.dominikbreu\.archlens\.mcp\.tools\..*Tool"/>
     </Match>
 
     <!--
@@ -43,7 +43,7 @@
     -->
     <Match>
         <Bug pattern="EI_EXPOSE_REP"/>
-        <Class name="dev.dominikbreu.spoonmcp.workflow.WorkflowGraph"/>
+        <Class name="dev.dominikbreu.archlens.workflow.WorkflowGraph"/>
         <Method name="linksBySourcePathId"/>
     </Match>
 
@@ -66,9 +66,9 @@
     <Match>
         <Bug pattern="REC_CATCH_EXCEPTION"/>
         <Or>
-            <Class name="dev.dominikbreu.spoonmcp.merger.AnsibleMerger"/>
-            <Class name="dev.dominikbreu.spoonmcp.merger.DockerComposeMerger"/>
-            <Class name="dev.dominikbreu.spoonmcp.scanner.SpoonScanner"/>
+            <Class name="dev.dominikbreu.archlens.merger.AnsibleMerger"/>
+            <Class name="dev.dominikbreu.archlens.merger.DockerComposeMerger"/>
+            <Class name="dev.dominikbreu.archlens.scanner.SpoonScanner"/>
         </Or>
     </Match>
 

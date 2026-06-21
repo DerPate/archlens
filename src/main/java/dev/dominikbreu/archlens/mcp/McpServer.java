@@ -7,6 +7,7 @@ import io.modelcontextprotocol.json.McpJsonDefaults;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -30,14 +31,17 @@ public class McpServer {
                 String v = props.getProperty("version");
                 if (v != null && !v.isBlank()) return v;
             }
-        } catch (Exception ignored) {}
+        } catch (IOException ignored) {
+        }
         // IDE / test classpath: parse pom.xml from working directory
         try (InputStream in = McpServer.class.getResourceAsStream("/pom.xml")) {
             if (in != null) return new MavenXpp3Reader().read(in).getVersion();
-        } catch (Exception ignored) {}
+        } catch (IOException | org.codehaus.plexus.util.xml.pull.XmlPullParserException ignored) {
+        }
         try (InputStream in = new java.io.FileInputStream("pom.xml")) {
             return new MavenXpp3Reader().read(in).getVersion();
-        } catch (Exception ignored) {}
+        } catch (IOException | org.codehaus.plexus.util.xml.pull.XmlPullParserException ignored) {
+        }
         return "unknown";
     }
 
