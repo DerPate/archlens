@@ -1,0 +1,92 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  title="trace_data_flow — ArchLens"
+  description="Follow entrypoint parameters through the call graph to persistence, messaging, HTTP outbound, and event-bus sinks."
+>
+  <section class="tool-page">
+    <div class="container">
+      <div class="tool-page-header">
+        <h1 class="tool-page-title">trace_data_flow</h1>
+        <span class="tool-page-badge">Query</span>
+      </div>
+
+      <p class="tool-page-intro">
+        Follows each entrypoint parameter through call edges to architectural sinks —
+        persistence, messaging, HTTP outbound, event bus, shared-state store, file, and
+        object storage. Parameter names are tracked across call hops using the
+        <code>paramMapping</code> captured at each call site. Use it to answer "where does
+        this request parameter end up?" and to discover cross-entrypoint pipelines via
+        shared-state <code>store</code> sinks. Requires <code>index_workspace</code> first.
+      </p>
+
+      <h2 class="tool-section-label">Arguments</h2>
+      <table class="arg-table">
+        <thead>
+          <tr><th>Name</th><th>Type</th><th>Required</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>entrypointId</td>
+            <td>string</td>
+            <td>—</td>
+            <td>Filter by entrypoint ID (partial match).</td>
+          </tr>
+          <tr>
+            <td>entrypointName</td>
+            <td>string</td>
+            <td>—</td>
+            <td>Filter by name or HTTP path. Prefix with verb to disambiguate: <code>"POST /orders"</code>.</td>
+          </tr>
+          <tr>
+            <td>param</td>
+            <td>string</td>
+            <td>—</td>
+            <td>Filter by tracked parameter name.</td>
+          </tr>
+          <tr>
+            <td>sinkKind</td>
+            <td>string</td>
+            <td>—</td>
+            <td>Filter by sink kind: <code>persistence</code>, <code>messaging</code>, <code>http-outbound</code>, <code>event-bus</code>, <code>store</code>, <code>file-outbound</code>, <code>object-storage</code>, or <code>unknown</code>.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 class="tool-section-label">Example</h2>
+      <div class="terminal-card">
+        <div class="terminal-top">
+          <span></span><span></span><span></span>
+          <strong>tools/call</strong>
+        </div>
+        <pre><code>{`{
+  "name": "trace_data_flow",
+  "arguments": {
+    "entrypointName": "POST /orders",
+    "param": "order"
+  }
+}`}</code></pre>
+      </div>
+
+      <h2 class="tool-section-label">Output</h2>
+      <p class="tool-page-intro">
+        A list of data-flow paths, each showing the entrypoint, tracked parameter, hop-by-hop
+        call chain with parameter renames, and classified sinks. Store sinks carry
+        <code>linkedPathIds</code> pointing to downstream paths that read the same shared
+        field — use <code>render_pipeline</code> to visualise those cross-entrypoint chains.
+      </p>
+
+      <h2 class="tool-section-label">Related tools</h2>
+      <div class="related-pills">
+        <a href="/tools/index-workspace" class="related-pill">index_workspace</a>
+        <a href="/tools/render-pipeline" class="related-pill">render_pipeline</a>
+        <a href="/tools/query-architecture-graph" class="related-pill">query_architecture_graph</a>
+        <a href="/#tools" class="related-pill">find_entrypoints</a>
+      </div>
+
+      <a href="/#tools" class="tool-back-link">← All tools</a>
+    </div>
+  </section>
+</BaseLayout>

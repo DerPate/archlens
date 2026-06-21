@@ -1,0 +1,388 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const proofItems = ["Java 21", "Spoon", "MCP stdio", "TinkerGraph", "Mermaid", "LikeC4"];
+
+const capabilities = [
+  {
+    title: "Entrypoint discovery",
+    text: "Find REST endpoints, messaging consumers and producers, schedulers, EJB methods, event observers, EventBus consumers, WebSocket/SSE/gRPC methods, and main methods.",
+  },
+  {
+    title: "Runtime flow",
+    text: "Trace source-derived call paths from an entrypoint through services, repositories, outbound clients, and asynchronous boundaries.",
+  },
+  {
+    title: "Data-flow tracing",
+    text: "Follow request parameters and message payloads to persistence, messaging, HTTP outbound calls, event bus, file/object storage, and shared-state stores.",
+  },
+  {
+    title: "Workflow stitching",
+    text: "Connect multi-step workflows across brokers, event buses, shared fields, and repository handoffs without reconstructing chains by hand.",
+  },
+  {
+    title: "Graph querying",
+    text: "Query neighborhoods, paths, dependencies, and impact slices from a TinkerGraph-backed architecture model through typed MCP tools.",
+  },
+  {
+    title: "Visual exports",
+    text: "Export Mermaid diagrams, LikeC4 text, Markdown architecture docs, graph JSON, and a self-contained HTML graph viewer.",
+  },
+];
+
+const steps = [
+  ["Java workspace", "Scan Maven, Gradle, Kotlin DSL, and plain Java roots with source-level framework evidence."],
+  ["Spoon extraction", "Build components, entrypoints, call edges, data-flow paths, source facts, and workflow links."],
+  ["Architecture graph", "Project the indexed model into TinkerGraph so the graph becomes the runtime source of truth."],
+  ["MCP tools", "Expose typed architecture queries, flow tracing, renderers, and export tools to MCP-capable clients."],
+  ["Visual exports", "Generate Mermaid, LikeC4, Markdown docs, JSON graph data, and a standalone graph viewer."],
+];
+
+const questions = [
+  "Which endpoints, consumers, and schedulers are the real ways into this system?",
+  "What services, repositories, clients, and external systems does a use case touch?",
+  "Where does a request parameter or message payload end up?",
+  "Which async chains continue through a broker, event bus, shared field, or repository?",
+  "What components are impacted if this repository, service, or integration changes?",
+];
+---
+
+<BaseLayout>
+  <section id="overview" class="hero">
+    <div class="container hero-grid">
+      <div class="hero-copy">
+        <img src="/wordmark.svg" alt="ArchLens" class="hero-wordmark" width="600" height="200" decoding="async" />
+        <h1>Architecture understanding for real Java systems.</h1>
+        <p class="hero-subtitle">
+          MCP architecture analysis built on Spoon. ArchLens indexes Java workspaces, projects architecture facts into a graph,
+          and gives agents and engineers practical tools for tracing entrypoints, runtime paths, data movement, and impact.
+        </p>
+        <div class="hero-actions">
+          <a href="https://github.com/derPate/spoon-mcp-server" class="btn btn-primary" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+          <a href="https://github.com/derPate/spoon-mcp-server/blob/main/docs/INSTALL.md" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">Read install guide</a>
+        </div>
+      </div>
+
+      <aside class="hero-panel" aria-label="ArchLens workflow preview">
+        <div class="terminal-card">
+          <div class="terminal-top">
+            <span></span><span></span><span></span>
+            <strong>MCP first tour</strong>
+          </div>
+          <pre><code>index_workspace
+list_apps
+find_entrypoints
+trace_data_flow
+query_architecture_graph
+export_graph_viewer</code></pre>
+        </div>
+        <div class="graph-card" aria-label="Architecture graph preview">
+          <svg class="graph-preview" viewBox="0 0 640 300" role="img" aria-labelledby="graphTitle graphDesc">
+            <title id="graphTitle">Architecture graph preview</title>
+            <desc id="graphDesc">A connected graph from an entrypoint through a service to repository and broker nodes.</desc>
+            <g class="graph-grid" aria-hidden="true">
+              <path d="M80 0 V300 M160 0 V300 M240 0 V300 M320 0 V300 M400 0 V300 M480 0 V300 M560 0 V300" />
+              <path d="M0 60 H640 M0 120 H640 M0 180 H640 M0 240 H640" />
+            </g>
+            <g class="graph-edges">
+              <path d="M190 88 C250 72 306 78 372 112" />
+              <path d="M372 142 C315 166 254 195 196 224" />
+              <path d="M456 135 C498 145 520 174 538 204" />
+            </g>
+            <g class="graph-nodes">
+              <g class="graph-node-svg graph-node-entry" transform="translate(54 58)"><rect width="136" height="60" /><text x="68" y="37">entrypoint</text></g>
+              <g class="graph-node-svg graph-node-service" transform="translate(372 102)"><rect width="118" height="60" /><text x="59" y="37">service</text></g>
+              <g class="graph-node-svg graph-node-store" transform="translate(72 194)"><rect width="124" height="60" /><text x="62" y="37">repository</text></g>
+              <g class="graph-node-svg graph-node-external" transform="translate(496 204)"><rect width="104" height="56" /><text x="52" y="35">broker</text></g>
+            </g>
+          </svg>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <section class="proof-strip" aria-label="Core technologies">
+    <div class="container proof-grid">
+      {proofItems.map((item) => <span>{item}</span>)}
+    </div>
+  </section>
+
+  <section id="capabilities" class="section">
+    <div class="container">
+      <div class="section-heading">
+        <span class="section-kicker">Capabilities</span>
+        <h2 class="section-title">Architecture facts that agents can actually query.</h2>
+      </div>
+      <div class="capability-grid">
+        {capabilities.map((item) => (
+          <article class="capability-card">
+            <h3>{item.title}</h3>
+            <p>{item.text}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section id="workflow" class="section workflow-section">
+    <div class="container">
+      <div class="section-heading">
+        <span class="section-kicker">How it works</span>
+        <h2 class="section-title">From Java source to a queryable architecture graph.</h2>
+      </div>
+      <div class="workflow-steps">
+        {steps.map(([title, text], index) => (
+          <article class="workflow-step">
+            <span>{String(index + 1).padStart(2, "0")}</span>
+            <h3>{title}</h3>
+            <p>{text}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section questions-section">
+    <div class="container split-layout">
+      <div>
+        <span class="section-kicker">Use cases</span>
+        <h2 class="section-title">Questions large Java systems make expensive.</h2>
+      </div>
+      <div class="question-list">
+        {questions.map((question) => (
+          <div class="question-item">{question}</div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section id="install" class="section install-section">
+    <div class="container install-grid">
+      <div>
+        <span class="section-kicker">Install</span>
+        <h2 class="section-title">Build the server, then let your MCP client ask better questions.</h2>
+        <p class="section-copy">
+          ArchLens runs as a stdio Model Context Protocol server. The usual first pass is to index a workspace,
+          list applications, find entrypoints and components, then render or query focused architecture views.
+        </p>
+      </div>
+      <div class="code-stack">
+        <pre><code>mvn test
+mvn package
+java -jar target/spoon-mcp-server.jar</code></pre>
+        <pre><code>index_workspace -> list_apps -> find_entrypoints
+find_components -> render_architecture_view</code></pre>
+        <pre><code>call_flow
+trace_data_flow
+render_pipeline
+query_architecture_graph
+export_graph_viewer</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section id="quickstart" class="section">
+    <div class="container">
+      <div class="section-heading">
+        <span class="section-kicker">Get started</span>
+        <h2 class="section-title">From source to your first architecture query.</h2>
+      </div>
+      <div class="quickstart-grid">
+        <div class="terminal-card quickstart-card">
+          <div class="terminal-top">
+            <span></span><span></span><span></span>
+            <strong>build</strong>
+          </div>
+          <pre><code>git clone https://github.com/derPate/spoon-mcp-server.git
+cd spoon-mcp-server
+mvn clean package</code></pre>
+        </div>
+        <div class="terminal-card quickstart-card">
+          <div class="terminal-top">
+            <span></span><span></span><span></span>
+            <strong>smoke test</strong>
+          </div>
+          <pre><code>java -jar target/spoon-mcp-server.jar \
+  &lt; examples/jsonrpc/initialize.json</code></pre>
+        </div>
+        <div class="terminal-card quickstart-card">
+          <div class="terminal-top">
+            <span></span><span></span><span></span>
+            <strong>wire client</strong>
+          </div>
+          <pre><code>claude mcp add spoon -- java -jar \
+  /path/to/spoon-mcp-server.jar</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tools" class="section">
+    <div class="container">
+      <div class="section-heading">
+        <span class="section-kicker">Tools</span>
+        <h2 class="section-title">22 typed tools. One indexed graph.</h2>
+      </div>
+
+      <div class="phase-strip">
+        <div class="phase-strip-grid container">
+          <span class="phase-strip-label phase-strip-label--index">Index</span>
+          <span class="phase-strip-label phase-strip-label--query">Query</span>
+          <span class="phase-strip-label phase-strip-label--render">Render</span>
+          <span class="phase-strip-label phase-strip-label--export">Export</span>
+        </div>
+      </div>
+
+      <div class="tool-grid">
+        <!-- Index -->
+        <article class="tool-card tool-card--index tool-card--promoted">
+          <span class="tool-card-phase">Index</span>
+          <span class="tool-card-name">index_workspace</span>
+          <p class="tool-card-desc">Analyze Java project roots and build the architecture graph through six extraction passes.</p>
+          <a href="/tools/index-workspace" class="tool-card-link">Deep dive →</a>
+        </article>
+
+        <!-- Query -->
+        <article class="tool-card tool-card--query">
+          <span class="tool-card-phase">Query</span>
+          <span class="tool-card-name">list_apps</span>
+          <p class="tool-card-desc">List recognized applications, modules, and packaging types with model summary counts.</p>
+        </article>
+
+        <article class="tool-card tool-card--query">
+          <span class="tool-card-phase">Query</span>
+          <span class="tool-card-name">find_entrypoints</span>
+          <p class="tool-card-desc">Return REST endpoints, messaging consumers, schedulers, and other entry points with combinable filters.</p>
+        </article>
+
+        <article class="tool-card tool-card--query">
+          <span class="tool-card-phase">Query</span>
+          <span class="tool-card-name">find_components</span>
+          <p class="tool-card-desc">Return architecture-relevant components filtered by type, app, or technology.</p>
+        </article>
+
+        <article class="tool-card tool-card--query">
+          <span class="tool-card-phase">Query</span>
+          <span class="tool-card-name">get_component_dependencies</span>
+          <p class="tool-card-desc">Return direct and transitive dependencies for a component with configurable depth.</p>
+        </article>
+
+        <article class="tool-card tool-card--query">
+          <span class="tool-card-phase">Query</span>
+          <span class="tool-card-name">infer_containers</span>
+          <p class="tool-card-desc">Group components into logical containers: API, service, repository, domain, messaging, scheduling.</p>
+        </article>
+
+        <article class="tool-card tool-card--query">
+          <span class="tool-card-phase">Query</span>
+          <span class="tool-card-name">detect_use_cases</span>
+          <p class="tool-card-desc">Detect business use cases from indexed entrypoints and their call chains with optional naming config.</p>
+        </article>
+
+        <article class="tool-card tool-card--query tool-card--promoted">
+          <span class="tool-card-phase">Query</span>
+          <span class="tool-card-name">trace_data_flow</span>
+          <p class="tool-card-desc">Follow entrypoint parameters through call edges to persistence, messaging, HTTP outbound, and event-bus sinks.</p>
+          <a href="/tools/trace-data-flow" class="tool-card-link">Deep dive →</a>
+        </article>
+
+        <article class="tool-card tool-card--query tool-card--promoted">
+          <span class="tool-card-phase">Query</span>
+          <span class="tool-card-name">query_architecture_graph</span>
+          <p class="tool-card-desc">Query the indexed model as a graph: summaries, node and edge lookups, neighborhoods, paths, and impact slices.</p>
+          <a href="/tools/query-architecture-graph" class="tool-card-link">Deep dive →</a>
+        </article>
+
+        <article class="tool-card tool-card--query tool-card--promoted">
+          <span class="tool-card-phase">Query</span>
+          <span class="tool-card-name">render_pipeline</span>
+          <p class="tool-card-desc">Stitch multiple data-flow paths into one end-to-end Mermaid pipeline diagram across entrypoint boundaries.</p>
+          <a href="/tools/render-pipeline" class="tool-card-link">Deep dive →</a>
+        </article>
+
+        <!-- Render -->
+        <article class="tool-card tool-card--render">
+          <span class="tool-card-phase">Render</span>
+          <span class="tool-card-name">render_mermaid_flowchart</span>
+          <p class="tool-card-desc">Render a Mermaid flowchart at system, container, module, or component level.</p>
+        </article>
+
+        <article class="tool-card tool-card--render">
+          <span class="tool-card-phase">Render</span>
+          <span class="tool-card-name">call_flow</span>
+          <p class="tool-card-desc">Return the runtime call flow for an entrypoint as ordered steps and a Mermaid flowchart.</p>
+        </article>
+
+        <article class="tool-card tool-card--render">
+          <span class="tool-card-phase">Render</span>
+          <span class="tool-card-name">render_use_case_timeline</span>
+          <p class="tool-card-desc">Render a Mermaid gantt chart comparing execution depth across use cases.</p>
+        </article>
+
+        <article class="tool-card tool-card--render">
+          <span class="tool-card-phase">Render</span>
+          <span class="tool-card-name">render_source_overview</span>
+          <p class="tool-card-desc">Render a package-aware Mermaid overview of components and dependency edges.</p>
+        </article>
+
+        <article class="tool-card tool-card--render">
+          <span class="tool-card-phase">Render</span>
+          <span class="tool-card-name">render_dependency_map</span>
+          <p class="tool-card-desc">Render an aggregated Mermaid dependency map grouped by source responsibility.</p>
+        </article>
+
+        <article class="tool-card tool-card--render">
+          <span class="tool-card-phase">Render</span>
+          <span class="tool-card-name">render_component_dependency_diagram</span>
+          <p class="tool-card-desc">Render a focused Mermaid dependency diagram for a single component.</p>
+        </article>
+
+        <article class="tool-card tool-card--render">
+          <span class="tool-card-phase">Render</span>
+          <span class="tool-card-name">render_architecture_view</span>
+          <p class="tool-card-desc">Render a projection-first component view ranked by workflow relevance, business relevance, and bridge score.</p>
+        </article>
+
+        <!-- Export -->
+        <article class="tool-card tool-card--export">
+          <span class="tool-card-phase">Export</span>
+          <span class="tool-card-name">export_architecture_docs</span>
+          <p class="tool-card-desc">Export Markdown architecture documentation from the indexed model.</p>
+        </article>
+
+        <article class="tool-card tool-card--export">
+          <span class="tool-card-phase">Export</span>
+          <span class="tool-card-name">export_graph_architecture_poc</span>
+          <p class="tool-card-desc">Export a graph-centric architecture POC document.</p>
+        </article>
+
+        <article class="tool-card tool-card--export">
+          <span class="tool-card-phase">Export</span>
+          <span class="tool-card-name">export_graph_data</span>
+          <p class="tool-card-desc">Export the raw architecture graph as JSON for standalone viewers.</p>
+        </article>
+
+        <article class="tool-card tool-card--export">
+          <span class="tool-card-phase">Export</span>
+          <span class="tool-card-name">export_graph_viewer</span>
+          <p class="tool-card-desc">Write a self-contained HTML graph explorer for the indexed architecture.</p>
+        </article>
+
+        <article class="tool-card tool-card--export">
+          <span class="tool-card-phase">Export</span>
+          <span class="tool-card-name">export_likec4_model</span>
+          <p class="tool-card-desc">Export a LikeC4-compatible workspace projection from the indexed graph.</p>
+        </article>
+      </div>
+
+      <!-- API teaser -->
+      <a href="/api/" class="api-teaser">
+        <div class="api-teaser-body">
+          <span class="api-teaser-title">Java API reference</span>
+          <p class="api-teaser-desc">Generated Javadoc for contributors and anyone tracing a problem to its source.</p>
+        </div>
+        <span class="api-teaser-arrow">/api/ →</span>
+      </a>
+    </div>
+  </section>
+</BaseLayout>

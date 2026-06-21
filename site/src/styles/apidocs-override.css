@@ -1,0 +1,101 @@
+/*
+ * ArchLens — Doxygen color override
+ * Replaces doxygen-awesome dark palette with site brand tokens.
+ * Load order: doxygen-awesome.css → doxygen-awesome-sidebar-only.css → this file
+ *
+ * Strategy: only override CSS variables, never fight doxygen-awesome layout
+ * with element rules or !important. Let doxygen-awesome handle all layout/spacing.
+ *
+ * Site token reference (exact values from global.css):
+ *   --void-black:        #000000
+ *   --terminal-charcoal: #0F111A
+ *   --electric-cyan:     #06B6D4
+ *   --matrix-green:      #10B981
+ *   --agent-orange:      #F4A261
+ *   --text:              #E2E8F0
+ *   --subtext-1:         #CBD5E1
+ *   --console-gray:      #94A3B8
+ *   --hard-border:       #334155
+ */
+
+/* ── Override doxygen-awesome dark palette with site tokens ── */
+/* Targets html.dark-mode (set via custom header template)      */
+html.dark-mode {
+
+  /* page */
+  --page-background-color:           #0F111A;
+  --page-foreground-color:           #E2E8F0;
+  --page-secondary-foreground-color: #94A3B8;
+
+  /* primary accent = electric cyan */
+  --primary-color:       #06B6D4;
+  --primary-dark-color:  #0891b2;
+  --primary-light-color: #67e8f9;
+
+  /* navigation */
+  --side-nav-background: #0F111A;
+
+  /* separators */
+  --separator-color:          #334155;
+  --menu-selected-background: rgba(6,182,212,.12);
+
+  /* code fragments */
+  --fragment-background:            #000000;
+  --fragment-foreground:            #E2E8F0;
+  --fragment-keyword:               #06B6D4;
+  --fragment-keywordtype:           #67e8f9;
+  --fragment-keywordflow:           #F4A261;
+  --fragment-token:                 #10B981;
+  --fragment-comment:               #94A3B8;
+  --fragment-link:                  #06B6D4;
+  --fragment-preprocessor:          #a78bfa;
+  --fragment-linenumber-color:      #94A3B8;
+  --fragment-linenumber-background: #0F111A;
+  --fragment-linenumber-border:     #334155;
+
+  /* inline code */
+  --code-background: #000000;
+
+  /* tables */
+  --tablehead-background: #0F111A;
+
+  /* blockquote */
+  --blockquote-background: #0F111A;
+  --blockquote-foreground: #94A3B8;
+
+  /* callout boxes */
+  --note-color:              #0d2232;
+  --note-color-dark:         #06B6D4;
+  --note-color-darker:       #E2E8F0;
+  --warning-color:           #2a1a08;
+  --warning-color-dark:      #F4A261;
+  --warning-color-darker:    #E2E8F0;
+  --todo-color:              #180d38;
+  --todo-color-dark:         #a78bfa;
+  --todo-color-darker:       #E2E8F0;
+  --bug-color:               #290808;
+  --bug-color-dark:          #f87171;
+  --bug-color-darker:        #E2E8F0;
+  --deprecated-color:        #1a1c22;
+  --deprecated-color-dark:   #94A3B8;
+  --deprecated-color-darker: #E2E8F0;
+}
+
+/* ── Font overrides — apply on top of doxygen-awesome layout ─ */
+body {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+#projectname {
+  color: #06B6D4;
+}
+
+a, a:link { color: #06B6D4; }
+a:visited  { color: #0891b2; }
+a:hover    { color: #67e8f9; }
+
+/* ── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar              { width: 6px; height: 6px; }
+::-webkit-scrollbar-track        { background: #0F111A; }
+::-webkit-scrollbar-thumb        { background: #334155; }
+::-webkit-scrollbar-thumb:hover  { background: #06B6D4; }
