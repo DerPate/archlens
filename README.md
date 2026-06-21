@@ -4,7 +4,7 @@
   <br/>
 
   [![Maven Central](https://img.shields.io/badge/download-GitHub_Releases-blue?logo=github)](https://github.com/DerPate/archlens/releases)
-  [![Java 21+](https://img.shields.io/badge/Java-21%2B-orange?logo=openjdk)](https://openjdk.org/)
+  [![Java 25](https://img.shields.io/badge/Java-25-orange?logo=openjdk)](https://openjdk.org/)
   [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
   [![Build](https://img.shields.io/badge/build-mvn_package-brightgreen?logo=apachemaven)](docs/INSTALL.md)
 </div>
@@ -135,7 +135,7 @@ Messaging entrypoints carry `channelName`, `broker` (`KAFKA`, `MQTT`, `AMQP`, `R
 
 ## Requirements
 
-- Java 21 or newer
+- Java 25 or newer
 - Maven 3.9 or newer
 - An MCP-capable client for interactive use, **or** run the jar directly in a terminal for the standalone REPL dashboard
 
