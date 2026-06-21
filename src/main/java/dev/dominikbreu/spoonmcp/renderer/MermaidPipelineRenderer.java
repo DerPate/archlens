@@ -37,7 +37,7 @@ public class MermaidPipelineRenderer {
      * Renders {@code chain} as Mermaid text.
      *
      * @param chain pipeline chain to render
-     * @param graph graph query for component lookups
+     * @param graph graph query interface for component lookups
      * @return Mermaid flowchart text
      */
     public String render(Chain chain, GraphQuery graph) {
@@ -255,8 +255,10 @@ public class MermaidPipelineRenderer {
             String toMermaid = nodeIdMap.get(edge.toId());
             if (fromMermaid == null || toMermaid == null) continue;
 
-            String edgeKind = (String) edge.properties().get("edgeKind");
-            String edgeLabel = (String) edge.properties().get("label");
+            Object rawKind = edge.properties().get("edgeKind");
+            String edgeKind = rawKind instanceof String s ? s : null;
+            Object rawLabel = edge.properties().get("label");
+            String edgeLabel = rawLabel instanceof String s ? s : null;
             boolean conditional = "conditional".equals(edgeKind);
             String labelStr = edgeLabel != null && !edgeLabel.isBlank() ? edgeLabel : "";
 

@@ -183,17 +183,9 @@ After indexing, every other tool (`list_apps`, `find_components`, `render_mermai
 
 ## Configuration
 
-| Setting | Env var | JVM property | Default | Effect |
-|---|---|---|---|---|
-| Cache backend | `SPOON_MCP_CACHE_BACKEND` | `spoonmcp.cache.backend` | `json` | Set to `graph` to eagerly maintain the graph projection on cache load/store. |
+There is no selectable cache backend. The server stores the indexed architecture graph as GraphSON under `.spoon-mcp-cache/` in the working directory.
 
-Example with the graph backend:
-
-```sh
-SPOON_MCP_CACHE_BACKEND=graph java -jar target/spoon-mcp-server.jar
-```
-
-The cache itself is written to `.spoon-mcp-cache/` in the working directory.
+Older releases exposed `SPOON_MCP_CACHE_BACKEND` / `spoonmcp.cache.backend` while the graph cache was being introduced. Those settings are deprecated and no longer read by the server. If you are upgrading from a JSON-backed cache, run `index_workspace` again to create a fresh GraphSON snapshot.
 
 ## Troubleshooting
 

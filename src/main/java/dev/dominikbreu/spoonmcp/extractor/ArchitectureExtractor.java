@@ -196,7 +196,7 @@ public class ArchitectureExtractor {
         if (sharedParent == null || !modules.stream().allMatch(m -> sharedParent.equals(m.parentName()))) return;
         String rootPackaging = detectMavenPackagingType(project.root().getAbsolutePath());
         if (!"war".equals(rootPackaging)) return;
-        AppId parentId = AppId.of("app:" + sharedParent);
+        AppId parentId = AppId.of(sharedParent);
         if (model.applications.stream().anyMatch(a -> a.id.equals(parentId))) return;
         AppEntry parent = new AppEntry();
         parent.id = parentId;
@@ -229,7 +229,7 @@ public class ArchitectureExtractor {
 
     private AppEntry buildAppEntry(BuildModule module) {
         AppEntry app = new AppEntry();
-        app.id = AppId.of("app:" + module.name());
+        app.id = AppId.of(module.name());
         app.name = module.name();
         app.rootPath = module.root().getAbsolutePath();
         app.packagingType = module.packagingType();

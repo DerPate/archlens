@@ -2,7 +2,6 @@ package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
-import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,7 +31,7 @@ public class FindComponentsTool {
             if (techFilter != null) filters.put("technology", techFilter);
 
             List<GraphQuery.GraphNode> nodes = appId != null
-                    ? applyFilters(graph.componentNodesOwnedBy(AppId.of(appId)), typeFilter, techFilter)
+                    ? applyFilters(graph.componentNodesOwnedByQuery(appId), typeFilter, techFilter)
                     : graph.findNodes("Component", null, filters, 0);
 
             if (nodes.isEmpty()) return "No components found matching the given criteria.";

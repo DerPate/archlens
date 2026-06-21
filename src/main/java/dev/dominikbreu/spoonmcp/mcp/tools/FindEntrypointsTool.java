@@ -2,8 +2,11 @@ package dev.dominikbreu.spoonmcp.mcp.tools;
 
 import dev.dominikbreu.spoonmcp.cache.GraphQuery;
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * MCP tool that lists runtime entrypoints from the indexed architecture model.
@@ -26,11 +29,19 @@ public class FindEntrypointsTool {
             String methodFilter = ToolArgs.getString(args, "httpMethod");
             String pathFilter = ToolArgs.getString(args, "path");
 
+            Set<String> ownedComponentIds = appId == null
+                    ? null
+                    : graph.componentNodesOwnedByQuery(appId).stream()
+                            .map(n -> n.id().serialize())
+                            .collect(Collectors.toCollection(HashSet::new));
+
             List<GraphQuery.GraphNode> nodes = graph.allEntrypoints().stream()
                     .filter(n -> n instanceof GraphQuery.EntrypointNode)
                     .filter(n -> {
                         GraphQuery.EntrypointNode en = (GraphQuery.EntrypointNode) n;
-                        if (appId != null && (en.componentId() == null || !en.componentId().serialize().contains(appId))) return false;
+                        if (ownedComponentIds != null
+                                && (en.componentId() == null || !ownedComponentIds.contains(en.componentId().serialize())))
+                            return false;
                         if (typeFilter != null && (en.type() == null || !typeFilter.equalsIgnoreCase(en.type().name()))) return false;
                         if (methodFilter != null && !methodFilter.equalsIgnoreCase(en.httpMethod())) return false;
                         if (pathFilter != null && !pathPrefixMatchesForDiscovery(en.path(), pathFilter)) return false;
