@@ -1,0 +1,77 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  title="index_workspace — ArchLens"
+  description="Analyze Java project roots and build the ArchLens architecture graph through six extraction passes."
+>
+  <section class="tool-page">
+    <div class="container">
+      <div class="tool-page-header">
+        <h1 class="tool-page-title">index_workspace</h1>
+        <span class="tool-page-badge">Index</span>
+      </div>
+
+      <p class="tool-page-intro">
+        The entry point for every ArchLens session. Point it at one or more Java project
+        roots and it runs six extraction passes — components, injection dependencies, call
+        graph, data-flow tracing, container inference, and external system inference —
+        then stores the result as a TinkerGraph. Every other tool reads from that graph.
+        Re-run it any time sources change.
+      </p>
+
+      <h2 class="tool-section-label">Arguments</h2>
+      <table class="arg-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Required</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>paths</td>
+            <td>array</td>
+            <td><span class="required-badge">required</span></td>
+            <td>Absolute paths to Java project root directories. Each path must contain <code>.java</code> sources or a Maven/Gradle module.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 class="tool-section-label">Example</h2>
+      <div class="terminal-card">
+        <div class="terminal-top">
+          <span></span><span></span><span></span>
+          <strong>tools/call</strong>
+        </div>
+        <pre><code>{`{
+  "name": "index_workspace",
+  "arguments": {
+    "paths": ["/home/user/projects/my-java-app"]
+  }
+}`}</code></pre>
+      </div>
+
+      <h2 class="tool-section-label">Output</h2>
+      <p class="tool-page-intro">
+        A summary of what was indexed: number of applications found, components, entrypoints,
+        interfaces, injection edges, call edges, data-flow paths, and containers. The graph
+        is cached under <code>.spoon-mcp-cache/</code> in the server's working directory.
+        Subsequent tool calls read from this cache without re-indexing.
+      </p>
+
+      <h2 class="tool-section-label">Related tools</h2>
+      <div class="related-pills">
+        <a href="/#tools" class="related-pill">list_apps</a>
+        <a href="/#tools" class="related-pill">find_entrypoints</a>
+        <a href="/tools/trace-data-flow" class="related-pill">trace_data_flow</a>
+        <a href="/tools/query-architecture-graph" class="related-pill">query_architecture_graph</a>
+      </div>
+
+      <a href="/#tools" class="tool-back-link">← All tools</a>
+    </div>
+  </section>
+</BaseLayout>

@@ -56,3 +56,10 @@ viewer/dist/
 viewer/public/*.json
 viewer/test-results/
 viewer/playwright-report/
+
+# ArchLens project website
+site/node_modules/
+site/dist/
+site/.astro/
+site/test-results/
+site/playwright-report/
