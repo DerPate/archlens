@@ -6,18 +6,22 @@ const links = [
   ["Workflow", "#workflow"],
   ["Capabilities", "#capabilities"],
   ["Install", "#install"],
+  ["Tools", "#tools"],
 ];
 ---
 
 <nav class="nav" aria-label="Main navigation">
   <div class="nav-container">
-    <a href="#overview" class="nav-logo" aria-label="ArchLens home">
+    <a href="/" class="nav-logo" aria-label="ArchLens home">
       <LogoMark />
     </a>
     <ul class="nav-menu">
       {links.map(([label, href]) => (
         <li><a href={href} class="nav-link">{label}</a></li>
       ))}
+      <li>
+        <a href="/api/" class="nav-link">API</a>
+      </li>
       <li>
         <a href="https://github.com/derPate/spoon-mcp-server" class="nav-link nav-link-strong" target="_blank" rel="noopener noreferrer">GitHub</a>
       </li>
