@@ -691,6 +691,23 @@ public class GraphQuery {
         return nodes;
     }
 
+    /**
+     * Resolves components owned by any application whose id contains {@code appIdQuery}
+     * (case-insensitive partial match), unlike {@link #componentNodesOwnedBy} which requires
+     * the exact app id. Matches the partial-match convention used elsewhere in graph search.
+     */
+    public synchronized List<GraphNode> componentNodesOwnedByQuery(String appIdQuery) {
+        if (appIdQuery == null || appIdQuery.isBlank()) return List.of();
+        String needle = appIdQuery.toLowerCase(Locale.ROOT);
+        List<GraphNode> nodes = new ArrayList<>();
+        for (ApplicationNode app : allApplicationNodes()) {
+            if (app.id().serialize().toLowerCase(Locale.ROOT).contains(needle)) {
+                nodes.addAll(componentNodesOwnedBy(AppId.of(app.id().serialize())));
+            }
+        }
+        return nodes;
+    }
+
     public synchronized List<GraphEdge> neighborhood(GraphNodeId nodeId, String direction, int limit) {
         Vertex vertex = vertex(nodeId).orElse(null);
         if (vertex == null) {

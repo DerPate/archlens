@@ -1,22 +1,132 @@
 # Spoon MCP Server
 
-Spoon MCP Server is a Java 21 Model Context Protocol server that analyzes Java workspaces with Spoon and exposes architecture-oriented tools over stdio.
+Spoon MCP Server helps you understand large Java systems from the code that actually runs them. It indexes Java workspaces with Spoon, projects the result into an architecture graph, and exposes MCP tools for exploring entrypoints, components, dependencies, runtime paths, data movement, workflow handoffs, and architecture views.
 
-It can index Java projects, identify applications and entry points, infer logical containers, trace component dependencies, and render Mermaid flowcharts or sequence diagrams for agent-friendly architecture exploration.
+It is built for engineers and code agents working in real Java codebases: Spring, Quarkus, Java EE, messaging consumers, schedulers, repositories, outbound clients, deployment hints, and the awkward glue between them.
 
-## Features
+## What You Get
 
-- Index one or more Java project roots.
-- Detect REST endpoints, JMS consumers, schedulers, EJB methods, services, repositories, entities, and related components.
-- Infer container-level groupings such as API, service, repository, domain, messaging, and scheduling.
-- Merge deployment hints from Docker Compose and Ansible assets.
-- Render Mermaid flowcharts and sequence diagrams from the extracted model.
-- Expose reusable MCP prompts for common architecture-analysis workflows.
+- **Application map**: recognized modules, packaging types, logical containers, and high-signal components.
+- **Entrypoint discovery**: REST endpoints, JMS and Reactive Messaging consumers/producers, schedulers, EJB methods, CDI event observers, Vert.x EventBus consumers, WebSocket/SSE/gRPC endpoints, and main methods.
+- **Runtime flow**: source-derived call paths from an entrypoint through services, repositories, clients, and async boundaries.
+- **Data-flow tracing**: parameter flow to persistence, messaging, HTTP outbound calls, event bus, file/object storage, and shared-state stores.
+- **Pipeline stitching**: cross-entrypoint workflows through messaging, event bus, shared fields, and persistence handoffs.
+- **Architecture graph**: queryable TinkerGraph-backed model with typed nodes, edges, properties, neighborhoods, paths, and impact slices.
+- **Visual exports**: Mermaid diagrams, LikeC4 text, Markdown architecture docs, graph JSON, and a self-contained HTML graph viewer.
+
+## Why Spoon MCP
+
+Generic code graph tools can tell you which files import each other. Spoon MCP tries to answer architecture questions that Java teams actually ask:
+
+- Which endpoints, consumers, and schedulers are the real ways into this system?
+- What services, repositories, clients, and external systems does a use case touch?
+- Where does a request parameter or message payload end up?
+- Which async chains continue through a broker, cache, event bus, or repository?
+- What components are impacted if this repository, service, or integration changes?
+
+The project is intentionally Java-specific. Spoon gives source-level structure; the MCP tools turn that structure into stable architecture facts that assistants and scripts can query without holding onto raw model internals.
+
+## First Tour
+
+Build the server:
+
+```sh
+mvn test
+mvn package
+```
+
+Run it as a stdio MCP server:
+
+```sh
+java -jar target/spoon-mcp-server.jar
+```
+
+From an MCP client, the usual first pass is:
+
+```text
+index_workspace -> list_apps -> find_entrypoints -> find_components -> render_architecture_view
+```
+
+Then drill into a specific question:
+
+```text
+call_flow                  # How does this endpoint execute?
+trace_data_flow            # Where does this parameter or message go?
+render_pipeline            # What async workflow continues after this step?
+query_architecture_graph   # What depends on this node, and what is impacted?
+export_graph_viewer        # Open a visual graph for review and debugging.
+```
+
+For step-by-step client setup, see [docs/INSTALL.md](docs/INSTALL.md).
+
+## Workflow Pack
+
+This repository includes a portable agent workflow under [skills/spoon-understand](skills/spoon-understand). It describes how to use the MCP tools as a coherent "understand this Java system" workflow, with small adapters for OpenAI/Codex, Claude, and Copilot.
+
+The workflow pack is optional. The MCP server and tools work directly from any MCP-capable client.
+
+## MCP Tools By Workflow
+
+**Discover**
+
+- `index_workspace`
+- `list_apps`
+- `find_entrypoints`
+- `find_components`
+- `infer_containers`
+- `detect_use_cases`
+
+**Trace**
+
+- `call_flow`
+- `trace_data_flow`
+- `render_use_case_timeline`
+- `render_pipeline`
+
+**Query**
+
+- `get_component_dependencies`
+- `query_architecture_graph`
+
+**Render and export**
+
+- `render_mermaid_flowchart`
+- `render_source_overview`
+- `render_dependency_map`
+- `render_component_dependency_diagram`
+- `render_architecture_view`
+- `export_architecture_docs`
+- `export_graph_architecture_poc`
+- `export_graph_data`
+- `export_graph_viewer`
+- `export_likec4_model`
+
+See [docs/TOOLS.md](docs/TOOLS.md) for arguments, graph labels, properties, and example payloads.
+
+## MCP Prompts
+
+The server also exposes workflow prompts through `prompts/list` and `prompts/get`:
+
+- `analyze_workspace`
+- `generate_architecture_docs`
+- `investigate_component`
+- `trace_use_case`
+- `find_pipeline`
+- `architecture_view`
+
+These prompts guide clients through multi-tool architecture workflows without duplicating every individual tool description.
+
+## Architecture Notes
+
+`trace_data_flow` records writes to shared state as `store` sinks and links each `store` sink to downstream `DataFlowPath`s that read the same shared field via `linkedPathIds`. The same relation is exposed in the property graph as raw `LINKS_TO` sink edges and canonical `WORKFLOW_LINK` path-to-path edges, so clients can query workflow continuation directly instead of reconstructing it from helper fields.
+
+Messaging entrypoints carry `channelName`, `broker` (`KAFKA`, `MQTT`, `AMQP`, `RABBITMQ`, `PULSAR`, `IN_MEMORY`, or `UNKNOWN`), and `topic` resolved from broker-side destination config. `IN_MEMORY` is inferred for SmallRye in-memory channels that have no connector property but are referenced by both an `@Incoming` and an `@Outgoing` declaration in the same module.
 
 ## Requirements
 
 - Java 21 or newer
 - Maven 3.9 or newer
+- An MCP-capable client for interactive use
 
 ## Build
 
@@ -33,99 +143,32 @@ The packaged server jar is written to `target/spoon-mcp-server.jar`.
 java -jar target/spoon-mcp-server.jar
 ```
 
-The server reads JSON-RPC over stdio and writes responses to stdout. Stdio messages are newline-delimited JSON-RPC: one complete JSON object per physical line. Configure your MCP client to launch the jar with the command above.
+The server reads JSON-RPC over stdio and writes newline-delimited JSON-RPC responses to stdout. Configure your MCP client to launch the jar with the command above.
 
-For step-by-step install instructions and example MCP client configurations (Claude Desktop, Claude Code, generic stdio clients), see [docs/INSTALL.md](docs/INSTALL.md).
-
-## MCP Tools
-
-- `index_workspace`
-- `list_apps`
-- `find_entrypoints`
-- `find_components`
-- `get_component_dependencies`
-- `infer_containers`
-- `render_mermaid_flowchart`
-- `get_runtime_flow`
-- `render_call_flow`
-- `render_source_overview`
-- `render_dependency_map`
-- `render_component_dependency_diagram`
-- `export_architecture_docs`
-- `export_graph_architecture_poc`
-- `export_graph_data`
-- `export_graph_viewer`
-- `query_architecture_graph`
-- `render_architecture_view`
-- `export_likec4_model`
-- `explain_architecture`
-- `trace_data_flow`
-- `detect_use_cases`
-- `render_use_case_timeline`
-- `render_pipeline`
-
-See `docs/TOOLS.md` for arguments and example payloads.
-
-## MCP Prompts
-
-The server also exposes workflow prompts through `prompts/list` and `prompts/get`:
-
-- `analyze_workspace`
-- `generate_architecture_docs`
-- `investigate_component`
-- `trace_use_case`
-- `find_pipeline`
-- `architecture_view`
-
-These prompts guide clients through multi-tool architecture workflows without duplicating every individual tool description.
-
-`trace_data_flow` records writes to shared state as `store` sinks, and links each
-`store` sink to downstream `DataFlowPath`s that read the same shared field via
-`linkedPathIds` — surfacing cross-entrypoint pipelines (e.g. `@Incoming` consumer →
-in-memory cache → `@Scheduled` / `@Outgoing` producer). The same relation is exposed
-in the property graph as raw `LINKS_TO` sink edges and canonical `WORKFLOW_LINK`
-path-to-path edges, so agents can query workflow continuation directly instead of
-reconstructing it from helper fields.
-
-Messaging entrypoints carry `channelName`, `broker` (`KAFKA`, `MQTT`, `AMQP`,
-`RABBITMQ`, `PULSAR`, `IN_MEMORY`, or `UNKNOWN`), and `topic` (broker-side
-destination resolved from `mp.messaging.*.topic` / `.address` / `.queue.name` /
-`.exchange.name`). `IN_MEMORY` is inferred for SmallRye in-memory channels — those
-that have no `connector` property but are referenced by both an `@Incoming` and an
-`@Outgoing` declaration in the same module — and does not produce an external system.
+For install instructions and example MCP client configurations for Claude Desktop, Claude Code, and generic stdio clients, see [docs/INSTALL.md](docs/INSTALL.md).
 
 ## Cache Backend
 
-The default cache stores the latest architecture model as JSON under `.spoon-mcp-cache/`.
-Graph queries are available through a lazy embedded graph projection. To maintain that
-projection eagerly during cache store/load, enable the graph backend:
+The cache stores the indexed architecture graph as GraphSON under `.spoon-mcp-cache/`. The active workspace pointer lives at `.spoon-mcp-cache/active-workspace.txt`, and each workspace snapshot stores `architecture-graph.v1.graphson` under `.spoon-mcp-cache/workspaces/`.
 
-```sh
-SPOON_MCP_CACHE_BACKEND=graph java -jar target/spoon-mcp-server.jar
-```
+The older JSON model backend has been removed. `SPOON_MCP_CACHE_BACKEND` and `spoonmcp.cache.backend` are no longer used; re-run `index_workspace` after upgrading from an older JSON-backed cache.
 
-The equivalent JVM property is `-Dspoonmcp.cache.backend=graph`.
+## Identity Model
 
-## Identity model
+Components, entrypoints, and dependencies use typed identifiers (`model/ids/`) that serialize as bare strings with no scheme prefix:
 
-Components, entrypoints, and dependencies use typed identifiers (`model/ids/`) that
-serialize as bare strings — no scheme prefix:
+- `ComponentId`: the fully-qualified class name, e.g. `com.example.BillingService`.
+- `EntrypointId`: `<qualifiedName>#<method>[:<suffix>]`, e.g. `com.example.OrderResource#create:POST:/orders`.
+- `DependencyId`: `<from>-><to>[:<qualifier>]`, e.g. `com.example.A->com.example.B`.
 
-- `ComponentId` — the fully-qualified class name, e.g. `com.example.BillingService`.
-- `EntrypointId` — `<qualifiedName>#<method>[:<suffix>]`, e.g.
-  `com.example.OrderResource#create:POST:/orders`.
-- `DependencyId` — `<from>-><to>[:<qualifier>]`, e.g. `com.example.A->com.example.B`.
-
-This serialized form is what every tool emits and expects as input (including the
-`nodeId`/`fromId`/`toId` arguments of `query_architecture_graph`). Caches written by an
-earlier prefixed convention are not migrated automatically — re-run `index_workspace`
-after upgrading.
+This serialized form is what every tool emits and expects as input, including the `nodeId`, `fromId`, and `toId` arguments of `query_architecture_graph`. Caches written by an earlier prefixed convention are not migrated automatically; re-run `index_workspace` after upgrading.
 
 ## Documentation
 
 - `docs/INSTALL.md`: install, MCP client wiring, and configuration.
-- `docs/TOOLS.md`: MCP tool reference.
+- `docs/TOOLS.md`: MCP tool and prompt reference.
 - `docs/ARCHITECTURE.md`: package responsibilities and data flow.
+- `skills/spoon-understand/`: portable agent workflow pack.
 - `AGENTS.md`: repository guide for coding agents.
 - `examples/jsonrpc/`: example JSON-RPC requests.
 - `llms.txt`: compact index for LLM and agent ingestion.
@@ -147,9 +190,7 @@ mvn versions:display-plugin-updates
 mvn dependency-check:check
 ```
 
-`dependency-check:check` runs the OWASP Dependency-Check and fails on CVEs with CVSS score ≥ 7.
-Set `NVD_API_KEY` or pass `-DnvdApiKey=<key>` for faster NVD data downloads (free key at https://nvd.nist.gov/developers/request-an-api-key).
-Add false positives to `dependency-check-suppressions.xml`.
+`dependency-check:check` runs the OWASP Dependency-Check and fails on CVEs with CVSS score >= 7. Set `NVD_API_KEY` or pass `-DnvdApiKey=<key>` for faster NVD data downloads. Add false positives to `dependency-check-suppressions.xml`.
 
 Generated files such as `target/`, `.spoon-mcp-cache/`, and `dependency-reduced-pom.xml` are intentionally ignored.
 

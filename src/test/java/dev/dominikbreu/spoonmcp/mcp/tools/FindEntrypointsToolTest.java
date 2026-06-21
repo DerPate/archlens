@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.spoonmcp.cache.ModelCache;
 import dev.dominikbreu.spoonmcp.model.*;
+import dev.dominikbreu.spoonmcp.model.ids.AppId;
 import dev.dominikbreu.spoonmcp.model.ids.ComponentId;
 import dev.dominikbreu.spoonmcp.model.ids.EntrypointId;
 import java.util.List;
@@ -101,6 +102,62 @@ class FindEntrypointsToolTest {
         String result = tool.execute(Map.of("path", "/account"));
         assertThat(result).contains("/account");
         assertThat(result).doesNotContain("/customer");
+    }
+
+    // ── appId filter ──────────────────────────────────────────────────────────
+
+    @Test
+    void filterByAppId_exactId_returnsOnlyEntrypointsOwnedByThatApp() {
+        String result = twoAppTool().execute(Map.of("appId", "app:customer-service"));
+        assertThat(result).contains("/customer");
+        assertThat(result).doesNotContain("/account");
+    }
+
+    @Test
+    void filterByAppId_partialIdWithoutPrefix_stillMatches() {
+        // "app:" prefix and exact id shouldn't be required — same partial-match
+        // convention as the rest of graph search (query_architecture_graph find_nodes).
+        String result = twoAppTool().execute(Map.of("appId", "customer-service"));
+        assertThat(result).contains("/customer");
+        assertThat(result).doesNotContain("/account");
+    }
+
+    private static FindEntrypointsTool twoAppTool() {
+        ArchitectureModel twoAppModel = new ArchitectureModel("test");
+
+        Component customerCtrl = new Component();
+        customerCtrl.id = ComponentId.of("CustomerController");
+        customerCtrl.name = "CustomerController";
+        customerCtrl.type = ComponentType.REST_RESOURCE;
+        customerCtrl.technology = "spring";
+
+        Component accountCtrl = new Component();
+        accountCtrl.id = ComponentId.of("AccountController");
+        accountCtrl.name = "AccountController";
+        accountCtrl.type = ComponentType.REST_RESOURCE;
+        accountCtrl.technology = "spring";
+
+        twoAppModel.components.addAll(List.of(customerCtrl, accountCtrl));
+
+        AppEntry customerApp = new AppEntry();
+        customerApp.id = AppId.of("app:customer-service");
+        customerApp.name = "customer-service";
+        customerApp.componentIds.add(customerCtrl.id);
+
+        AppEntry accountApp = new AppEntry();
+        accountApp.id = AppId.of("app:account-service");
+        accountApp.name = "account-service";
+        accountApp.componentIds.add(accountCtrl.id);
+
+        twoAppModel.applications.addAll(List.of(customerApp, accountApp));
+
+        twoAppModel.entrypoints.addAll(List.of(
+                restEp("CustomerController#getAll:GET", "getAll", "GET", "/customer"),
+                restEp("AccountController#getAll:GET", "getAll", "GET", "/account")));
+
+        ModelCache twoAppCache = new ModelCache(null);
+        twoAppCache.indexInMemory(twoAppModel);
+        return new FindEntrypointsTool(twoAppCache);
     }
 
     // ── combined filters ──────────────────────────────────────────────────────

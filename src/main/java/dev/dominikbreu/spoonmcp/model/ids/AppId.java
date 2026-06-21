@@ -4,11 +4,13 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
- * Typed identity for an application or Maven module (the {@code "app:<moduleName>"}
- * identifier). Shared by {@code AppEntry}, a component's owning module, interface and
- * container ownership, and deployment membership. Serializes as its bare string value.
+ * Typed identity for an application or Maven module. Shared by {@code AppEntry}, a
+ * component's owning module, interface and container ownership, and deployment
+ * membership. Serializes as the bare module name (no {@code "app:"} prefix), matching
+ * the no-prefix convention used by {@code EntrypointId}, {@code DependencyId}, and the
+ * other typed ids.
  *
- * @param value the serialized {@code "app:<moduleName>"} string
+ * @param value the serialized module-name string
  */
 public record AppId(String value) {
 
@@ -36,7 +38,7 @@ public record AppId(String value) {
     /**
      * Serializes this id as its raw string value.
      *
-     * @return the raw {@code "app:<moduleName>"} string
+     * @return the bare module-name string
      */
     @JsonValue
     public String serialize() {
