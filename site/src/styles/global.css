@@ -108,10 +108,14 @@ main { overflow: hidden; }
   text-decoration: none;
 }
 
+.logo-picture,
 .logo-mark {
   display: block;
   width: 36px;
   height: 36px;
+}
+
+.logo-mark {
   object-fit: contain;
 }
 .instrument-ring {
