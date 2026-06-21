@@ -278,42 +278,52 @@ pre {
 }
 
 .graph-card {
-  position: relative;
   min-height: 280px;
   overflow: hidden;
 }
 
-.graph-node {
-  position: absolute;
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  min-width: 112px;
-  min-height: 44px;
-  padding: 0 0.9rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--mantle);
-  color: var(--text);
-  font-size: 0.85rem;
+.graph-preview {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 280px;
+}
+
+.graph-grid path {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 8%, transparent);
+  stroke-width: 1;
+}
+
+.graph-edges path {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.graph-edges path:nth-child(1) { stroke: var(--teal); }
+.graph-edges path:nth-child(2) { stroke: var(--blue); }
+.graph-edges path:nth-child(3) { stroke: var(--lavender); }
+
+.graph-node-svg rect {
+  fill: var(--mantle);
+  stroke: var(--border);
+  stroke-width: 1.5;
+  rx: 0;
+}
+
+.graph-node-svg text {
+  fill: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 17px;
   font-weight: 760;
+  text-anchor: middle;
 }
 
-.graph-node-entry { top: 36px; left: 34px; border-color: color-mix(in srgb, var(--teal) 55%, var(--border)); }
-.graph-node-service { top: 110px; right: 42px; border-color: color-mix(in srgb, var(--blue) 55%, var(--border)); }
-.graph-node-store { bottom: 38px; left: 54px; border-color: color-mix(in srgb, var(--peach) 55%, var(--border)); }
-.graph-node-external { bottom: 44px; right: 50px; border-color: color-mix(in srgb, var(--lavender) 55%, var(--border)); }
-
-.graph-line {
-  position: absolute;
-  height: 1px;
-  background: linear-gradient(90deg, var(--teal), var(--blue));
-  transform-origin: left center;
-}
-
-.graph-line-a { width: 220px; top: 90px; left: 124px; transform: rotate(18deg); }
-.graph-line-b { width: 210px; top: 168px; right: 116px; transform: rotate(145deg); }
-.graph-line-c { width: 180px; bottom: 72px; left: 170px; transform: rotate(-4deg); }
+.graph-node-entry rect { stroke: color-mix(in srgb, var(--teal) 65%, var(--border)); }
+.graph-node-service rect { stroke: color-mix(in srgb, var(--blue) 65%, var(--border)); }
+.graph-node-store rect { stroke: color-mix(in srgb, var(--peach) 65%, var(--border)); }
+.graph-node-external rect { stroke: color-mix(in srgb, var(--lavender) 65%, var(--border)); }
 
 .proof-strip {
   border-block: 1px solid var(--border-soft);
