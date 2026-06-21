@@ -1,9 +1,9 @@
-# Spoon MCP Project Website Design
+# ArchLens Project Website Design
 
 ## Goal
 
-Create a polished single-page project website for Spoon MCP Server that can be
-hosted on a subdomain such as `spoon.dominikbreu.dev`. The page should showcase
+Create a polished single-page project website for ArchLens that can be
+hosted on a subdomain such as `archlens.dominikbreu.dev`. The page should showcase
 the project as a strong personal engineering artifact while still giving
 technical visitors a fast path to installation, documentation, and examples.
 
@@ -13,16 +13,21 @@ audience is developers and AI-agent users who want practical setup information.
 
 ## Positioning
 
-Spoon MCP Server should be presented as an architecture-understanding tool for
-real Java systems. It is not a generic code graph viewer. The page should make
-clear that the project indexes Java workspaces with Spoon, projects the result
-into a TinkerGraph-backed architecture graph, and exposes MCP tools for
-answering questions about entrypoints, components, runtime paths, data movement,
-workflow handoffs, impact, and visual exports.
+ArchLens should be presented as an independent architecture-understanding tool
+for real Java systems. It is MCP architecture analysis built on Spoon, not an
+official Spoon product and not a generic code graph viewer. The page should make
+clear that ArchLens indexes Java workspaces with Spoon, projects the result into
+a TinkerGraph-backed architecture graph, and exposes MCP tools for answering
+questions about entrypoints, components, runtime paths, data movement, workflow
+handoffs, impact, and visual exports.
 
-Suggested headline direction:
+Recommended naming and headline direction:
 
+> ArchLens
+>
 > Architecture understanding for real Java systems.
+>
+> MCP architecture analysis built on Spoon.
 
 Supporting copy should emphasize source-derived facts, agent-friendly MCP
 workflows, and production-style Java architectures such as Spring, Quarkus,
@@ -77,16 +82,18 @@ Suggested links:
 - GitHub
 
 The logo can reuse the existing node/arc visual language from the personal
-site, adapted only if needed for the project subdomain.
+site, adapted only if needed for the project subdomain. The subdomain should
+prefer the independent project name, for example `archlens.dominikbreu.dev`.
 
 ### Hero
 
 The hero should immediately name the project:
 
-- Eyebrow: `Spoon MCP Server`
+- Eyebrow: `ArchLens`
 - Headline: `Architecture understanding for real Java systems.`
 - Supporting text: explain that it indexes Java workspaces with Spoon and
-  exposes MCP tools for architecture exploration.
+  exposes MCP tools for architecture exploration. The text should describe
+  Spoon as the analysis foundation, not as the owner or brand of the project.
 - Primary action: `View on GitHub`
 - Secondary action: `Read install guide`
 
