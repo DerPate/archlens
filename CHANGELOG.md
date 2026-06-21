@@ -3,6 +3,325 @@
 All notable changes to this project will be appended by JReleaser.
 
 <!-- JRELEASER_CHANGELOG_APPEND - Do not remove or modify this section -->
+## [spoon-mcp-server-1.3.0]
+
+## Changelog
+
+### Features
+- add API docs landing page via USE_MDFILE_AS_MAINPAGE
+- add doxygen-awesome extensions per official customization guide
+- set nav-logo-dark.svg as Doxygen project logo
+- add Doxygen dark theme config and API doc generation (tasks 9-10)
+- add four tool deep-dive pages (tasks 5-8)
+- add tool card grid and API teaser section
+- add quick-start section
+- add CSS utility classes for docs sections
+- add Tools and API nav links
+- switch to standalone dashboard when launched in an interactive terminal
+- support light and dark nav logos
+- add JLine-based standalone dashboard terminal
+- support light and dark favicons
+- add DashboardState and pure-function two-pane renderer
+- add ReplEngine dispatching REPL commands against the MCP tool registry
+- add REPL command line parser
+- capture real Gremlin traversal text in GraphQuery's traversal-building methods
+- add TraversalRecorder for capturing real Gremlin traversal text
+- add ArchLens project website
+- add ArchLens site layout
+- use condition expression text as branch edge label instead of 'then'/'else'
+- render conditional topology edges as dashed Mermaid arrows
+- complete graph rework — zero cache.load() in tools
+- route tool resolution and traversal through graph
+- register graph viewer export tool
+- add graph viewer export tool
+- render self-contained graph viewer html
+- expose architecture graph snapshot
+- dynamic views for message broker flows
+- resolve interface-typed injection fields and force injection targets into LikeC4 view
+- typed-ID graph API and LikeC4 workspace projector rewrite
+- introduce AppId across the module/app namespace
+- introduce GraphNodeId; type ArchitectureGraph vertex/edge ids
+- introduce SourceFactId; type source-fact id/typeId/methodId/ownerId
+- introduce FieldAccessId; migrate FieldAccess.id from String
+- introduce UseCaseId; migrate UseCase.id from String
+- introduce DependencyId record; add EntrypointId.of() factory
+- migrate Dependency.fromId/toId and FlowEdge.fromId/toId to ComponentId
+- introduce typed ComponentId, MethodRef, EntrypointId, FieldRef, FieldBinding records
+- generate likec4 starter workspace
+
+### Fixes
+- add default case to nodeKind switch to satisfy SpotBugs SW_SWITCH_NO_DEFAULT
+- replace DataFlowNodeNode::id method reference with explicit lambda to resolve IDE inspection
+- replace unchecked String casts with instanceof pattern matching in MermaidPipelineRenderer
+- let doxygen-awesome handle layout, only override brand colors
+- update Doxyfile and header template for Doxygen 1.17.0
+- force dark theme over doxygen hardcoded backgrounds
+- fix doxygen-awesome-css layout to match showcase
+- correct color tokens and Doxyfile Java optimization setting
+- resolve spotless/javadoc/spotbugs gate failures on plan-touched files
+- restore favicon media mapping order
+- swap favicon color-scheme mapping
+- connect ArchLens hero graph preview
+- parenthesize negated condition in else-branch labels
+- quote edge labels in Mermaid pipe syntax to handle == ! () in conditions
+- omit empty label pipes on unlabeled topology edges
+- serialize typed IDs to string when storing as graph vertex properties
+- drop ReDoS-flagged trim regex in LikeC4 identifier (S5852)
+- resolve sonar bugs, add jacoco coverage, modernize tests
+- serialize() ComponentId in call/outbound edge ids instead of toString()
+- normalize legacy-prefixed node ids in query_architecture_graph
+- normalize prefixes in ComponentId.of; drop comp: from objectflow targets
+- accept legacy ep-prefixed entrypoint refs in RuntimeFlowInferrer
+- accept legacy comp-prefixed component refs in resolver tools
+- raise render_architecture_view default maxNodes from 18 to 500
+- suppress shadowed cross-component store writes in pipeline linker
+- compare EntrypointId by value in DetectUseCasesTool filter
+- exclude AvoidInlineConditionals from Cleanthat
+- stitch scheduler→Emitter.send()→consumer leg when sink broker is null (#16)
+- emit STORE sink when put() value is a method invocation or param is the store key (#15)
+- stitch consumer→store→scheduler pipelines when write is via helper method (#14)
+
+### Documentation
+- rename project website spec to ArchLens
+- add Spoon MCP website design spec
+- remove [Unreleased] section from CHANGELOG — JReleaser owns it
+- align all documents with v2/v3 graph rework
+- record JDK 25 + SonarQube cleanup under Unreleased
+- sync ARCHITECTURE dependency ids; add Identity model to README
+- sync tool id examples to unprefixed typed-id form
+- add typed ID model implementation plan
+
+### Maintenance
+- add site assets, dev scripts, and gitignore rules for generated/tool artifacts
+- remove nav logo frame
+- replace hero eyebrow with wordmark
+- add icons to footer links
+- remove hero compass backdrop
+- remove terminal preview watermark
+- add compass watermark to terminal preview
+- make ArchLens marks swappable
+- lean into ArchLens compass imagery
+- tighten ArchLens hero spacing
+- replace ArchLens nav logo
+- use ArchLens monogram favicon
+- simplify ArchLens favicon
+- soften ArchLens orange accent
+- apply ArchLens brand system
+- add ArchLens site smoke tests
+- scaffold ArchLens static site
+- add failing test for conditional topology edge rendering
+- replace reachableFromEntrypoints BFS with Gremlin aggregate
+- push filters into Gremlin predicates, lowercase enum storage
+- extract sort constants, remove incidental ordering, Gremlin iteration
+- replace manual BFS with Gremlin traversal DSL
+- replace Map<String,Object> GraphNode with sealed typed records
+- format graph viewer changes
+- extract Spans.traced() helper; flatten nested span try-blocks
+- use var for unnamed try-resource variables (S7466)
+- unnamed variables for unused try-resources and catch bindings
+- JDK 25 + unnamed variables for ignored exceptions
+- method reference StringUtils::isNotBlank in maven packaging filter (S1612)
+- adopt Java 21 sequenced-collection + emptiness idioms
+- centralize Mermaid label escaping into one helper
+- adopt commons-lang3 StringUtils for null-safe string checks
+- adopt Math.clamp and record patterns (Java 21, S6885/S6878)
+- type DependencyCondenser adjacency by ComponentId
+- type component/entrypoint/dependency maps in extractor + tool layer
+- type entrypoint maps by EntrypointId in workflow layer
+- type component maps by ComponentId in renderers
+- single continue in dependency-walk loop (S135)
+- clear new-code Sonar violations from the complexity work
+- apply spotless formatting to refactored files
+- split three over-threshold extracted helpers (S3776 cleanup)
+- reduce complexity in merger subsystem (S3776)
+- reduce complexity in rendering/reporting subsystem (S3776)
+- reduce complexity in extraction subsystem (S3776)
+- reduce complexity in graph projection subsystem (S3776)
+- simplify PipelineGraphBuilder.incomingSink via kind mapping (S3776)
+- reduce complexity in workflow/pipeline subsystem (S3776)
+- reduce complexity in call-graph subsystem (S3776)
+- finish dataflow subsystem complexity (S3776)
+- reduce complexity in dataflow subsystem (S3776)
+- extract remaining duplicated literals (S1192 follow-up)
+- extract duplicated string literals into constants (S1192)
+- cover MCP tool layer and McpServer wiring
+- standardize on Stream.toList() and drop redundant @SuppressWarnings
+- drop legacy comp:/ep:/dep: prefix back-compat
+- verify ModelCache store/load preserves typed ids
+- lock typed-id serialization and legacy round-trip contract
+- add Cleanthat SafeButNotConsensual step to Spotless (v2.25)
+- typed DataFlowTracer visited set + Dependency.idFor factory
+- satisfy spotless and spotbugs gates
+
+
+## Contributors
+We'd like to thank the following people for their contributions:
+Dominik Breu
+
+
+## [spoon-mcp-server-1.2.0]
+
+## Changelog
+
+### Features
+- add httpMethod and path filters to find_entrypoints
+- HTTP-method disambiguation via 'METHOD /path' ref syntax
+- seed call graph extraction from source facts
+- seed object flow from source facts
+- build source facts during extraction
+- trace source fact indexing phases
+- index source invocation assignment return and injection facts
+- index source inheritance implementations
+- build source type member and annotation facts
+- add immutable source fact index
+- add source fact model skeleton
+- add ModelIndex and typed adjacency/index types
+- add ComponentIndex and ExtractionContext for typed extraction state
+- add resolvedLiteralArgs to CallEdge, totalLinks to WorkflowGraph, and expand cache/objectflow tests
+- add OTel spans to callgraph dataflow spring and objectflow extractors
+- instrument PipelineGraphBuilder with OTel spans
+- instrument ArchitectureExtractor with OTel spans
+- add TracingConfig and wire OTel into server startup
+- add StdoutSpanExporter for console tracing output
+- explain missing pipeline links
+- render and expose persistence workflow links
+- link persistence workflow handoffs
+- link messaging data-flow paths by broker topic
+- trace outbound sinks through nested calls
+- extract spring kafka outbound sink sites
+- add pipeline handoff metadata to data-flow sinks
+- retain spring config placeholder provenance
+- consume build metadata and spring
+- extract outbound interfaces
+- extract inbound triggers
+- extract components and rest endpoints
+- resolve bounded application config
+- scan normalized build modules
+- add metadata service and unknown fallback detector
+- detect gradle project metadata
+- detect maven project metadata
+- add build metadata model
+- add workflow and object-flow analysis
+- make architecture view edges visible for all codebases
+- export architecture projections as likec4
+- expose architecture view rendering tool
+- render architecture projections as mermaid
+- project architecture graph into component views
+- add architecture view projection model
+- migrate to official MCP Java SDK and add ToolArgs helper
+- add render_pipeline tool and PipelineChain graph projection (#10)
+- add ownedEntrypointCount and architecturalWeight to component nodes; fix jar naming
+- emit cross-component FieldAccess READ for getter-style shared-state returns
+- vert.x eventbus / websocket / sse / grpc + file & object-storage sinks
+- tier 2 — nested-arg paramMapping, return-flow, killed locals
+- tier 1 — producer field-seed, sourceFieldName, logger denylist
+- infer in-memory channels, resolve topics, link cross-entrypoint stores
+- detect plain-Java main(String[]) methods as MAIN_METHOD entrypoints
+- use-case timeline renderer and doc cleanup
+- call graph extraction, use-case detection, and data-flow tracing
+
+### Fixes
+- prevent false call edges from generic Java API method names; add entrypoint filters and disambiguation
+- prefer exact path match in findEntrypoint; block prefix match for parameterised refs
+- skip capped polymorphic expansion edges in workflow traversal
+- path-prefix matching in trace_data_flow, timeline, and pipeline tools
+- delegate findStoredFlow to inferrer.findEntrypoint in flow tools
+- use path-prefix matching in RuntimeFlowInferrer.findEntrypoint
+- resolve constructor injected service calls
+- collapse tech detection to one annotation pass, run only matching extractor for unknown tech
+- stabilize model cache and graph semantics
+- load detect-use-cases config once instead of twice
+- stabilize mcp tool layer
+- eliminate lifecycle chains and same-entrypoint STORE loops
+- exclude lifecycle CDI observer entrypoints from pipeline chains
+- stop collectReachableRead* from crossing messaging/event-bus edges
+- skip steps[0] in segment loop to eliminate duplicate header node
+- guard null CallEdge fields in propagateStateHandoffThroughCallers
+- propagate STATE_HANDOFF through callers when writer and reader share a component
+- block same-entrypoint store-sink self-stitching in DataFlowTracer
+- include zero-sink MESSAGING_CONSUMER paths in DataFlowTracer result
+- deduplicate pipeline chains with identical entrypoint-ID sequences
+- suppress early-terminating prefix chains from PipelineGraphBuilder
+- selectDiverse caps at one chain per root, keeping the longest
+- filter CDI/main/RMI lifecycle chains from render_pipeline by default
+- improve architecture_view prompt — add index step and warnings guidance
+- diversity-first chain selection in render_pipeline (#11)
+- propagate calleeQualifiedName from OutboundSinkSite to DataFlowSink
+- remove DataFlowPath.paramType — field was never assigned
+- surface Emitter/EventBus send calls as messaging sinks and link downstream consumers (#7)
+- emit store sinks at depth 0 when param is destructured before storing
+- wire jreleaser.dry.run property through Maven plugin configuration
+- set GitHub remote in release checkout before JReleaser runs
+- render branching call flows and trace zero-param entrypoints to sinks
+- improve container-level flowchart and dependency map diagrams
+
+### Documentation
+- describe source fact extractor foundation
+- plan source fact index foundation
+- design source fact index foundation
+- close whole-repo stabilization audit
+- otel tracing implementation plan
+- otel tracing design spec
+- renderer docs and test audit — no findings
+- workflow and pipeline audit — no findings
+- extractor audit — no findings
+- correct F-001 status — false finding
+- record stabilization baseline
+- start whole-repo stabilization audit
+- design whole-repo stabilization pass
+- document pipeline workflow links
+- document spring and gradle extraction
+- design spring gradle extraction
+- teach agents architecture projection workflow
+- fix all 44 missing Javadoc warnings
+- add Known Limitations section for G7 and G9 to ARCHITECTURE.md
+- document render_pipeline empty-linkedPathIds behaviour (D3)
+- fix DataFlowPath/Sink property tables — remove paramType, add calleeQualifiedName/calleeMethod
+- write 1.0.2 changelog and fix jreleaser tag wiring
+- update tool reference, architecture guide, and llms.txt for call graph, use cases, and data-flow tracing
+
+### Maintenance
+- cover multi-segment parameterised paths in pathPrefixMatches and findEntrypoint
+- expose object-flow tracing details
+- reuse CtModel across extraction passes
+- add CtModel build tracing spans
+- extraction pipeline redesign complete, all tests pass
+- two-phase extraction pipeline with single CtModel in memory
+- RuntimeFlowInferrer accepts ModelIndex, eliminates per-entrypoint map rebuilds
+- redesign DataFlowTracer DFS with ModelIndex
+- wire ExtractionContext into CallGraphExtractor, true one-pass MethodScan, remove byComponentId
+- add error recording to child spans in ArchitectureExtractor
+- remove unreachable default branch in TracingConfig switch
+- add opentelemetry-sdk and otlp exporter dependencies
+- reduce AST traversals per method from ~8 to 1 in CallGraphExtractor
+- cover spring pipeline rendering end to end
+- add spring pipeline fixture
+- cover runtime flow chain
+- guard against vacuous pass in storeSinkDoesNotLink test
+- apply spotless import ordering
+- pre-compute path IDs in removePrefixChains, document algorithm
+- remove unused mockito-core dependency
+- fix stale docs, gitignore generated files, commit pending graph improvements
+- add architecture view self-test
+- apply Spotless formatting across all sources
+- bump version to 1.1.0
+- assert calleeMethod value on FILE_OUTBOUND sink (G6)
+- add Form 2 handler-chain fixture and test for Vert.x consumer detection
+- add direct EventBusExtractor unit test for Vert.x consumer detection (G4)
+- tighten WebSocket entrypoint assertion — add path check, use endsWith
+- add WebSocket endpoint detection test and ChatResource fixture (G5)
+- add log read site so denylist test is a genuine regression guard
+- verify Logger fields are excluded from shared-state seeding (G10)
+- replace DataFlowSink.kind String with Kind enum
+- add OWASP dependency-check, fix release pipeline, and update Java version docs
+- replace sequence diagrams with flowchart-based call flow renderer
+
+
+## Contributors
+We'd like to thank the following people for their contributions:
+Dominik Breu
+
+
 ## [spoon-mcp-server-1.2.0]
 
 ## Changelog
