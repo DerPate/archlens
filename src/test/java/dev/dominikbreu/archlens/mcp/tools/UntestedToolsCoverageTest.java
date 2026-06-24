@@ -137,8 +137,7 @@ class UntestedToolsCoverageTest {
         assertThat(new FindComponentsTool(empty).execute(Map.of())).contains("No workspace indexed");
         assertThat(new DetectUseCasesTool(empty).execute(Map.of())).contains("No workspace indexed");
         assertThat(new InferContainersTool(empty).execute(Map.of())).contains("No workspace indexed");
-        assertThat(new CallFlowTool(empty).execute(Map.of("entrypointId", "x")))
-                .contains("No workspace indexed");
+        assertThat(new CallFlowTool(empty).execute(Map.of("entrypointId", "x"))).contains("No workspace indexed");
         assertThat(new RenderUseCaseTimelineTool(empty).execute(Map.of())).contains("No workspace indexed");
         assertThat(new RenderComponentDependencyDiagramTool(empty).execute(Map.of("componentId", "x")))
                 .contains("No workspace indexed");

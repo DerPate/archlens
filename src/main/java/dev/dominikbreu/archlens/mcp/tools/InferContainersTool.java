@@ -37,7 +37,7 @@ public class InferContainersTool {
             if (containers.isEmpty()) return "No containers found. Re-run index_workspace to build containers.";
 
             // Pre-fetch all CONTAINS edges for mapping container → components
-            List<GraphQuery.GraphEdge> containsEdges = graph.findEdges("CONTAINS", Map.of(), 10000);
+            List<GraphQuery.GraphEdge> containsEdges = graph.findEdges("CONTAINS", Map.of(), 10_000);
 
             StringBuilder sb = new StringBuilder();
             sb.append("Containers (").append(containers.size()).append("):\n\n");
@@ -50,7 +50,11 @@ public class InferContainersTool {
                     sb.append("App: ").append(appId).append("\n");
                     currentApp = appId;
                 }
-                sb.append("  [").append(cn.name()).append("] id=").append(cn.id().serialize()).append("\n");
+                sb.append("  [")
+                        .append(cn.name())
+                        .append("] id=")
+                        .append(cn.id().serialize())
+                        .append("\n");
                 sb.append("    Technology: ").append(cn.technology()).append("\n");
                 sb.append("    Derived from: ").append(cn.derivedFrom()).append("\n");
 
@@ -59,10 +63,14 @@ public class InferContainersTool {
                         .toList();
                 sb.append("    Components (").append(memberEdges.size()).append("):\n");
                 for (GraphQuery.GraphEdge edge : memberEdges) {
-                    GraphQuery.GraphNode comp = graph.component(ComponentId.of(edge.toId().value()));
+                    GraphQuery.GraphNode comp =
+                            graph.component(ComponentId.of(edge.toId().value()));
                     if (comp instanceof GraphQuery.ComponentNode c) {
-                        sb.append("      - [").append(c.type() != null ? c.type().name() : "?").append("] ")
-                                .append(c.name()).append("\n");
+                        sb.append("      - [")
+                                .append(c.type() != null ? c.type().name() : "?")
+                                .append("] ")
+                                .append(c.name())
+                                .append("\n");
                     }
                 }
                 sb.append("\n");

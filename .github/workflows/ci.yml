@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Java 25
+        uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+        with:
+          java-version: '25'
+          distribution: temurin
+          cache: maven
+
+      - name: Build and test
+        run: mvn verify -B -q
+
+      - name: Cache OWASP dependency-check data
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        with:
+          path: ~/.cache/dependency-check
+          key: ${{ runner.os }}-dependency-check-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-dependency-check-
+
+      - name: OWASP dependency check
+        run: >-
+          mvn dependency-check:check -B -q
+          -DdataDirectory=$HOME/.cache/dependency-check
+          -DnvdValidForHours=24
+          -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        continue-on-error: true

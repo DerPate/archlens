@@ -64,8 +64,7 @@ public class RenderUseCaseTimelineTool {
     }
 
     private boolean flowMatchesName(
-            GraphQuery.RuntimeFlowNode f, GraphQuery graph,
-            String methodFilter, String pathFilter, String lower) {
+            GraphQuery.RuntimeFlowNode f, GraphQuery graph, String methodFilter, String pathFilter, String lower) {
         GraphQuery.GraphNode epNode = f.entrypointId() != null ? graph.entrypoint(f.entrypointId()) : null;
         if (!(epNode instanceof GraphQuery.EntrypointNode ep)) {
             return f.entrypointId() != null

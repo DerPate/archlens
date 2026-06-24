@@ -85,14 +85,13 @@ public class ExportArchitectureDocsTool {
         Map<String, List<GraphQuery.ComponentNode>> byType = graph.allComponentNodes().stream()
                 .sorted(Comparator.comparing(GraphQuery.ComponentNode::name))
                 .collect(Collectors.groupingBy(
-                        c -> c.type() != null ? c.type().name() : "UNKNOWN",
-                        LinkedHashMap::new,
-                        Collectors.toList()));
+                        c -> c.type() != null ? c.type().name() : "UNKNOWN", LinkedHashMap::new, Collectors.toList()));
         for (Map.Entry<String, List<GraphQuery.ComponentNode>> entry : byType.entrySet()) {
             sb.append("### ").append(entry.getKey()).append("\n\n");
             for (GraphQuery.ComponentNode c : entry.getValue()) {
                 sb.append("- `").append(c.qualifiedName()).append("`");
-                if (c.technology() != null) sb.append(" (").append(c.technology()).append(")");
+                if (c.technology() != null)
+                    sb.append(" (").append(c.technology()).append(")");
                 sb.append("\n");
             }
             sb.append("\n");
@@ -105,11 +104,18 @@ public class ExportArchitectureDocsTool {
         sb.append("## Dependency Details\n\n");
         for (GraphQuery.GraphEdge dep : graph.dependencyEdges()) {
             Map<String, Object> p = dep.properties();
-            sb.append("- `").append(dep.fromId().value()).append("` -> `")
-                    .append(dep.toId().value()).append("`")
-                    .append(" (").append(p.getOrDefault("kind", "")).append(", ")
-                    .append(p.getOrDefault("derivedFrom", "")).append(", evidence-score=")
-                    .append(p.getOrDefault("weight", "")).append(")\n");
+            sb.append("- `")
+                    .append(dep.fromId().value())
+                    .append("` -> `")
+                    .append(dep.toId().value())
+                    .append("`")
+                    .append(" (")
+                    .append(p.getOrDefault("kind", ""))
+                    .append(", ")
+                    .append(p.getOrDefault("derivedFrom", ""))
+                    .append(", evidence-score=")
+                    .append(p.getOrDefault("weight", ""))
+                    .append(")\n");
         }
         return sb.toString();
     }

@@ -31,7 +31,8 @@ class MermaidUseCaseTimelineRendererTest {
     void containsSectionForEachFlow() {
         var r1 = build("ep1", 2);
         var r2 = build("ep2", 2);
-        List<GraphQuery.RuntimeFlowNode> flows = List.of(r1.flows().get(0), r2.flows().get(0));
+        List<GraphQuery.RuntimeFlowNode> flows =
+                List.of(r1.flows().get(0), r2.flows().get(0));
         // Both graphs use separate models; use r1.graph() which has ep1's flow
         // To combine, build a model with both flows
         ArchitectureModel m = new ArchitectureModel("test");
@@ -40,7 +41,8 @@ class MermaidUseCaseTimelineRendererTest {
         GraphQuery graph = GraphQuery.from(m);
         List<GraphQuery.RuntimeFlowNode> allFlows = graph.allRuntimeFlows();
         String out = renderer.render(allFlows, graph, 5);
-        assertThat(out.lines().filter(l -> l.trim().startsWith("section")).count()).isEqualTo(2);
+        assertThat(out.lines().filter(l -> l.trim().startsWith("section")).count())
+                .isEqualTo(2);
     }
 
     @Test
