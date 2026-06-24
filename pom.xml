@@ -32,7 +32,7 @@
         <otel.version>1.40.0</otel.version>
         <tinkerpop.version>3.8.1</tinkerpop.version>
         <jreleaser.version>1.23.0</jreleaser.version>
-        <jline.version>3.27.1</jline.version>
+        <jline.version>4.2.1</jline.version>
     </properties>
 
     <dependencies>
