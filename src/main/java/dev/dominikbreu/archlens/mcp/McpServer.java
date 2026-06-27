@@ -132,18 +132,21 @@ public class McpServer {
 
         specs.add(toolSpec(
                 "index_workspace",
+                "Index Workspace",
                 "Analyze one or more Java project roots and build the internal architecture model.",
                 schema().reqArray("paths", TYPE_STRING, "Project root directory paths to analyze"),
                 indexTool::execute));
 
         specs.add(toolSpec(
                 "list_apps",
+                "List Applications",
                 "List recognized applications, modules, and their packaging types.",
                 schema(),
                 listAppsTool::execute));
 
         specs.add(toolSpec(
                 "find_entrypoints",
+                "Find Entrypoints",
                 "Return architecturally relevant entry points: REST endpoints, JMS/messaging consumers, schedulers, EJB methods, CDI event observers, Vert.x EventBus consumers, WebSocket/SSE/gRPC endpoints, and more. All filters are combinable.",
                 schema().opt(APP_ID, TYPE_STRING, APP_ID_DESCRIPTION)
                         .opt(
@@ -162,6 +165,7 @@ public class McpServer {
 
         specs.add(toolSpec(
                 "find_components",
+                "Find Components",
                 "Return architecture-relevant components (services, repositories, EJBs, entities, etc.).",
                 schema().opt(APP_ID, TYPE_STRING, APP_ID_DESCRIPTION)
                         .opt(
@@ -173,6 +177,7 @@ public class McpServer {
 
         specs.add(toolSpec(
                 "get_component_dependencies",
+                "Get Component Dependencies",
                 "Return relevant dependencies for a component, with optional depth limit and condensation of non-architectural intermediaries.",
                 schema().opt(
                                 "componentId",
@@ -185,12 +190,14 @@ public class McpServer {
 
         specs.add(toolSpec(
                 "infer_containers",
+                "Infer Containers",
                 "Group components into logical containers (api / service / repository / domain / messaging / scheduling).",
                 schema().opt(APP_ID, TYPE_STRING, APP_ID_DESCRIPTION),
                 containersTool::execute));
 
         specs.add(toolSpec(
                 "render_mermaid_flowchart",
+                "Render Mermaid Flowchart",
                 "Render a Mermaid flowchart for static architecture views (system / container / component level).",
                 schema().opt(APP_ID, TYPE_STRING, APP_ID_DESCRIPTION)
                         .opt(
@@ -201,6 +208,7 @@ public class McpServer {
 
         specs.add(toolSpec(
                 "call_flow",
+                "Call Flow",
                 "Return the runtime call flow for an entry point: ordered steps and a Mermaid flowchart. Component shapes reflect architectural role (cylinder=repository, parallelogram=http-client, etc.). Edge labels show the actual called method name.",
                 schema().opt(ENTRYPOINT_ID, TYPE_STRING, "Entrypoint ID (from find_entrypoints)")
                         .opt(
@@ -211,6 +219,7 @@ public class McpServer {
 
         specs.add(toolSpec(
                 "render_source_overview",
+                "Render Source Overview",
                 "Render a package-aware Mermaid source overview with components and dependency edges.",
                 schema().opt(
                                 "maxComponentsPerPackage",
@@ -220,12 +229,14 @@ public class McpServer {
 
         specs.add(toolSpec(
                 "render_dependency_map",
+                "Render Dependency Map",
                 "Render an aggregated Mermaid dependency map grouped by source responsibility.",
                 schema(),
                 dependencyMapTool::execute));
 
         specs.add(toolSpec(
                 "render_component_dependency_diagram",
+                "Render Component Dependency Diagram",
                 "Render a focused Mermaid dependency diagram for one component.",
                 schema().opt("componentId", TYPE_STRING, "Component ID")
                         .opt("name", TYPE_STRING, "Component simple name or partial qualified name")
@@ -234,6 +245,7 @@ public class McpServer {
 
         specs.add(toolSpec(
                 "export_architecture_docs",
+                "Export Architecture Docs",
                 "Write Markdown architecture documentation with MCP-generated Mermaid diagrams.",
                 schema().opt("outputPath", TYPE_STRING, "Output Markdown path (default docs/GENERATED_ARCHITECTURE.md)")
                         .opt(
@@ -244,6 +256,7 @@ public class McpServer {
 
         specs.add(toolSpec(
                 "export_graph_architecture_poc",
+                "Export Graph Architecture POC",
                 "Write a graph-centric architecture POC document with graph metadata, property examples, and MCP query samples.",
                 schema().opt(
                                 "outputPath",
@@ -257,6 +270,7 @@ public class McpServer {
 
         specs.add(toolSpec(
                 "export_graph_data",
+                "Export Graph Data",
                 "Write architecture graph JSON for standalone visual graph viewers, including raw snapshot data and viewer-ready projections.",
                 schema().opt("outputPath", TYPE_STRING, "Output JSON path (default docs/GRAPH_DATA.json)")
                         .opt("limit", TYPE_INTEGER, "Maximum graph nodes to export (default 5000)"),
@@ -264,6 +278,7 @@ public class McpServer {
 
         specs.add(toolSpec(
                 "export_graph_viewer",
+                "Export Graph Viewer",
                 "Write a self-contained HTML viewer using the same graph export payload as export_graph_data.",
                 schema().opt("outputPath", TYPE_STRING, "Output HTML path (default docs/GRAPH_VIEWER.html)")
                         .opt("limit", TYPE_INTEGER, "Maximum graph nodes to export (default 5000)"),
@@ -271,6 +286,7 @@ public class McpServer {
 
         specs.add(toolSpec(
                 "query_architecture_graph",
+                "Query Architecture Graph",
                 "Query the architecture as a graph: summary, node search, neighborhoods, paths, or impact slices.",
                 schema().opt(
                                 "action",
@@ -340,6 +356,7 @@ public class McpServer {
 
         specs.add(toolSpec(
                 "trace_data_flow",
+                "Trace Data Flow",
                 "Trace how entrypoint parameters flow through the call graph to sinks (persistence, messaging, http-outbound, event-bus, store, file-outbound, object-storage). Requires call-graph data from index_workspace.",
                 schema().opt(ENTRYPOINT_ID, TYPE_STRING, "Filter by entrypoint ID (partial match)")
                         .opt(
@@ -355,6 +372,7 @@ public class McpServer {
 
         specs.add(toolSpec(
                 "render_use_case_timeline",
+                "Render Use Case Timeline",
                 "Render a Mermaid gantt chart showing sequential execution steps across use cases. Each use case is a section; each component hop is a task bar positioned by call depth. Useful for comparing execution depth and component involvement across entry points.",
                 schema().opt(ENTRYPOINT_ID, TYPE_STRING, "Filter to a single use case by entrypoint ID")
                         .opt(
@@ -367,6 +385,7 @@ public class McpServer {
 
         specs.add(toolSpec(
                 "render_pipeline",
+                "Render Pipeline",
                 "Render an end-to-end pipeline diagram by stitching data-flow paths across entrypoints via typed workflow links (state handoffs, messaging consumers, event-bus consumers). Produces a single connected Mermaid flowchart per chain rather than separate per-entrypoint diagrams.",
                 schema().opt(
                                 ENTRYPOINT_NAME,
@@ -386,6 +405,7 @@ public class McpServer {
 
         specs.add(toolSpec(
                 "detect_use_cases",
+                "Detect Use Cases",
                 "Detect business use cases from indexed entrypoints and their call chains. Uses call-graph data when available; falls back to injection-dependency traversal.",
                 schema().opt(
                                 "configFile",
@@ -397,6 +417,7 @@ public class McpServer {
 
         specs.add(toolSpec(
                 "render_architecture_view",
+                "Render Architecture View",
                 "Render a projection-first architecture view from the indexed graph. Start with view=component for C4-style component views. Prioritizes workflow-relevant components over utility fan-in noise.",
                 schema().opt("app", TYPE_STRING, APP_NAME_OR_ID)
                         .opt("view", TYPE_STRING, "View kind: component")
@@ -405,6 +426,7 @@ public class McpServer {
 
         specs.add(toolSpec(
                 "export_likec4_model",
+                "Export LikeC4 Model",
                 "Export the indexed architecture graph as LikeC4-style model text. Supports workspace (default) or component views for loading into LikeC4 tooling or providing structured LLM context.",
                 schema().opt("app", TYPE_STRING, APP_NAME_OR_ID)
                         .opt("view", TYPE_STRING, "View kind: workspace or component (default workspace)")
@@ -508,9 +530,14 @@ public class McpServer {
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private McpServerFeatures.SyncToolSpecification toolSpec(
-            String name, String description, SchemaBuilder schema, Function<Map<String, Object>, String> handler) {
+            String name,
+            String title,
+            String description,
+            SchemaBuilder schema,
+            Function<Map<String, Object>, String> handler) {
 
         McpSchema.Tool tool = McpSchema.Tool.builder(name, schema.build())
+                .title(title)
                 .description(description)
                 .build();
 
