@@ -57,10 +57,7 @@ class GraphStore {
 
     String serializeGraphSON() throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        graph.io(GraphSONIo.build(GraphSONVersion.V3_0))
-                .writer()
-                .create()
-                .writeGraph(out, graph);
+        graph.io(GraphSONIo.build(GraphSONVersion.V3_0)).writer().create().writeGraph(out, graph);
         return out.toString(StandardCharsets.UTF_8);
     }
 
@@ -76,10 +73,7 @@ class GraphStore {
     static GraphStore deserializeGraphSON(String json) throws Exception {
         GraphStore store = new GraphStore();
         ByteArrayInputStream in = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
-        store.graph.io(GraphSONIo.build(GraphSONVersion.V3_0))
-                .reader()
-                .create()
-                .readGraph(in, store.graph);
+        store.graph.io(GraphSONIo.build(GraphSONVersion.V3_0)).reader().create().readGraph(in, store.graph);
         store.g = store.graph.traversal();
         store.graph.vertices().forEachRemaining(v -> store.verticesById.put(GraphNodeId.of(v.id().toString()), v));
         store.projected = true;

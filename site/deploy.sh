@@ -18,18 +18,26 @@ echo "Deploying archlens site to ${VPS_USER_HOST}:${REMOTE_PATH}"
 echo ""
 
 echo "📚 Generating API docs (Doxygen)..."
+REPO_ROOT="$(dirname "$0")/.."
+BUNDLED_DOXYGEN="$(ls "$REPO_ROOT"/doxygen-*.linux.bin.tar.gz 2>/dev/null | sort -V | tail -1)"
+if [ -z "${DOXYGEN:-}" ] && [ -n "$BUNDLED_DOXYGEN" ]; then
+    echo "  Extracting bundled $(basename "$BUNDLED_DOXYGEN")..."
+    DOXYGEN_TMP="$(mktemp -d)"
+    tar -xzf "$BUNDLED_DOXYGEN" -C "$DOXYGEN_TMP"
+    DOXYGEN="$(find "$DOXYGEN_TMP" -name "doxygen" -type f | head -1)"
+fi
 DOXYGEN_BIN="${DOXYGEN:-doxygen}"
 if ! command -v "$DOXYGEN_BIN" &>/dev/null; then
     echo "⚠️  doxygen not found — skipping API docs (set DOXYGEN=/path/to/doxygen or install doxygen)"
 else
-    # Run from repo root so Doxyfile paths resolve correctly
-    (cd "$(dirname "$0")/.." && "$DOXYGEN_BIN" Doxyfile)
+    (cd "$REPO_ROOT" && "$DOXYGEN_BIN" Doxyfile)
     if [ $? -ne 0 ]; then
         echo "❌ Doxygen generation failed!"
         exit 1
     fi
     echo "✅ API docs generated to public/api/"
 fi
+[ -n "${DOXYGEN_TMP:-}" ] && rm -rf "$DOXYGEN_TMP"
 echo ""
 
 echo "📦 Building prod bundle..."

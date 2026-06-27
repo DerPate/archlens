@@ -65,8 +65,7 @@ class ArchitectureExtractorTest extends ExtractorTestBase {
                         && "boot-jar".equals(app.packagingType));
         // AppId serializes as the bare module name now, matching the no-prefix convention
         // used by EntrypointId/DependencyId/DataFlowPathId — no "app:" prefix.
-        assertThat(model.applications)
-                .anyMatch(app -> "gradle-springboot-sample".equals(app.id.serialize()));
+        assertThat(model.applications).anyMatch(app -> "gradle-springboot-sample".equals(app.id.serialize()));
         assertThat(model.components)
                 .anyMatch(
                         component -> "OrderController".equals(component.name) && "spring".equals(component.technology));

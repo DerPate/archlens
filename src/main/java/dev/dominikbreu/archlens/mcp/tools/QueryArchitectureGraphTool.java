@@ -192,8 +192,7 @@ public class QueryArchitectureGraphTool {
                         in.componentId());
             case GraphQuery.ContainerNode cn ->
                 appendFields(sb, "technology", cn.technology(), "derivedFrom", cn.derivedFrom(), "appId", cn.appId());
-            case GraphQuery.ExternalSystemNode es ->
-                appendFields(sb, "kind", es.kind(), "technology", es.technology());
+            case GraphQuery.ExternalSystemNode es -> appendFields(sb, "kind", es.kind(), "technology", es.technology());
             case GraphQuery.RuntimeFlowNode rf ->
                 appendFields(sb, "entrypointId", rf.entrypointId(), "stepCount", rf.stepCount());
             case GraphQuery.RuntimeFlowStepNode rs ->
@@ -282,8 +281,16 @@ public class QueryArchitectureGraphTool {
             case GraphQuery.PipelineChainNode pc ->
                 appendFields(sb, "segmentCount", pc.segmentCount(), "rootEntrypointId", pc.rootEntrypointId());
             case GraphQuery.DataFlowStepNode ds ->
-                appendFields(sb, "stepIndex", ds.stepIndex(), "componentName", ds.componentName(),
-                        "method", ds.method(), "localName", ds.localName());
+                appendFields(
+                        sb,
+                        "stepIndex",
+                        ds.stepIndex(),
+                        "componentName",
+                        ds.componentName(),
+                        "method",
+                        ds.method(),
+                        "localName",
+                        ds.localName());
             case GraphQuery.DeploymentNode dn -> appendFields(sb, "type", dn.type());
             case GraphQuery.UnknownNode un -> appendProperties(sb, un.rawProperties());
         }

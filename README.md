@@ -4,6 +4,7 @@
   <br/>
 
   [![Maven Central](https://img.shields.io/badge/download-GitHub_Releases-blue?logo=github)](https://github.com/DerPate/archlens/releases)
+  [![Website](https://img.shields.io/badge/website-archlens.dominikbreu.dev-7c3aed?logo=astro)](https://archlens.dominikbreu.dev/)
   [![Java 25](https://img.shields.io/badge/Java-25-orange?logo=openjdk)](https://openjdk.org/)
   [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
   [![Build](https://img.shields.io/badge/build-mvn_package-brightgreen?logo=apachemaven)](docs/INSTALL.md)

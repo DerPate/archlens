@@ -11,6 +11,12 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
-    "astro": "^6.3.1"
+    "astro": "^7.0.3"
+  },
+  "overrides": {
+    "esbuild": "0.28.1"
+  },
+  "dependencies": {
+    "vanilla-cookieconsent": "^3.1.0"
   }
 }
