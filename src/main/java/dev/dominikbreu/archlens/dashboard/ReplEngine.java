@@ -109,9 +109,13 @@ public final class ReplEngine {
     @SuppressWarnings("unchecked")
     private static String toolHelpText(McpServerFeatures.SyncToolSpecification spec) {
         McpSchema.Tool tool = spec.tool();
-        McpSchema.JsonSchema schema = tool.inputSchema();
-        Map<String, Object> props = schema != null && schema.properties() != null ? schema.properties() : Map.of();
-        List<String> required = schema != null && schema.required() != null ? schema.required() : List.of();
+        Map<String, Object> schema = tool.inputSchema();
+        Map<String, Object> props = schema != null && schema.get("properties") instanceof Map<?, ?> properties
+                ? (Map<String, Object>) properties
+                : Map.of();
+        List<String> required = schema != null && schema.get("required") instanceof List<?> requiredNames
+                ? requiredNames.stream().map(Object::toString).toList()
+                : List.of();
 
         StringBuilder sb = new StringBuilder();
         sb.append(tool.name()).append('\n');

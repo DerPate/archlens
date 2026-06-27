@@ -510,10 +510,8 @@ public class McpServer {
     private McpServerFeatures.SyncToolSpecification toolSpec(
             String name, String description, SchemaBuilder schema, Function<Map<String, Object>, String> handler) {
 
-        McpSchema.Tool tool = McpSchema.Tool.builder()
-                .name(name)
+        McpSchema.Tool tool = McpSchema.Tool.builder(name, schema.build())
                 .description(description)
-                .inputSchema(schema.build())
                 .build();
 
         return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> {
@@ -582,9 +580,16 @@ public class McpServer {
             return this;
         }
 
-        McpSchema.JsonSchema build() {
-            return new McpSchema.JsonSchema(
-                    "object", props.isEmpty() ? null : props, required.isEmpty() ? null : required, null, null, null);
+        Map<String, Object> build() {
+            Map<String, Object> schema = new LinkedHashMap<>();
+            schema.put("type", "object");
+            if (!props.isEmpty()) {
+                schema.put("properties", props);
+            }
+            if (!required.isEmpty()) {
+                schema.put("required", required);
+            }
+            return schema;
         }
     }
 }
