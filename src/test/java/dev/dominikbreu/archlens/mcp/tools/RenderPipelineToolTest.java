@@ -162,7 +162,7 @@ class RenderPipelineToolTest {
                 "ingest", EntrypointType.MESSAGING_CONSUMER);
         RenderPipelineTool t = new RenderPipelineTool(stubbedCache(model));
 
-        String out = t.execute(Map.of("maxChains", 10));
+        String out = t.execute(Map.of("maxChains", 10)).text();
 
         assertThat(out).doesNotContain("shutdown#");
         assertThat(out).contains("ingest#");
@@ -175,7 +175,8 @@ class RenderPipelineToolTest {
                 "ingest", EntrypointType.MESSAGING_CONSUMER);
         RenderPipelineTool t = new RenderPipelineTool(stubbedCache(model));
 
-        String out = t.execute(Map.of("maxChains", 10, "includeLifecycle", true));
+        String out =
+                t.execute(Map.of("maxChains", 10, "includeLifecycle", true)).text();
 
         assertThat(out).contains("shutdown#");
         assertThat(out).contains("ingest#");
@@ -206,7 +207,8 @@ class RenderPipelineToolTest {
         ce1.toComponentId = ComponentId.of("DiagB");
         model.callEdges.add(ce1);
 
-        String out = new RenderPipelineTool(stubbedCache(model)).execute(Map.of());
+        String out =
+                new RenderPipelineTool(stubbedCache(model)).execute(Map.of()).text();
 
         assertThat(out).contains("messaging sink(s): 1");
         assertThat(out).contains("unresolved messaging destination(s): 1");
@@ -217,12 +219,15 @@ class RenderPipelineToolTest {
 
     @Test
     void execute_noModel_reportsNoWorkspace() {
-        assertThat(new RenderPipelineTool(stubbedCache(null)).execute(Map.of())).contains("No workspace indexed");
+        assertThat(new RenderPipelineTool(stubbedCache(null)).execute(Map.of()).text())
+                .contains("No workspace indexed");
     }
 
     @Test
     void execute_noCallEdges_reportsNoCallGraph() {
-        assertThat(new RenderPipelineTool(stubbedCache(new ArchitectureModel("empty"))).execute(Map.of()))
+        assertThat(new RenderPipelineTool(stubbedCache(new ArchitectureModel("empty")))
+                        .execute(Map.of())
+                        .text())
                 .contains("No call-graph data available");
     }
 
@@ -231,7 +236,8 @@ class RenderPipelineToolTest {
         ArchitectureModel model = buildTwoChainModel(
                 "alpha", EntrypointType.MESSAGING_CONSUMER, "beta", EntrypointType.MESSAGING_CONSUMER);
         String out = new RenderPipelineTool(stubbedCache(model))
-                .execute(Map.of("maxChains", 10, "channel", "no-such-channel"));
+                .execute(Map.of("maxChains", 10, "channel", "no-such-channel"))
+                .text();
         assertThat(out).isEqualTo("No pipeline chains matched the given filters.");
     }
 
@@ -269,7 +275,8 @@ class RenderPipelineToolTest {
         ce2.toComponentId = ComponentId.of("DiagB");
         model.callEdges.add(ce2);
 
-        String out = new RenderPipelineTool(stubbedCache(model)).execute(Map.of());
+        String out =
+                new RenderPipelineTool(stubbedCache(model)).execute(Map.of()).text();
         assertThat(out)
                 .contains("consumer topic(s): 1")
                 .contains("persistence write sink(s): 1")

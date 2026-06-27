@@ -28,25 +28,26 @@ public final class RenderArchitectureViewTool {
      * Executes the tool with the given arguments.
      *
      * @param args the tool arguments ({@code view}, {@code app}, {@code maxNodes}, {@code scopeId})
-     * @return the rendered Mermaid diagram string or an error message
+     * @return the rendered Mermaid diagram text (or an error message), plus a {diagramType} marker
      */
-    public String call(Map<String, Object> args) {
+    public ToolResult call(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
             if (!graph.isIndexed()) {
-                return "No workspace indexed yet. Call index_workspace first.";
+                return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
             }
             String view = ToolArgs.getString(args, "view", "component");
             if (!"component".equalsIgnoreCase(view)) {
-                return "Only view=component is supported. Received: " + view;
+                return ToolResult.textOnly("Only view=component is supported. Received: " + view);
             }
             int maxNodes = ToolArgs.getInt(args, "maxNodes", 500);
             GraphQuery.ApplicationNode app = resolveApp(graph, ToolArgs.getString(args, "app", ""));
             String scopeId = app != null ? app.id().value() : "";
             String title = (app != null && app.name() != null ? app.name() : "Workspace") + " - Component View";
-            return renderer.render(projector.projectComponentView(graph, scopeId, title, maxNodes));
+            String diagram = renderer.render(projector.projectComponentView(graph, scopeId, title, maxNodes));
+            return new ToolResult(diagram, Map.of("diagramType", "mermaid"));
         } catch (Exception e) {
-            return "Error rendering architecture view: " + e.getMessage();
+            return ToolResult.textOnly("Error rendering architecture view: " + e.getMessage());
         }
     }
 

@@ -60,7 +60,9 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         A summary of what was indexed: number of applications found, components, entrypoints,
         interfaces, injection edges, call edges, data-flow paths, and containers. The graph
         is cached under <code>.spoon-mcp-cache/</code> in the server's working directory.
-        Subsequent tool calls read from this cache without re-indexing.
+        Subsequent tool calls read from this cache without re-indexing. Alongside this text,
+        the response's <code>structuredContent</code> carries the same app/component/entrypoint
+        counts as JSON.
       </p>
 
       <h2 class="tool-section-label">Related tools</h2>

@@ -135,6 +135,9 @@ public class McpServer {
                 "Index Workspace",
                 "Analyze one or more Java project roots and build the internal architecture model.",
                 schema().reqArray("paths", TYPE_STRING, "Project root directory paths to analyze"),
+                schema().opt("appCount", TYPE_INTEGER, "Indexed application count")
+                        .opt("componentCount", TYPE_INTEGER, "Indexed component count")
+                        .opt("entrypointCount", TYPE_INTEGER, "Indexed entrypoint count"),
                 indexTool::execute));
 
         specs.add(toolSpec(
@@ -142,6 +145,11 @@ public class McpServer {
                 "List Applications",
                 "List recognized applications, modules, and their packaging types.",
                 schema(),
+                schema().opt("apps", "array", "Indexed application nodes")
+                        .opt("componentCount", TYPE_INTEGER, "Total component count")
+                        .opt("entrypointCount", TYPE_INTEGER, "Total entrypoint count")
+                        .opt("interfaceCount", TYPE_INTEGER, "Total interface count")
+                        .opt("runtimeFlowCount", TYPE_INTEGER, "Total runtime flow count"),
                 listAppsTool::execute));
 
         specs.add(toolSpec(
@@ -161,6 +169,7 @@ public class McpServer {
                                 "path",
                                 TYPE_STRING,
                                 "Filter by path prefix — returns all endpoints at or below this path (e.g. '/customer' returns /customer, /customer/{id}, /customer/{id}/address/{aid}, ...)"),
+                arrayOutput(nodeItemSchema()),
                 entrypointsTool::execute));
 
         specs.add(toolSpec(
@@ -173,6 +182,7 @@ public class McpServer {
                                 TYPE_STRING,
                                 "REST_RESOURCE | SERVICE | REPOSITORY | ENTITY | EJB_STATELESS | EJB_STATEFUL | EJB_SINGLETON | MESSAGE_DRIVEN_BEAN | SCHEDULER | HTTP_CLIENT | CDI_EVENT_CONSUMER | CDI_EVENT_PRODUCER | REMOTE_SERVICE | UTILITY | UNKNOWN")
                         .opt("technology", TYPE_STRING, "quarkus | javaee | jpa"),
+                arrayOutput(nodeItemSchema()),
                 componentsTool::execute));
 
         specs.add(toolSpec(
@@ -186,6 +196,7 @@ public class McpServer {
                         .opt("name", TYPE_STRING, "Component simple name (partial match)")
                         .opt("depth", TYPE_INTEGER, "Traversal depth (default 1, max 5)")
                         .opt("condensed", "boolean", "Remove UTILITY/UNKNOWN intermediaries (default true)"),
+                arrayOutput(edgeItemSchema()),
                 dependenciesTool::execute));
 
         specs.add(toolSpec(
@@ -193,6 +204,7 @@ public class McpServer {
                 "Infer Containers",
                 "Group components into logical containers (api / service / repository / domain / messaging / scheduling).",
                 schema().opt(APP_ID, TYPE_STRING, APP_ID_DESCRIPTION),
+                arrayOutput(nodeItemSchema()),
                 containersTool::execute));
 
         specs.add(toolSpec(
@@ -204,6 +216,7 @@ public class McpServer {
                                 "level",
                                 TYPE_STRING,
                                 "system | container | module | component (default: component) — module shows WAR deployment-unit with embedded JAR internal_modules"),
+                diagramOutput(),
                 flowchartTool::execute));
 
         specs.add(toolSpec(
@@ -215,6 +228,8 @@ public class McpServer {
                                 ENTRYPOINT_NAME,
                                 TYPE_STRING,
                                 "Entrypoint path, name, or 'METHOD /path' (e.g. 'GET /account') for HTTP-method disambiguation"),
+                schema().opt("steps", "array", "Ordered call-flow steps")
+                        .opt("diagram", TYPE_STRING, "Rendered Mermaid flowchart"),
                 callFlowTool::execute));
 
         specs.add(toolSpec(
@@ -225,6 +240,7 @@ public class McpServer {
                                 "maxComponentsPerPackage",
                                 TYPE_INTEGER,
                                 "Maximum rendered component nodes per package (default 25)"),
+                diagramOutput(),
                 sourceOverviewTool::execute));
 
         specs.add(toolSpec(
@@ -232,6 +248,7 @@ public class McpServer {
                 "Render Dependency Map",
                 "Render an aggregated Mermaid dependency map grouped by source responsibility.",
                 schema(),
+                diagramOutput(),
                 dependencyMapTool::execute));
 
         specs.add(toolSpec(
@@ -241,6 +258,7 @@ public class McpServer {
                 schema().opt("componentId", TYPE_STRING, "Component ID")
                         .opt("name", TYPE_STRING, "Component simple name or partial qualified name")
                         .opt("depth", TYPE_INTEGER, "Traversal depth (default 2)"),
+                diagramOutput(),
                 dependencyDiagramTool::execute));
 
         specs.add(toolSpec(
@@ -252,6 +270,7 @@ public class McpServer {
                                 FOCUS_COMPONENT,
                                 TYPE_STRING,
                                 "Component used for the dependency slice (default McpServer)"),
+                schema().opt("outputPath", TYPE_STRING, "Written file path"),
                 exportDocsTool::execute));
 
         specs.add(toolSpec(
@@ -266,6 +285,7 @@ public class McpServer {
                                 FOCUS_COMPONENT,
                                 TYPE_STRING,
                                 "Component used for the graph focus slice (default McpServer)"),
+                schema().opt("outputPath", TYPE_STRING, "Written file path"),
                 exportGraphPocTool::execute));
 
         specs.add(toolSpec(
@@ -274,6 +294,9 @@ public class McpServer {
                 "Write architecture graph JSON for standalone visual graph viewers, including raw snapshot data and viewer-ready projections.",
                 schema().opt("outputPath", TYPE_STRING, "Output JSON path (default docs/GRAPH_DATA.json)")
                         .opt("limit", TYPE_INTEGER, "Maximum graph nodes to export (default 5000)"),
+                schema().opt("outputPath", TYPE_STRING, "Written file path")
+                        .opt("nodeCount", TYPE_INTEGER, "Exported node count")
+                        .opt("edgeCount", TYPE_INTEGER, "Exported edge count"),
                 exportGraphDataTool::execute));
 
         specs.add(toolSpec(
@@ -282,6 +305,9 @@ public class McpServer {
                 "Write a self-contained HTML viewer using the same graph export payload as export_graph_data.",
                 schema().opt("outputPath", TYPE_STRING, "Output HTML path (default docs/GRAPH_VIEWER.html)")
                         .opt("limit", TYPE_INTEGER, "Maximum graph nodes to export (default 5000)"),
+                schema().opt("outputPath", TYPE_STRING, "Written file path")
+                        .opt("nodeCount", TYPE_INTEGER, "Exported node count")
+                        .opt("edgeCount", TYPE_INTEGER, "Exported edge count"),
                 exportGraphViewerTool::execute));
 
         specs.add(toolSpec(
@@ -352,6 +378,10 @@ public class McpServer {
                                 TYPE_STRING,
                                 "Shorthand filter: true | false — only runtime-relevant edges")
                         .opt("isCondensable", TYPE_STRING, "Shorthand filter: true | false — only condensable edges"),
+                schema().opt(
+                                "action",
+                                TYPE_STRING,
+                                "Echoes the requested action; result shape depends on it — summary returns graph totals, find_nodes/neighborhood/impacted_by return a node array, find_edges returns an edge array, paths returns a path array"),
                 graphTool::execute));
 
         specs.add(toolSpec(
@@ -368,6 +398,16 @@ public class McpServer {
                                 "sinkKind",
                                 TYPE_STRING,
                                 "Filter by sink kind: persistence | messaging | http-outbound | event-bus | store | file-outbound | object-storage | unknown"),
+                arrayOutput(Map.of(
+                        "type",
+                        "object",
+                        "properties",
+                        Map.of(
+                                "id", Map.of("type", "string"),
+                                "entrypointId", Map.of("type", "string"),
+                                "entrypoint", Map.of("type", "string"),
+                                "trackedParam", Map.of("type", "string"),
+                                "sinks", Map.of("type", "array")))),
                 traceDataFlowTool::execute));
 
         specs.add(toolSpec(
@@ -381,6 +421,7 @@ public class McpServer {
                                 "Filter by path, name, or 'METHOD /path' (e.g. 'GET /account') for HTTP-method disambiguation")
                         .opt("maxUseCases", TYPE_INTEGER, "Maximum sections to render (default 10)")
                         .opt(MAX_DEPTH, TYPE_INTEGER, "Maximum steps per section (default 5)"),
+                diagramOutput(),
                 useCaseTimelineTool::execute));
 
         specs.add(toolSpec(
@@ -401,6 +442,7 @@ public class McpServer {
                                 "includeLifecycle",
                                 "boolean",
                                 "Include CDI lifecycle observer, main-method, and RMI chains (default false)"),
+                diagramOutput(),
                 pipelineTool::execute));
 
         specs.add(toolSpec(
@@ -413,6 +455,17 @@ public class McpServer {
                                 "Path to a JSON naming config file ({ \"names\": { \"<entrypointId>\": \"Display Name\" } })")
                         .opt("module", TYPE_STRING, "Filter results by app/module ID (partial match)")
                         .opt(MAX_DEPTH, TYPE_INTEGER, "Max call-chain depth shown per use case (default 5)"),
+                arrayOutput(Map.of(
+                        "type",
+                        "object",
+                        "properties",
+                        Map.of(
+                                "id", Map.of("type", "string"),
+                                "name", Map.of("type", "string"),
+                                "type", Map.of("type", "string"),
+                                "channelOrPath", Map.of("type", "string"),
+                                "components", Map.of("type", "string"),
+                                "methodChain", Map.of("type", "array")))),
                 detectUseCasesTool::execute));
 
         specs.add(toolSpec(
@@ -422,6 +475,7 @@ public class McpServer {
                 schema().opt("app", TYPE_STRING, APP_NAME_OR_ID)
                         .opt("view", TYPE_STRING, "View kind: component")
                         .opt(MAX_NODES, TYPE_INTEGER, "Maximum component nodes to include (default 18)"),
+                diagramOutput(),
                 renderArchitectureViewTool::call));
 
         specs.add(toolSpec(
@@ -431,6 +485,7 @@ public class McpServer {
                 schema().opt("app", TYPE_STRING, APP_NAME_OR_ID)
                         .opt("view", TYPE_STRING, "View kind: workspace or component (default workspace)")
                         .opt(MAX_NODES, TYPE_INTEGER, "Maximum component nodes to include (default 18)"),
+                diagramOutput(),
                 exportLikeC4ModelTool::call));
 
         return specs;
@@ -529,16 +584,23 @@ public class McpServer {
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
+    /**
+     * Wires a tool handler into the SDK's spec type. Every response carries the handler's text
+     * unchanged in {@code content[0].text}, plus (when non-null) the handler's structured payload
+     * in {@code structuredContent}, matching the declared {@code outputSchema}.
+     */
     private McpServerFeatures.SyncToolSpecification toolSpec(
             String name,
             String title,
             String description,
             SchemaBuilder schema,
-            Function<Map<String, Object>, String> handler) {
+            SchemaBuilder outputSchema,
+            Function<Map<String, Object>, ToolResult> handler) {
 
         McpSchema.Tool tool = McpSchema.Tool.builder(name, schema.build())
                 .title(title)
                 .description(description)
+                .outputSchema(outputSchema.build())
                 .build();
 
         return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> {
@@ -548,8 +610,13 @@ public class McpServer {
             } else {
                 args = Map.of();
             }
-            String result = handler.apply(args);
-            return McpSchema.CallToolResult.builder().addTextContent(result).build();
+            ToolResult result = handler.apply(args);
+            McpSchema.CallToolResult.Builder resultBuilder =
+                    McpSchema.CallToolResult.builder().addTextContent(result.text());
+            if (result.structured() != null) {
+                resultBuilder.structuredContent(result.structured());
+            }
+            return resultBuilder.build();
         });
     }
 
@@ -592,9 +659,46 @@ public class McpServer {
         return new SchemaBuilder();
     }
 
+    /** Output schema for a top-level array whose items match the given property map. */
+    private static SchemaBuilder arrayOutput(Map<String, Object> itemProperties) {
+        return new SchemaBuilder().asArray(itemProperties);
+    }
+
+    /** Minimal output schema for diagram-rendering tools whose real payload is the text content, not structured data. */
+    private static SchemaBuilder diagramOutput() {
+        return new SchemaBuilder().opt("diagramType", TYPE_STRING, "Rendered diagram format, e.g. mermaid or likec4");
+    }
+
+    /** Reusable item shape for tools returning {@code GraphQuery.GraphNode}s: id, name, label, and a free-form properties bag. */
+    private static Map<String, Object> nodeItemSchema() {
+        return Map.of(
+                "type",
+                "object",
+                "properties",
+                Map.of(
+                        "id", Map.of("type", "string"),
+                        "name", Map.of("type", "string"),
+                        "label", Map.of("type", "string"),
+                        "properties", Map.of("type", "object")));
+    }
+
+    /** Reusable item shape for tools returning {@code GraphQuery.GraphEdge}s. */
+    private static Map<String, Object> edgeItemSchema() {
+        return Map.of(
+                "type",
+                "object",
+                "properties",
+                Map.of(
+                        "fromId", Map.of("type", "string"),
+                        "toId", Map.of("type", "string"),
+                        "label", Map.of("type", "string"),
+                        "properties", Map.of("type", "object")));
+    }
+
     private static final class SchemaBuilder {
         private final Map<String, Object> props = new LinkedHashMap<>();
         private final List<String> required = new ArrayList<>();
+        private Map<String, Object> arrayItems;
 
         SchemaBuilder opt(String name, String type, String description) {
             props.put(name, Map.of("type", type, "description", description));
@@ -607,7 +711,19 @@ public class McpServer {
             return this;
         }
 
+        /** Marks this schema as a top-level array (used for output schemas) instead of an object. */
+        SchemaBuilder asArray(Map<String, Object> itemSchema) {
+            this.arrayItems = itemSchema;
+            return this;
+        }
+
         Map<String, Object> build() {
+            if (arrayItems != null) {
+                Map<String, Object> schema = new LinkedHashMap<>();
+                schema.put("type", "array");
+                schema.put("items", arrayItems);
+                return schema;
+            }
             Map<String, Object> schema = new LinkedHashMap<>();
             schema.put("type", "object");
             if (!props.isEmpty()) {

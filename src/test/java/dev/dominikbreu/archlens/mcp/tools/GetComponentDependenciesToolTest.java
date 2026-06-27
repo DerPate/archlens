@@ -28,7 +28,7 @@ class GetComponentDependenciesToolTest {
         cache.store(model);
 
         GetComponentDependenciesTool tool = new GetComponentDependenciesTool(cache);
-        String out = tool.execute(Map.of("componentId", "com.acme.A"));
+        String out = tool.execute(Map.of("componentId", "com.acme.A")).text();
 
         assertThat(out).doesNotContain("Component not found");
     }

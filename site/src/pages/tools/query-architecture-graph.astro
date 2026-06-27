@@ -101,7 +101,9 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         stats. <code>find_nodes</code> returns matching node records with all properties.
         <code>neighborhood</code> returns the subgraph around a node. <code>impacted_by</code>
         returns all nodes reachable from a given node — useful for change-impact analysis
-        before modifying a repository or service.
+        before modifying a repository or service. The response's <code>structuredContent</code>
+        carries the same data as JSON (a summary object, or a node/edge/path array depending
+        on the action), so clients can parse it directly instead of the text block.
       </p>
 
       <h2 class="tool-section-label">Related tools</h2>

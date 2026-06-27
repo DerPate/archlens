@@ -2,6 +2,7 @@ package dev.dominikbreu.archlens.mcp.tools;
 
 import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.cache.ModelCache;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,10 +18,10 @@ public class FindComponentsTool {
         this.cache = cache;
     }
 
-    public String execute(Map<String, Object> args) {
+    public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (graph.isEmpty()) return "No workspace indexed yet. Call index_workspace first.";
+            if (graph.isEmpty()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
 
             String appId = ToolArgs.getString(args, "appId");
             String typeFilter = ToolArgs.getString(args, "type");
@@ -34,10 +35,11 @@ public class FindComponentsTool {
                     ? applyFilters(graph.componentNodesOwnedByQuery(appId), typeFilter, techFilter)
                     : graph.findNodes("Component", null, filters, 0);
 
-            if (nodes.isEmpty()) return "No components found matching the given criteria.";
+            if (nodes.isEmpty()) return ToolResult.textOnly("No components found matching the given criteria.");
 
             StringBuilder sb = new StringBuilder();
             sb.append("Found ").append(nodes.size()).append(" component(s):\n\n");
+            List<Map<String, Object>> structured = new ArrayList<>();
             for (GraphQuery.GraphNode node : nodes) {
                 if (!(node instanceof GraphQuery.ComponentNode cn)) continue;
                 sb.append("- [")
@@ -66,10 +68,11 @@ public class FindComponentsTool {
                             .append("]\n");
                 }
                 sb.append("\n");
+                structured.add(ToolArgs.nodeAsMap(cn));
             }
-            return sb.toString();
+            return new ToolResult(sb.toString(), structured);
         } catch (Exception e) {
-            return "Error finding components: " + e.getMessage();
+            return ToolResult.textOnly("Error finding components: " + e.getMessage());
         }
     }
 

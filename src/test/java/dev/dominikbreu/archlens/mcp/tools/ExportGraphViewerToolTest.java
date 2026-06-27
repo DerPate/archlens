@@ -19,7 +19,7 @@ class ExportGraphViewerToolTest {
     void returnsClearMessageWhenNoWorkspaceIndexed(@TempDir Path tempDir) {
         ExportGraphViewerTool tool = new ExportGraphViewerTool(new ModelCache(tempDir.toString()));
 
-        String result = tool.execute(Map.of());
+        String result = tool.execute(Map.of()).text();
 
         assertThat(result).isEqualTo("No workspace indexed yet. Call index_workspace first.");
     }
@@ -37,7 +37,9 @@ class ExportGraphViewerToolTest {
         cache.store(model);
 
         Path output = tempDir.resolve("viewer.html");
-        String result = new ExportGraphViewerTool(cache).execute(Map.of("outputPath", output.toString()));
+        String result = new ExportGraphViewerTool(cache)
+                .execute(Map.of("outputPath", output.toString()))
+                .text();
 
         assertThat(result).contains("Exported graph viewer to " + output.toAbsolutePath());
         assertThat(result).contains("Nodes: 1");

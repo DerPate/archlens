@@ -20,13 +20,14 @@ public class RenderUseCaseTimelineTool {
         this.cache = cache;
     }
 
-    public String execute(Map<String, Object> args) {
+    public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (!graph.isIndexed()) return "No workspace indexed yet. Call index_workspace first.";
+            if (!graph.isIndexed()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
 
             List<GraphQuery.RuntimeFlowNode> flows = graph.allRuntimeFlows();
-            if (flows.isEmpty()) return "No runtime flows available. Re-index the workspace first.";
+            if (flows.isEmpty())
+                return ToolResult.textOnly("No runtime flows available. Re-index the workspace first.");
 
             String epIdFilter = ToolArgs.getString(args, "entrypointId");
             String epNameFilter = ToolArgs.getString(args, "entrypointName");
@@ -34,12 +35,12 @@ public class RenderUseCaseTimelineTool {
             int maxDepth = ToolArgs.getInt(args, "maxDepth", 5);
 
             flows = filterFlows(flows, epIdFilter, epNameFilter, graph);
-            if (flows.isEmpty()) return "No matching use cases found.";
+            if (flows.isEmpty()) return ToolResult.textOnly("No matching use cases found.");
             if (flows.size() > maxUseCases) flows = flows.subList(0, maxUseCases);
 
-            return renderer.render(flows, graph, maxDepth);
+            return new ToolResult(renderer.render(flows, graph, maxDepth), Map.of("diagramType", "mermaid"));
         } catch (Exception e) {
-            return "Error rendering use case timeline: " + e.getMessage();
+            return ToolResult.textOnly("Error rendering use case timeline: " + e.getMessage());
         }
     }
 

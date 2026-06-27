@@ -5,6 +5,7 @@ import dev.dominikbreu.archlens.extractor.ArchitectureExtractor;
 import dev.dominikbreu.archlens.merger.DeploymentMerger;
 import dev.dominikbreu.archlens.model.AppEntry;
 import dev.dominikbreu.archlens.model.ArchitectureModel;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,12 +33,12 @@ public class IndexWorkspaceTool {
      * Executes workspace indexing.
      *
      * @param args JSON arguments containing a paths array
-     * @return indexing summary or an error message
+     * @return indexing summary text (or an error message), plus a structured app/component/entrypoint count
      */
-    public String execute(Map<String, Object> args) {
+    public ToolResult execute(Map<String, Object> args) {
         try {
             List<String> paths = ToolArgs.getStringList(args, "paths");
-            if (paths.isEmpty()) return "Error: 'paths' array is required.";
+            if (paths.isEmpty()) return ToolResult.textOnly("Error: 'paths' array is required.");
 
             cache.clearActive();
             ArchitectureModel model = extractor.extract(paths);
@@ -68,9 +69,13 @@ public class IndexWorkspaceTool {
                 sb.append("  Components: ").append(app.componentIds.size()).append("\n");
             }
 
-            return sb.toString();
+            Map<String, Object> structured = new LinkedHashMap<>();
+            structured.put("appCount", model.applications.size());
+            structured.put("componentCount", model.components.size());
+            structured.put("entrypointCount", model.entrypoints.size());
+            return new ToolResult(sb.toString(), structured);
         } catch (Exception e) {
-            return "Error indexing workspace: " + e.getMessage();
+            return ToolResult.textOnly("Error indexing workspace: " + e.getMessage());
         }
     }
 }

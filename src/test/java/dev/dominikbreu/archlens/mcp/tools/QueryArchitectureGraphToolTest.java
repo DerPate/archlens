@@ -25,7 +25,7 @@ class QueryArchitectureGraphToolTest {
         cache.store(model());
         QueryArchitectureGraphTool tool = new QueryArchitectureGraphTool(cache);
 
-        String result = tool.execute(Map.of("action", "summary"));
+        String result = tool.execute(Map.of("action", "summary")).text();
 
         assertThat(result).contains("Architecture graph");
         assertThat(result).contains("Component: 1");
@@ -49,8 +49,8 @@ class QueryArchitectureGraphToolTest {
         cache.store(model);
         QueryArchitectureGraphTool tool = new QueryArchitectureGraphTool(cache);
 
-        String result =
-                tool.execute(Map.of("action", "paths", "fromId", "PaymentService", "toId", "PaymentRepository"));
+        String result = tool.execute(Map.of("action", "paths", "fromId", "PaymentService", "toId", "PaymentRepository"))
+                .text();
 
         assertThat(result).contains("PaymentService -> PaymentRepository");
     }
@@ -61,7 +61,8 @@ class QueryArchitectureGraphToolTest {
         cache.store(model());
         QueryArchitectureGraphTool tool = new QueryArchitectureGraphTool(cache);
 
-        String result = tool.execute(Map.of("action", "find_nodes", "label", "Component", "query", "Payment"));
+        String result = tool.execute(Map.of("action", "find_nodes", "label", "Component", "query", "Payment"))
+                .text();
 
         assertThat(result).contains("PaymentService");
         assertThat(result).contains("SERVICE");
@@ -74,16 +75,17 @@ class QueryArchitectureGraphToolTest {
         Component lock = new Component();
         lock.id = ComponentId.of("RedisLock");
         lock.name = "OwnerAwareRedisLockRegistry";
-        lock.qualifiedName = "de.homeinstead.phoenix.redis.OwnerAwareRedisLockRegistry";
+        lock.qualifiedName = "com.example.app.redis.OwnerAwareRedisLockRegistry";
         lock.type = ComponentType.SERVICE;
         model.components.add(lock);
         cache.store(model);
         QueryArchitectureGraphTool tool = new QueryArchitectureGraphTool(cache);
 
         String result = tool.execute(Map.of(
-                "action", "find_nodes",
-                "label", "Component",
-                "agentCategory", "supporting-infrastructure"));
+                        "action", "find_nodes",
+                        "label", "Component",
+                        "agentCategory", "supporting-infrastructure"))
+                .text();
 
         assertThat(result)
                 .contains("OwnerAwareRedisLockRegistry")
@@ -108,8 +110,10 @@ class QueryArchitectureGraphToolTest {
         cache.store(model);
         QueryArchitectureGraphTool tool = new QueryArchitectureGraphTool(cache);
 
-        String all = tool.execute(Map.of("action", "find_nodes", "label", "Component"));
-        String limited = tool.execute(Map.of("action", "find_nodes", "label", "Component", "limit", 20));
+        String all = tool.execute(Map.of("action", "find_nodes", "label", "Component"))
+                .text();
+        String limited = tool.execute(Map.of("action", "find_nodes", "label", "Component", "limit", 20))
+                .text();
 
         assertThat(all.lines().filter(line -> line.startsWith("- "))).hasSize(125);
         assertThat(limited.lines().filter(line -> line.startsWith("- "))).hasSize(20);
@@ -134,9 +138,10 @@ class QueryArchitectureGraphToolTest {
         QueryArchitectureGraphTool tool = new QueryArchitectureGraphTool(cache);
 
         String result = tool.execute(Map.of(
-                "action", "find_edges",
-                "label", "DEPENDS_ON",
-                "filters", Map.of("confidence", ">=0.8", "kind", "injection")));
+                        "action", "find_edges",
+                        "label", "DEPENDS_ON",
+                        "filters", Map.of("confidence", ">=0.8", "kind", "injection")))
+                .text();
 
         assertThat(result).contains("PaymentService -[DEPENDS_ON]-> PaymentRepository");
         assertThat(result).contains("isRuntimeRelevant=true");
@@ -163,9 +168,10 @@ class QueryArchitectureGraphToolTest {
         QueryArchitectureGraphTool tool = new QueryArchitectureGraphTool(cache);
 
         String result = tool.execute(Map.of(
-                "action", "find_nodes",
-                "label", "DataFlowSink",
-                "filters", Map.of("sinkKind", "messaging")));
+                        "action", "find_nodes",
+                        "label", "DataFlowSink",
+                        "filters", Map.of("sinkKind", "messaging")))
+                .text();
 
         assertThat(result)
                 .contains("broker=KAFKA")

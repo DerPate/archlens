@@ -30,7 +30,8 @@ class ExportGraphArchitecturePocToolTest {
         cache.store(model());
         ExportGraphArchitecturePocTool tool = new ExportGraphArchitecturePocTool(cache);
 
-        String result = tool.execute(Map.of("outputPath", output.toString(), "focusComponent", "OrderService"));
+        String result = tool.execute(Map.of("outputPath", output.toString(), "focusComponent", "OrderService"))
+                .text();
 
         assertThat(result).contains("Exported graph POC docs");
         assertThat(Files.readString(output)).contains("Generated Architecture Graph POC");

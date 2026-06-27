@@ -45,54 +45,56 @@ class UntestedToolsCoverageTest {
 
     @Test
     void listApps_returnsApplications() {
-        String result = new ListAppsTool(cache).execute(Map.of());
+        String result = new ListAppsTool(cache).execute(Map.of()).text();
         assertOk(result);
         assertNoTypedIdNoise(result);
     }
 
     @Test
     void findComponents_returnsComponents() {
-        assertOk(new FindComponentsTool(cache).execute(Map.of()));
+        assertOk(new FindComponentsTool(cache).execute(Map.of()).text());
     }
 
     @Test
     void detectUseCases_runs() {
-        assertOk(new DetectUseCasesTool(cache).execute(Map.of()));
+        assertOk(new DetectUseCasesTool(cache).execute(Map.of()).text());
     }
 
     @Test
     void inferContainers_runs() {
-        String result = new InferContainersTool(cache).execute(Map.of());
+        String result = new InferContainersTool(cache).execute(Map.of()).text();
         assertOk(result);
         assertNoTypedIdNoise(result);
     }
 
     @Test
     void renderDependencyMap_runs() {
-        assertOk(new RenderDependencyMapTool(cache).execute(Map.of()));
+        assertOk(new RenderDependencyMapTool(cache).execute(Map.of()).text());
     }
 
     @Test
     void renderMermaidFlowchart_runs() {
-        assertOk(new RenderMermaidFlowchartTool(cache).execute(Map.of()));
+        assertOk(new RenderMermaidFlowchartTool(cache).execute(Map.of()).text());
     }
 
     @Test
     void renderSourceOverview_runs() {
-        assertOk(new RenderSourceOverviewTool(cache).execute(Map.of()));
+        assertOk(new RenderSourceOverviewTool(cache).execute(Map.of()).text());
     }
 
     @Test
     void renderUseCaseTimeline_runs() {
         // May legitimately report "No matching use cases"; just exercise the success branch.
-        String result = new RenderUseCaseTimelineTool(cache).execute(Map.of());
+        String result = new RenderUseCaseTimelineTool(cache).execute(Map.of()).text();
         assertThat(result).doesNotStartWith("Error");
     }
 
     @Test
     void callFlow_byEntrypointId_runs() {
         assertThat(entrypointId).isNotNull();
-        String result = new CallFlowTool(cache).execute(Map.of("entrypointId", entrypointId));
+        String result = new CallFlowTool(cache)
+                .execute(Map.of("entrypointId", entrypointId))
+                .text();
         assertThat(result).doesNotStartWith("Error");
         assertNoTypedIdNoise(result);
     }
@@ -100,21 +102,27 @@ class UntestedToolsCoverageTest {
     @Test
     void getComponentDependencies_byId_runs() {
         assertThat(componentId).isNotNull();
-        String result = new GetComponentDependenciesTool(cache).execute(Map.of("componentId", componentId));
+        String result = new GetComponentDependenciesTool(cache)
+                .execute(Map.of("componentId", componentId))
+                .text();
         assertThat(result).doesNotStartWith("Error");
     }
 
     @Test
     void renderComponentDependencyDiagram_byId_runs() {
         assertThat(componentId).isNotNull();
-        String result = new RenderComponentDependencyDiagramTool(cache).execute(Map.of("componentId", componentId));
+        String result = new RenderComponentDependencyDiagramTool(cache)
+                .execute(Map.of("componentId", componentId))
+                .text();
         assertThat(result).doesNotStartWith("Error");
     }
 
     @Test
     void exportArchitectureDocs_writesToOutputPath() throws Exception {
         Path out = Files.createTempDirectory("archlens-docs-").resolve("architecture.md");
-        String result = new ExportArchitectureDocsTool(cache).execute(Map.of("outputPath", out.toString()));
+        String result = new ExportArchitectureDocsTool(cache)
+                .execute(Map.of("outputPath", out.toString()))
+                .text();
         assertThat(result).doesNotStartWith("Error");
         assertThat(Files.exists(out)).isTrue();
     }
@@ -124,7 +132,8 @@ class UntestedToolsCoverageTest {
         assertThat(appId).isNotNull();
         Component c = model.components.get(0);
         String result = new FindComponentsTool(cache)
-                .execute(Map.of("type", c.type.name(), "technology", String.valueOf(c.technology)));
+                .execute(Map.of("type", c.type.name(), "technology", String.valueOf(c.technology)))
+                .text();
         assertThat(result).doesNotStartWith("Error");
     }
 
@@ -133,13 +142,17 @@ class UntestedToolsCoverageTest {
     @Test
     void tools_reportNoWorkspace_whenModelMissing() {
         ModelCache empty = cacheReturning(null);
-        assertThat(new ListAppsTool(empty).execute(Map.of())).contains("No workspace indexed");
-        assertThat(new FindComponentsTool(empty).execute(Map.of())).contains("No workspace indexed");
-        assertThat(new DetectUseCasesTool(empty).execute(Map.of())).contains("No workspace indexed");
-        assertThat(new InferContainersTool(empty).execute(Map.of())).contains("No workspace indexed");
-        assertThat(new CallFlowTool(empty).execute(Map.of("entrypointId", "x"))).contains("No workspace indexed");
-        assertThat(new RenderUseCaseTimelineTool(empty).execute(Map.of())).contains("No workspace indexed");
-        assertThat(new RenderComponentDependencyDiagramTool(empty).execute(Map.of("componentId", "x")))
+        assertThat(new ListAppsTool(empty).execute(Map.of()).text()).contains("No workspace indexed");
+        assertThat(new FindComponentsTool(empty).execute(Map.of()).text()).contains("No workspace indexed");
+        assertThat(new DetectUseCasesTool(empty).execute(Map.of()).text()).contains("No workspace indexed");
+        assertThat(new InferContainersTool(empty).execute(Map.of()).text()).contains("No workspace indexed");
+        assertThat(new CallFlowTool(empty).execute(Map.of("entrypointId", "x")).text())
+                .contains("No workspace indexed");
+        assertThat(new RenderUseCaseTimelineTool(empty).execute(Map.of()).text())
+                .contains("No workspace indexed");
+        assertThat(new RenderComponentDependencyDiagramTool(empty)
+                        .execute(Map.of("componentId", "x"))
+                        .text())
                 .contains("No workspace indexed");
     }
 

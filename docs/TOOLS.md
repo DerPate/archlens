@@ -3,6 +3,21 @@
 The server exposes these tools through `tools/list` and `tools/call`.
 It also exposes reusable workflow prompts through `prompts/list` and `prompts/get`.
 
+## Response Shape
+
+Every `tools/call` response carries the same human-readable text shown in the "Sample output"
+blocks below, unchanged, in `content[0].text`. Tools that return list- or record-shaped data
+(entrypoints, components, dependencies, graph nodes/edges/paths, use cases, data-flow paths) also
+populate `structuredContent` with the same data as JSON, validated against each tool's declared
+`outputSchema` (visible via `tools/list`). Diagram-rendering and file-export tools populate
+`structuredContent` with a small marker or summary object (e.g. `{diagramType: "mermaid"}` or
+`{outputPath, nodeCount, edgeCount}`) since their primary payload is the diagram text or the
+written file, not structured data. Clients that only read `content[0].text` continue to work
+exactly as before — `structuredContent` is additive.
+
+See `docs/STRUCTURED_OUTPUT.md` for a worked example and why this is worth using from an
+agent's instructions, not just from a typed client.
+
 ## Workflow Prompts
 
 Prompts are not tool replacements. They are client-selectable workflow templates that

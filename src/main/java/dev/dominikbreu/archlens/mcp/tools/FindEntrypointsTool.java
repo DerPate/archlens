@@ -2,6 +2,7 @@ package dev.dominikbreu.archlens.mcp.tools;
 
 import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.cache.ModelCache;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -19,10 +20,10 @@ public class FindEntrypointsTool {
         this.cache = cache;
     }
 
-    public String execute(Map<String, Object> args) {
+    public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (graph.isEmpty()) return "No workspace indexed yet. Call index_workspace first.";
+            if (graph.isEmpty()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
 
             String appId = ToolArgs.getString(args, "appId");
             String typeFilter = ToolArgs.getString(args, "type");
@@ -53,10 +54,11 @@ public class FindEntrypointsTool {
                     })
                     .toList();
 
-            if (nodes.isEmpty()) return "No entrypoints found matching the given criteria.";
+            if (nodes.isEmpty()) return ToolResult.textOnly("No entrypoints found matching the given criteria.");
 
             StringBuilder sb = new StringBuilder();
             sb.append("Found ").append(nodes.size()).append(" entrypoint(s):\n\n");
+            List<Map<String, Object>> structured = new ArrayList<>();
             for (GraphQuery.GraphNode node : nodes) {
                 GraphQuery.EntrypointNode en = (GraphQuery.EntrypointNode) node;
                 sb.append("- [")
@@ -84,10 +86,11 @@ public class FindEntrypointsTool {
                             .append("]\n");
                 }
                 sb.append("\n");
+                structured.add(ToolArgs.nodeAsMap(en));
             }
-            return sb.toString();
+            return new ToolResult(sb.toString(), structured);
         } catch (Exception e) {
-            return "Error finding entrypoints: " + e.getMessage();
+            return ToolResult.textOnly("Error finding entrypoints: " + e.getMessage());
         }
     }
 

@@ -26,15 +26,15 @@ public class RenderDependencyMapTool {
      * Executes dependency map rendering.
      *
      * @param args unused JSON arguments
-     * @return Mermaid diagram text or an error message
+     * @return Mermaid diagram text (or an error message), plus a {diagramType} marker
      */
-    public String execute(Map<String, Object> args) {
+    public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (!graph.isIndexed()) return "No workspace indexed yet. Call index_workspace first.";
-            return renderer.render(graph);
+            if (!graph.isIndexed()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
+            return new ToolResult(renderer.render(graph), Map.of("diagramType", "mermaid"));
         } catch (Exception e) {
-            return "Error rendering dependency map: " + e.getMessage();
+            return ToolResult.textOnly("Error rendering dependency map: " + e.getMessage());
         }
     }
 }

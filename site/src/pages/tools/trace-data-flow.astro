@@ -76,6 +76,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         call chain with parameter renames, and classified sinks. Store sinks carry
         <code>linkedPathIds</code> pointing to downstream paths that read the same shared
         field — use <code>render_pipeline</code> to visualise those cross-entrypoint chains.
+        The response's <code>structuredContent</code> carries the same path list as JSON
+        (id, entrypoint, tracked parameter, and sinks per path).
       </p>
 
       <h2 class="tool-section-label">Related tools</h2>

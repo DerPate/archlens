@@ -28,29 +28,33 @@ public final class ExportLikeC4ModelTool {
      * Executes the tool with the given arguments.
      *
      * @param args the tool arguments ({@code view}, {@code app}, {@code maxNodes})
-     * @return the rendered LikeC4 document or an error message
+     * @return the rendered LikeC4 document text (or an error message), plus a {diagramType} marker
      */
-    public String call(Map<String, Object> args) {
+    public ToolResult call(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
             if (!graph.isIndexed()) {
-                return "No workspace indexed yet. Call index_workspace first.";
+                return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
             }
             String view = ToolArgs.getString(args, "view", "workspace");
             int maxNodes = ToolArgs.getInt(args, "maxNodes", 18);
             GraphQuery.ApplicationNode app =
                     RenderArchitectureViewTool.resolveApp(graph, ToolArgs.getString(args, "app", ""));
             if ("workspace".equalsIgnoreCase(view)) {
-                return renderer.render(workspaceProjector.projectWorkspace(graph, app, maxNodes));
+                return new ToolResult(
+                        renderer.render(workspaceProjector.projectWorkspace(graph, app, maxNodes)),
+                        Map.of("diagramType", "likec4"));
             }
             if (!"component".equalsIgnoreCase(view)) {
-                return "Supported views are workspace and component. Received: " + view;
+                return ToolResult.textOnly("Supported views are workspace and component. Received: " + view);
             }
             String scopeId = app != null ? app.id().value() : "";
             String title = (app != null && app.name() != null ? app.name() : "Workspace") + " - Component View";
-            return renderer.render(projector.projectComponentView(graph, scopeId, title, maxNodes));
+            return new ToolResult(
+                    renderer.render(projector.projectComponentView(graph, scopeId, title, maxNodes)),
+                    Map.of("diagramType", "likec4"));
         } catch (Exception e) {
-            return "Error exporting LikeC4 model: " + e.getMessage();
+            return ToolResult.textOnly("Error exporting LikeC4 model: " + e.getMessage());
         }
     }
 }
