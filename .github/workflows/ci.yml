@@ -21,20 +21,25 @@ jobs:
         with:
           java-version: '25'
           distribution: temurin
-          cache: maven
 
       - name: Build and test
         run: mvn verify -B -q -Ddependency-check.skip=true
 
-      - name: Cache OWASP dependency-check data
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+      - name: Compute OWASP cache week
+        id: cache-week
+        run: echo "value=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore OWASP dependency-check data
+        id: owasp-cache
+        uses: actions/cache/restore@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
           path: ~/.cache/dependency-check
-          key: ${{ runner.os }}-dependency-check-${{ github.run_id }}
+          key: ${{ runner.os }}-dependency-check-${{ steps.cache-week.outputs.value }}
           restore-keys: |
             ${{ runner.os }}-dependency-check-
 
       - name: OWASP dependency check
+        id: dependency-check
         run: >-
           mvn dependency-check:check -B -q
           -DdataDirectory=$HOME/.cache/dependency-check
@@ -43,3 +48,13 @@ jobs:
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         continue-on-error: true
+
+      - name: Save OWASP dependency-check data
+        if: >-
+          github.ref == 'refs/heads/main' &&
+          steps.owasp-cache.outputs.cache-hit != 'true' &&
+          steps.dependency-check.outcome == 'success'
+        uses: actions/cache/save@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        with:
+          path: ~/.cache/dependency-check
+          key: ${{ runner.os }}-dependency-check-${{ steps.cache-week.outputs.value }}
