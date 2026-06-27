@@ -6,6 +6,7 @@ import dev.dominikbreu.archlens.renderer.GraphViewerHtmlRenderer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /** MCP tool that writes a self-contained visual architecture graph debugger. */
@@ -30,12 +31,12 @@ public class ExportGraphViewerTool {
      * Exports an HTML graph viewer to the requested path.
      *
      * @param args JSON arguments including outputPath and limit
-     * @return export status message with raw counts
+     * @return export status text plus a structured {outputPath, nodeCount, edgeCount} summary
      */
-    public String execute(Map<String, Object> args) {
+    public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (graph.isEmpty()) return "No workspace indexed yet. Call index_workspace first.";
+            if (graph.isEmpty()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
 
             Path output = Path.of(ToolArgs.getString(args, "outputPath", DEFAULT_OUTPUT.toString()));
             int limit = ToolArgs.getInt(args, "limit", DEFAULT_LIMIT);
@@ -46,11 +47,17 @@ public class ExportGraphViewerTool {
             if (parent != null) Files.createDirectories(parent);
             Files.writeString(output, html);
 
-            return "Exported graph viewer to " + output.toAbsolutePath()
-                    + "\nNodes: " + snapshot.metadata().includedNodeCount()
-                    + "\nEdges: " + snapshot.metadata().includedEdgeCount();
+            Map<String, Object> structured = new LinkedHashMap<>();
+            structured.put("outputPath", output.toAbsolutePath().toString());
+            structured.put("nodeCount", snapshot.metadata().includedNodeCount());
+            structured.put("edgeCount", snapshot.metadata().includedEdgeCount());
+            return new ToolResult(
+                    "Exported graph viewer to " + output.toAbsolutePath()
+                            + "\nNodes: " + snapshot.metadata().includedNodeCount()
+                            + "\nEdges: " + snapshot.metadata().includedEdgeCount(),
+                    structured);
         } catch (Exception e) {
-            return "Error exporting graph viewer: " + e.getMessage();
+            return ToolResult.textOnly("Error exporting graph viewer: " + e.getMessage());
         }
     }
 }

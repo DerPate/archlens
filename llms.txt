@@ -16,7 +16,9 @@ The server is designed for consumption by LLM agents and MCP-capable clients
 - Build tool: Maven 3.9+
 - Entry point: `dev.dominikbreu.archlens.Main`
 - Packaging: shaded jar via `maven-shade-plugin` → `target/archlens.jar`
-- Transport: stdio JSON-RPC 2.0 (MCP protocol version `2024-11-05`)
+- Transport: stdio JSON-RPC 2.0 (negotiates MCP protocol version with the client; supports up to `2025-11-25`)
+- Tool responses: every `tools/call` result includes `content[0].text` (unchanged); most tools also
+  populate `structuredContent` with JSON matching the tool's `outputSchema` (see `docs/TOOLS.md`)
 - Cache: `.archlens-cache/` in the working directory (GraphSON format)
 - License: see `LICENSE`
 

@@ -2,6 +2,8 @@ package dev.dominikbreu.archlens.mcp.tools;
 
 import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.cache.ModelCache;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -16,16 +18,17 @@ public class ListAppsTool {
         this.cache = cache;
     }
 
-    public String execute(Map<String, Object> args) {
+    public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (graph.isEmpty()) return "No workspace indexed yet. Call index_workspace first.";
+            if (graph.isEmpty()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
 
             List<GraphQuery.GraphNode> apps = graph.allApps();
-            if (apps.isEmpty()) return "No applications found in the indexed workspace.";
+            if (apps.isEmpty()) return ToolResult.textOnly("No applications found in the indexed workspace.");
 
             StringBuilder sb = new StringBuilder();
             sb.append("Applications (").append(apps.size()).append("):\n\n");
+            List<Map<String, Object>> appList = new ArrayList<>();
             for (GraphQuery.GraphNode node : apps) {
                 if (!(node instanceof GraphQuery.ApplicationNode an)) continue;
                 sb.append("- ")
@@ -39,22 +42,26 @@ public class ListAppsTool {
                         .append("\n  root:        ")
                         .append(an.rootPath())
                         .append("\n\n");
+                appList.add(ToolArgs.nodeAsMap(an));
             }
-            sb.append("Total components:    ")
-                    .append(graph.countByLabel("Component"))
-                    .append("\n");
-            sb.append("Total entrypoints:   ")
-                    .append(graph.countByLabel("Entrypoint"))
-                    .append("\n");
-            sb.append("Total interfaces:    ")
-                    .append(graph.countByLabel("Interface"))
-                    .append("\n");
-            sb.append("Total runtime flows: ")
-                    .append(graph.countByLabel("RuntimeFlow"))
-                    .append("\n");
-            return sb.toString();
+            long componentCount = graph.countByLabel("Component");
+            long entrypointCount = graph.countByLabel("Entrypoint");
+            long interfaceCount = graph.countByLabel("Interface");
+            long runtimeFlowCount = graph.countByLabel("RuntimeFlow");
+            sb.append("Total components:    ").append(componentCount).append("\n");
+            sb.append("Total entrypoints:   ").append(entrypointCount).append("\n");
+            sb.append("Total interfaces:    ").append(interfaceCount).append("\n");
+            sb.append("Total runtime flows: ").append(runtimeFlowCount).append("\n");
+
+            Map<String, Object> structured = new LinkedHashMap<>();
+            structured.put("apps", appList);
+            structured.put("componentCount", componentCount);
+            structured.put("entrypointCount", entrypointCount);
+            structured.put("interfaceCount", interfaceCount);
+            structured.put("runtimeFlowCount", runtimeFlowCount);
+            return new ToolResult(sb.toString(), structured);
         } catch (Exception e) {
-            return "Error listing apps: " + e.getMessage();
+            return ToolResult.textOnly("Error listing apps: " + e.getMessage());
         }
     }
 }

@@ -3,6 +3,8 @@ package dev.dominikbreu.archlens.mcp.tools;
 import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.cache.ModelCache;
 import dev.dominikbreu.archlens.renderer.MermaidCallFlowRenderer;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -18,19 +20,20 @@ public class CallFlowTool {
         this.cache = cache;
     }
 
-    public String execute(Map<String, Object> args) {
+    public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (graph.isEmpty()) return "No workspace indexed yet. Call index_workspace first.";
+            if (graph.isEmpty()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
 
             String ref = ToolArgs.getString(args, "entrypointId");
             if (ref == null) ref = ToolArgs.getString(args, "entrypointName");
-            if (ref == null) return "Error: provide 'entrypointId' or 'entrypointName'.";
+            if (ref == null) return ToolResult.textOnly("Error: provide 'entrypointId' or 'entrypointName'.");
 
             GraphQuery.RuntimeFlowNode flow =
                     graph.runtimeFlowForEntrypoint(ref).orElse(null);
             if (flow == null) {
-                return "Entrypoint not found: " + ref + "\n\nAvailable entrypoints:\n" + listEntrypoints(graph);
+                return ToolResult.textOnly(
+                        "Entrypoint not found: " + ref + "\n\nAvailable entrypoints:\n" + listEntrypoints(graph));
             }
 
             GraphQuery.GraphNode epNode = flow.entrypointId() != null ? graph.entrypoint(flow.entrypointId()) : null;
@@ -50,6 +53,7 @@ public class CallFlowTool {
             sb.append("\n\n");
 
             List<GraphQuery.RuntimeFlowStepNode> steps = graph.flowSteps(flow.id());
+            List<Map<String, Object>> structuredSteps = new ArrayList<>();
             if (steps.isEmpty()) {
                 sb.append("No flow steps derived (no injection dependencies found from this entry point).\n");
             } else {
@@ -70,16 +74,28 @@ public class CallFlowTool {
                                             ? step.componentId().serialize()
                                             : "")
                             .append(")\n");
+                    Map<String, Object> stepMap = new LinkedHashMap<>();
+                    stepMap.put("order", step.order());
+                    stepMap.put("componentType", step.componentType());
+                    stepMap.put("name", step.name());
+                    stepMap.put(
+                            "componentId",
+                            step.componentId() != null ? step.componentId().serialize() : null);
+                    structuredSteps.add(stepMap);
                 }
             }
 
+            String diagram = renderer.render(flow, graph);
             sb.append("\n```mermaid\n");
-            sb.append(renderer.render(flow, graph));
+            sb.append(diagram);
             sb.append("```\n");
 
-            return sb.toString();
+            Map<String, Object> structured = new LinkedHashMap<>();
+            structured.put("steps", structuredSteps);
+            structured.put("diagram", diagram);
+            return new ToolResult(sb.toString(), structured);
         } catch (Exception e) {
-            return "Error getting call flow: " + e.getMessage();
+            return ToolResult.textOnly("Error getting call flow: " + e.getMessage());
         }
     }
 

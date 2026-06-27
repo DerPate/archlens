@@ -3,6 +3,7 @@ package dev.dominikbreu.archlens.mcp.tools;
 import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.cache.ModelCache;
 import dev.dominikbreu.archlens.model.ids.GraphNodeId;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,9 +32,10 @@ public class QueryArchitectureGraphTool {
      * Executes a graph query against the cached architecture model.
      *
      * @param args JSON arguments with an action and action-specific options
-     * @return graph query result
+     * @return graph query result text plus a structured payload whose shape depends on the action
+     *     (summary, node array, edge array, or path array)
      */
-    public String execute(Map<String, Object> args) {
+    public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
             String action = text(args, "action", "summary");
@@ -63,21 +65,27 @@ public class QueryArchitectureGraphTool {
                             GraphNodeId.of(requiredText(args, "nodeId")),
                             integer(args, "maxDepth", 3),
                             integer(args, LIMIT, 256)));
-                default -> "Unknown graph action: " + action;
+                default -> ToolResult.textOnly("Unknown graph action: " + action);
             };
         } catch (Exception e) {
-            return "Error querying architecture graph: " + e.getMessage();
+            return ToolResult.textOnly("Error querying architecture graph: " + e.getMessage());
         }
     }
 
-    private String renderSummary(GraphQuery.GraphSummary summary) {
+    private ToolResult renderSummary(GraphQuery.GraphSummary summary) {
         StringBuilder sb = new StringBuilder();
         sb.append("Architecture graph\n");
         sb.append("Nodes: ").append(summary.nodeCount()).append("\n");
         appendCounts(sb, "Node labels", summary.labels());
         sb.append("Edges: ").append(summary.edgeCount()).append("\n");
         appendCounts(sb, "Edge labels", summary.edges());
-        return sb.toString();
+
+        Map<String, Object> structured = new LinkedHashMap<>();
+        structured.put("nodeCount", summary.nodeCount());
+        structured.put("edgeCount", summary.edgeCount());
+        structured.put("labels", summary.labels());
+        structured.put("edges", summary.edges());
+        return new ToolResult(sb.toString(), structured);
     }
 
     private void appendCounts(StringBuilder sb, String title, Map<String, Integer> counts) {
@@ -90,12 +98,13 @@ public class QueryArchitectureGraphTool {
                 sb.append("- ").append(label).append(": ").append(count).append("\n"));
     }
 
-    private String renderNodes(List<GraphQuery.GraphNode> nodes) {
+    private ToolResult renderNodes(List<GraphQuery.GraphNode> nodes) {
         if (nodes.isEmpty()) {
-            return "No graph nodes matched.";
+            return ToolResult.textOnly("No graph nodes matched.");
         }
         StringBuilder sb = new StringBuilder();
         sb.append("Graph nodes:\n");
+        List<Map<String, Object>> structured = new ArrayList<>();
         for (GraphQuery.GraphNode node : nodes) {
             sb.append("- ")
                     .append(node.id().serialize())
@@ -107,8 +116,9 @@ public class QueryArchitectureGraphTool {
             }
             appendNodeFields(sb, node);
             sb.append("\n");
+            structured.add(ToolArgs.nodeAsMap(node));
         }
-        return sb.toString();
+        return new ToolResult(sb.toString(), structured);
     }
 
     private void appendNodeFields(StringBuilder sb, GraphQuery.GraphNode node) {
@@ -317,12 +327,13 @@ public class QueryArchitectureGraphTool {
         if (!suffix.isBlank()) sb.append(" {").append(suffix).append("}");
     }
 
-    private String renderEdges(List<GraphQuery.GraphEdge> edges) {
+    private ToolResult renderEdges(List<GraphQuery.GraphEdge> edges) {
         if (edges.isEmpty()) {
-            return "No graph edges matched.";
+            return ToolResult.textOnly("No graph edges matched.");
         }
         StringBuilder sb = new StringBuilder();
         sb.append("Graph edges:\n");
+        List<Map<String, Object>> structured = new ArrayList<>();
         for (GraphQuery.GraphEdge edge : edges) {
             sb.append("- ")
                     .append(edge.fromId().serialize())
@@ -332,16 +343,18 @@ public class QueryArchitectureGraphTool {
                     .append(edge.toId().serialize());
             appendProperties(sb, edge.properties());
             sb.append("\n");
+            structured.add(ToolArgs.edgeAsMap(edge));
         }
-        return sb.toString();
+        return new ToolResult(sb.toString(), structured);
     }
 
-    private String renderPaths(List<GraphQuery.GraphPath> paths) {
+    private ToolResult renderPaths(List<GraphQuery.GraphPath> paths) {
         if (paths.isEmpty()) {
-            return "No graph paths matched.";
+            return ToolResult.textOnly("No graph paths matched.");
         }
         StringBuilder sb = new StringBuilder();
         sb.append("Graph paths:\n");
+        List<Map<String, Object>> structured = new ArrayList<>();
         for (GraphQuery.GraphPath path : paths) {
             List<String> nodeIds =
                     path.nodes().stream().map(node -> node.id().serialize()).toList();
@@ -350,8 +363,12 @@ public class QueryArchitectureGraphTool {
                 sb.append(" (").append(String.join(", ", path.edgeLabels())).append(")");
             }
             sb.append("\n");
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("nodeIds", nodeIds);
+            entry.put("edgeLabels", path.edgeLabels());
+            structured.add(entry);
         }
-        return sb.toString();
+        return new ToolResult(sb.toString(), structured);
     }
 
     private String requiredText(Map<String, Object> args, String name) {

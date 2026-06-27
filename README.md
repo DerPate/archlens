@@ -179,6 +179,8 @@ This serialized form is what every tool emits and expects as input, including th
 
 - `docs/INSTALL.md`: install, MCP client wiring, and configuration.
 - `docs/TOOLS.md`: MCP tool and prompt reference.
+- `docs/STRUCTURED_OUTPUT.md`: why `structuredContent` saves tokens, and what agent
+  instructions need to say to actually use it.
 - `docs/ARCHITECTURE.md`: package responsibilities and data flow.
 - `skills/spoon-understand/`: portable agent workflow pack.
 - `AGENTS.md`: repository guide for coding agents.

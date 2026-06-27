@@ -75,10 +75,11 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       <p class="tool-page-intro">
         One Mermaid <code>flowchart TD</code> per pipeline chain, with segments separated by
         boundary nodes: cylinders for shared-state stores, rounded rectangles for message
-        broker channels, circles for event buses. When no chains are found, a structured
-        diagnostic returns counts for data-flow paths, linked sinks, messaging sinks,
+        broker channels, circles for event buses. When no chains are found, a diagnostic
+        message reports counts for data-flow paths, linked sinks, messaging sinks,
         unresolved destinations, and persistence reads and writes — use these to identify
-        what config or extraction data is missing.
+        what config or extraction data is missing. The response's <code>structuredContent</code>
+        carries a <code>{"{ diagramType: \"mermaid\" }"}</code> marker alongside the diagram text.
       </p>
 
       <h2 class="tool-section-label">Related tools</h2>

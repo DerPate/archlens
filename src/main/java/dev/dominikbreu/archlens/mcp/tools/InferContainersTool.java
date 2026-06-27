@@ -3,6 +3,7 @@ package dev.dominikbreu.archlens.mcp.tools;
 import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.cache.ModelCache;
 import dev.dominikbreu.archlens.model.ids.ComponentId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -18,10 +19,10 @@ public class InferContainersTool {
         this.cache = cache;
     }
 
-    public String execute(Map<String, Object> args) {
+    public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (graph.isEmpty()) return "No workspace indexed yet. Call index_workspace first.";
+            if (graph.isEmpty()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
 
             String appFilter = ToolArgs.getString(args, "appId");
 
@@ -34,7 +35,8 @@ public class InferContainersTool {
                     })
                     .toList();
 
-            if (containers.isEmpty()) return "No containers found. Re-run index_workspace to build containers.";
+            if (containers.isEmpty())
+                return ToolResult.textOnly("No containers found. Re-run index_workspace to build containers.");
 
             // Pre-fetch all CONTAINS edges for mapping container → components
             List<GraphQuery.GraphEdge> containsEdges = graph.findEdges("CONTAINS", Map.of(), 10_000);
@@ -42,6 +44,7 @@ public class InferContainersTool {
             StringBuilder sb = new StringBuilder();
             sb.append("Containers (").append(containers.size()).append("):\n\n");
 
+            List<Map<String, Object>> structured = new ArrayList<>();
             String currentApp = null;
             for (GraphQuery.GraphNode node : containers) {
                 GraphQuery.ContainerNode cn = (GraphQuery.ContainerNode) node;
@@ -62,6 +65,7 @@ public class InferContainersTool {
                         .filter(e -> e.fromId().equals(cn.id()))
                         .toList();
                 sb.append("    Components (").append(memberEdges.size()).append("):\n");
+                List<Map<String, Object>> memberComponents = new ArrayList<>();
                 for (GraphQuery.GraphEdge edge : memberEdges) {
                     GraphQuery.GraphNode comp =
                             graph.component(ComponentId.of(edge.toId().value()));
@@ -71,13 +75,18 @@ public class InferContainersTool {
                                 .append("] ")
                                 .append(c.name())
                                 .append("\n");
+                        memberComponents.add(ToolArgs.nodeAsMap(c));
                     }
                 }
                 sb.append("\n");
+
+                Map<String, Object> containerEntry = ToolArgs.nodeAsMap(cn);
+                containerEntry.put("components", memberComponents);
+                structured.add(containerEntry);
             }
-            return sb.toString();
+            return new ToolResult(sb.toString(), structured);
         } catch (Exception e) {
-            return "Error inferring containers: " + e.getMessage();
+            return ToolResult.textOnly("Error inferring containers: " + e.getMessage());
         }
     }
 }

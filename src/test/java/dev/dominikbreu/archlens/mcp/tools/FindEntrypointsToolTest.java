@@ -46,7 +46,7 @@ class FindEntrypointsToolTest {
 
     @Test
     void filterByHttpMethod_GET_returnsOnlyGetEndpoints() {
-        String result = tool.execute(Map.of("httpMethod", "GET"));
+        String result = tool.execute(Map.of("httpMethod", "GET")).text();
         assertThat(result).contains("getAll [GET] /customer");
         assertThat(result).contains("get [GET] /customer/{id}");
         assertThat(result).contains("getAll [GET] /account");
@@ -58,7 +58,7 @@ class FindEntrypointsToolTest {
 
     @Test
     void filterByHttpMethod_POST_returnsOnlyPostEndpoints() {
-        String result = tool.execute(Map.of("httpMethod", "POST"));
+        String result = tool.execute(Map.of("httpMethod", "POST")).text();
         assertThat(result).contains("[POST] /customer");
         assertThat(result).contains("[POST] /customer/{id}/address");
         assertThat(result).contains("[POST] /account");
@@ -68,8 +68,8 @@ class FindEntrypointsToolTest {
 
     @Test
     void filterByHttpMethod_isCaseInsensitive() {
-        String lower = tool.execute(Map.of("httpMethod", "get"));
-        String upper = tool.execute(Map.of("httpMethod", "GET"));
+        String lower = tool.execute(Map.of("httpMethod", "get")).text();
+        String upper = tool.execute(Map.of("httpMethod", "GET")).text();
         assertThat(lower).isEqualTo(upper);
     }
 
@@ -77,7 +77,7 @@ class FindEntrypointsToolTest {
 
     @Test
     void filterByPath_returnsAllEndpointsAtOrBelowPath() {
-        String result = tool.execute(Map.of("path", "/customer"));
+        String result = tool.execute(Map.of("path", "/customer")).text();
         assertThat(result).contains("/customer");
         assertThat(result).contains("/customer/{id}");
         assertThat(result).contains("/customer/{id}/address");
@@ -89,7 +89,7 @@ class FindEntrypointsToolTest {
     void filterByPath_withParameterisedPrefix_returnsSubPaths() {
         // /customer/{id} should match /customer/{id}, /customer/{id}/address, /customer/{id}/address/{aid}
         // but NOT /customer (the bare list endpoint)
-        String result = tool.execute(Map.of("path", "/customer/{id}"));
+        String result = tool.execute(Map.of("path", "/customer/{id}")).text();
         assertThat(result).contains("/customer/{id}");
         assertThat(result).contains("/customer/{id}/address");
         assertThat(result).contains("/customer/{id}/address/{aid}");
@@ -99,7 +99,7 @@ class FindEntrypointsToolTest {
 
     @Test
     void filterByPath_exactPathMatchIncluded() {
-        String result = tool.execute(Map.of("path", "/account"));
+        String result = tool.execute(Map.of("path", "/account")).text();
         assertThat(result).contains("/account");
         assertThat(result).doesNotContain("/customer");
     }
@@ -108,7 +108,8 @@ class FindEntrypointsToolTest {
 
     @Test
     void filterByAppId_exactId_returnsOnlyEntrypointsOwnedByThatApp() {
-        String result = twoAppTool().execute(Map.of("appId", "app:customer-service"));
+        String result =
+                twoAppTool().execute(Map.of("appId", "app:customer-service")).text();
         assertThat(result).contains("/customer");
         assertThat(result).doesNotContain("/account");
     }
@@ -117,7 +118,8 @@ class FindEntrypointsToolTest {
     void filterByAppId_partialIdWithoutPrefix_stillMatches() {
         // "app:" prefix and exact id shouldn't be required — same partial-match
         // convention as the rest of graph search (query_architecture_graph find_nodes).
-        String result = twoAppTool().execute(Map.of("appId", "customer-service"));
+        String result =
+                twoAppTool().execute(Map.of("appId", "customer-service")).text();
         assertThat(result).contains("/customer");
         assertThat(result).doesNotContain("/account");
     }
@@ -164,7 +166,8 @@ class FindEntrypointsToolTest {
 
     @Test
     void combinedMethodAndPath_returnsOnlyMatchingMethodUnderPath() {
-        String result = tool.execute(Map.of("httpMethod", "GET", "path", "/customer"));
+        String result =
+                tool.execute(Map.of("httpMethod", "GET", "path", "/customer")).text();
         assertThat(result).contains("getAll [GET] /customer");
         assertThat(result).contains("get [GET] /customer/{id}");
         assertThat(result).contains("getAddress [GET] /customer/{id}/address/{aid}");

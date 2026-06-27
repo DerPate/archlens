@@ -169,6 +169,12 @@ def notify(method, params=None):
 def tool(name, args):
     return call("tools/call", {"name": name, "arguments": args})["content"][0]["text"]
 
+# Most tools also return structuredContent (JSON matching the tool's outputSchema from
+# tools/list) alongside the text above -- read it directly when you need parsed data
+# instead of re-parsing the text:
+def tool_structured(name, args):
+    return call("tools/call", {"name": name, "arguments": args}).get("structuredContent")
+
 # Handshake -- always in this order
 call("initialize", {
     "protocolVersion": "2024-11-05",

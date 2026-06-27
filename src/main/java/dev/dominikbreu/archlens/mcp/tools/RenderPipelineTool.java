@@ -41,14 +41,15 @@ public class RenderPipelineTool {
      * Renders a Mermaid pipeline diagram for the requested entrypoint or all pipelines.
      *
      * @param args tool arguments (optional {@code entrypointId})
-     * @return Mermaid diagram string, or an error message
+     * @return Mermaid diagram text (or an error/diagnostic message), plus a {diagramType} marker
      */
-    public String execute(Map<String, Object> args) {
+    public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (!graph.isIndexed()) return "No workspace indexed yet. Call index_workspace first.";
+            if (!graph.isIndexed()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
             if (!graph.hasCallGraph()) {
-                return "No call-graph data available. Re-index the workspace to enable pipeline rendering.";
+                return ToolResult.textOnly(
+                        "No call-graph data available. Re-index the workspace to enable pipeline rendering.");
             }
 
             int maxChains = ToolArgs.getInt(args, "maxChains", 5);
@@ -58,18 +59,18 @@ public class RenderPipelineTool {
 
             List<Chain> chains = graph.allPipelineChains();
             if (chains.isEmpty()) {
-                return diagnosticFromGraph(graph);
+                return ToolResult.textOnly(diagnosticFromGraph(graph));
             }
 
             List<Chain> candidates = filterCandidates(chains, includeLifecycle, epFilter, channelFilter);
             List<Chain> filtered = selectDiverse(candidates, maxChains);
 
             if (filtered.isEmpty()) {
-                return "No pipeline chains matched the given filters.";
+                return ToolResult.textOnly("No pipeline chains matched the given filters.");
             }
-            return renderChains(filtered, graph);
+            return new ToolResult(renderChains(filtered, graph), Map.of("diagramType", "mermaid"));
         } catch (Exception e) {
-            return "Error rendering pipeline: " + e.getMessage();
+            return ToolResult.textOnly("Error rendering pipeline: " + e.getMessage());
         }
     }
 

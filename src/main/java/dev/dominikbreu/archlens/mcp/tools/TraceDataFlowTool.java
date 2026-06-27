@@ -11,6 +11,7 @@ import dev.dominikbreu.archlens.cache.GraphQuery.EntrypointNode;
 import dev.dominikbreu.archlens.cache.GraphQuery.GraphEdge;
 import dev.dominikbreu.archlens.cache.ModelCache;
 import dev.dominikbreu.archlens.extractor.RuntimeFlowInferrer;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,13 +27,14 @@ public class TraceDataFlowTool {
         this.cache = cache;
     }
 
-    public String execute(Map<String, Object> args) {
+    public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (!graph.isIndexed()) return "No workspace indexed yet. Call index_workspace first.";
+            if (!graph.isIndexed()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
 
             if (!graph.hasCallGraph()) {
-                return "No call-graph data available. Re-index the workspace to enable data-flow tracing.";
+                return ToolResult.textOnly(
+                        "No call-graph data available. Re-index the workspace to enable data-flow tracing.");
             }
 
             List<DataFlowPathNode> paths = graph.allDataFlowPaths();
@@ -41,12 +43,43 @@ public class TraceDataFlowTool {
             paths = filterByParam(paths, ToolArgs.getString(args, "param"));
             paths = filterBySinkKind(paths, ToolArgs.getString(args, "sinkKind"), graph);
 
-            if (paths.isEmpty()) return "No data-flow paths found for the given filters.";
+            if (paths.isEmpty()) return ToolResult.textOnly("No data-flow paths found for the given filters.");
 
-            return format(paths, graph);
+            return new ToolResult(format(paths, graph), structured(paths, graph));
         } catch (Exception e) {
-            return "Error tracing data flow: " + e.getMessage();
+            return ToolResult.textOnly("Error tracing data flow: " + e.getMessage());
         }
+    }
+
+    private List<Map<String, Object>> structured(List<DataFlowPathNode> paths, GraphQuery graph) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (DataFlowPathNode path : paths) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("id", path.id().serialize());
+            entry.put(
+                    "entrypointId",
+                    path.entrypointId() != null ? path.entrypointId().serialize() : null);
+            entry.put("entrypoint", entrypointLabel(path, graph));
+            entry.put("trackedParam", path.trackedParam());
+            entry.put(
+                    "sinks",
+                    graph.pathSinks(path.id()).stream()
+                            .map(sink -> {
+                                Map<String, Object> sinkMap = new LinkedHashMap<>();
+                                sinkMap.put(
+                                        "kind",
+                                        sink.sinkKind() != null
+                                                ? sink.sinkKind().value()
+                                                : null);
+                                sinkMap.put("name", sink.name());
+                                sinkMap.put("method", sink.method());
+                                sinkMap.put("fieldName", sink.fieldName());
+                                return sinkMap;
+                            })
+                            .toList());
+            result.add(entry);
+        }
+        return result;
     }
 
     private static List<DataFlowPathNode> filterByEntrypointId(List<DataFlowPathNode> paths, String epFilter) {

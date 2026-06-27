@@ -5,6 +5,7 @@ import dev.dominikbreu.archlens.cache.ModelCache;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -42,13 +43,13 @@ public class ExportGraphArchitecturePocTool {
      * Exports a graph-centric POC markdown document.
      *
      * @param args JSON arguments including outputPath and focusComponent
-     * @return export status message
+     * @return export status text plus a structured {outputPath} summary
      */
-    public String execute(Map<String, Object> args) {
+    public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
             if (!graph.isIndexed()) {
-                return "No workspace indexed yet. Call index_workspace first.";
+                return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
             }
 
             Path output = Path.of(ToolArgs.getString(args, "outputPath", DEFAULT_OUTPUT.toString()));
@@ -61,11 +62,15 @@ public class ExportGraphArchitecturePocTool {
             }
             Files.writeString(output, markdown);
 
-            return "Exported graph POC docs to " + output.toAbsolutePath()
-                    + "\nNodes: " + graph.summary().nodeCount()
-                    + "\nEdges: " + graph.summary().edgeCount();
+            Map<String, Object> structured = new LinkedHashMap<>();
+            structured.put("outputPath", output.toAbsolutePath().toString());
+            return new ToolResult(
+                    "Exported graph POC docs to " + output.toAbsolutePath()
+                            + "\nNodes: " + graph.summary().nodeCount()
+                            + "\nEdges: " + graph.summary().edgeCount(),
+                    structured);
         } catch (Exception e) {
-            return "Error exporting graph POC docs: " + e.getMessage();
+            return ToolResult.textOnly("Error exporting graph POC docs: " + e.getMessage());
         }
     }
 

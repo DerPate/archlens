@@ -19,7 +19,7 @@ class ExportGraphDataToolTest {
     void returnsClearMessageWhenNoWorkspaceIndexed(@TempDir Path tempDir) {
         ExportGraphDataTool tool = new ExportGraphDataTool(new ModelCache(tempDir.toString()));
 
-        String result = tool.execute(Map.of());
+        String result = tool.execute(Map.of()).text();
 
         assertThat(result).isEqualTo("No workspace indexed yet. Call index_workspace first.");
     }
@@ -37,7 +37,9 @@ class ExportGraphDataToolTest {
         cache.store(model);
 
         Path output = tempDir.resolve("graph.json");
-        String result = new ExportGraphDataTool(cache).execute(Map.of("outputPath", output.toString()));
+        String result = new ExportGraphDataTool(cache)
+                .execute(Map.of("outputPath", output.toString()))
+                .text();
 
         assertThat(result).contains("Exported graph data to " + output.toAbsolutePath());
         assertThat(result).contains("Nodes: 1");

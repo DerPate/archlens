@@ -32,10 +32,10 @@ public class ExportArchitectureDocsTool {
         this.cache = cache;
     }
 
-    public String execute(Map<String, Object> args) {
+    public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (!graph.isIndexed()) return "No workspace indexed yet. Call index_workspace first.";
+            if (!graph.isIndexed()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
 
             Path output = Path.of(ToolArgs.getString(args, "outputPath", DEFAULT_OUTPUT.toString()));
             String focus = ToolArgs.getString(args, "focusComponent", "McpServer");
@@ -45,11 +45,15 @@ public class ExportArchitectureDocsTool {
             if (parent != null) Files.createDirectories(parent);
             Files.writeString(output, markdown);
 
-            return "Exported architecture docs to " + output.toAbsolutePath()
-                    + "\nComponents: " + graph.countByLabel("Component")
-                    + "\nDependencies: " + graph.dependencyEdges().size();
+            Map<String, Object> structured = new LinkedHashMap<>();
+            structured.put("outputPath", output.toAbsolutePath().toString());
+            return new ToolResult(
+                    "Exported architecture docs to " + output.toAbsolutePath()
+                            + "\nComponents: " + graph.countByLabel("Component")
+                            + "\nDependencies: " + graph.dependencyEdges().size(),
+                    structured);
         } catch (Exception e) {
-            return "Error exporting architecture docs: " + e.getMessage();
+            return ToolResult.textOnly("Error exporting architecture docs: " + e.getMessage());
         }
     }
 

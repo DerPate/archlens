@@ -26,16 +26,16 @@ public class RenderSourceOverviewTool {
      * Executes source overview rendering.
      *
      * @param args JSON arguments including maxComponentsPerPackage
-     * @return Mermaid diagram text or an error message
+     * @return Mermaid diagram text (or an error message), plus a {diagramType} marker
      */
-    public String execute(Map<String, Object> args) {
+    public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (!graph.isIndexed()) return "No workspace indexed yet. Call index_workspace first.";
+            if (!graph.isIndexed()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
             int maxComponentsPerPackage = ToolArgs.getInt(args, "maxComponentsPerPackage", 25);
-            return renderer.render(graph, maxComponentsPerPackage);
+            return new ToolResult(renderer.render(graph, maxComponentsPerPackage), Map.of("diagramType", "mermaid"));
         } catch (Exception e) {
-            return "Error rendering source overview: " + e.getMessage();
+            return ToolResult.textOnly("Error rendering source overview: " + e.getMessage());
         }
     }
 }

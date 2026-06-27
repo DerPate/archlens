@@ -6,6 +6,8 @@ import dev.dominikbreu.archlens.extractor.UseCaseDetector;
 import dev.dominikbreu.archlens.model.UseCase;
 import dev.dominikbreu.archlens.model.UseCaseNamingConfig;
 import dev.dominikbreu.archlens.model.ids.ComponentId;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -24,13 +26,13 @@ public class DetectUseCasesTool {
         this.cache = cache;
     }
 
-    public String execute(Map<String, Object> args) {
+    public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (!graph.isIndexed()) return "No workspace indexed yet. Call index_workspace first.";
+            if (!graph.isIndexed()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
 
             ConfigResult configResult = resolveConfig(ToolArgs.getString(args, "configFile"));
-            if (configResult.error() != null) return configResult.error();
+            if (configResult.error() != null) return ToolResult.textOnly(configResult.error());
 
             String filterModule = ToolArgs.getString(args, "module");
             int maxDepth = ToolArgs.getInt(args, "maxDepth", 5);
@@ -38,12 +40,27 @@ public class DetectUseCasesTool {
             List<UseCase> useCases = detector.detect(graph, configResult.config());
 
             if (filterModule != null) useCases = filterByModule(useCases, graph, filterModule);
-            if (useCases.isEmpty()) return "No use cases detected.";
+            if (useCases.isEmpty()) return ToolResult.textOnly("No use cases detected.");
 
-            return format(useCases, graph, maxDepth);
+            return new ToolResult(format(useCases, graph, maxDepth), structured(useCases, graph));
         } catch (Exception e) {
-            return "Error detecting use cases: " + e.getMessage();
+            return ToolResult.textOnly("Error detecting use cases: " + e.getMessage());
         }
+    }
+
+    private List<Map<String, Object>> structured(List<UseCase> useCases, GraphQuery graph) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (UseCase uc : useCases) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("id", uc.id.serialize());
+            entry.put("name", uc.name);
+            entry.put("type", uc.type != null ? uc.type.toString() : null);
+            entry.put("channelOrPath", uc.channelOrPath);
+            entry.put("components", resolveNames(uc.componentIds, graph));
+            entry.put("methodChain", uc.methodChain);
+            result.add(entry);
+        }
+        return result;
     }
 
     private record ConfigResult(UseCaseNamingConfig config, String error) {}

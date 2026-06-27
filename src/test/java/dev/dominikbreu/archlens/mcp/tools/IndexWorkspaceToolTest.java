@@ -23,8 +23,9 @@ class IndexWorkspaceToolTest {
 
         IndexWorkspaceTool tool = new IndexWorkspaceTool(new FailingExtractor(), cache);
 
-        String result =
-                tool.execute(Map.of("paths", List.of(tempDir.resolve("next").toString())));
+        String result = tool.execute(
+                        Map.of("paths", List.of(tempDir.resolve("next").toString())))
+                .text();
 
         assertThat(result).contains("Error indexing workspace: boom");
         assertThat(cache.graph().isIndexed()).isFalse();
@@ -35,7 +36,8 @@ class IndexWorkspaceToolTest {
         IndexWorkspaceTool tool = new IndexWorkspaceTool(
                 new FixedExtractor(model("next-workspace", "NextService")), new ModelCache(tempDir.toString()));
 
-        String result = tool.execute(Map.of("paths", List.of(tempDir.toString())));
+        String result =
+                tool.execute(Map.of("paths", List.of(tempDir.toString()))).text();
 
         assertThat(result).contains("Indexed 1 project(s).");
         assertThat(new ModelCache(tempDir.toString()).graph().findNodes("Component", "NextService", Map.of(), 10))

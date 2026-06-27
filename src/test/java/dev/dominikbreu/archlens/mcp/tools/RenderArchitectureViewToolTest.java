@@ -14,9 +14,10 @@ class RenderArchitectureViewToolTest {
         RenderArchitectureViewTool tool = new RenderArchitectureViewTool(cache);
 
         String result = tool.call(Map.of(
-                "app", "state-handoff",
-                "view", "component",
-                "maxNodes", 12));
+                        "app", "state-handoff",
+                        "view", "component",
+                        "maxNodes", 12))
+                .text();
 
         assertTrue(result.contains("flowchart LR"), "expected flowchart LR in:\n" + result);
         assertTrue(

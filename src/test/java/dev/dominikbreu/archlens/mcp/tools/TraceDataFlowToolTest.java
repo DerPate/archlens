@@ -50,7 +50,7 @@ class TraceDataFlowToolTest {
         cache.indexInMemory(model);
         TraceDataFlowTool tool = new TraceDataFlowTool(cache);
 
-        String result = tool.execute(Map.of("entrypointName", "/customer"));
+        String result = tool.execute(Map.of("entrypointName", "/customer")).text();
 
         assertThat(result).contains("GET /customer/{id}");
         assertThat(result).doesNotContain("budgetControl");
@@ -61,7 +61,7 @@ class TraceDataFlowToolTest {
     @Test
     void emptyCallEdges_reportsNoCallGraph() {
         ArchitectureModel model = new ArchitectureModel("test");
-        String result = tool(model).execute(Map.of());
+        String result = tool(model).execute(Map.of()).text();
         assertThat(result).contains("No call-graph data available");
     }
 
@@ -69,41 +69,45 @@ class TraceDataFlowToolTest {
     void noModel_reportsNoWorkspace() {
         ModelCache empty = new ModelCache(null);
         empty.indexInMemory(null);
-        assertThat(new TraceDataFlowTool(empty).execute(Map.of())).contains("No workspace indexed");
+        assertThat(new TraceDataFlowTool(empty).execute(Map.of()).text()).contains("No workspace indexed");
     }
 
     @Test
     void entrypointIdFilter_matchesBySerializedId() {
         ArchitectureModel model = richModel();
-        String result = tool(model).execute(Map.of("entrypointId", "CustomerController#get"));
+        String result = tool(model)
+                .execute(Map.of("entrypointId", "CustomerController#get"))
+                .text();
         assertThat(result).contains("GET /customer/{id}");
     }
 
     @Test
     void paramFilter_selectsMatchingParam() {
         ArchitectureModel model = richModel();
-        String result = tool(model).execute(Map.of("param", "id"));
+        String result = tool(model).execute(Map.of("param", "id")).text();
         assertThat(result).contains("param: id");
     }
 
     @Test
     void sinkKindFilter_selectsPathsWithMatchingSink() {
         ArchitectureModel model = richModel();
-        String result = tool(model).execute(Map.of("sinkKind", "store"));
+        String result = tool(model).execute(Map.of("sinkKind", "store")).text();
         assertThat(result).contains("[store]");
     }
 
     @Test
     void filtersExcludingAll_reportNoPaths() {
         ArchitectureModel model = richModel();
-        String result = tool(model).execute(Map.of("param", "doesNotExist"));
+        String result = tool(model).execute(Map.of("param", "doesNotExist")).text();
         assertThat(result).isEqualTo("No data-flow paths found for the given filters.");
     }
 
     @Test
     void format_rendersStepsSinksStoreFieldAndSourceLocation() {
         ArchitectureModel model = richModel();
-        String result = tool(model).execute(Map.of("entrypointId", "CustomerController#get"));
+        String result = tool(model)
+                .execute(Map.of("entrypointId", "CustomerController#get"))
+                .text();
 
         assertThat(result)
                 .contains("1 data-flow path(s):")
@@ -148,7 +152,9 @@ class TraceDataFlowToolTest {
         branch.arms.add(new DataFlowBranchArm("b0:else", "b0", "else", "n2"));
         path.branches.add(branch);
 
-        String result = tool(model).execute(Map.of("entrypointId", "CustomerController#get"));
+        String result = tool(model)
+                .execute(Map.of("entrypointId", "CustomerController#get"))
+                .text();
 
         assertThat(result)
                 .contains("flow graph:")
@@ -169,7 +175,7 @@ class TraceDataFlowToolTest {
         // path referencing an entrypoint id not present in model.entrypoints
         DataFlowPath orphan = dataFlowPath("ep:Ghost#run#x", EntrypointId.deserialize("Ghost#run"), "x");
         model.dataFlowPaths.add(orphan);
-        String result = tool(model).execute(Map.of("param", "x"));
+        String result = tool(model).execute(Map.of("param", "x")).text();
         assertThat(result).contains("Ghost#run");
     }
 

@@ -13,7 +13,8 @@ class ExportLikeC4ModelToolTest {
         ModelCache cache = ToolTestFixtures.indexFixtureProject("state-handoff");
         ExportLikeC4ModelTool tool = new ExportLikeC4ModelTool(cache);
 
-        String result = tool.call(Map.of("app", "state-handoff", "maxNodes", 12));
+        String result =
+                tool.call(Map.of("app", "state-handoff", "maxNodes", 12)).text();
 
         assertTrue(result.contains("specification"), "expected specification in:\n" + result);
         assertTrue(result.contains("model"), "expected model in:\n" + result);
@@ -29,9 +30,10 @@ class ExportLikeC4ModelToolTest {
         ExportLikeC4ModelTool tool = new ExportLikeC4ModelTool(cache);
 
         String result = tool.call(Map.of(
-                "app", "state-handoff",
-                "view", "component",
-                "maxNodes", 12));
+                        "app", "state-handoff",
+                        "view", "component",
+                        "maxNodes", 12))
+                .text();
 
         assertTrue(result.contains("specification"), "expected specification in:\n" + result);
         assertTrue(result.contains("model"), "expected model in:\n" + result);
@@ -45,7 +47,7 @@ class ExportLikeC4ModelToolTest {
         ModelCache cache = ToolTestFixtures.indexFixtureProject("state-handoff");
         ExportLikeC4ModelTool tool = new ExportLikeC4ModelTool(cache);
 
-        String result = tool.call(Map.of("view", "deployment"));
+        String result = tool.call(Map.of("view", "deployment")).text();
 
         assertTrue(result.contains("workspace"), "expected workspace in:\n" + result);
         assertTrue(result.contains("component"), "expected component in:\n" + result);
