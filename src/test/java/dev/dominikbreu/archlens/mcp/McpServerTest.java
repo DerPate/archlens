@@ -25,7 +25,9 @@ class McpServerTest {
         assertThat(specs).hasSizeGreaterThanOrEqualTo(20).allSatisfy(spec -> {
             assertThat(spec.tool().name()).isNotBlank();
             assertThat(spec.tool().description()).isNotBlank();
-            assertThat(spec.tool().inputSchema()).isNotNull();
+            assertThat(spec.tool().inputSchema())
+                    .containsEntry("type", "object")
+                    .doesNotContainKey("$schema");
         });
         assertThat(specs.stream().map(s -> s.tool().name()))
                 .contains(
