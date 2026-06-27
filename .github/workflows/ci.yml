@@ -24,7 +24,7 @@ jobs:
           cache: maven
 
       - name: Build and test
-        run: mvn verify -B -q
+        run: mvn verify -B -q -Ddependency-check.skip=true
 
       - name: Cache OWASP dependency-check data
         uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
