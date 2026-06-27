@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.locks.ReentrantLock;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.PBiPredicate;
@@ -69,6 +70,7 @@ public class GraphQuery {
     private static final String CONFIDENCE = "confidence";
 
     final GraphStore store;
+    private final ReentrantLock lock = new ReentrantLock();
 
     GraphQuery(GraphStore store) {
         this.store = store;
@@ -84,380 +86,550 @@ public class GraphQuery {
     // --- existence / count ---
 
     /** True when the graph was built from a model (even an empty one). False when no workspace was ever indexed. */
-    public synchronized boolean isIndexed() {
-        return store.isIndexed();
+    public boolean isIndexed() {
+        lock.lock();
+        try {
+            return store.isIndexed();
+        } finally {
+            lock.unlock();
+        }
     }
 
-    public synchronized boolean isEmpty() {
-        return store.isEmpty();
+    public boolean isEmpty() {
+        lock.lock();
+        try {
+            return store.isEmpty();
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** Count of vertices with the given label. */
-    public synchronized long countByLabel(String label) {
-        if (StringUtils.isBlank(label)) return store.vertexCount();
-        return store.g.V().hasLabel(label).count().next();
+    public long countByLabel(String label) {
+        lock.lock();
+        try {
+            if (StringUtils.isBlank(label)) return store.vertexCount();
+            return store.g.V().hasLabel(label).count().next();
+        } finally {
+            lock.unlock();
+        }
     }
 
     // --- typed lookups ---
 
     /** O(1) lookup by ComponentId. */
-    public synchronized GraphNode component(ComponentId id) {
-        if (id == null) return null;
-        Vertex v = store.verticesById.get(GraphNodeId.of(id.serialize()));
-        return (v != null && "Component".equals(v.label())) ? toNode(v) : null;
+    public GraphNode component(ComponentId id) {
+        lock.lock();
+        try {
+            if (id == null) return null;
+            Vertex v = store.verticesById.get(GraphNodeId.of(id.serialize()));
+            return (v != null && "Component".equals(v.label())) ? toNode(v) : null;
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** O(1) lookup by EntrypointId. */
-    public synchronized GraphNode entrypoint(EntrypointId id) {
-        if (id == null) return null;
-        Vertex v = store.verticesById.get(GraphNodeId.of(id.serialize()));
-        return (v != null && "Entrypoint".equals(v.label())) ? toNode(v) : null;
+    public GraphNode entrypoint(EntrypointId id) {
+        lock.lock();
+        try {
+            if (id == null) return null;
+            Vertex v = store.verticesById.get(GraphNodeId.of(id.serialize()));
+            return (v != null && "Entrypoint".equals(v.label())) ? toNode(v) : null;
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** O(1) lookup by AppId. */
-    public synchronized GraphNode app(AppId id) {
-        if (id == null) return null;
-        Vertex v = store.verticesById.get(GraphNodeId.of(id.serialize()));
-        return (v != null && "Application".equals(v.label())) ? toNode(v) : null;
+    public GraphNode app(AppId id) {
+        lock.lock();
+        try {
+            if (id == null) return null;
+            Vertex v = store.verticesById.get(GraphNodeId.of(id.serialize()));
+            return (v != null && "Application".equals(v.label())) ? toNode(v) : null;
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** All entrypoint nodes. */
-    public synchronized List<GraphNode> allEntrypoints() {
-        return findNodes("Entrypoint", null, Map.of(), 0);
+    public List<GraphNode> allEntrypoints() {
+        lock.lock();
+        try {
+            return findNodes("Entrypoint", null, Map.of(), 0);
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** All application nodes. */
-    public synchronized List<GraphNode> allApps() {
-        return findNodes("Application", null, Map.of(), 0);
+    public List<GraphNode> allApps() {
+        lock.lock();
+        try {
+            return findNodes("Application", null, Map.of(), 0);
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** All application nodes as typed list. */
-    public synchronized List<ApplicationNode> allApplicationNodes() {
-        return findNodes("Application", null, Map.of(), 0).stream()
-                .filter(n -> n instanceof ApplicationNode)
-                .map(n -> (ApplicationNode) n)
-                .toList();
+    public List<ApplicationNode> allApplicationNodes() {
+        lock.lock();
+        try {
+            return findNodes("Application", null, Map.of(), 0).stream()
+                    .filter(n -> n instanceof ApplicationNode)
+                    .map(n -> (ApplicationNode) n)
+                    .toList();
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** All component nodes as typed list. */
-    public synchronized List<ComponentNode> allComponentNodes() {
-        return findNodes("Component", null, Map.of(), 0).stream()
-                .filter(n -> n instanceof ComponentNode)
-                .map(n -> (ComponentNode) n)
-                .toList();
+    public List<ComponentNode> allComponentNodes() {
+        lock.lock();
+        try {
+            return findNodes("Component", null, Map.of(), 0).stream()
+                    .filter(n -> n instanceof ComponentNode)
+                    .map(n -> (ComponentNode) n)
+                    .toList();
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** All container nodes as typed list. */
-    public synchronized List<ContainerNode> allContainerNodes() {
-        return findNodes("Container", null, Map.of(), 0).stream()
-                .filter(n -> n instanceof ContainerNode)
-                .map(n -> (ContainerNode) n)
-                .toList();
+    public List<ContainerNode> allContainerNodes() {
+        lock.lock();
+        try {
+            return findNodes("Container", null, Map.of(), 0).stream()
+                    .filter(n -> n instanceof ContainerNode)
+                    .map(n -> (ContainerNode) n)
+                    .toList();
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** All external-system nodes as typed list. */
-    public synchronized List<ExternalSystemNode> allExternalSystemNodes() {
-        return findNodes("ExternalSystem", null, Map.of(), 0).stream()
-                .filter(n -> n instanceof ExternalSystemNode)
-                .map(n -> (ExternalSystemNode) n)
-                .toList();
+    public List<ExternalSystemNode> allExternalSystemNodes() {
+        lock.lock();
+        try {
+            return findNodes("ExternalSystem", null, Map.of(), 0).stream()
+                    .filter(n -> n instanceof ExternalSystemNode)
+                    .map(n -> (ExternalSystemNode) n)
+                    .toList();
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** All DEPENDS_ON edges. */
-    public synchronized List<GraphEdge> dependencyEdges() {
-        return findEdges("DEPENDS_ON", Map.of(), 100_000);
+    public List<GraphEdge> dependencyEdges() {
+        lock.lock();
+        try {
+            return findEdges("DEPENDS_ON", Map.of(), 100_000);
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** All CALLS edges (unbounded — use for building adjacency maps). */
-    public synchronized List<GraphEdge> allCallEdges() {
-        List<GraphEdge> result = new ArrayList<>();
-        Iterator<Edge> it = store.graph.edges();
-        while (it.hasNext()) {
-            Edge e = it.next();
-            if ("CALLS".equals(e.label())) result.add(toEdge(e));
+    public List<GraphEdge> allCallEdges() {
+        lock.lock();
+        try {
+            List<GraphEdge> result = new ArrayList<>();
+            Iterator<Edge> it = store.graph.edges();
+            while (it.hasNext()) {
+                Edge e = it.next();
+                if ("CALLS".equals(e.label())) result.add(toEdge(e));
+            }
+            return result;
+        } finally {
+            lock.unlock();
         }
-        return result;
     }
 
     /** Component IDs owned by the given application node (via OWNS edges). */
-    public synchronized List<GraphNodeId> componentIdsOwnedBy(GraphNodeId appNodeId) {
-        Vertex appV = store.verticesById.get(appNodeId);
-        if (appV == null) return List.of();
-        List<GraphNodeId> result = new ArrayList<>();
-        Iterator<Edge> it = appV.edges(Direction.OUT, "OWNS");
-        while (it.hasNext()) result.add(nid(it.next().inVertex()));
-        return result;
+    public List<GraphNodeId> componentIdsOwnedBy(GraphNodeId appNodeId) {
+        lock.lock();
+        try {
+            Vertex appV = store.verticesById.get(appNodeId);
+            if (appV == null) return List.of();
+            List<GraphNodeId> result = new ArrayList<>();
+            Iterator<Edge> it = appV.edges(Direction.OUT, "OWNS");
+            while (it.hasNext()) result.add(nid(it.next().inVertex()));
+            return result;
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** Component IDs inside the given container node (via CONTAINS edges). */
-    public synchronized List<GraphNodeId> componentIdsInContainer(GraphNodeId containerNodeId) {
-        Vertex cv = store.verticesById.get(containerNodeId);
-        if (cv == null) return List.of();
-        List<GraphNodeId> result = new ArrayList<>();
-        Iterator<Edge> it = cv.edges(Direction.OUT, "CONTAINS");
-        while (it.hasNext()) result.add(nid(it.next().inVertex()));
-        return result;
+    public List<GraphNodeId> componentIdsInContainer(GraphNodeId containerNodeId) {
+        lock.lock();
+        try {
+            Vertex cv = store.verticesById.get(containerNodeId);
+            if (cv == null) return List.of();
+            List<GraphNodeId> result = new ArrayList<>();
+            Iterator<Edge> it = cv.edges(Direction.OUT, "CONTAINS");
+            while (it.hasNext()) result.add(nid(it.next().inVertex()));
+            return result;
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** Containers whose appId matches the given app. */
-    public synchronized List<ContainerNode> containersForApp(AppId appId) {
-        if (appId == null) return List.of();
-        String key = appId.serialize();
-        return allContainerNodes().stream()
-                .filter(c -> c.appId() != null && key.equals(c.appId().serialize()))
-                .toList();
+    public List<ContainerNode> containersForApp(AppId appId) {
+        lock.lock();
+        try {
+            if (appId == null) return List.of();
+            String key = appId.serialize();
+            return allContainerNodes().stream()
+                    .filter(c -> c.appId() != null && key.equals(c.appId().serialize()))
+                    .toList();
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** Child apps (internal modules) whose parentAppId matches the given parent. */
-    public synchronized List<ApplicationNode> childApps(AppId parentId) {
-        if (parentId == null) return List.of();
-        String key = parentId.serialize();
-        return allApplicationNodes().stream()
-                .filter(a ->
-                        a.parentAppId() != null && key.equals(a.parentAppId().serialize()))
-                .toList();
+    public List<ApplicationNode> childApps(AppId parentId) {
+        lock.lock();
+        try {
+            if (parentId == null) return List.of();
+            String key = parentId.serialize();
+            return allApplicationNodes().stream()
+                    .filter(a -> a.parentAppId() != null
+                            && key.equals(a.parentAppId().serialize()))
+                    .toList();
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** True when the vertex with the given ID is an ExternalSystem. */
-    public synchronized boolean isExternalSystem(GraphNodeId nodeId) {
-        Vertex v = store.verticesById.get(nodeId);
-        return v != null && "ExternalSystem".equals(v.label());
+    public boolean isExternalSystem(GraphNodeId nodeId) {
+        lock.lock();
+        try {
+            Vertex v = store.verticesById.get(nodeId);
+            return v != null && "ExternalSystem".equals(v.label());
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** Entrypoint count per container ID (key = container vertex ID). */
-    public synchronized Map<String, Long> entrypointCountPerContainer() {
-        Map<String, String> compToContainer = new LinkedHashMap<>();
-        for (ContainerNode c : allContainerNodes()) {
-            for (GraphNodeId cid : componentIdsInContainer(c.id())) {
-                compToContainer.put(cid.value(), c.id().value());
+    public Map<String, Long> entrypointCountPerContainer() {
+        lock.lock();
+        try {
+            Map<String, String> compToContainer = new LinkedHashMap<>();
+            for (ContainerNode c : allContainerNodes()) {
+                for (GraphNodeId cid : componentIdsInContainer(c.id())) {
+                    compToContainer.put(cid.value(), c.id().value());
+                }
             }
-        }
-        Map<String, Long> result = new LinkedHashMap<>();
-        for (GraphNode ep : findNodes("Entrypoint", null, Map.of(), 0)) {
-            if (ep instanceof EntrypointNode epn && epn.componentId() != null) {
-                String containerId = compToContainer.get(epn.componentId().serialize());
-                if (containerId != null) result.merge(containerId, 1L, Long::sum);
+            Map<String, Long> result = new LinkedHashMap<>();
+            for (GraphNode ep : findNodes("Entrypoint", null, Map.of(), 0)) {
+                if (ep instanceof EntrypointNode epn && epn.componentId() != null) {
+                    String containerId = compToContainer.get(epn.componentId().serialize());
+                    if (containerId != null) result.merge(containerId, 1L, Long::sum);
+                }
             }
+            return result;
+        } finally {
+            lock.unlock();
         }
-        return result;
     }
 
     /** Find the pre-computed runtime flow for the given entrypoint reference (id, name, path). */
-    public synchronized Optional<RuntimeFlowNode> runtimeFlowForEntrypoint(String ref) {
-        Optional<GraphNodeId> epNodeId = resolveEntrypoint(ref);
-        if (epNodeId.isEmpty()) return Optional.empty();
-        String epIdStr = epNodeId.get().value();
-        return store.g
-                .V()
-                .hasLabel("RuntimeFlow")
-                .has("entrypointId", P.eq(epIdStr))
-                .tryNext()
-                .map(v -> toNode(v) instanceof RuntimeFlowNode rfn ? rfn : null);
+    public Optional<RuntimeFlowNode> runtimeFlowForEntrypoint(String ref) {
+        lock.lock();
+        try {
+            Optional<GraphNodeId> epNodeId = resolveEntrypoint(ref);
+            if (epNodeId.isEmpty()) return Optional.empty();
+            String epIdStr = epNodeId.get().value();
+            return store.g
+                    .V()
+                    .hasLabel("RuntimeFlow")
+                    .has("entrypointId", P.eq(epIdStr))
+                    .tryNext()
+                    .map(v -> toNode(v) instanceof RuntimeFlowNode rfn ? rfn : null);
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** Ordered steps for the given flow node. */
-    public synchronized List<RuntimeFlowStepNode> flowSteps(GraphNodeId flowId) {
-        if (flowId == null) return List.of();
-        Vertex flowVertex = store.verticesById.get(flowId);
-        if (flowVertex == null) return List.of();
-        List<RuntimeFlowStepNode> steps = new ArrayList<>();
-        Iterator<Edge> it = flowVertex.edges(Direction.OUT, "HAS_STEP");
-        while (it.hasNext()) {
-            GraphNode n = toNode(it.next().inVertex());
-            if (n instanceof RuntimeFlowStepNode rsn) steps.add(rsn);
+    public List<RuntimeFlowStepNode> flowSteps(GraphNodeId flowId) {
+        lock.lock();
+        try {
+            if (flowId == null) return List.of();
+            Vertex flowVertex = store.verticesById.get(flowId);
+            if (flowVertex == null) return List.of();
+            List<RuntimeFlowStepNode> steps = new ArrayList<>();
+            Iterator<Edge> it = flowVertex.edges(Direction.OUT, "HAS_STEP");
+            while (it.hasNext()) {
+                GraphNode n = toNode(it.next().inVertex());
+                if (n instanceof RuntimeFlowStepNode rsn) steps.add(rsn);
+            }
+            steps.sort(Comparator.comparingInt(RuntimeFlowStepNode::order));
+            return steps;
+        } finally {
+            lock.unlock();
         }
-        steps.sort(Comparator.comparingInt(RuntimeFlowStepNode::order));
-        return steps;
     }
 
     /** FLOW_CALLS edges (step→step) for the given flow — carries fromComponentId/toComponentId/label. */
-    public synchronized List<GraphEdge> flowCallEdges(GraphNodeId flowId) {
-        if (flowId == null) return List.of();
-        Vertex flowVertex = store.verticesById.get(flowId);
-        if (flowVertex == null) return List.of();
-        List<GraphEdge> result = new ArrayList<>();
-        Iterator<Edge> stepIt = flowVertex.edges(Direction.OUT, "HAS_STEP");
-        while (stepIt.hasNext()) {
-            Vertex stepV = stepIt.next().inVertex();
-            Iterator<Edge> callIt = stepV.edges(Direction.OUT, "FLOW_CALLS");
-            while (callIt.hasNext()) result.add(toEdge(callIt.next()));
+    public List<GraphEdge> flowCallEdges(GraphNodeId flowId) {
+        lock.lock();
+        try {
+            if (flowId == null) return List.of();
+            Vertex flowVertex = store.verticesById.get(flowId);
+            if (flowVertex == null) return List.of();
+            List<GraphEdge> result = new ArrayList<>();
+            Iterator<Edge> stepIt = flowVertex.edges(Direction.OUT, "HAS_STEP");
+            while (stepIt.hasNext()) {
+                Vertex stepV = stepIt.next().inVertex();
+                Iterator<Edge> callIt = stepV.edges(Direction.OUT, "FLOW_CALLS");
+                while (callIt.hasNext()) result.add(toEdge(callIt.next()));
+            }
+            return result;
+        } finally {
+            lock.unlock();
         }
-        return result;
     }
 
     /** True when the graph contains CALLS edges (i.e. call-graph data was indexed). */
-    public synchronized boolean hasCallGraph() {
-        return store.g.E().hasLabel("CALLS").hasNext();
+    public boolean hasCallGraph() {
+        lock.lock();
+        try {
+            return store.g.E().hasLabel("CALLS").hasNext();
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** All RuntimeFlow nodes as a typed list. */
-    public synchronized List<RuntimeFlowNode> allRuntimeFlows() {
-        return findNodes("RuntimeFlow", null, Map.of(), 0).stream()
-                .filter(n -> n instanceof RuntimeFlowNode)
-                .map(n -> (RuntimeFlowNode) n)
-                .toList();
+    public List<RuntimeFlowNode> allRuntimeFlows() {
+        lock.lock();
+        try {
+            return findNodes("RuntimeFlow", null, Map.of(), 0).stream()
+                    .filter(n -> n instanceof RuntimeFlowNode)
+                    .map(n -> (RuntimeFlowNode) n)
+                    .toList();
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** All DataFlowPath nodes. */
-    public synchronized List<DataFlowPathNode> allDataFlowPaths() {
-        return findNodes("DataFlowPath", null, Map.of(), 0).stream()
-                .filter(n -> n instanceof DataFlowPathNode)
-                .map(n -> (DataFlowPathNode) n)
-                .toList();
+    public List<DataFlowPathNode> allDataFlowPaths() {
+        lock.lock();
+        try {
+            return findNodes("DataFlowPath", null, Map.of(), 0).stream()
+                    .filter(n -> n instanceof DataFlowPathNode)
+                    .map(n -> (DataFlowPathNode) n)
+                    .toList();
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** Sinks reachable from a DataFlowPath vertex via REACHES edges. */
-    public synchronized List<DataFlowSinkNode> pathSinks(GraphNodeId pathId) {
-        if (pathId == null) return List.of();
-        Vertex pathVertex = store.verticesById.get(pathId);
-        if (pathVertex == null) return List.of();
-        List<DataFlowSinkNode> result = new ArrayList<>();
-        Iterator<Edge> it = pathVertex.edges(Direction.OUT, "REACHES");
-        while (it.hasNext()) {
-            GraphNode n = toNode(it.next().inVertex());
-            if (n instanceof DataFlowSinkNode sn) result.add(sn);
+    public List<DataFlowSinkNode> pathSinks(GraphNodeId pathId) {
+        lock.lock();
+        try {
+            if (pathId == null) return List.of();
+            Vertex pathVertex = store.verticesById.get(pathId);
+            if (pathVertex == null) return List.of();
+            List<DataFlowSinkNode> result = new ArrayList<>();
+            Iterator<Edge> it = pathVertex.edges(Direction.OUT, "REACHES");
+            while (it.hasNext()) {
+                GraphNode n = toNode(it.next().inVertex());
+                if (n instanceof DataFlowSinkNode sn) result.add(sn);
+            }
+            return result;
+        } finally {
+            lock.unlock();
         }
-        return result;
     }
 
     /** Linear DataFlowStep nodes for a path, ordered by stepIndex. */
-    public synchronized List<DataFlowStepNode> pathDataFlowSteps(GraphNodeId pathId) {
-        if (pathId == null) return List.of();
-        Vertex pathVertex = store.verticesById.get(pathId);
-        if (pathVertex == null) return List.of();
-        List<DataFlowStepNode> result = new ArrayList<>();
-        Iterator<Edge> it = pathVertex.edges(Direction.OUT, "HAS_DATA_STEP");
-        while (it.hasNext()) {
-            GraphNode n = toNode(it.next().inVertex());
-            if (n instanceof DataFlowStepNode sn) result.add(sn);
+    public List<DataFlowStepNode> pathDataFlowSteps(GraphNodeId pathId) {
+        lock.lock();
+        try {
+            if (pathId == null) return List.of();
+            Vertex pathVertex = store.verticesById.get(pathId);
+            if (pathVertex == null) return List.of();
+            List<DataFlowStepNode> result = new ArrayList<>();
+            Iterator<Edge> it = pathVertex.edges(Direction.OUT, "HAS_DATA_STEP");
+            while (it.hasNext()) {
+                GraphNode n = toNode(it.next().inVertex());
+                if (n instanceof DataFlowStepNode sn) result.add(sn);
+            }
+            result.sort(Comparator.comparingInt(DataFlowStepNode::stepIndex));
+            return result;
+        } finally {
+            lock.unlock();
         }
-        result.sort(Comparator.comparingInt(DataFlowStepNode::stepIndex));
-        return result;
     }
 
     /** DataFlowNode topology vertices for a path (topology graph, newer paths only), ordered by insertion index. */
-    public synchronized List<DataFlowNodeNode> pathFlowNodes(GraphNodeId pathId) {
-        if (pathId == null) return List.of();
-        Vertex pathVertex = store.verticesById.get(pathId);
-        if (pathVertex == null) return List.of();
-        List<DataFlowNodeNode> result = new ArrayList<>();
-        Iterator<Edge> it = pathVertex.edges(Direction.OUT, "HAS_FLOW_NODE");
-        while (it.hasNext()) {
-            GraphNode n = toNode(it.next().inVertex());
-            if (n instanceof DataFlowNodeNode dn) result.add(dn);
+    public List<DataFlowNodeNode> pathFlowNodes(GraphNodeId pathId) {
+        lock.lock();
+        try {
+            if (pathId == null) return List.of();
+            Vertex pathVertex = store.verticesById.get(pathId);
+            if (pathVertex == null) return List.of();
+            List<DataFlowNodeNode> result = new ArrayList<>();
+            Iterator<Edge> it = pathVertex.edges(Direction.OUT, "HAS_FLOW_NODE");
+            while (it.hasNext()) {
+                GraphNode n = toNode(it.next().inVertex());
+                if (n instanceof DataFlowNodeNode dn) result.add(dn);
+            }
+            result.sort(Comparator.comparingInt(DataFlowNodeNode::nodeOrder));
+            return result;
+        } finally {
+            lock.unlock();
         }
-        result.sort(Comparator.comparingInt(DataFlowNodeNode::nodeOrder));
-        return result;
     }
 
     /** DataFlowBranch vertices for a path. */
-    public synchronized List<DataFlowBranchNode> pathBranches(GraphNodeId pathId) {
-        if (pathId == null) return List.of();
-        Vertex pathVertex = store.verticesById.get(pathId);
-        if (pathVertex == null) return List.of();
-        List<DataFlowBranchNode> result = new ArrayList<>();
-        Iterator<Edge> it = pathVertex.edges(Direction.OUT, "HAS_BRANCH");
-        while (it.hasNext()) {
-            GraphNode n = toNode(it.next().inVertex());
-            if (n instanceof DataFlowBranchNode bn) result.add(bn);
+    public List<DataFlowBranchNode> pathBranches(GraphNodeId pathId) {
+        lock.lock();
+        try {
+            if (pathId == null) return List.of();
+            Vertex pathVertex = store.verticesById.get(pathId);
+            if (pathVertex == null) return List.of();
+            List<DataFlowBranchNode> result = new ArrayList<>();
+            Iterator<Edge> it = pathVertex.edges(Direction.OUT, "HAS_BRANCH");
+            while (it.hasNext()) {
+                GraphNode n = toNode(it.next().inVertex());
+                if (n instanceof DataFlowBranchNode bn) result.add(bn);
+            }
+            return result;
+        } finally {
+            lock.unlock();
         }
-        return result;
     }
 
     /** DataFlowBranchArm vertices for a branch vertex. */
-    public synchronized List<DataFlowBranchArmNode> branchArms(GraphNodeId branchId) {
-        if (branchId == null) return List.of();
-        Vertex branchVertex = store.verticesById.get(branchId);
-        if (branchVertex == null) return List.of();
-        List<DataFlowBranchArmNode> result = new ArrayList<>();
-        Iterator<Edge> it = branchVertex.edges(Direction.OUT, "HAS_BRANCH_ARM");
-        while (it.hasNext()) {
-            GraphNode n = toNode(it.next().inVertex());
-            if (n instanceof DataFlowBranchArmNode an) result.add(an);
+    public List<DataFlowBranchArmNode> branchArms(GraphNodeId branchId) {
+        lock.lock();
+        try {
+            if (branchId == null) return List.of();
+            Vertex branchVertex = store.verticesById.get(branchId);
+            if (branchVertex == null) return List.of();
+            List<DataFlowBranchArmNode> result = new ArrayList<>();
+            Iterator<Edge> it = branchVertex.edges(Direction.OUT, "HAS_BRANCH_ARM");
+            while (it.hasNext()) {
+                GraphNode n = toNode(it.next().inVertex());
+                if (n instanceof DataFlowBranchArmNode an) result.add(an);
+            }
+            return result;
+        } finally {
+            lock.unlock();
         }
-        return result;
     }
 
     /** FLOW_EDGE graph edges (topology edges between DataFlowNode vertices) for a path. */
-    public synchronized List<GraphEdge> pathFlowEdges(GraphNodeId pathId) {
-        if (pathId == null) return List.of();
-        Vertex pathVertex = store.verticesById.get(pathId);
-        if (pathVertex == null) return List.of();
-        List<GraphEdge> result = new ArrayList<>();
-        Iterator<Edge> nodeIt = pathVertex.edges(Direction.OUT, "HAS_FLOW_NODE");
-        while (nodeIt.hasNext()) {
-            Vertex nodeV = nodeIt.next().inVertex();
-            Iterator<Edge> edgeIt = nodeV.edges(Direction.OUT, "FLOW_EDGE");
-            while (edgeIt.hasNext()) result.add(toEdge(edgeIt.next()));
+    public List<GraphEdge> pathFlowEdges(GraphNodeId pathId) {
+        lock.lock();
+        try {
+            if (pathId == null) return List.of();
+            Vertex pathVertex = store.verticesById.get(pathId);
+            if (pathVertex == null) return List.of();
+            List<GraphEdge> result = new ArrayList<>();
+            Iterator<Edge> nodeIt = pathVertex.edges(Direction.OUT, "HAS_FLOW_NODE");
+            while (nodeIt.hasNext()) {
+                Vertex nodeV = nodeIt.next().inVertex();
+                Iterator<Edge> edgeIt = nodeV.edges(Direction.OUT, "FLOW_EDGE");
+                while (edgeIt.hasNext()) result.add(toEdge(edgeIt.next()));
+            }
+            return result;
+        } finally {
+            lock.unlock();
         }
-        return result;
     }
 
     /** Reconstructs all pre-computed pipeline chains from the graph. */
-    public synchronized List<Chain> allPipelineChains() {
-        List<Chain> result = new ArrayList<>();
-        store.g.V().hasLabel("PipelineChain").toList().forEach(chainV -> {
-            Chain chain = reconstructChain(chainV);
-            if (chain != null && chain.segments.size() >= 2) result.add(chain);
-        });
-        return result;
+    public List<Chain> allPipelineChains() {
+        lock.lock();
+        try {
+            List<Chain> result = new ArrayList<>();
+            store.g.V().hasLabel("PipelineChain").toList().forEach(chainV -> {
+                Chain chain = reconstructChain(chainV);
+                if (chain != null && chain.segments.size() >= 2) result.add(chain);
+            });
+            return result;
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** Diagnostic statistics for explaining why no pipeline chains were produced. */
-    public synchronized PipelineDiagnostic pipelineDiagnostic() {
-        int totalPaths = 0;
-        int linkedPaths = 0;
-        int messagingSinks = 0;
-        int unresolvedMessaging = 0;
-        int persistenceWrites = 0;
-        int persistenceReads = 0;
-        Set<String> consumerTopics = new LinkedHashSet<>();
-        Iterator<Vertex> it = store.graph.vertices();
-        while (it.hasNext()) {
-            Vertex v = it.next();
-            if ("DataFlowPath".equals(v.label())) {
-                totalPaths++;
-                boolean pathLinked = false;
-                Iterator<Edge> reachesIt = v.edges(Direction.OUT, "REACHES");
-                while (reachesIt.hasNext()) {
-                    Vertex sinkV = reachesIt.next().inVertex();
-                    pathLinked |= sinkV.edges(Direction.OUT, "LINKS_TO").hasNext();
-                    String kind = vStr(sinkV, "sinkKind");
-                    if ("messaging".equals(kind) || "event-bus".equals(kind)) {
-                        messagingSinks++;
-                        String dest = vStr(sinkV, "topic");
-                        if (dest == null || dest.isBlank()) dest = vStr(sinkV, "channel");
-                        if (dest == null || dest.isBlank() || dest.contains("${") || "(unresolved)".equals(dest)) {
-                            unresolvedMessaging++;
+    public PipelineDiagnostic pipelineDiagnostic() {
+        lock.lock();
+        try {
+            int totalPaths = 0;
+            int linkedPaths = 0;
+            int messagingSinks = 0;
+            int unresolvedMessaging = 0;
+            int persistenceWrites = 0;
+            int persistenceReads = 0;
+            Set<String> consumerTopics = new LinkedHashSet<>();
+            Iterator<Vertex> it = store.graph.vertices();
+            while (it.hasNext()) {
+                Vertex v = it.next();
+                if ("DataFlowPath".equals(v.label())) {
+                    totalPaths++;
+                    boolean pathLinked = false;
+                    Iterator<Edge> reachesIt = v.edges(Direction.OUT, "REACHES");
+                    while (reachesIt.hasNext()) {
+                        Vertex sinkV = reachesIt.next().inVertex();
+                        pathLinked |= sinkV.edges(Direction.OUT, "LINKS_TO").hasNext();
+                        String kind = vStr(sinkV, "sinkKind");
+                        if ("messaging".equals(kind) || "event-bus".equals(kind)) {
+                            messagingSinks++;
+                            String dest = vStr(sinkV, "topic");
+                            if (dest == null || dest.isBlank()) dest = vStr(sinkV, "channel");
+                            if (dest == null || dest.isBlank() || dest.contains("${") || "(unresolved)".equals(dest)) {
+                                unresolvedMessaging++;
+                            }
+                        }
+                        if ("persistence".equals(kind)) {
+                            String op = vStr(sinkV, "repositoryOperation");
+                            if (op != null && (op.startsWith("save") || op.startsWith("delete"))) persistenceWrites++;
+                            if (op != null
+                                    && (op.startsWith("find")
+                                            || op.startsWith("get")
+                                            || op.startsWith("read")
+                                            || op.startsWith("exists"))) persistenceReads++;
                         }
                     }
-                    if ("persistence".equals(kind)) {
-                        String op = vStr(sinkV, "repositoryOperation");
-                        if (op != null && (op.startsWith("save") || op.startsWith("delete"))) persistenceWrites++;
-                        if (op != null
-                                && (op.startsWith("find")
-                                        || op.startsWith("get")
-                                        || op.startsWith("read")
-                                        || op.startsWith("exists"))) persistenceReads++;
+                    if (pathLinked) linkedPaths++;
+                } else if ("Entrypoint".equals(v.label())) {
+                    String typeStr = vStr(v, "entrypointType");
+                    if ("messaging_consumer".equals(typeStr) || "jms_consumer".equals(typeStr)) {
+                        String ch = vStr(v, "channelName");
+                        if (ch != null && !ch.isBlank() && !"(unresolved)".equals(ch)) consumerTopics.add(ch);
                     }
                 }
-                if (pathLinked) linkedPaths++;
-            } else if ("Entrypoint".equals(v.label())) {
-                String typeStr = vStr(v, "entrypointType");
-                if ("messaging_consumer".equals(typeStr) || "jms_consumer".equals(typeStr)) {
-                    String ch = vStr(v, "channelName");
-                    if (ch != null && !ch.isBlank() && !"(unresolved)".equals(ch)) consumerTopics.add(ch);
-                }
             }
+            return new PipelineDiagnostic(
+                    totalPaths,
+                    linkedPaths,
+                    messagingSinks,
+                    unresolvedMessaging,
+                    consumerTopics.size(),
+                    persistenceWrites,
+                    persistenceReads);
+        } finally {
+            lock.unlock();
         }
-        return new PipelineDiagnostic(
-                totalPaths,
-                linkedPaths,
-                messagingSinks,
-                unresolvedMessaging,
-                consumerTopics.size(),
-                persistenceWrites,
-                persistenceReads);
     }
 
     public record PipelineDiagnostic(
@@ -585,110 +757,141 @@ public class GraphQuery {
 
     // --- query methods ---
 
-    public synchronized GraphSummary summary() {
-        Map<String, Integer> labelCounts = new LinkedHashMap<>();
-        Iterator<Vertex> vertexIterator = store.graph.vertices();
-        while (vertexIterator.hasNext()) {
-            Vertex vertex = vertexIterator.next();
-            labelCounts.merge(vertex.label(), 1, Integer::sum);
-        }
-
-        Map<String, Integer> edgeCounts = new LinkedHashMap<>();
-        Iterator<Edge> edgeIterator = store.graph.edges();
-        while (edgeIterator.hasNext()) {
-            Edge edge = edgeIterator.next();
-            edgeCounts.merge(edge.label(), 1, Integer::sum);
-        }
-
-        int nodeCount =
-                labelCounts.values().stream().mapToInt(Integer::intValue).sum();
-        int edgeCount = edgeCounts.values().stream().mapToInt(Integer::intValue).sum();
-        return new GraphSummary(nodeCount, edgeCount, labelCounts, edgeCounts);
-    }
-
-    public synchronized GraphSnapshot snapshot(int limit) {
-        int nodeLimit = Math.clamp(limit <= 0 ? 5000 : limit, 1, 50_000);
-        GraphSummary summary = summary();
-        List<GraphNode> nodes = new ArrayList<>();
-        Set<GraphNodeId> includedIds = new LinkedHashSet<>();
-        Iterator<Vertex> vertexIterator = store.graph.vertices();
-        while (vertexIterator.hasNext() && nodes.size() < nodeLimit) {
-            GraphNode node = toNode(vertexIterator.next());
-            nodes.add(node);
-            includedIds.add(node.id());
-        }
-        nodes.sort(NODE_ORDER);
-
-        List<GraphEdge> edges = new ArrayList<>();
-        Iterator<Edge> edgeIterator = store.graph.edges();
-        while (edgeIterator.hasNext()) {
-            GraphEdge edge = toEdge(edgeIterator.next());
-            if (includedIds.contains(edge.fromId()) && includedIds.contains(edge.toId())) {
-                edges.add(edge);
+    public GraphSummary summary() {
+        lock.lock();
+        try {
+            Map<String, Integer> labelCounts = new LinkedHashMap<>();
+            Iterator<Vertex> vertexIterator = store.graph.vertices();
+            while (vertexIterator.hasNext()) {
+                Vertex vertex = vertexIterator.next();
+                labelCounts.merge(vertex.label(), 1, Integer::sum);
             }
-        }
-        edges.sort(EDGE_ORDER);
 
-        GraphSnapshotMetadata metadata = new GraphSnapshotMetadata(
-                summary.nodeCount(),
-                summary.edgeCount(),
-                nodes.size(),
-                edges.size(),
-                nodes.size() < summary.nodeCount(),
-                summary.labels(),
-                summary.edges());
-        return new GraphSnapshot(metadata, List.copyOf(nodes), List.copyOf(edges));
+            Map<String, Integer> edgeCounts = new LinkedHashMap<>();
+            Iterator<Edge> edgeIterator = store.graph.edges();
+            while (edgeIterator.hasNext()) {
+                Edge edge = edgeIterator.next();
+                edgeCounts.merge(edge.label(), 1, Integer::sum);
+            }
+
+            int nodeCount =
+                    labelCounts.values().stream().mapToInt(Integer::intValue).sum();
+            int edgeCount =
+                    edgeCounts.values().stream().mapToInt(Integer::intValue).sum();
+            return new GraphSummary(nodeCount, edgeCount, labelCounts, edgeCounts);
+        } finally {
+            lock.unlock();
+        }
     }
 
-    public synchronized List<GraphNode> findNodes(String label, String query, Map<String, String> filters, int limit) {
-        String normalizedLabel = normalizeBlank(label);
-        String normalizedQuery = normalizeBlank(query);
-        var traversal = store.g.V();
-        for (var entry : filters.entrySet()) {
-            P<Object> pred = toGremlinPredicate(entry.getValue());
-            if (pred != null) traversal = traversal.has(entry.getKey(), pred);
+    public GraphSnapshot snapshot(int limit) {
+        lock.lock();
+        try {
+            int nodeLimit = Math.clamp(limit <= 0 ? 5000 : limit, 1, 50_000);
+            GraphSummary summary = summary();
+            List<GraphNode> nodes = new ArrayList<>();
+            Set<GraphNodeId> includedIds = new LinkedHashSet<>();
+            Iterator<Vertex> vertexIterator = store.graph.vertices();
+            while (vertexIterator.hasNext() && nodes.size() < nodeLimit) {
+                GraphNode node = toNode(vertexIterator.next());
+                nodes.add(node);
+                includedIds.add(node.id());
+            }
+            nodes.sort(NODE_ORDER);
+
+            List<GraphEdge> edges = new ArrayList<>();
+            Iterator<Edge> edgeIterator = store.graph.edges();
+            while (edgeIterator.hasNext()) {
+                GraphEdge edge = toEdge(edgeIterator.next());
+                if (includedIds.contains(edge.fromId()) && includedIds.contains(edge.toId())) {
+                    edges.add(edge);
+                }
+            }
+            edges.sort(EDGE_ORDER);
+
+            GraphSnapshotMetadata metadata = new GraphSnapshotMetadata(
+                    summary.nodeCount(),
+                    summary.edgeCount(),
+                    nodes.size(),
+                    edges.size(),
+                    nodes.size() < summary.nodeCount(),
+                    summary.labels(),
+                    summary.edges());
+            return new GraphSnapshot(metadata, List.copyOf(nodes), List.copyOf(edges));
+        } finally {
+            lock.unlock();
         }
-        TraversalRecorder.capture(traversal);
-        return traversal.toList().stream()
-                .filter(v -> normalizedLabel == null || v.label().equalsIgnoreCase(normalizedLabel))
-                .map(this::toNode)
-                .filter(node -> normalizedQuery == null || node.matches(normalizedQuery))
-                .limit(normalizeFindNodesLimit(limit))
-                .toList();
     }
 
-    public synchronized List<GraphNode> nodesByComponentIds(Iterable<ComponentId> ids) {
-        List<GraphNode> nodes = new ArrayList<>();
-        Set<ComponentId> seen = new HashSet<>();
-        for (ComponentId id : ids) {
-            if (id == null || !seen.add(id)) continue;
-            Vertex vertex = store.verticesById.get(GraphNodeId.of(id.serialize()));
-            if (vertex != null) nodes.add(toNode(vertex));
+    public List<GraphNode> findNodes(String label, String query, Map<String, String> filters, int limit) {
+        lock.lock();
+        try {
+            String normalizedLabel = normalizeBlank(label);
+            String normalizedQuery = normalizeBlank(query);
+            var traversal = store.g.V();
+            for (var entry : filters.entrySet()) {
+                P<Object> pred = toGremlinPredicate(entry.getValue());
+                if (pred != null) traversal = traversal.has(entry.getKey(), pred);
+            }
+            TraversalRecorder.capture(traversal);
+            return traversal.toList().stream()
+                    .filter(v -> normalizedLabel == null || v.label().equalsIgnoreCase(normalizedLabel))
+                    .map(this::toNode)
+                    .filter(node -> normalizedQuery == null || node.matches(normalizedQuery))
+                    .limit(normalizeFindNodesLimit(limit))
+                    .toList();
+        } finally {
+            lock.unlock();
         }
-        return nodes;
     }
 
-    public synchronized List<GraphNode> nodesByEntrypointIds(Iterable<EntrypointId> ids) {
-        List<GraphNode> nodes = new ArrayList<>();
-        Set<EntrypointId> seen = new HashSet<>();
-        for (EntrypointId id : ids) {
-            if (id == null || !seen.add(id)) continue;
-            Vertex vertex = store.verticesById.get(GraphNodeId.of(id.serialize()));
-            if (vertex != null) nodes.add(toNode(vertex));
+    public List<GraphNode> nodesByComponentIds(Iterable<ComponentId> ids) {
+        lock.lock();
+        try {
+            List<GraphNode> nodes = new ArrayList<>();
+            Set<ComponentId> seen = new HashSet<>();
+            for (ComponentId id : ids) {
+                if (id == null || !seen.add(id)) continue;
+                Vertex vertex = store.verticesById.get(GraphNodeId.of(id.serialize()));
+                if (vertex != null) nodes.add(toNode(vertex));
+            }
+            return nodes;
+        } finally {
+            lock.unlock();
         }
-        return nodes;
     }
 
-    public synchronized List<GraphNode> componentNodesOwnedBy(AppId appId) {
-        Vertex appV = store.verticesById.get(GraphNodeId.of(appId.serialize()));
-        if (appV == null) return List.of();
-        List<GraphNode> nodes = new ArrayList<>();
-        Iterator<Edge> it = appV.edges(Direction.OUT, "OWNS");
-        while (it.hasNext()) {
-            Vertex target = it.next().inVertex();
-            if (target != null) nodes.add(toNode(target));
+    public List<GraphNode> nodesByEntrypointIds(Iterable<EntrypointId> ids) {
+        lock.lock();
+        try {
+            List<GraphNode> nodes = new ArrayList<>();
+            Set<EntrypointId> seen = new HashSet<>();
+            for (EntrypointId id : ids) {
+                if (id == null || !seen.add(id)) continue;
+                Vertex vertex = store.verticesById.get(GraphNodeId.of(id.serialize()));
+                if (vertex != null) nodes.add(toNode(vertex));
+            }
+            return nodes;
+        } finally {
+            lock.unlock();
         }
-        return nodes;
+    }
+
+    public List<GraphNode> componentNodesOwnedBy(AppId appId) {
+        lock.lock();
+        try {
+            Vertex appV = store.verticesById.get(GraphNodeId.of(appId.serialize()));
+            if (appV == null) return List.of();
+            List<GraphNode> nodes = new ArrayList<>();
+            Iterator<Edge> it = appV.edges(Direction.OUT, "OWNS");
+            while (it.hasNext()) {
+                Vertex target = it.next().inVertex();
+                if (target != null) nodes.add(toNode(target));
+            }
+            return nodes;
+        } finally {
+            lock.unlock();
+        }
     }
 
     /**
@@ -696,175 +899,219 @@ public class GraphQuery {
      * (case-insensitive partial match), unlike {@link #componentNodesOwnedBy} which requires
      * the exact app id. Matches the partial-match convention used elsewhere in graph search.
      */
-    public synchronized List<GraphNode> componentNodesOwnedByQuery(String appIdQuery) {
-        if (appIdQuery == null || appIdQuery.isBlank()) return List.of();
-        String needle = appIdQuery.toLowerCase(Locale.ROOT);
-        List<GraphNode> nodes = new ArrayList<>();
-        for (ApplicationNode app : allApplicationNodes()) {
-            if (app.id().serialize().toLowerCase(Locale.ROOT).contains(needle)) {
-                nodes.addAll(componentNodesOwnedBy(AppId.of(app.id().serialize())));
+    public List<GraphNode> componentNodesOwnedByQuery(String appIdQuery) {
+        lock.lock();
+        try {
+            if (appIdQuery == null || appIdQuery.isBlank()) return List.of();
+            String needle = appIdQuery.toLowerCase(Locale.ROOT);
+            List<GraphNode> nodes = new ArrayList<>();
+            for (ApplicationNode app : allApplicationNodes()) {
+                if (app.id().serialize().toLowerCase(Locale.ROOT).contains(needle)) {
+                    nodes.addAll(componentNodesOwnedBy(AppId.of(app.id().serialize())));
+                }
             }
+            return nodes;
+        } finally {
+            lock.unlock();
         }
-        return nodes;
     }
 
-    public synchronized List<GraphEdge> neighborhood(GraphNodeId nodeId, String direction, int limit) {
-        Vertex vertex = vertex(nodeId).orElse(null);
-        if (vertex == null) {
-            return List.of();
-        }
-
-        Direction graphDirection =
-                switch (normalizeBlank(direction) == null ? "both" : direction.toLowerCase(Locale.ROOT)) {
-                    case "in", "incoming" -> Direction.IN;
-                    case "out", "outgoing" -> Direction.OUT;
-                    default -> Direction.BOTH;
-                };
-
-        List<GraphEdge> edges = new ArrayList<>();
-        Iterator<Edge> iterator = vertex.edges(graphDirection);
-        while (iterator.hasNext()) {
-            edges.add(toEdge(iterator.next()));
-        }
-        return edges.stream().limit(normalizeLimit(limit)).toList();
-    }
-
-    public synchronized List<GraphEdge> findEdges(String label, Map<String, String> filters, int limit) {
-        String normalizedLabel = normalizeBlank(label);
-        var traversal = store.g.E();
-        for (var entry : filters.entrySet()) {
-            P<Object> pred = toGremlinPredicate(entry.getValue());
-            if (pred != null) traversal = traversal.has(entry.getKey(), pred);
-        }
-        TraversalRecorder.capture(traversal);
-        return traversal.toList().stream()
-                .filter(e -> normalizedLabel == null || e.label().equalsIgnoreCase(normalizedLabel))
-                .map(this::toEdge)
-                .limit(normalizeLimit(limit))
-                .toList();
-    }
-
-    public synchronized List<GraphEdge> findEdgesBetween(Set<GraphNodeId> nodeIds, Set<String> labels) {
-        Map<String, GraphEdge> seen = new LinkedHashMap<>();
-        for (GraphNodeId nodeId : nodeIds) {
-            Vertex vertex = store.verticesById.get(nodeId);
-            if (vertex == null) continue;
-            Iterator<Edge> edges = vertex.edges(Direction.OUT);
-            while (edges.hasNext()) {
-                Edge edge = edges.next();
-                if (!labels.isEmpty() && !labels.contains(edge.label())) continue;
-                GraphNodeId toId = nid(edge.inVertex());
-                if (!nodeIds.contains(toId)) continue;
-                String key = nid(edge.outVertex()).serialize() + "->" + toId.serialize() + ":" + edge.label();
-                seen.putIfAbsent(key, toEdge(edge));
+    public List<GraphEdge> neighborhood(GraphNodeId nodeId, String direction, int limit) {
+        lock.lock();
+        try {
+            Vertex vertex = vertex(nodeId).orElse(null);
+            if (vertex == null) {
+                return List.of();
             }
+
+            Direction graphDirection =
+                    switch (normalizeBlank(direction) == null ? "both" : direction.toLowerCase(Locale.ROOT)) {
+                        case "in", "incoming" -> Direction.IN;
+                        case "out", "outgoing" -> Direction.OUT;
+                        default -> Direction.BOTH;
+                    };
+
+            List<GraphEdge> edges = new ArrayList<>();
+            Iterator<Edge> iterator = vertex.edges(graphDirection);
+            while (iterator.hasNext()) {
+                edges.add(toEdge(iterator.next()));
+            }
+            return edges.stream().limit(normalizeLimit(limit)).toList();
+        } finally {
+            lock.unlock();
         }
-        return seen.values().stream().sorted(EDGE_ORDER).toList();
     }
 
-    public synchronized List<GraphPath> paths(GraphNodeId fromId, GraphNodeId toId, int maxDepth, int limit) {
-        if (!store.verticesById.containsKey(fromId) || !store.verticesById.containsKey(toId)) {
-            return List.of();
+    public List<GraphEdge> findEdges(String label, Map<String, String> filters, int limit) {
+        lock.lock();
+        try {
+            String normalizedLabel = normalizeBlank(label);
+            var traversal = store.g.E();
+            for (var entry : filters.entrySet()) {
+                P<Object> pred = toGremlinPredicate(entry.getValue());
+                if (pred != null) traversal = traversal.has(entry.getKey(), pred);
+            }
+            TraversalRecorder.capture(traversal);
+            return traversal.toList().stream()
+                    .filter(e -> normalizedLabel == null || e.label().equalsIgnoreCase(normalizedLabel))
+                    .map(this::toEdge)
+                    .limit(normalizeLimit(limit))
+                    .toList();
+        } finally {
+            lock.unlock();
         }
-        int depthLimit = Math.clamp(maxDepth <= 0 ? 5 : maxDepth, 1, 8);
-        int resultLimit = normalizeLimit(limit);
-
-        var traversal = store.g
-                .V(fromId.value())
-                .repeat(__.outE().inV().simplePath())
-                .until(__.hasId(toId.value()).or().loops().is(P.gte(depthLimit)))
-                .hasId(toId.value())
-                .path()
-                .limit(resultLimit);
-        TraversalRecorder.capture(traversal);
-        return traversal.toList().stream().map(this::pathToGraphPath).toList();
     }
 
-    public synchronized List<GraphNode> impactedBy(GraphNodeId targetId, int maxDepth, int limit) {
-        if (!store.verticesById.containsKey(targetId)) {
-            return List.of();
+    public List<GraphEdge> findEdgesBetween(Set<GraphNodeId> nodeIds, Set<String> labels) {
+        lock.lock();
+        try {
+            Map<String, GraphEdge> seen = new LinkedHashMap<>();
+            for (GraphNodeId nodeId : nodeIds) {
+                Vertex vertex = store.verticesById.get(nodeId);
+                if (vertex == null) continue;
+                Iterator<Edge> edges = vertex.edges(Direction.OUT);
+                while (edges.hasNext()) {
+                    Edge edge = edges.next();
+                    if (!labels.isEmpty() && !labels.contains(edge.label())) continue;
+                    GraphNodeId toId = nid(edge.inVertex());
+                    if (!nodeIds.contains(toId)) continue;
+                    String key = nid(edge.outVertex()).serialize() + "->" + toId.serialize() + ":" + edge.label();
+                    seen.putIfAbsent(key, toEdge(edge));
+                }
+            }
+            return seen.values().stream().sorted(EDGE_ORDER).toList();
+        } finally {
+            lock.unlock();
         }
-        int depthLimit = Math.clamp(maxDepth <= 0 ? 3 : maxDepth, 1, 8);
-        int resultLimit = normalizeLimit(limit);
-
-        var traversal = store.g
-                .V(targetId.value())
-                .repeat(__.in())
-                .emit()
-                .times(depthLimit)
-                .dedup()
-                .not(__.hasId(targetId.value()))
-                .limit(resultLimit);
-        TraversalRecorder.capture(traversal);
-        return traversal.toList().stream().map(this::toNode).toList();
     }
 
-    public synchronized List<GraphNode> reachable(
-            GraphNodeId from, String direction, String edgeLabel, int depth, int limit) {
-        if (!store.verticesById.containsKey(from)) return List.of();
-        int depthLimit = Math.clamp(depth <= 0 ? 1 : depth, 1, 10);
-        int resultLimit = normalizeLimit(limit);
+    public List<GraphPath> paths(GraphNodeId fromId, GraphNodeId toId, int maxDepth, int limit) {
+        lock.lock();
+        try {
+            if (!store.verticesById.containsKey(fromId) || !store.verticesById.containsKey(toId)) {
+                return List.of();
+            }
+            int depthLimit = Math.clamp(maxDepth <= 0 ? 5 : maxDepth, 1, 8);
+            int resultLimit = normalizeLimit(limit);
 
-        var traversal = store.g
-                .V(from.value())
-                .repeat(directedStep(direction, edgeLabel))
-                .emit()
-                .times(depthLimit)
-                .dedup()
-                .limit(resultLimit);
-        TraversalRecorder.capture(traversal);
-        return traversal.toList().stream().map(this::toNode).toList();
+            var traversal = store.g
+                    .V(fromId.value())
+                    .repeat(__.outE().inV().simplePath())
+                    .until(__.hasId(toId.value()).or().loops().is(P.gte(depthLimit)))
+                    .hasId(toId.value())
+                    .path()
+                    .limit(resultLimit);
+            TraversalRecorder.capture(traversal);
+            return traversal.toList().stream().map(this::pathToGraphPath).toList();
+        } finally {
+            lock.unlock();
+        }
     }
 
-    public synchronized Optional<GraphNodeId> resolveComponent(String nameOrId) {
-        if (nameOrId == null || nameOrId.isBlank()) return Optional.empty();
-        GraphNodeId direct = GraphNodeId.of(nameOrId);
-        Vertex directVertex = store.verticesById.get(direct);
-        if (directVertex != null && "Component".equals(directVertex.label())) {
-            return Optional.of(direct);
+    public List<GraphNode> impactedBy(GraphNodeId targetId, int maxDepth, int limit) {
+        lock.lock();
+        try {
+            if (!store.verticesById.containsKey(targetId)) {
+                return List.of();
+            }
+            int depthLimit = Math.clamp(maxDepth <= 0 ? 3 : maxDepth, 1, 8);
+            int resultLimit = normalizeLimit(limit);
+
+            var traversal = store.g
+                    .V(targetId.value())
+                    .repeat(__.in())
+                    .emit()
+                    .times(depthLimit)
+                    .dedup()
+                    .not(__.hasId(targetId.value()))
+                    .limit(resultLimit);
+            TraversalRecorder.capture(traversal);
+            return traversal.toList().stream().map(this::toNode).toList();
+        } finally {
+            lock.unlock();
         }
-        for (Map.Entry<GraphNodeId, Vertex> entry : store.verticesById.entrySet()) {
-            Vertex v = entry.getValue();
-            if (!"Component".equals(v.label())) continue;
-            String simpleName = v.properties("simpleName").hasNext()
-                    ? (String) v.properties("simpleName").next().value()
-                    : null;
-            String qualifiedName = v.properties("qualifiedName").hasNext()
-                    ? (String) v.properties("qualifiedName").next().value()
-                    : null;
-            if (nameOrId.equals(simpleName)) return Optional.of(entry.getKey());
-            if (qualifiedName != null && qualifiedName.contains(nameOrId)) return Optional.of(entry.getKey());
+    }
+
+    public List<GraphNode> reachable(GraphNodeId from, String direction, String edgeLabel, int depth, int limit) {
+        lock.lock();
+        try {
+            if (!store.verticesById.containsKey(from)) return List.of();
+            int depthLimit = Math.clamp(depth <= 0 ? 1 : depth, 1, 10);
+            int resultLimit = normalizeLimit(limit);
+
+            var traversal = store.g
+                    .V(from.value())
+                    .repeat(directedStep(direction, edgeLabel))
+                    .emit()
+                    .times(depthLimit)
+                    .dedup()
+                    .limit(resultLimit);
+            TraversalRecorder.capture(traversal);
+            return traversal.toList().stream().map(this::toNode).toList();
+        } finally {
+            lock.unlock();
         }
-        return Optional.empty();
+    }
+
+    public Optional<GraphNodeId> resolveComponent(String nameOrId) {
+        lock.lock();
+        try {
+            if (nameOrId == null || nameOrId.isBlank()) return Optional.empty();
+            GraphNodeId direct = GraphNodeId.of(nameOrId);
+            Vertex directVertex = store.verticesById.get(direct);
+            if (directVertex != null && "Component".equals(directVertex.label())) {
+                return Optional.of(direct);
+            }
+            for (Map.Entry<GraphNodeId, Vertex> entry : store.verticesById.entrySet()) {
+                Vertex v = entry.getValue();
+                if (!"Component".equals(v.label())) continue;
+                String simpleName = v.properties("simpleName").hasNext()
+                        ? (String) v.properties("simpleName").next().value()
+                        : null;
+                String qualifiedName = v.properties("qualifiedName").hasNext()
+                        ? (String) v.properties("qualifiedName").next().value()
+                        : null;
+                if (nameOrId.equals(simpleName)) return Optional.of(entry.getKey());
+                if (qualifiedName != null && qualifiedName.contains(nameOrId)) return Optional.of(entry.getKey());
+            }
+            return Optional.empty();
+        } finally {
+            lock.unlock();
+        }
     }
 
     /** Resolves an entrypoint reference (id, name, or "METHOD /path") to its graph node ID. */
-    public synchronized Optional<GraphNodeId> resolveEntrypoint(String ref) {
-        if (ref == null || ref.isBlank()) return Optional.empty();
-        GraphNodeId direct = GraphNodeId.of(ref);
-        if (store.verticesById.containsKey(direct)) return Optional.of(direct);
-        String httpMethod = extractHttpMethodFromRef(ref);
-        String pathRef = httpMethod != null ? ref.substring(httpMethod.length() + 1) : ref;
-        GraphNodeId prefixCandidate = null;
-        for (Map.Entry<GraphNodeId, Vertex> entry : store.verticesById.entrySet()) {
-            Vertex v = entry.getValue();
-            if (!"Entrypoint".equals(v.label())) continue;
-            if (httpMethod == null) {
-                String name = vStr(v, "name");
-                if (ref.equals(name) || ref.equals(entry.getKey().serialize())) {
-                    return Optional.of(entry.getKey());
-                }
-            } else {
-                String epMethod = vStr(v, "httpMethod");
-                if (!httpMethod.equalsIgnoreCase(epMethod)) continue;
-                String epPath = vStr(v, "path");
-                if (pathRef.equalsIgnoreCase(epPath)) return Optional.of(entry.getKey());
-                if (prefixCandidate == null && epPathPrefixMatches(epPath, pathRef)) {
-                    prefixCandidate = entry.getKey();
+    public Optional<GraphNodeId> resolveEntrypoint(String ref) {
+        lock.lock();
+        try {
+            if (ref == null || ref.isBlank()) return Optional.empty();
+            GraphNodeId direct = GraphNodeId.of(ref);
+            if (store.verticesById.containsKey(direct)) return Optional.of(direct);
+            String httpMethod = extractHttpMethodFromRef(ref);
+            String pathRef = httpMethod != null ? ref.substring(httpMethod.length() + 1) : ref;
+            GraphNodeId prefixCandidate = null;
+            for (Map.Entry<GraphNodeId, Vertex> entry : store.verticesById.entrySet()) {
+                Vertex v = entry.getValue();
+                if (!"Entrypoint".equals(v.label())) continue;
+                if (httpMethod == null) {
+                    String name = vStr(v, "name");
+                    if (ref.equals(name) || ref.equals(entry.getKey().serialize())) {
+                        return Optional.of(entry.getKey());
+                    }
+                } else {
+                    String epMethod = vStr(v, "httpMethod");
+                    if (!httpMethod.equalsIgnoreCase(epMethod)) continue;
+                    String epPath = vStr(v, "path");
+                    if (pathRef.equalsIgnoreCase(epPath)) return Optional.of(entry.getKey());
+                    if (prefixCandidate == null && epPathPrefixMatches(epPath, pathRef)) {
+                        prefixCandidate = entry.getKey();
+                    }
                 }
             }
+            return Optional.ofNullable(prefixCandidate);
+        } finally {
+            lock.unlock();
         }
-        return Optional.ofNullable(prefixCandidate);
     }
 
     private static String extractHttpMethodFromRef(String ref) {
