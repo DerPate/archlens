@@ -26,10 +26,12 @@ jobs:
         run: mvn verify -B -q -Ddependency-check.skip=true
 
       - name: Compute OWASP cache week
+        if: github.event_name == 'push'
         id: cache-week
         run: echo "value=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
 
       - name: Restore OWASP dependency-check data
+        if: github.event_name == 'push'
         id: owasp-cache
         uses: actions/cache/restore@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
@@ -39,6 +41,7 @@ jobs:
             ${{ runner.os }}-dependency-check-
 
       - name: OWASP dependency check
+        if: github.event_name == 'push'
         id: dependency-check
         run: >-
           mvn dependency-check:check -B -q
