@@ -107,7 +107,7 @@
         <dependency>
             <groupId>io.modelcontextprotocol.sdk</groupId>
             <artifactId>mcp</artifactId>
-            <version>1.1.2</version>
+            <version>2.0.0</version>
         </dependency>
         <dependency>
             <groupId>org.jline</groupId>

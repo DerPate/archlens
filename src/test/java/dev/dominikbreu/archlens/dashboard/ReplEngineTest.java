@@ -6,16 +6,28 @@ import dev.dominikbreu.archlens.cache.TraversalRecorder;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.List;
+import java.util.Map;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.junit.jupiter.api.Test;
 
 class ReplEngineTest {
 
     private static McpServerFeatures.SyncToolSpecification echoTool() {
-        McpSchema.Tool tool = McpSchema.Tool.builder()
-                .name("echo")
+        McpSchema.Tool tool = McpSchema.Tool.builder(
+                        "echo",
+                        Map.of(
+                                "type", "object",
+                                "properties",
+                                        Map.of(
+                                                "message",
+                                                Map.of("type", "string", "description", "Text to echo"),
+                                                "paths",
+                                                Map.of(
+                                                        "type", "array",
+                                                        "items", Map.of("type", "string"),
+                                                        "description", "Paths to inspect")),
+                                "required", List.of("message")))
                 .description("Echoes its arguments")
-                .inputSchema(new McpSchema.JsonSchema("object", null, null, null, null, null))
                 .build();
         return new McpServerFeatures.SyncToolSpecification(
                 tool,
@@ -25,10 +37,8 @@ class ReplEngineTest {
     }
 
     private static McpServerFeatures.SyncToolSpecification boomTool() {
-        McpSchema.Tool tool = McpSchema.Tool.builder()
-                .name("boom")
+        McpSchema.Tool tool = McpSchema.Tool.builder("boom", Map.of("type", "object"))
                 .description("Always throws")
-                .inputSchema(new McpSchema.JsonSchema("object", null, null, null, null, null))
                 .build();
         return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> {
             throw new IllegalStateException("boom");
@@ -36,10 +46,8 @@ class ReplEngineTest {
     }
 
     private static McpServerFeatures.SyncToolSpecification traversalTool() {
-        McpSchema.Tool tool = McpSchema.Tool.builder()
-                .name("traversal_tool")
+        McpSchema.Tool tool = McpSchema.Tool.builder("traversal_tool", Map.of("type", "object"))
                 .description("Captures a traversal then returns text")
-                .inputSchema(new McpSchema.JsonSchema("object", null, null, null, null, null))
                 .build();
         return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> {
             TraversalRecorder.capture(TinkerGraph.open().traversal().V());
@@ -77,6 +85,15 @@ class ReplEngineTest {
 
         assertThat(result.event().resultText()).contains("key=value");
         assertThat(result.event().isError()).isFalse();
+    }
+
+    @Test
+    void dispatch_toolHelp_rendersMapBasedSchema() {
+        ReplEngine engine = new ReplEngine(List.of(echoTool()));
+
+        DispatchResult result = engine.dispatch(":help echo");
+
+        assertThat(result.event().resultText()).contains("message: string", "[paths: string[]]", "Text to echo");
     }
 
     @Test
