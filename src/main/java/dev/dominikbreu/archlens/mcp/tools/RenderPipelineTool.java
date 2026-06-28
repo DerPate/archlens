@@ -46,9 +46,9 @@ public class RenderPipelineTool {
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (!graph.isIndexed()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
+            if (!graph.isIndexed()) return ToolResult.error("No workspace indexed yet. Call index_workspace first.");
             if (!graph.hasCallGraph()) {
-                return ToolResult.textOnly(
+                return ToolResult.error(
                         "No call-graph data available. Re-index the workspace to enable pipeline rendering.");
             }
 
@@ -70,7 +70,7 @@ public class RenderPipelineTool {
             }
             return new ToolResult(renderChains(filtered, graph), Map.of("diagramType", "mermaid"));
         } catch (Exception e) {
-            return ToolResult.textOnly("Error rendering pipeline: " + e.getMessage());
+            return ToolResult.error("Error rendering pipeline: " + e.getMessage());
         }
     }
 

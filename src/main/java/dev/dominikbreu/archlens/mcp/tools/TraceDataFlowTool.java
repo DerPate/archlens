@@ -30,10 +30,10 @@ public class TraceDataFlowTool {
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (!graph.isIndexed()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
+            if (!graph.isIndexed()) return ToolResult.error("No workspace indexed yet. Call index_workspace first.");
 
             if (!graph.hasCallGraph()) {
-                return ToolResult.textOnly(
+                return ToolResult.error(
                         "No call-graph data available. Re-index the workspace to enable data-flow tracing.");
             }
 
@@ -43,11 +43,13 @@ public class TraceDataFlowTool {
             paths = filterByParam(paths, ToolArgs.getString(args, "param"));
             paths = filterBySinkKind(paths, ToolArgs.getString(args, "sinkKind"), graph);
 
-            if (paths.isEmpty()) return ToolResult.textOnly("No data-flow paths found for the given filters.");
+            if (paths.isEmpty()) {
+                return ToolResult.success("No data-flow paths found for the given filters.", List.of());
+            }
 
             return new ToolResult(format(paths, graph), structured(paths, graph));
         } catch (Exception e) {
-            return ToolResult.textOnly("Error tracing data flow: " + e.getMessage());
+            return ToolResult.error("Error tracing data flow: " + e.getMessage());
         }
     }
 

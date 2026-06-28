@@ -24,20 +24,20 @@ public class GetComponentDependenciesTool {
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (graph.isEmpty()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
+            if (graph.isEmpty()) return ToolResult.error("No workspace indexed yet. Call index_workspace first.");
 
             String ref = ToolArgs.getString(args, "componentId");
             if (ref == null) ref = ToolArgs.getString(args, "name");
-            if (ref == null) return ToolResult.textOnly("Error: provide 'componentId' or 'name'.");
+            if (ref == null) return ToolResult.error("Error: provide 'componentId' or 'name'.");
 
             int depth = ToolArgs.getInt(args, "depth", 1);
             boolean condensed = ToolArgs.getBool(args, "condensed", true);
 
             GraphNodeId rootNodeId = graph.resolveComponent(ref).orElse(null);
-            if (rootNodeId == null) return ToolResult.textOnly("Component not found: " + ref);
+            if (rootNodeId == null) return ToolResult.error("Component not found: " + ref);
 
             GraphQuery.GraphNode root = graph.component(ComponentId.of(rootNodeId.value()));
-            if (root == null) return ToolResult.textOnly("Component not found: " + ref);
+            if (root == null) return ToolResult.error("Component not found: " + ref);
 
             Set<GraphNodeId> reachable = new LinkedHashSet<>();
             reachable.add(rootNodeId);
@@ -50,12 +50,14 @@ public class GetComponentDependenciesTool {
                     .toList();
 
             if (edges.isEmpty()) {
-                return ToolResult.textOnly("No dependencies found for component: " + root.name() + " (depth=" + depth
-                        + ", condensed=" + condensed + ")");
+                return ToolResult.success(
+                        "No dependencies found for component: " + root.name() + " (depth=" + depth + ", condensed="
+                                + condensed + ")",
+                        List.of());
             }
             return format(edges, root, graph, depth, condensed);
         } catch (Exception e) {
-            return ToolResult.textOnly("Error getting dependencies: " + e.getMessage());
+            return ToolResult.error("Error getting dependencies: " + e.getMessage());
         }
     }
 

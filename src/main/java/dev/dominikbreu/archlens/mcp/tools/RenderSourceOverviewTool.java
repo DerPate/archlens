@@ -31,11 +31,11 @@ public class RenderSourceOverviewTool {
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (!graph.isIndexed()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
+            if (!graph.isIndexed()) return ToolResult.error("No workspace indexed yet. Call index_workspace first.");
             int maxComponentsPerPackage = ToolArgs.getInt(args, "maxComponentsPerPackage", 25);
             return new ToolResult(renderer.render(graph, maxComponentsPerPackage), Map.of("diagramType", "mermaid"));
         } catch (Exception e) {
-            return ToolResult.textOnly("Error rendering source overview: " + e.getMessage());
+            return ToolResult.error("Error rendering source overview: " + e.getMessage());
         }
     }
 }

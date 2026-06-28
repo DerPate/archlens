@@ -23,11 +23,11 @@ class IndexWorkspaceToolTest {
 
         IndexWorkspaceTool tool = new IndexWorkspaceTool(new FailingExtractor(), cache);
 
-        String result = tool.execute(
-                        Map.of("paths", List.of(tempDir.resolve("next").toString())))
-                .text();
+        ToolResult result =
+                tool.execute(Map.of("paths", List.of(tempDir.resolve("next").toString())));
 
-        assertThat(result).contains("Error indexing workspace: boom");
+        assertThat(result.text()).contains("Error indexing workspace: boom");
+        assertThat(result.error()).isTrue();
         assertThat(cache.graph().isIndexed()).isFalse();
     }
 

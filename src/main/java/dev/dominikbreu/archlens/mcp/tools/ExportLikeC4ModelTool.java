@@ -34,7 +34,7 @@ public final class ExportLikeC4ModelTool {
         try {
             GraphQuery graph = cache.graph();
             if (!graph.isIndexed()) {
-                return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
+                return ToolResult.error("No workspace indexed yet. Call index_workspace first.");
             }
             String view = ToolArgs.getString(args, "view", "workspace");
             int maxNodes = ToolArgs.getInt(args, "maxNodes", 18);
@@ -46,7 +46,7 @@ public final class ExportLikeC4ModelTool {
                         Map.of("diagramType", "likec4"));
             }
             if (!"component".equalsIgnoreCase(view)) {
-                return ToolResult.textOnly("Supported views are workspace and component. Received: " + view);
+                return ToolResult.error("Supported views are workspace and component. Received: " + view);
             }
             String scopeId = app != null ? app.id().value() : "";
             String title = (app != null && app.name() != null ? app.name() : "Workspace") + " - Component View";
@@ -54,7 +54,7 @@ public final class ExportLikeC4ModelTool {
                     renderer.render(projector.projectComponentView(graph, scopeId, title, maxNodes)),
                     Map.of("diagramType", "likec4"));
         } catch (Exception e) {
-            return ToolResult.textOnly("Error exporting LikeC4 model: " + e.getMessage());
+            return ToolResult.error("Error exporting LikeC4 model: " + e.getMessage());
         }
     }
 }

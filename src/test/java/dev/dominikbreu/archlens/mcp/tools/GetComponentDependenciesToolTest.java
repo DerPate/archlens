@@ -15,6 +15,16 @@ import org.junit.jupiter.api.io.TempDir;
 class GetComponentDependenciesToolTest {
 
     @Test
+    void missingComponentArgument_isError(@TempDir Path tempDir) throws Exception {
+        ModelCache cache = new ModelCache(tempDir.toString());
+        cache.store(new ArchitectureModel("ws"));
+
+        ToolResult result = new GetComponentDependenciesTool(cache).execute(Map.of());
+
+        assertThat(result.error()).isTrue();
+    }
+
+    @Test
     void resolvesComponentByItsId(@TempDir Path tempDir) throws Exception {
         ModelCache cache = new ModelCache(tempDir.toString());
         ArchitectureModel model = new ArchitectureModel();

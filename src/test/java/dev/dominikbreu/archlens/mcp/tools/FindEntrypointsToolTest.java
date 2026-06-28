@@ -176,6 +176,21 @@ class FindEntrypointsToolTest {
         assertThat(result).doesNotContain("/account");
     }
 
+    @Test
+    void noMatches_isSuccessfulEmptyCollection() {
+        ToolResult result = tool.execute(Map.of("path", "/missing"));
+
+        assertThat(result.structured()).isEqualTo(List.of());
+        assertThat(result.error()).isFalse();
+    }
+
+    @Test
+    void missingIndex_isError() {
+        ToolResult result = new FindEntrypointsTool(new ModelCache(null)).execute(Map.of());
+
+        assertThat(result.error()).isTrue();
+    }
+
     // ── pathPrefixMatchesForDiscovery helper ──────────────────────────────────
 
     @Test

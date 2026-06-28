@@ -34,11 +34,11 @@ public final class RenderArchitectureViewTool {
         try {
             GraphQuery graph = cache.graph();
             if (!graph.isIndexed()) {
-                return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
+                return ToolResult.error("No workspace indexed yet. Call index_workspace first.");
             }
             String view = ToolArgs.getString(args, "view", "component");
             if (!"component".equalsIgnoreCase(view)) {
-                return ToolResult.textOnly("Only view=component is supported. Received: " + view);
+                return ToolResult.error("Only view=component is supported. Received: " + view);
             }
             int maxNodes = ToolArgs.getInt(args, "maxNodes", 500);
             GraphQuery.ApplicationNode app = resolveApp(graph, ToolArgs.getString(args, "app", ""));
@@ -47,7 +47,7 @@ public final class RenderArchitectureViewTool {
             String diagram = renderer.render(projector.projectComponentView(graph, scopeId, title, maxNodes));
             return new ToolResult(diagram, Map.of("diagramType", "mermaid"));
         } catch (Exception e) {
-            return ToolResult.textOnly("Error rendering architecture view: " + e.getMessage());
+            return ToolResult.error("Error rendering architecture view: " + e.getMessage());
         }
     }
 

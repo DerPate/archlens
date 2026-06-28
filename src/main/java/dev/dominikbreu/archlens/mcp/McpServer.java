@@ -67,6 +67,7 @@ public class McpServer {
     private final RenderPipelineTool pipelineTool;
     private final RenderArchitectureViewTool renderArchitectureViewTool;
     private final ExportLikeC4ModelTool exportLikeC4ModelTool;
+    private final StructuredOutputMode structuredOutputMode;
 
     private static final String TYPE_STRING = "string";
     private static final String TYPE_INTEGER = "integer";
@@ -81,6 +82,14 @@ public class McpServer {
 
     /** Creates the server with the default extractor, cache, and tool registry. */
     public McpServer() {
+        this(
+                Boolean.parseBoolean(System.getenv("ARCHLENS_MCP_EXPERIMENTAL_DRAFT"))
+                        ? StructuredOutputMode.DRAFT
+                        : StructuredOutputMode.STABLE);
+    }
+
+    McpServer(StructuredOutputMode structuredOutputMode) {
+        this.structuredOutputMode = structuredOutputMode;
         ModelCache cache = new ModelCache();
         ArchitectureExtractor extractor = new ArchitectureExtractor();
 
@@ -152,7 +161,7 @@ public class McpServer {
                         .opt("runtimeFlowCount", TYPE_INTEGER, "Total runtime flow count"),
                 listAppsTool::execute));
 
-        specs.add(toolSpec(
+        specs.add(collectionToolSpec(
                 "find_entrypoints",
                 "Find Entrypoints",
                 "Return architecturally relevant entry points: REST endpoints, JMS/messaging consumers, schedulers, EJB methods, CDI event observers, Vert.x EventBus consumers, WebSocket/SSE/gRPC endpoints, and more. All filters are combinable.",
@@ -169,10 +178,11 @@ public class McpServer {
                                 "path",
                                 TYPE_STRING,
                                 "Filter by path prefix — returns all endpoints at or below this path (e.g. '/customer' returns /customer, /customer/{id}, /customer/{id}/address/{aid}, ...)"),
-                arrayOutput(nodeItemSchema()),
+                "entrypoints",
+                nodeItemSchema(),
                 entrypointsTool::execute));
 
-        specs.add(toolSpec(
+        specs.add(collectionToolSpec(
                 "find_components",
                 "Find Components",
                 "Return architecture-relevant components (services, repositories, EJBs, entities, etc.).",
@@ -182,10 +192,11 @@ public class McpServer {
                                 TYPE_STRING,
                                 "REST_RESOURCE | SERVICE | REPOSITORY | ENTITY | EJB_STATELESS | EJB_STATEFUL | EJB_SINGLETON | MESSAGE_DRIVEN_BEAN | SCHEDULER | HTTP_CLIENT | CDI_EVENT_CONSUMER | CDI_EVENT_PRODUCER | REMOTE_SERVICE | UTILITY | UNKNOWN")
                         .opt("technology", TYPE_STRING, "quarkus | javaee | jpa"),
-                arrayOutput(nodeItemSchema()),
+                "components",
+                nodeItemSchema(),
                 componentsTool::execute));
 
-        specs.add(toolSpec(
+        specs.add(collectionToolSpec(
                 "get_component_dependencies",
                 "Get Component Dependencies",
                 "Return relevant dependencies for a component, with optional depth limit and condensation of non-architectural intermediaries.",
@@ -196,15 +207,17 @@ public class McpServer {
                         .opt("name", TYPE_STRING, "Component simple name (partial match)")
                         .opt("depth", TYPE_INTEGER, "Traversal depth (default 1, max 5)")
                         .opt("condensed", "boolean", "Remove UTILITY/UNKNOWN intermediaries (default true)"),
-                arrayOutput(edgeItemSchema()),
+                "dependencies",
+                edgeItemSchema(),
                 dependenciesTool::execute));
 
-        specs.add(toolSpec(
+        specs.add(collectionToolSpec(
                 "infer_containers",
                 "Infer Containers",
                 "Group components into logical containers (api / service / repository / domain / messaging / scheduling).",
                 schema().opt(APP_ID, TYPE_STRING, APP_ID_DESCRIPTION),
-                arrayOutput(nodeItemSchema()),
+                "containers",
+                nodeItemSchema(),
                 containersTool::execute));
 
         specs.add(toolSpec(
@@ -384,7 +397,7 @@ public class McpServer {
                                 "Echoes the requested action; result shape depends on it — summary returns graph totals, find_nodes/neighborhood/impacted_by return a node array, find_edges returns an edge array, paths returns a path array"),
                 graphTool::execute));
 
-        specs.add(toolSpec(
+        specs.add(collectionToolSpec(
                 "trace_data_flow",
                 "Trace Data Flow",
                 "Trace how entrypoint parameters flow through the call graph to sinks (persistence, messaging, http-outbound, event-bus, store, file-outbound, object-storage). Requires call-graph data from index_workspace.",
@@ -398,7 +411,8 @@ public class McpServer {
                                 "sinkKind",
                                 TYPE_STRING,
                                 "Filter by sink kind: persistence | messaging | http-outbound | event-bus | store | file-outbound | object-storage | unknown"),
-                arrayOutput(Map.of(
+                "paths",
+                Map.of(
                         "type",
                         "object",
                         "properties",
@@ -407,7 +421,7 @@ public class McpServer {
                                 "entrypointId", Map.of("type", "string"),
                                 "entrypoint", Map.of("type", "string"),
                                 "trackedParam", Map.of("type", "string"),
-                                "sinks", Map.of("type", "array")))),
+                                "sinks", Map.of("type", "array"))),
                 traceDataFlowTool::execute));
 
         specs.add(toolSpec(
@@ -445,7 +459,7 @@ public class McpServer {
                 diagramOutput(),
                 pipelineTool::execute));
 
-        specs.add(toolSpec(
+        specs.add(collectionToolSpec(
                 "detect_use_cases",
                 "Detect Use Cases",
                 "Detect business use cases from indexed entrypoints and their call chains. Uses call-graph data when available; falls back to injection-dependency traversal.",
@@ -455,7 +469,8 @@ public class McpServer {
                                 "Path to a JSON naming config file ({ \"names\": { \"<entrypointId>\": \"Display Name\" } })")
                         .opt("module", TYPE_STRING, "Filter results by app/module ID (partial match)")
                         .opt(MAX_DEPTH, TYPE_INTEGER, "Max call-chain depth shown per use case (default 5)"),
-                arrayOutput(Map.of(
+                "useCases",
+                Map.of(
                         "type",
                         "object",
                         "properties",
@@ -465,7 +480,7 @@ public class McpServer {
                                 "type", Map.of("type", "string"),
                                 "channelOrPath", Map.of("type", "string"),
                                 "components", Map.of("type", "string"),
-                                "methodChain", Map.of("type", "array")))),
+                                "methodChain", Map.of("type", "array"))),
                 detectUseCasesTool::execute));
 
         specs.add(toolSpec(
@@ -611,12 +626,32 @@ public class McpServer {
                 args = Map.of();
             }
             ToolResult result = handler.apply(args);
-            McpSchema.CallToolResult.Builder resultBuilder =
-                    McpSchema.CallToolResult.builder().addTextContent(result.text());
-            if (result.structured() != null) {
-                resultBuilder.structuredContent(result.structured());
-            }
+            McpSchema.CallToolResult.Builder resultBuilder = McpSchema.CallToolResult.builder()
+                    .addTextContent(result.text())
+                    .structuredContent(result.structured() == null ? Map.of() : result.structured())
+                    .isError(result.error());
             return resultBuilder.build();
+        });
+    }
+
+    private McpServerFeatures.SyncToolSpecification collectionToolSpec(
+            String name,
+            String title,
+            String description,
+            SchemaBuilder inputSchema,
+            String collectionKey,
+            Map<String, Object> itemSchema,
+            Function<Map<String, Object>, ToolResult> handler) {
+        SchemaBuilder outputSchema = structuredOutputMode == StructuredOutputMode.DRAFT
+                ? arrayOutput(itemSchema)
+                : schema().reqArraySchema(collectionKey, itemSchema);
+        return toolSpec(name, title, description, inputSchema, outputSchema, args -> {
+            ToolResult result = handler.apply(args);
+            Object structured = result.structured() == null ? List.of() : result.structured();
+            if (structuredOutputMode == StructuredOutputMode.STABLE) {
+                structured = Map.of(collectionKey, structured);
+            }
+            return new ToolResult(result.text(), structured, result.error());
         });
     }
 
@@ -707,6 +742,12 @@ public class McpServer {
 
         SchemaBuilder reqArray(String name, String itemType, String description) {
             props.put(name, Map.of("type", "array", "items", Map.of("type", itemType), "description", description));
+            required.add(name);
+            return this;
+        }
+
+        SchemaBuilder reqArraySchema(String name, Map<String, Object> itemSchema) {
+            props.put(name, Map.of("type", "array", "items", itemSchema));
             required.add(name);
             return this;
         }

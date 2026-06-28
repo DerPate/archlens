@@ -31,10 +31,10 @@ public class RenderDependencyMapTool {
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (!graph.isIndexed()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
+            if (!graph.isIndexed()) return ToolResult.error("No workspace indexed yet. Call index_workspace first.");
             return new ToolResult(renderer.render(graph), Map.of("diagramType", "mermaid"));
         } catch (Exception e) {
-            return ToolResult.textOnly("Error rendering dependency map: " + e.getMessage());
+            return ToolResult.error("Error rendering dependency map: " + e.getMessage());
         }
     }
 }

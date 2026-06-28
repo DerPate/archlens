@@ -38,7 +38,7 @@ public class IndexWorkspaceTool {
     public ToolResult execute(Map<String, Object> args) {
         try {
             List<String> paths = ToolArgs.getStringList(args, "paths");
-            if (paths.isEmpty()) return ToolResult.textOnly("Error: 'paths' array is required.");
+            if (paths.isEmpty()) return ToolResult.error("Error: 'paths' array is required.");
 
             cache.clearActive();
             ArchitectureModel model = extractor.extract(paths);
@@ -75,7 +75,7 @@ public class IndexWorkspaceTool {
             structured.put("entrypointCount", model.entrypoints.size());
             return new ToolResult(sb.toString(), structured);
         } catch (Exception e) {
-            return ToolResult.textOnly("Error indexing workspace: " + e.getMessage());
+            return ToolResult.error("Error indexing workspace: " + e.getMessage());
         }
     }
 }
