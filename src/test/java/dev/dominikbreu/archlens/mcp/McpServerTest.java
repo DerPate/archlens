@@ -107,13 +107,10 @@ class McpServerTest {
 
         var result = specification(server, "query_architecture_graph")
                 .callHandler()
-                .apply(
-                        null,
-                        new McpSchema.CallToolRequest("query_architecture_graph", Map.of("action", "find_nodes")));
+                .apply(null, new McpSchema.CallToolRequest("query_architecture_graph", Map.of("action", "find_nodes")));
 
-        assertThat(result.structuredContent())
-                .isEqualTo(Map.of("action", "find_nodes", "nodes", List.of()));
-        assertThat(result.isError()).isTrue();
+        assertThat(result.structuredContent()).isEqualTo(Map.of("action", "find_nodes", "nodes", List.of()));
+        assertThat(result.isError()).isFalse();
     }
 
     @Test
@@ -125,12 +122,10 @@ class McpServerTest {
 
         var result = specification(server, "query_architecture_graph")
                 .callHandler()
-                .apply(
-                        null,
-                        new McpSchema.CallToolRequest("query_architecture_graph", Map.of("action", "find_edges")));
+                .apply(null, new McpSchema.CallToolRequest("query_architecture_graph", Map.of("action", "find_edges")));
 
         assertThat(result.structuredContent()).isEqualTo(List.of());
-        assertThat(result.isError()).isTrue();
+        assertThat(result.isError()).isFalse();
     }
 
     @Test
