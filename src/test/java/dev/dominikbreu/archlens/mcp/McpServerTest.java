@@ -30,7 +30,10 @@ class McpServerTest {
             assertThat(spec.tool().inputSchema())
                     .containsEntry("type", "object")
                     .doesNotContainKey("$schema");
-            assertThat(spec.tool().outputSchema()).isNotNull().containsKey("type");
+            assertThat(spec.tool().outputSchema()).isNotNull();
+            assertThat(spec.tool().outputSchema().containsKey("type")
+                            || spec.tool().outputSchema().containsKey("oneOf"))
+                    .isTrue();
         });
         assertThat(specs.stream().map(s -> s.tool().name()))
                 .contains(
@@ -90,6 +93,42 @@ class McpServerTest {
         var result = entrypoints.callHandler().apply(null, new McpSchema.CallToolRequest("find_entrypoints", Map.of()));
 
         assertThat(result.content()).isNotEmpty();
+        assertThat(result.structuredContent()).isEqualTo(List.of());
+        assertThat(result.isError()).isTrue();
+    }
+
+    @Test
+    void stableGraphSchema_andHandler_useActionSpecificObjectWrappers() {
+        McpServer server = new McpServer(StructuredOutputMode.STABLE);
+        McpSchema.Tool graphTool = tool(server, "query_architecture_graph");
+
+        assertThat(graphTool.outputSchema()).containsEntry("type", "object");
+        assertThat(properties(graphTool)).containsKeys("action", "nodes", "edges", "paths");
+
+        var result = specification(server, "query_architecture_graph")
+                .callHandler()
+                .apply(
+                        null,
+                        new McpSchema.CallToolRequest("query_architecture_graph", Map.of("action", "find_nodes")));
+
+        assertThat(result.structuredContent())
+                .isEqualTo(Map.of("action", "find_nodes", "nodes", List.of()));
+        assertThat(result.isError()).isTrue();
+    }
+
+    @Test
+    void draftGraphSchema_andHandler_preserveCollectionArrays() {
+        McpServer server = new McpServer(StructuredOutputMode.DRAFT);
+        McpSchema.Tool graphTool = tool(server, "query_architecture_graph");
+
+        assertThat(graphTool.outputSchema()).containsKey("oneOf").doesNotContainKey("type");
+
+        var result = specification(server, "query_architecture_graph")
+                .callHandler()
+                .apply(
+                        null,
+                        new McpSchema.CallToolRequest("query_architecture_graph", Map.of("action", "find_edges")));
+
         assertThat(result.structuredContent()).isEqualTo(List.of());
         assertThat(result.isError()).isTrue();
     }

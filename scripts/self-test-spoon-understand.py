@@ -57,15 +57,19 @@ def notify(method, params=None):
 
 
 def tool(name, arguments):
-    result = call("tools/call", {"name": name, "arguments": arguments})
-    content = result["content"]
-    return content[0]["text"] if content else ""
+    return call("tools/call", {"name": name, "arguments": arguments})
+
+
+def tool_text(result):
+    content = result.get("content", [])
+    return content[0].get("text", "") if content else ""
 
 
 def check(label, fn):
     try:
-        text = fn()
-        ok = bool(text) and "error" not in text.lower()[:40]
+        result = fn()
+        text = tool_text(result)
+        ok = bool(text) and not result.get("isError", False)
         results.append((label, ok, text[:90].replace("\n", " ")))
         return text
     except Exception as exc:  # noqa: BLE001

@@ -54,6 +54,54 @@ class McpStructuredOutputWireTest {
         }
     }
 
+    @Test
+    void stableMode_validatesIndexedGraphCollectionActions(@TempDir Path tempDir) throws Exception {
+        try (ServerProcess server = ServerProcess.start(false, tempDir.resolve("stable-graph-stderr.log"))) {
+            server.indexWorkspace();
+
+            JsonNode nodes = server.callTool(
+                    "query_architecture_graph",
+                    Map.of("action", "find_nodes", "label", "Component", "limit", 2));
+            assertThat(nodes.path("isError").asBoolean()).isFalse();
+            assertThat(nodes.path("structuredContent").path("action").asString())
+                    .isEqualTo("find_nodes");
+            assertThat(nodes.path("structuredContent").path("nodes").isArray()).isTrue();
+
+            JsonNode edges = server.callTool(
+                    "query_architecture_graph", Map.of("action", "find_edges", "limit", 2));
+            assertThat(edges.path("isError").asBoolean()).isFalse();
+            assertThat(edges.path("structuredContent").path("edges").isArray()).isTrue();
+
+            JsonNode summary = server.callTool("query_architecture_graph", Map.of("action", "summary"));
+            assertThat(summary.path("isError").asBoolean()).isFalse();
+            assertThat(summary.path("structuredContent").path("action").asString())
+                    .isEqualTo("summary");
+        }
+    }
+
+    @Test
+    void draftMode_validatesIndexedGraphCollectionActions(@TempDir Path tempDir) throws Exception {
+        try (ServerProcess server = ServerProcess.start(true, tempDir.resolve("draft-graph-stderr.log"))) {
+            server.indexWorkspace();
+
+            JsonNode nodes = server.callTool(
+                    "query_architecture_graph",
+                    Map.of("action", "find_nodes", "label", "Component", "limit", 2));
+            assertThat(nodes.path("isError").asBoolean()).isFalse();
+            assertThat(nodes.path("structuredContent").isArray()).isTrue();
+
+            JsonNode edges = server.callTool(
+                    "query_architecture_graph", Map.of("action", "find_edges", "limit", 2));
+            assertThat(edges.path("isError").asBoolean()).isFalse();
+            assertThat(edges.path("structuredContent").isArray()).isTrue();
+
+            JsonNode summary = server.callTool("query_architecture_graph", Map.of("action", "summary"));
+            assertThat(summary.path("isError").asBoolean()).isFalse();
+            assertThat(summary.path("structuredContent").path("action").asString())
+                    .isEqualTo("summary");
+        }
+    }
+
     private static final class ServerProcess implements Closeable {
         private final Process process;
         private final BufferedWriter input;
@@ -73,6 +121,7 @@ class McpStructuredOutputWireTest {
                             "-cp",
                             System.getProperty("java.class.path"),
                             "dev.dominikbreu.archlens.Main")
+                    .directory(errorLog.getParent().toFile())
                     .redirectError(errorLog.toFile());
             if (draft) {
                 builder.environment().put("ARCHLENS_MCP_EXPERIMENTAL_DRAFT", "true");
@@ -99,7 +148,19 @@ class McpStructuredOutputWireTest {
         }
 
         JsonNode callTool(String name) throws Exception {
-            return request("tools/call", Map.of("name", name, "arguments", Map.of()));
+            return callTool(name, Map.of());
+        }
+
+        JsonNode callTool(String name, Map<String, Object> arguments) throws Exception {
+            return request("tools/call", Map.of("name", name, "arguments", arguments));
+        }
+
+        void indexWorkspace() throws Exception {
+            Path fixture = Path.of("src/test/resources/testprojects/spring-pipeline-sample")
+                    .toAbsolutePath()
+                    .normalize();
+            JsonNode result = callTool("index_workspace", Map.of("paths", java.util.List.of(fixture.toString())));
+            assertThat(result.path("isError").asBoolean()).isFalse();
         }
 
         private JsonNode request(String method, Map<String, Object> params) throws Exception {
