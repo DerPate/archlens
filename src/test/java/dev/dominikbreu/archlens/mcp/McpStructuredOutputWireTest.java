@@ -60,15 +60,13 @@ class McpStructuredOutputWireTest {
             server.indexWorkspace();
 
             JsonNode nodes = server.callTool(
-                    "query_architecture_graph",
-                    Map.of("action", "find_nodes", "label", "Component", "limit", 2));
+                    "query_architecture_graph", Map.of("action", "find_nodes", "label", "Component", "limit", 2));
             assertThat(nodes.path("isError").asBoolean()).isFalse();
             assertThat(nodes.path("structuredContent").path("action").asString())
                     .isEqualTo("find_nodes");
             assertThat(nodes.path("structuredContent").path("nodes").isArray()).isTrue();
 
-            JsonNode edges = server.callTool(
-                    "query_architecture_graph", Map.of("action", "find_edges", "limit", 2));
+            JsonNode edges = server.callTool("query_architecture_graph", Map.of("action", "find_edges", "limit", 2));
             assertThat(edges.path("isError").asBoolean()).isFalse();
             assertThat(edges.path("structuredContent").path("edges").isArray()).isTrue();
 
@@ -85,13 +83,11 @@ class McpStructuredOutputWireTest {
             server.indexWorkspace();
 
             JsonNode nodes = server.callTool(
-                    "query_architecture_graph",
-                    Map.of("action", "find_nodes", "label", "Component", "limit", 2));
+                    "query_architecture_graph", Map.of("action", "find_nodes", "label", "Component", "limit", 2));
             assertThat(nodes.path("isError").asBoolean()).isFalse();
             assertThat(nodes.path("structuredContent").isArray()).isTrue();
 
-            JsonNode edges = server.callTool(
-                    "query_architecture_graph", Map.of("action", "find_edges", "limit", 2));
+            JsonNode edges = server.callTool("query_architecture_graph", Map.of("action", "find_edges", "limit", 2));
             assertThat(edges.path("isError").asBoolean()).isFalse();
             assertThat(edges.path("structuredContent").isArray()).isTrue();
 

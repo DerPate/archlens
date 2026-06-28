@@ -323,7 +323,7 @@ public class McpServer {
                         .opt("edgeCount", TYPE_INTEGER, "Exported edge count"),
                 exportGraphViewerTool::execute));
 
-        specs.add(toolSpec(
+        specs.add(graphToolSpec(
                 "query_architecture_graph",
                 "Query Architecture Graph",
                 "Query the architecture as a graph: summary, node search, neighborhoods, paths, or impact slices.",
@@ -390,12 +390,7 @@ public class McpServer {
                                 "isRuntimeRelevant",
                                 TYPE_STRING,
                                 "Shorthand filter: true | false — only runtime-relevant edges")
-                        .opt("isCondensable", TYPE_STRING, "Shorthand filter: true | false — only condensable edges"),
-                schema().opt(
-                                "action",
-                                TYPE_STRING,
-                                "Echoes the requested action; result shape depends on it — summary returns graph totals, find_nodes/neighborhood/impacted_by return a node array, find_edges returns an edge array, paths returns a path array"),
-                graphTool::execute));
+                        .opt("isCondensable", TYPE_STRING, "Shorthand filter: true | false — only condensable edges")));
 
         specs.add(collectionToolSpec(
                 "trace_data_flow",
@@ -655,6 +650,96 @@ public class McpServer {
         });
     }
 
+    private McpServerFeatures.SyncToolSpecification graphToolSpec(
+            String name, String title, String description, SchemaBuilder inputSchema) {
+        return toolSpec(
+                name,
+                title,
+                description,
+                inputSchema,
+                graphOutputSchema(),
+                args -> normalizeGraphResult(args, graphTool.execute(args)));
+    }
+
+    private ToolResult normalizeGraphResult(Map<String, Object> args, ToolResult result) {
+        String action = String.valueOf(args.getOrDefault("action", "summary"));
+        if ("summary".equals(action)) {
+            Map<String, Object> summary = new LinkedHashMap<>();
+            summary.put("action", action);
+            if (result.structured() instanceof Map<?, ?> values) {
+                for (Map.Entry<?, ?> entry : values.entrySet()) {
+                    summary.put(String.valueOf(entry.getKey()), entry.getValue());
+                }
+            }
+            return new ToolResult(result.text(), summary, result.error());
+        }
+
+        String collectionKey = graphCollectionKey(action);
+        if (collectionKey == null) {
+            return new ToolResult(result.text(), Map.of("action", action), result.error());
+        }
+        List<?> values = result.structured() instanceof List<?> list ? list : List.of();
+        if (structuredOutputMode == StructuredOutputMode.DRAFT) {
+            return new ToolResult(result.text(), values, result.error());
+        }
+        return new ToolResult(result.text(), Map.of("action", action, collectionKey, values), result.error());
+    }
+
+    private static String graphCollectionKey(String action) {
+        return switch (action) {
+            case "find_nodes", "impacted_by" -> "nodes";
+            case "find_edges", "neighborhood" -> "edges";
+            case "paths" -> "paths";
+            default -> null;
+        };
+    }
+
+    private SchemaBuilder graphOutputSchema() {
+        Map<String, Object> summarySchema = graphSummarySchema();
+        if (structuredOutputMode == StructuredOutputMode.DRAFT) {
+            Map<String, Object> collectionItemSchema =
+                    Map.of("anyOf", List.of(nodeItemSchema(), edgeItemSchema(), pathItemSchema()));
+            return schema().raw(Map.of(
+                    "oneOf", List.of(summarySchema, Map.of("type", "array", "items", collectionItemSchema))));
+        }
+
+        Map<String, Object> properties = new LinkedHashMap<>();
+        properties.put("action", Map.of("type", "string"));
+        properties.put("nodeCount", Map.of("type", "integer"));
+        properties.put("edgeCount", Map.of("type", "integer"));
+        properties.put("labels", countMapSchema());
+        properties.put("nodes", Map.of("type", "array", "items", nodeItemSchema()));
+        properties.put(
+                "edges",
+                Map.of("oneOf", List.of(countMapSchema(), Map.of("type", "array", "items", edgeItemSchema()))));
+        properties.put("paths", Map.of("type", "array", "items", pathItemSchema()));
+        return schema().raw(Map.of("type", "object", "properties", properties));
+    }
+
+    private static Map<String, Object> graphSummarySchema() {
+        Map<String, Object> properties = new LinkedHashMap<>();
+        properties.put("action", Map.of("type", "string"));
+        properties.put("nodeCount", Map.of("type", "integer"));
+        properties.put("edgeCount", Map.of("type", "integer"));
+        properties.put("labels", countMapSchema());
+        properties.put("edges", countMapSchema());
+        return Map.of("type", "object", "properties", properties);
+    }
+
+    private static Map<String, Object> countMapSchema() {
+        return Map.of("type", "object", "additionalProperties", Map.of("type", "integer"));
+    }
+
+    private static Map<String, Object> pathItemSchema() {
+        return Map.of(
+                "type",
+                "object",
+                "properties",
+                Map.of(
+                        "nodeIds", Map.of("type", "array", "items", Map.of("type", "string")),
+                        "edgeLabels", Map.of("type", "array", "items", Map.of("type", "string"))));
+    }
+
     private McpServerFeatures.SyncPromptSpecification promptSpec(
             String name, String description, List<McpSchema.PromptArgument> args, String template) {
         McpSchema.Prompt prompt = new McpSchema.Prompt(name, description, args);
@@ -734,6 +819,7 @@ public class McpServer {
         private final Map<String, Object> props = new LinkedHashMap<>();
         private final List<String> required = new ArrayList<>();
         private Map<String, Object> arrayItems;
+        private Map<String, Object> rawSchema;
 
         SchemaBuilder opt(String name, String type, String description) {
             props.put(name, Map.of("type", type, "description", description));
@@ -758,7 +844,15 @@ public class McpServer {
             return this;
         }
 
+        SchemaBuilder raw(Map<String, Object> value) {
+            this.rawSchema = new LinkedHashMap<>(value);
+            return this;
+        }
+
         Map<String, Object> build() {
+            if (rawSchema != null) {
+                return rawSchema;
+            }
             if (arrayItems != null) {
                 Map<String, Object> schema = new LinkedHashMap<>();
                 schema.put("type", "array");
