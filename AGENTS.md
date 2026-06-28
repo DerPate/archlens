@@ -167,29 +167,40 @@ def notify(method, params=None):
     proc.stdin.flush()
 
 def tool(name, args):
-    return call("tools/call", {"name": name, "arguments": args})["content"][0]["text"]
+    return call("tools/call", {"name": name, "arguments": args})
 
 # Most tools also return structuredContent (JSON matching the tool's outputSchema from
 # tools/list) alongside the text above -- read it directly when you need parsed data
 # instead of re-parsing the text:
 def tool_structured(name, args):
-    return call("tools/call", {"name": name, "arguments": args}).get("structuredContent")
+    return tool(name, args).get("structuredContent")
+
+def tool_text(name, args):
+    return tool(name, args)["content"][0]["text"]
 
 # Handshake -- always in this order
 call("initialize", {
-    "protocolVersion": "2024-11-05",
+    "protocolVersion": "2025-11-25",
     "capabilities": {},
     "clientInfo": {"name": "script", "version": "1"},
 })
 notify("notifications/initialized", {})  # <- mandatory, no response expected
 
 # Now call tools
-print(tool("index_workspace", {"paths": ["/path/to/project"]}))
-print(tool("list_apps", {}))
+print(tool_text("index_workspace", {"paths": ["/path/to/project"]}))
+apps = tool_structured("list_apps", {})
+print(apps["apps"])
 
 proc.stdin.close()
 proc.wait()
 ```
+
+Prefer `structuredContent` for field access, calculations, and follow-up tool arguments;
+use `content[0].text` for human-facing summaries. Stable mode wraps collection arrays in
+named objects (`entrypoints`, `components`, `dependencies`, `containers`, `paths`, or
+`useCases`). Starting the server with `ARCHLENS_MCP_EXPERIMENTAL_DRAFT=true` opts into draft
+top-level arrays. Always follow the shape declared by `tools/list`; negotiated older clients
+may not expose structured output.
 
 <!-- lean-ctx -->
 ## lean-ctx

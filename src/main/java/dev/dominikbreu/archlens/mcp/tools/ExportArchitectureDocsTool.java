@@ -35,7 +35,7 @@ public class ExportArchitectureDocsTool {
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (!graph.isIndexed()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
+            if (!graph.isIndexed()) return ToolResult.error("No workspace indexed yet. Call index_workspace first.");
 
             Path output = Path.of(ToolArgs.getString(args, "outputPath", DEFAULT_OUTPUT.toString()));
             String focus = ToolArgs.getString(args, "focusComponent", "McpServer");
@@ -53,7 +53,7 @@ public class ExportArchitectureDocsTool {
                             + "\nDependencies: " + graph.dependencyEdges().size(),
                     structured);
         } catch (Exception e) {
-            return ToolResult.textOnly("Error exporting architecture docs: " + e.getMessage());
+            return ToolResult.error("Error exporting architecture docs: " + e.getMessage());
         }
     }
 

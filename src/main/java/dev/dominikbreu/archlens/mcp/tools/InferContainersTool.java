@@ -22,7 +22,7 @@ public class InferContainersTool {
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (graph.isEmpty()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
+            if (graph.isEmpty()) return ToolResult.error("No workspace indexed yet. Call index_workspace first.");
 
             String appFilter = ToolArgs.getString(args, "appId");
 
@@ -36,7 +36,8 @@ public class InferContainersTool {
                     .toList();
 
             if (containers.isEmpty())
-                return ToolResult.textOnly("No containers found. Re-run index_workspace to build containers.");
+                return ToolResult.success(
+                        "No containers found. Re-run index_workspace to build containers.", List.of());
 
             // Pre-fetch all CONTAINS edges for mapping container → components
             List<GraphQuery.GraphEdge> containsEdges = graph.findEdges("CONTAINS", Map.of(), 10_000);
@@ -86,7 +87,7 @@ public class InferContainersTool {
             }
             return new ToolResult(sb.toString(), structured);
         } catch (Exception e) {
-            return ToolResult.textOnly("Error inferring containers: " + e.getMessage());
+            return ToolResult.error("Error inferring containers: " + e.getMessage());
         }
     }
 }

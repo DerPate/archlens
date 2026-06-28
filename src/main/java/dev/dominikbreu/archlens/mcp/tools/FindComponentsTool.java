@@ -21,7 +21,7 @@ public class FindComponentsTool {
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (graph.isEmpty()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
+            if (graph.isEmpty()) return ToolResult.error("No workspace indexed yet. Call index_workspace first.");
 
             String appId = ToolArgs.getString(args, "appId");
             String typeFilter = ToolArgs.getString(args, "type");
@@ -35,7 +35,9 @@ public class FindComponentsTool {
                     ? applyFilters(graph.componentNodesOwnedByQuery(appId), typeFilter, techFilter)
                     : graph.findNodes("Component", null, filters, 0);
 
-            if (nodes.isEmpty()) return ToolResult.textOnly("No components found matching the given criteria.");
+            if (nodes.isEmpty()) {
+                return ToolResult.success("No components found matching the given criteria.", List.of());
+            }
 
             StringBuilder sb = new StringBuilder();
             sb.append("Found ").append(nodes.size()).append(" component(s):\n\n");
@@ -72,7 +74,7 @@ public class FindComponentsTool {
             }
             return new ToolResult(sb.toString(), structured);
         } catch (Exception e) {
-            return ToolResult.textOnly("Error finding components: " + e.getMessage());
+            return ToolResult.error("Error finding components: " + e.getMessage());
         }
     }
 

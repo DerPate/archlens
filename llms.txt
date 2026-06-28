@@ -19,6 +19,10 @@ The server is designed for consumption by LLM agents and MCP-capable clients
 - Transport: stdio JSON-RPC 2.0 (negotiates MCP protocol version with the client; supports up to `2025-11-25`)
 - Tool responses: every `tools/call` result includes `content[0].text` (unchanged); most tools also
   populate `structuredContent` with JSON matching the tool's `outputSchema` (see `docs/TOOLS.md`)
+- Structured output: prefer `structuredContent` for field access, calculations, and follow-up
+  tool arguments; reserve `content[0].text` for presentation. Stable mode uses named object
+  wrappers for collection results. `ARCHLENS_MCP_EXPERIMENTAL_DRAFT=true` enables draft
+  top-level arrays; inspect `tools/list` rather than assuming either root shape.
 - Cache: `.archlens-cache/` in the working directory (GraphSON format)
 - License: see `LICENSE`
 
@@ -155,6 +159,11 @@ Prompts are workflow templates for clients and agents; they do not replace tools
   - `JRELEASER_GITHUB_TOKEN` required for real publishing.
 
 ## Notes For Agents
+
+- Consume IDs and properties from `structuredContent` instead of parsing formatted text.
+  Empty matches are successful empty values; invalid requests and missing prerequisites set
+  `isError`. Do not place both text and equivalent structured data in model context unless the
+  task needs both.
 
 - Cache layer design: `ModelCache` is the single coordination point. `cache.graph()`
   returns a `GraphQuery` (read-only TinkerPop view with `findNodes`, `findEdges`,

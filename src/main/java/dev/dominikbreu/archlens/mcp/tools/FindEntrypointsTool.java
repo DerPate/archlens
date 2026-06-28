@@ -23,7 +23,7 @@ public class FindEntrypointsTool {
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (graph.isEmpty()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
+            if (graph.isEmpty()) return ToolResult.error("No workspace indexed yet. Call index_workspace first.");
 
             String appId = ToolArgs.getString(args, "appId");
             String typeFilter = ToolArgs.getString(args, "type");
@@ -54,7 +54,9 @@ public class FindEntrypointsTool {
                     })
                     .toList();
 
-            if (nodes.isEmpty()) return ToolResult.textOnly("No entrypoints found matching the given criteria.");
+            if (nodes.isEmpty()) {
+                return ToolResult.success("No entrypoints found matching the given criteria.", List.of());
+            }
 
             StringBuilder sb = new StringBuilder();
             sb.append("Found ").append(nodes.size()).append(" entrypoint(s):\n\n");
@@ -90,7 +92,7 @@ public class FindEntrypointsTool {
             }
             return new ToolResult(sb.toString(), structured);
         } catch (Exception e) {
-            return ToolResult.textOnly("Error finding entrypoints: " + e.getMessage());
+            return ToolResult.error("Error finding entrypoints: " + e.getMessage());
         }
     }
 

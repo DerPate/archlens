@@ -29,10 +29,10 @@ public class DetectUseCasesTool {
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (!graph.isIndexed()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
+            if (!graph.isIndexed()) return ToolResult.error("No workspace indexed yet. Call index_workspace first.");
 
             ConfigResult configResult = resolveConfig(ToolArgs.getString(args, "configFile"));
-            if (configResult.error() != null) return ToolResult.textOnly(configResult.error());
+            if (configResult.error() != null) return ToolResult.error(configResult.error());
 
             String filterModule = ToolArgs.getString(args, "module");
             int maxDepth = ToolArgs.getInt(args, "maxDepth", 5);
@@ -40,11 +40,11 @@ public class DetectUseCasesTool {
             List<UseCase> useCases = detector.detect(graph, configResult.config());
 
             if (filterModule != null) useCases = filterByModule(useCases, graph, filterModule);
-            if (useCases.isEmpty()) return ToolResult.textOnly("No use cases detected.");
+            if (useCases.isEmpty()) return ToolResult.success("No use cases detected.", List.of());
 
             return new ToolResult(format(useCases, graph, maxDepth), structured(useCases, graph));
         } catch (Exception e) {
-            return ToolResult.textOnly("Error detecting use cases: " + e.getMessage());
+            return ToolResult.error("Error detecting use cases: " + e.getMessage());
         }
     }
 

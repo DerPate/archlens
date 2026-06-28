@@ -21,10 +21,19 @@ public class ListAppsTool {
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (graph.isEmpty()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
+            if (graph.isEmpty()) return ToolResult.error("No workspace indexed yet. Call index_workspace first.");
 
             List<GraphQuery.GraphNode> apps = graph.allApps();
-            if (apps.isEmpty()) return ToolResult.textOnly("No applications found in the indexed workspace.");
+            if (apps.isEmpty()) {
+                return ToolResult.success(
+                        "No applications found in the indexed workspace.",
+                        Map.of(
+                                "apps", List.of(),
+                                "componentCount", 0,
+                                "entrypointCount", 0,
+                                "interfaceCount", 0,
+                                "runtimeFlowCount", 0));
+            }
 
             StringBuilder sb = new StringBuilder();
             sb.append("Applications (").append(apps.size()).append("):\n\n");
@@ -61,7 +70,7 @@ public class ListAppsTool {
             structured.put("runtimeFlowCount", runtimeFlowCount);
             return new ToolResult(sb.toString(), structured);
         } catch (Exception e) {
-            return ToolResult.textOnly("Error listing apps: " + e.getMessage());
+            return ToolResult.error("Error listing apps: " + e.getMessage());
         }
     }
 }

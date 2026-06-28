@@ -65,10 +65,10 @@ public class QueryArchitectureGraphTool {
                             GraphNodeId.of(requiredText(args, "nodeId")),
                             integer(args, "maxDepth", 3),
                             integer(args, LIMIT, 256)));
-                default -> ToolResult.textOnly("Unknown graph action: " + action);
+                default -> ToolResult.error("Unknown graph action: " + action);
             };
         } catch (Exception e) {
-            return ToolResult.textOnly("Error querying architecture graph: " + e.getMessage());
+            return ToolResult.error("Error querying architecture graph: " + e.getMessage());
         }
     }
 

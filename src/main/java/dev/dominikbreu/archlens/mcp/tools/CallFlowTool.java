@@ -23,16 +23,16 @@ public class CallFlowTool {
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (graph.isEmpty()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
+            if (graph.isEmpty()) return ToolResult.error("No workspace indexed yet. Call index_workspace first.");
 
             String ref = ToolArgs.getString(args, "entrypointId");
             if (ref == null) ref = ToolArgs.getString(args, "entrypointName");
-            if (ref == null) return ToolResult.textOnly("Error: provide 'entrypointId' or 'entrypointName'.");
+            if (ref == null) return ToolResult.error("Error: provide 'entrypointId' or 'entrypointName'.");
 
             GraphQuery.RuntimeFlowNode flow =
                     graph.runtimeFlowForEntrypoint(ref).orElse(null);
             if (flow == null) {
-                return ToolResult.textOnly(
+                return ToolResult.error(
                         "Entrypoint not found: " + ref + "\n\nAvailable entrypoints:\n" + listEntrypoints(graph));
             }
 
@@ -95,7 +95,7 @@ public class CallFlowTool {
             structured.put("diagram", diagram);
             return new ToolResult(sb.toString(), structured);
         } catch (Exception e) {
-            return ToolResult.textOnly("Error getting call flow: " + e.getMessage());
+            return ToolResult.error("Error getting call flow: " + e.getMessage());
         }
     }
 

@@ -31,7 +31,7 @@ public class RenderMermaidFlowchartTool {
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (!graph.isIndexed()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
+            if (!graph.isIndexed()) return ToolResult.error("No workspace indexed yet. Call index_workspace first.");
 
             String appId = ToolArgs.getString(args, "appId");
             String level = ToolArgs.getString(args, "level");
@@ -39,7 +39,7 @@ public class RenderMermaidFlowchartTool {
 
             return new ToolResult(renderer.render(graph, appId, level), Map.of("diagramType", "mermaid"));
         } catch (Exception e) {
-            return ToolResult.textOnly("Error rendering flowchart: " + e.getMessage());
+            return ToolResult.error("Error rendering flowchart: " + e.getMessage());
         }
     }
 }

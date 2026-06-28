@@ -23,11 +23,10 @@ public class RenderUseCaseTimelineTool {
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (!graph.isIndexed()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
+            if (!graph.isIndexed()) return ToolResult.error("No workspace indexed yet. Call index_workspace first.");
 
             List<GraphQuery.RuntimeFlowNode> flows = graph.allRuntimeFlows();
-            if (flows.isEmpty())
-                return ToolResult.textOnly("No runtime flows available. Re-index the workspace first.");
+            if (flows.isEmpty()) return ToolResult.error("No runtime flows available. Re-index the workspace first.");
 
             String epIdFilter = ToolArgs.getString(args, "entrypointId");
             String epNameFilter = ToolArgs.getString(args, "entrypointName");
@@ -40,7 +39,7 @@ public class RenderUseCaseTimelineTool {
 
             return new ToolResult(renderer.render(flows, graph, maxDepth), Map.of("diagramType", "mermaid"));
         } catch (Exception e) {
-            return ToolResult.textOnly("Error rendering use case timeline: " + e.getMessage());
+            return ToolResult.error("Error rendering use case timeline: " + e.getMessage());
         }
     }
 

@@ -49,7 +49,7 @@ public class ExportGraphArchitecturePocTool {
         try {
             GraphQuery graph = cache.graph();
             if (!graph.isIndexed()) {
-                return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
+                return ToolResult.error("No workspace indexed yet. Call index_workspace first.");
             }
 
             Path output = Path.of(ToolArgs.getString(args, "outputPath", DEFAULT_OUTPUT.toString()));
@@ -70,7 +70,7 @@ public class ExportGraphArchitecturePocTool {
                             + "\nEdges: " + graph.summary().edgeCount(),
                     structured);
         } catch (Exception e) {
-            return ToolResult.textOnly("Error exporting graph POC docs: " + e.getMessage());
+            return ToolResult.error("Error exporting graph POC docs: " + e.getMessage());
         }
     }
 

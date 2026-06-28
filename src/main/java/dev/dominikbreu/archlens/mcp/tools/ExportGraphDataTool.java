@@ -34,7 +34,7 @@ public class ExportGraphDataTool {
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
-            if (graph.isEmpty()) return ToolResult.textOnly("No workspace indexed yet. Call index_workspace first.");
+            if (graph.isEmpty()) return ToolResult.error("No workspace indexed yet. Call index_workspace first.");
 
             Path output = Path.of(ToolArgs.getString(args, "outputPath", DEFAULT_OUTPUT.toString()));
             int limit = ToolArgs.getInt(args, "limit", DEFAULT_LIMIT);
@@ -55,7 +55,7 @@ public class ExportGraphDataTool {
                             + "\nEdges: " + snapshot.metadata().includedEdgeCount(),
                     structured);
         } catch (Exception e) {
-            return ToolResult.textOnly("Error exporting graph data: " + e.getMessage());
+            return ToolResult.error("Error exporting graph data: " + e.getMessage());
         }
     }
 }
