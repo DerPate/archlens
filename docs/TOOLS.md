@@ -723,6 +723,15 @@ Arguments:
   `supportRole`, `agentCategory`, `classificationEvidence`, `isCrossModule`,
   `isRuntimeRelevant`, and `isCondensable`.
 
+Structured result shapes depend on the action and active MCP structured-output mode:
+
+| Action | Stable `structuredContent` | Experimental draft `structuredContent` |
+| --- | --- | --- |
+| `summary` | object with `action`, counts, and label maps | same object |
+| `find_nodes`, `impacted_by` | `{ "action": "...", "nodes": [...] }` | node array |
+| `find_edges`, `neighborhood` | `{ "action": "...", "edges": [...] }` | edge array |
+| `paths` | `{ "action": "paths", "paths": [...] }` | path array |
+
 Useful graph properties include:
 
 - Component nodes: `componentType`, `qualifiedName`, `packageName`, `module`, `technology`,

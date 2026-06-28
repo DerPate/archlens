@@ -38,6 +38,15 @@ invalid arguments, unresolved requested entities, unsupported values, and intern
 return `isError: true` while preserving the human-readable diagnostic and schema-valid
 structured content.
 
+`query_architecture_graph` is action-dependent, so its stable object uses a named collection:
+`find_nodes` and `impacted_by` return `{ "action": "...", "nodes": [...] }`;
+`find_edges` and `neighborhood` return `{ "action": "...", "edges": [...] }`; and `paths`
+returns `{ "action": "paths", "paths": [...] }`. `summary` returns its counts and label maps
+with `action: "summary"`. In experimental draft mode the collection actions remain top-level
+arrays, while the intrinsically object-shaped summary remains an object. The declared schema
+accepts exactly these action families, so SDK output validation does not discard successful
+graph query results.
+
 ## Real example
 
 Indexing a mid-sized Spring Boot service (~500 components, ~300 entrypoints) and calling

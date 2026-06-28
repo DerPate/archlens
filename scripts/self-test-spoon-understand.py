@@ -13,10 +13,13 @@ Usage: python3 scripts/self-test-spoon-understand.py [workspace_path]
 import json
 import subprocess
 import sys
+import tempfile
+from pathlib import Path
 
-ROOT = "/home/dominik/archlens"
+ROOT = Path(__file__).resolve().parent.parent
 WORKSPACE = sys.argv[1] if len(sys.argv) > 1 else "/home/dominik/phoenix_backend"
-JAR = f"{ROOT}/target/archlens.jar"
+JAR = ROOT / "target" / "archlens.jar"
+CACHE_ROOT = tempfile.TemporaryDirectory(prefix="archlens-self-test-")
 
 proc = subprocess.Popen(
     ["java", "-jar", JAR],
@@ -25,6 +28,7 @@ proc = subprocess.Popen(
     stderr=sys.stderr,
     text=True,
     bufsize=1,
+    cwd=CACHE_ROOT.name,
 )
 
 next_id = 1
@@ -80,7 +84,7 @@ def check(label, fn):
 call(
     "initialize",
     {
-        "protocolVersion": "2024-11-05",
+        "protocolVersion": "2025-11-25",
         "capabilities": {},
         "clientInfo": {"name": "spoon-understand-self-test", "version": "1"},
     },
@@ -165,6 +169,7 @@ check(
 )
 
 proc.terminate()
+CACHE_ROOT.cleanup()
 
 # --- Report ---
 print(f"Self-test of spoon-understand against {WORKSPACE}\n")
