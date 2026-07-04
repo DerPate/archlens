@@ -84,4 +84,40 @@ class StringExpressionResolverTest extends ExtractorTestBase {
 
         assertThat(result).isEmpty();
     }
+
+    @Test
+    void resolvesParamRefByWalkingCallers() {
+        // KafkaJsonProducer.sendEvent(String topic, ...) — topic is a PARAM_REF
+        // BudgetControlService.trigger() passes literal "budgetControl"
+        CtType<?> producerType = type("com.example.kafka.KafkaJsonProducer");
+        CtMethod<?> sendEvent = method(producerType, "sendEvent");
+        // arg[0] of the kafkaTemplate.send(topic,...) call inside sendEvent is a CtVariableRead of `topic`
+        CtInvocation<?> sendCall = sendEvent.getElements(new TypeFilter<>(CtInvocation.class))
+                .stream()
+                .filter(inv -> "send".equals(inv.getExecutable().getSimpleName()))
+                .findFirst().orElseThrow();
+
+        Set<String> result = StringExpressionResolver.resolve(
+                sendCall.getArguments().get(0), producerType, sendEvent, model, 10, new HashSet<>());
+
+        assertThat(result).containsExactly("budgetControl");
+    }
+
+    @Test
+    void cycleGuardPreventsInfiniteLoop() {
+        // Just verifying resolve() terminates — use a deep depth cap
+        CtType<?> producerType = type("com.example.kafka.KafkaJsonProducer");
+        CtMethod<?> sendEvent = method(producerType, "sendEvent");
+        CtInvocation<?> sendCall = sendEvent.getElements(new TypeFilter<>(CtInvocation.class))
+                .stream()
+                .filter(inv -> "send".equals(inv.getExecutable().getSimpleName()))
+                .findFirst().orElseThrow();
+
+        // Should not hang regardless of cycle guard trigger
+        Set<String> result = StringExpressionResolver.resolve(
+                sendCall.getArguments().get(0), producerType, sendEvent, model, 15, new HashSet<>());
+
+        // No assertion on value — just that it terminates
+        assertThat(result).isNotNull();
+    }
 }
