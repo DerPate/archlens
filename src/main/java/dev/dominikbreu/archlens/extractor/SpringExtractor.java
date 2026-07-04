@@ -15,15 +15,19 @@ import org.apache.commons.lang3.StringUtils;
 import spoon.reflect.code.CtExpression;
 import spoon.reflect.code.CtInvocation;
 import spoon.reflect.code.CtLiteral;
+import spoon.reflect.code.CtLocalVariable;
 import spoon.reflect.code.CtNewArray;
 import spoon.reflect.code.CtVariableRead;
 import spoon.reflect.declaration.CtAnnotation;
 import spoon.reflect.declaration.CtElement;
 import spoon.reflect.declaration.CtField;
 import spoon.reflect.declaration.CtMethod;
+import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.declaration.CtType;
+import spoon.reflect.declaration.CtVariable;
 import spoon.reflect.reference.CtFieldReference;
 import spoon.reflect.reference.CtTypeReference;
+import dev.dominikbreu.archlens.model.TopicArgKind;
 
 /** Extracts Spring-specific architecture components, entrypoints, and interfaces from a Spoon model. */
 public class SpringExtractor {
@@ -646,8 +650,6 @@ public class SpringExtractor {
         }
         if (!declaringType.contains("KafkaTemplate") && !targetType.contains("KafkaTemplate")) return;
 
-        SpringConfigResolver.ResolvedValue topic = config.resolveWithKey(
-                stripQuotes(invocation.getArguments().getFirst().toString()));
         CtMethod<?> enclosingMethod = invocation.getParent(CtMethod.class);
         if (enclosingMethod == null) return;
         OutboundSinkSite site = new OutboundSinkSite();
@@ -658,15 +660,91 @@ public class SpringExtractor {
         site.method = enclosingMethod.getSimpleName();
         site.calleeQualifiedName = declaringType.isBlank() ? targetType : declaringType;
         site.calleeMethod = executable;
-        site.channel = topic.value();
         site.broker = MessagingBroker.KAFKA;
-        site.topic = topic.value();
-        site.topicPropertyKey = topic.propertyKey();
+        classifyTopicArg(invocation, site);
         site.payloadVarName = payloadVarName(invocation);
         site.payloadType = payloadType(invocation);
         site.linkEvidence = "spring-kafka-template-send";
         site.source = new SourceInfo(getFile(invocation), getLine(invocation), "spring-kafka-template-send", 0.95);
         model.outboundSinkSites.add(site);
+    }
+
+    private void classifyTopicArg(CtInvocation<?> sendInv, OutboundSinkSite site) {
+        if (sendInv.getArguments().isEmpty()) {
+            site.topicArgKind = TopicArgKind.UNKNOWN;
+            return;
+        }
+        CtExpression<?> arg = sendInv.getArguments().getFirst();
+
+        // String literal or Spring property placeholder (e.g. "${topics.orders.created}")
+        if (arg instanceof CtLiteral<?> lit && lit.getValue() instanceof String s) {
+            SpringConfigResolver.ResolvedValue resolved = config.resolveWithKey(s);
+            site.topicArgKind = TopicArgKind.LITERAL;
+            site.topic = resolved.value();
+            site.channel = resolved.value();
+            site.topicPropertyKey = resolved.wasResolved() ? resolved.propertyKey() : null;
+            return;
+        }
+
+        // Static final field read (e.g. KafkaConfig.ADDRESS_TOPIC = "address")
+        if (arg instanceof CtVariableRead<?> vr && vr.getVariable() instanceof CtFieldReference<?> fr) {
+            try {
+                CtField<?> decl = fr.getDeclaration();
+                if (decl != null && decl.getDefaultExpression() instanceof CtLiteral<?> lit
+                        && lit.getValue() instanceof String s) {
+                    SpringConfigResolver.ResolvedValue resolved = config.resolveWithKey(s);
+                    site.topicArgKind = TopicArgKind.LITERAL;
+                    site.topic = resolved.value();
+                    site.channel = resolved.value();
+                    site.topicPropertyKey = resolved.wasResolved() ? resolved.propertyKey() : null;
+                    return;
+                }
+            } catch (Exception ignored) {}
+        }
+
+        // Variable read: method parameter or local variable
+        if (arg instanceof CtVariableRead<?> vr) {
+            try {
+                CtVariable<?> varDecl = vr.getVariable().getDeclaration();
+                if (varDecl instanceof CtParameter<?> param) {
+                    CtTypeReference<?> paramType = param.getType();
+                    String typeName = paramType != null ? paramType.getSimpleName() : "";
+                    if (typeName.contains("Message")) {
+                        site.topicArgKind = TopicArgKind.MESSAGE_OBJECT;
+                    } else {
+                        site.topicArgKind = TopicArgKind.PARAM_REF;
+                        CtMethod<?> enclosing = sendInv.getParent(CtMethod.class);
+                        if (enclosing != null) {
+                            List<CtParameter<?>> params = enclosing.getParameters();
+                            for (int i = 0; i < params.size(); i++) {
+                                if (params.get(i).getSimpleName().equals(param.getSimpleName())) {
+                                    site.topicArgParamIndex = i;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    return;
+                }
+                if (varDecl instanceof CtLocalVariable<?> local
+                        && local.getDefaultExpression() instanceof CtLiteral<?> lit
+                        && lit.getValue() instanceof String s) {
+                    SpringConfigResolver.ResolvedValue resolved = config.resolveWithKey(s);
+                    site.topicArgKind = TopicArgKind.LITERAL;
+                    site.topic = resolved.value();
+                    site.channel = resolved.value();
+                    return;
+                }
+            } catch (Exception ignored) {}
+        }
+
+        // Method invocation (e.g. event.getType(), event.getTopic())
+        if (arg instanceof CtInvocation<?>) {
+            site.topicArgKind = TopicArgKind.METHOD_CALL;
+            return;
+        }
+
+        site.topicArgKind = TopicArgKind.UNKNOWN;
     }
 
     private String payloadVarName(CtInvocation<?> invocation) {
