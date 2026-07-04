@@ -62,8 +62,8 @@ public class StringExpressionResolver {
                     CtTypeReference<?> paramType = param.getType();
                     String typeName = paramType != null ? paramType.getSimpleName() : "";
                     if (typeName.contains("Message")) {
-                        // MESSAGE_OBJECT case — handled in Task 7
-                        return Set.of();
+                        return resolveFromMessageBuilderInCallers(
+                                containingType, containingMethod, model, maxDepth - 1, visited);
                     }
                     return resolveFromCallers(containingType, containingMethod, paramIndex, model, maxDepth - 1, visited);
                 }
@@ -149,6 +149,44 @@ public class StringExpressionResolver {
                 results.addAll(resolve(
                         inv.getArguments().get(paramIndex),
                         callerType, callerMethod, model, depth, visited));
+            }
+        }
+        return results;
+    }
+
+    private static Set<String> resolveFromMessageBuilderInCallers(
+            CtType<?> type,
+            CtMethod<?> method,
+            CtModel model,
+            int depth,
+            Set<String> visited) {
+
+        String frameKey = type.getQualifiedName() + "#" + method.getSimpleName() + "#msg";
+        if (!visited.add(frameKey)) return Set.of();
+
+        Set<String> results = new LinkedHashSet<>();
+        String methodName = method.getSimpleName();
+
+        for (CtType<?> candidate : model.getAllTypes()) {
+            for (CtInvocation<?> callSite : candidate.getElements(new TypeFilter<>(CtInvocation.class))) {
+                if (!methodName.equals(callSite.getExecutable().getSimpleName())) continue;
+                CtTypeReference<?> declType = callSite.getExecutable().getDeclaringType();
+                if (declType == null) continue;
+                if (!type.getQualifiedName().equals(declType.getQualifiedName())) continue;
+
+                CtMethod<?> callerMethod = callSite.getParent(CtMethod.class);
+                CtType<?> callerType = callSite.getParent(CtType.class);
+                if (callerMethod == null || callerType == null) continue;
+
+                // Find setHeader("...TOPIC...", value) in the caller's method body
+                for (CtInvocation<?> inv : callerMethod.getElements(new TypeFilter<>(CtInvocation.class))) {
+                    if (!"setHeader".equals(inv.getExecutable().getSimpleName())) continue;
+                    if (inv.getArguments().size() < 2) continue;
+                    String firstArgText = inv.getArguments().get(0).toString();
+                    if (!firstArgText.contains("TOPIC")) continue;
+                    results.addAll(resolve(
+                            inv.getArguments().get(1), callerType, callerMethod, model, depth, visited));
+                }
             }
         }
         return results;
