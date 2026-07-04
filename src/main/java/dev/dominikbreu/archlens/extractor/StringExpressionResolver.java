@@ -47,10 +47,67 @@ public class StringExpressionResolver {
                 if (varDecl instanceof CtLocalVariable<?> local && local.getDefaultExpression() != null) {
                     return resolve(local.getDefaultExpression(), containingType, containingMethod, model, maxDepth - 1, visited);
                 }
-                // CtParameter and CtInvocation cases handled in Tasks 5–7
+                if (varDecl instanceof CtParameter<?> param && containingMethod != null) {
+                    // Determine which param position this is
+                    int paramIndex = -1;
+                    List<CtParameter<?>> params = containingMethod.getParameters();
+                    for (int i = 0; i < params.size(); i++) {
+                        if (params.get(i).getSimpleName().equals(param.getSimpleName())) {
+                            paramIndex = i;
+                            break;
+                        }
+                    }
+                    if (paramIndex < 0) return Set.of();
+
+                    CtTypeReference<?> paramType = param.getType();
+                    String typeName = paramType != null ? paramType.getSimpleName() : "";
+                    if (typeName.contains("Message")) {
+                        // MESSAGE_OBJECT case — handled in Task 7
+                        return Set.of();
+                    }
+                    return resolveFromCallers(containingType, containingMethod, paramIndex, model, maxDepth - 1, visited);
+                }
+                // CtInvocation cases handled in Tasks 6–7
             } catch (Exception ignored) {}
         }
 
         return Set.of();
+    }
+
+    private static Set<String> resolveFromCallers(
+            CtType<?> type,
+            CtMethod<?> method,
+            int paramIndex,
+            CtModel model,
+            int depth,
+            Set<String> visited) {
+
+        String frameKey = type.getQualifiedName() + "#" + method.getSimpleName() + "#" + paramIndex;
+        if (!visited.add(frameKey)) return Set.of();
+
+        Set<String> results = new LinkedHashSet<>();
+        String methodName = method.getSimpleName();
+
+        for (CtType<?> candidate : model.getAllTypes()) {
+            for (CtInvocation<?> inv : candidate.getElements(new TypeFilter<>(CtInvocation.class))) {
+                if (!methodName.equals(inv.getExecutable().getSimpleName())) continue;
+                if (inv.getArguments().size() <= paramIndex) continue;
+                CtTypeReference<?> declType = inv.getExecutable().getDeclaringType();
+                if (declType == null) continue;
+                // Try exact qualified name match first; fall back to simple name in noClasspath mode
+                boolean matches = type.getQualifiedName().equals(declType.getQualifiedName())
+                        || type.getSimpleName().equals(declType.getSimpleName());
+                if (!matches) continue;
+
+                CtMethod<?> callerMethod = inv.getParent(CtMethod.class);
+                CtType<?> callerType = inv.getParent(CtType.class);
+                if (callerMethod == null || callerType == null) continue;
+
+                results.addAll(resolve(
+                        inv.getArguments().get(paramIndex),
+                        callerType, callerMethod, model, depth, visited));
+            }
+        }
+        return results;
     }
 }
