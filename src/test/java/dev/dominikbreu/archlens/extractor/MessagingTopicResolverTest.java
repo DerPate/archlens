@@ -41,4 +41,29 @@ class MessagingTopicResolverTest extends ExtractorTestBase {
         assertThat(model.outboundSinkSites)
                 .anySatisfy(site -> assertThat(site.topic).isEqualTo("orders.created"));
     }
+
+    @Test
+    void endToEndExtractorResolvesBothSamples() {
+        // kafka-topic-resolver-sample: all three patterns resolved automatically
+        ArchitectureModel kafkaModel = new ArchitectureExtractor()
+                .extract(List.of(projectPath("kafka-topic-resolver-sample")));
+
+        assertThat(kafkaModel.outboundSinkSites.stream()
+                .filter(s -> s.broker == MessagingBroker.KAFKA)
+                .map(s -> s.topic)
+                .filter(Objects::nonNull)
+                .toList())
+            .contains("budgetControl", "sisPDFCreation", "pushNotification")
+            .noneMatch(t -> t.equals("topic") || t.equals("message") || t.contains("("));
+
+        // spring-pipeline-sample regression: literal topics unchanged
+        ArchitectureModel pipelineModel = new ArchitectureExtractor()
+                .extract(List.of(projectPath("spring-pipeline-sample")));
+
+        assertThat(pipelineModel.outboundSinkSites)
+                .anySatisfy(site -> {
+                    assertThat(site.topic).isEqualTo("orders.created");
+                    assertThat(site.topicArgKind).isEqualTo(TopicArgKind.LITERAL);
+                });
+    }
 }
