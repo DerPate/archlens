@@ -71,7 +71,50 @@ public class StringExpressionResolver {
             } catch (Exception ignored) {}
         }
 
+        // ── Case 4: Method call on a variable — walk interface implementations ──
+        if (expr instanceof CtInvocation<?> inv && inv.getTarget() != null
+                && inv.getExecutable() != null) {
+            String calledMethod = inv.getExecutable().getSimpleName();
+            CtTypeReference<?> receiverType = inv.getTarget().getType();
+            if (!calledMethod.isEmpty() && receiverType != null) {
+                return resolveFromImplementations(receiverType, calledMethod, model, maxDepth - 1, visited);
+            }
+        }
+
         return Set.of();
+    }
+
+    private static Set<String> resolveFromImplementations(
+            CtTypeReference<?> interfaceRef,
+            String methodName,
+            CtModel model,
+            int depth,
+            Set<String> visited) {
+
+        String frameKey = interfaceRef.getQualifiedName() + "#" + methodName;
+        if (!visited.add(frameKey)) return Set.of();
+
+        Set<String> results = new LinkedHashSet<>();
+        for (CtType<?> candidate : model.getAllTypes()) {
+            boolean isImpl = candidate.getSuperInterfaces().stream()
+                    .anyMatch(i -> interfaceRef.getQualifiedName().equals(i.getQualifiedName()));
+            if (!isImpl && candidate.getSuperclass() != null
+                    && interfaceRef.getQualifiedName().equals(candidate.getSuperclass().getQualifiedName())) {
+                isImpl = true;
+            }
+            if (!isImpl) continue;
+
+            for (CtMethod<?> m : candidate.getMethods()) {
+                if (!methodName.equals(m.getSimpleName())) continue;
+                for (CtReturn<?> ret : m.getElements(new TypeFilter<>(CtReturn.class))) {
+                    CtExpression<?> returned = ret.getReturnedExpression();
+                    if (returned != null) {
+                        results.addAll(resolve(returned, candidate, m, model, depth, visited));
+                    }
+                }
+            }
+        }
+        return results;
     }
 
     private static Set<String> resolveFromCallers(
