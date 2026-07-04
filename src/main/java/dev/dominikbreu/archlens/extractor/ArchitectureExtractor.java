@@ -81,11 +81,13 @@ public class ArchitectureExtractor {
                 work.app().role = moduleClassifier.classify(types, work.app());
             }
 
+            int sitesBefore = model.outboundSinkSites.size();
             dispatchExtractors(types, model, work.app().id, work.module(), tech);
 
             Map<String, MessagingConfigResolver.ChannelConfig> resolved =
                     messagingConfigResolver.resolve(work.module().root());
             applyMessagingBrokers(model, work.app().id, resolved);
+            new MessagingTopicResolver(15).resolve(model, ctModel, sitesBefore);
         }
         eventBusExtractor.linkCrossModuleEvents(model);
         Span.current().setAttribute("modules", modules.size());
