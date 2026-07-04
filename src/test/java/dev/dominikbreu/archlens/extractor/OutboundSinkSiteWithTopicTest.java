@@ -10,27 +10,47 @@ class OutboundSinkSiteWithTopicTest {
     @Test
     void withTopicClonesAllFieldsAndSetsTopicAndChannel() {
         OutboundSinkSite original = new OutboundSinkSite();
+        // Set all 16 fields to non-null/non-default values
         original.id = "test-id";
         original.kind = DataFlowSink.Kind.MESSAGING;
+        original.componentId = ComponentId.of("PaymentService");
+        original.method = "sendMessage";
+        original.calleeQualifiedName = "org.springframework.kafka.core.KafkaTemplate";
+        original.calleeMethod = "send";
         original.broker = MessagingBroker.KAFKA;
-        original.topic = null;
-        original.channel = null;
-        original.topicArgKind = TopicArgKind.PARAM_REF;
-        original.topicArgParamIndex = 0;
+        original.topic = null; // Will be set by withTopic()
+        original.channel = null; // Will be set by withTopic()
+        original.topicPropertyKey = "kafka.topic.payment";
+        original.payloadVarName = "message";
+        original.payloadType = "com.example.PaymentEvent";
         original.linkEvidence = "spring-kafka-template-send";
+        original.source = new SourceInfo("PaymentService.java", 42, "method-call", 0.95);
+        original.topicArgKind = TopicArgKind.PARAM_REF;
+        original.topicArgParamIndex = 1;
 
         OutboundSinkSite copy = original.withTopic("budgetControl");
 
-        assertThat(copy.topic).isEqualTo("budgetControl");
-        assertThat(copy.channel).isEqualTo("budgetControl");
+        // Assert ALL 16 fields are cloned correctly
         assertThat(copy.id).isEqualTo("test-id");
         assertThat(copy.kind).isEqualTo(DataFlowSink.Kind.MESSAGING);
+        assertThat(copy.componentId).isEqualTo(ComponentId.of("PaymentService"));
+        assertThat(copy.method).isEqualTo("sendMessage");
+        assertThat(copy.calleeQualifiedName).isEqualTo("org.springframework.kafka.core.KafkaTemplate");
+        assertThat(copy.calleeMethod).isEqualTo("send");
         assertThat(copy.broker).isEqualTo(MessagingBroker.KAFKA);
-        assertThat(copy.topicArgKind).isEqualTo(TopicArgKind.PARAM_REF);
-        assertThat(copy.topicArgParamIndex).isEqualTo(0);
+        assertThat(copy.topic).isEqualTo("budgetControl");
+        assertThat(copy.channel).isEqualTo("budgetControl");
+        assertThat(copy.topicPropertyKey).isEqualTo("kafka.topic.payment");
+        assertThat(copy.payloadVarName).isEqualTo("message");
+        assertThat(copy.payloadType).isEqualTo("com.example.PaymentEvent");
         assertThat(copy.linkEvidence).isEqualTo("spring-kafka-template-send");
-        // original unchanged
+        assertThat(copy.source).isEqualTo(original.source);
+        assertThat(copy.topicArgKind).isEqualTo(TopicArgKind.PARAM_REF);
+        assertThat(copy.topicArgParamIndex).isEqualTo(1);
+
+        // Assert original is unchanged
         assertThat(original.topic).isNull();
+        assertThat(original.channel).isNull();
     }
 
     @Test
