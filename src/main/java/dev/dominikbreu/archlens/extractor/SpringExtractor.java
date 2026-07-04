@@ -733,6 +733,7 @@ public class SpringExtractor {
                     site.topicArgKind = TopicArgKind.LITERAL;
                     site.topic = resolved.value();
                     site.channel = resolved.value();
+                    site.topicPropertyKey = resolved.wasResolved() ? resolved.propertyKey() : null;
                     return;
                 }
             } catch (Exception ignored) {}
