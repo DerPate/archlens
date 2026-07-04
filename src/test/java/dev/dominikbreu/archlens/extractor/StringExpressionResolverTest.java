@@ -122,6 +122,24 @@ class StringExpressionResolverTest extends ExtractorTestBase {
     }
 
     @Test
+    void resolvesMessageObjectByFindingSetHeaderInCaller() {
+        // KafkaJsonProducer.sendMessage(Message<String> message) — topic is in Message headers
+        // PushNotificationService.send() sets KafkaHeaders.TOPIC = KafkaConfig.PUSH_NOTIFICATION_TOPIC
+        CtType<?> producerType = type("com.example.kafka.KafkaJsonProducer");
+        CtMethod<?> sendMessage = method(producerType, "sendMessage");
+        CtInvocation<?> sendCall = sendMessage.getElements(new TypeFilter<>(CtInvocation.class))
+                .stream()
+                .filter(inv -> "send".equals(inv.getExecutable().getSimpleName()))
+                .findFirst().orElseThrow();
+        // arg[0] is `message` — a CtVariableRead of a Message<String> parameter
+
+        Set<String> result = StringExpressionResolver.resolve(
+                sendCall.getArguments().get(0), producerType, sendMessage, model, 10, new HashSet<>());
+
+        assertThat(result).containsExactly("pushNotification");
+    }
+
+    @Test
     void cycleGuardPreventsInfiniteLoop() {
         // Just verifying resolve() terminates — use a deep depth cap
         CtType<?> producerType = type("com.example.kafka.KafkaJsonProducer");
