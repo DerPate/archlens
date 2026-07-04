@@ -104,6 +104,24 @@ class StringExpressionResolverTest extends ExtractorTestBase {
     }
 
     @Test
+    void resolvesMethodCallByWalkingImplementations() {
+        // KafkaProducer.sendEvent(IKafkaEvent event) — topic is event.getType()
+        // SisKafkaEvent.getType() returns "sisPDFCreation"
+        CtType<?> producerType = type("com.example.kafka.KafkaProducer");
+        CtMethod<?> sendEvent = method(producerType, "sendEvent");
+        CtInvocation<?> sendCall = sendEvent.getElements(new TypeFilter<>(CtInvocation.class))
+                .stream()
+                .filter(inv -> "send".equals(inv.getExecutable().getSimpleName()))
+                .findFirst().orElseThrow();
+        // arg[0] is event.getType() — a CtInvocation
+
+        Set<String> result = StringExpressionResolver.resolve(
+                sendCall.getArguments().get(0), producerType, sendEvent, model, 10, new HashSet<>());
+
+        assertThat(result).containsExactly("sisPDFCreation");
+    }
+
+    @Test
     void cycleGuardPreventsInfiniteLoop() {
         // Just verifying resolve() terminates — use a deep depth cap
         CtType<?> producerType = type("com.example.kafka.KafkaJsonProducer");
