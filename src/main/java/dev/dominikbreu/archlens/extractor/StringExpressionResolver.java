@@ -137,7 +137,7 @@ public class StringExpressionResolver {
                 if (inv.getArguments().size() <= paramIndex) continue;
                 CtTypeReference<?> declType = inv.getExecutable().getDeclaringType();
                 if (declType == null) continue;
-                // Try exact qualified name match first; fall back to simple name in noClasspath mode
+                // noClasspath mode often loses qualified name; fall back to simple name
                 boolean matches = type.getQualifiedName().equals(declType.getQualifiedName())
                         || type.getSimpleName().equals(declType.getSimpleName());
                 if (!matches) continue;
@@ -182,6 +182,8 @@ public class StringExpressionResolver {
                 for (CtInvocation<?> inv : callerMethod.getElements(new TypeFilter<>(CtInvocation.class))) {
                     if (!"setHeader".equals(inv.getExecutable().getSimpleName())) continue;
                     if (inv.getArguments().size() < 2) continue;
+                    // LIMITATION: matches by field/variable name containing "TOPIC" — works for
+                    // KafkaHeaders.TOPIC but misses custom constants whose name lacks "TOPIC".
                     String firstArgText = inv.getArguments().get(0).toString();
                     if (!firstArgText.contains("TOPIC")) continue;
                     results.addAll(resolve(
