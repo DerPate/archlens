@@ -27,7 +27,6 @@ import spoon.reflect.declaration.CtType;
 import spoon.reflect.declaration.CtVariable;
 import spoon.reflect.reference.CtFieldReference;
 import spoon.reflect.reference.CtTypeReference;
-import dev.dominikbreu.archlens.model.TopicArgKind;
 
 /** Extracts Spring-specific architecture components, entrypoints, and interfaces from a Spoon model. */
 public class SpringExtractor {
