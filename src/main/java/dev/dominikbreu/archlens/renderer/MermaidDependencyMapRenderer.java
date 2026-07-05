@@ -17,8 +17,15 @@ public class MermaidDependencyMapRenderer {
 
     private static final String DEFAULT_LABEL = "(default)";
 
+    /** Creates a new dependency-map renderer. */
     public MermaidDependencyMapRenderer() {}
 
+    /**
+     * Renders a Mermaid dependency map for the whole graph.
+     *
+     * @param graph the graph to render
+     * @return the Mermaid diagram source
+     */
     public String render(GraphQuery graph) {
         List<GraphQuery.ComponentNode> components = graph.allComponentNodes();
 

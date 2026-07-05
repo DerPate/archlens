@@ -9,8 +9,34 @@ import spoon.reflect.declaration.*;
 import spoon.reflect.reference.*;
 import spoon.reflect.visitor.filter.TypeFilter;
 
+/**
+ * Best-effort static resolver that maps a string-valued expression (typically a Kafka topic
+ * argument) to the set of literal values it can take at runtime.
+ *
+ * <p>Resolution is recursive and handles: string literals; reads of {@code static final} string
+ * fields; local variables and method parameters (walking callers to recover the passed literals);
+ * interface/abstract method calls (walking implementations); and topics set via a message-object
+ * header (e.g. {@code setHeader(KafkaHeaders.TOPIC, ...)}). {@code maxDepth} bounds the recursion
+ * and the caller/implementation walk, and {@code visited} guards against cycles.
+ *
+ * <p>Returns an empty set when the value cannot be determined statically — callers treat that as
+ * "unresolved" rather than guessing. Used by {@link MessagingTopicResolver}.
+ */
 public class StringExpressionResolver {
 
+    /**
+     * Recovers the set of literal string values {@code expr} can take, resolving fields, variables,
+     * parameters (via caller walking), method calls (via implementation walking), and message-object
+     * header topics. Returns an empty set when the value cannot be determined statically.
+     *
+     * @param expr the expression to resolve
+     * @param containingType the type enclosing {@code expr}
+     * @param containingMethod the method enclosing {@code expr} (used for parameter resolution)
+     * @param model the Spoon model, for cross-type caller/implementation lookups
+     * @param maxDepth remaining recursion/walk budget; resolution stops at zero
+     * @param visited guards against cycles across recursive calls
+     * @return the possible literal values, or an empty set if unresolved
+     */
     public static Set<String> resolve(
             CtExpression<?> expr,
             CtType<?> containingType,
@@ -30,14 +56,22 @@ public class StringExpressionResolver {
         if (expr instanceof CtFieldRead<?> fr) {
             try {
                 CtField<?> decl = fr.getVariable().getFieldDeclaration();
-                if (decl != null && decl.getDefaultExpression() instanceof CtLiteral<?> lit
+                if (decl != null
+                        && decl.getDefaultExpression() instanceof CtLiteral<?> lit
                         && lit.getValue() instanceof String s) {
                     return Set.of(s);
                 }
                 if (decl != null && decl.getDefaultExpression() != null) {
-                    return resolve(decl.getDefaultExpression(), containingType, containingMethod, model, maxDepth - 1, visited);
+                    return resolve(
+                            decl.getDefaultExpression(),
+                            containingType,
+                            containingMethod,
+                            model,
+                            maxDepth - 1,
+                            visited);
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
 
         // ── Case 3: Local variable with literal/field initializer ─────────
@@ -45,7 +79,13 @@ public class StringExpressionResolver {
             try {
                 CtVariable<?> varDecl = vr.getVariable().getDeclaration();
                 if (varDecl instanceof CtLocalVariable<?> local && local.getDefaultExpression() != null) {
-                    return resolve(local.getDefaultExpression(), containingType, containingMethod, model, maxDepth - 1, visited);
+                    return resolve(
+                            local.getDefaultExpression(),
+                            containingType,
+                            containingMethod,
+                            model,
+                            maxDepth - 1,
+                            visited);
                 }
                 if (varDecl instanceof CtParameter<?> param && containingMethod != null) {
                     // Determine which param position this is
@@ -65,15 +105,16 @@ public class StringExpressionResolver {
                         return resolveFromMessageBuilderInCallers(
                                 containingType, containingMethod, model, maxDepth - 1, visited);
                     }
-                    return resolveFromCallers(containingType, containingMethod, paramIndex, model, maxDepth - 1, visited);
+                    return resolveFromCallers(
+                            containingType, containingMethod, paramIndex, model, maxDepth - 1, visited);
                 }
                 // CtInvocation cases handled in Tasks 6–7
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
 
         // ── Case 4: Method call on a variable — walk interface implementations ──
-        if (expr instanceof CtInvocation<?> inv && inv.getTarget() != null
-                && inv.getExecutable() != null) {
+        if (expr instanceof CtInvocation<?> inv && inv.getTarget() != null && inv.getExecutable() != null) {
             String calledMethod = inv.getExecutable().getSimpleName();
             CtTypeReference<?> receiverType = inv.getTarget().getType();
             if (!calledMethod.isEmpty() && receiverType != null) {
@@ -85,11 +126,7 @@ public class StringExpressionResolver {
     }
 
     private static Set<String> resolveFromImplementations(
-            CtTypeReference<?> interfaceRef,
-            String methodName,
-            CtModel model,
-            int depth,
-            Set<String> visited) {
+            CtTypeReference<?> interfaceRef, String methodName, CtModel model, int depth, Set<String> visited) {
 
         String frameKey = interfaceRef.getQualifiedName() + "#" + methodName;
         if (!visited.add(frameKey)) return Set.of();
@@ -98,8 +135,11 @@ public class StringExpressionResolver {
         for (CtType<?> candidate : model.getAllTypes()) {
             boolean isImpl = candidate.getSuperInterfaces().stream()
                     .anyMatch(i -> interfaceRef.getQualifiedName().equals(i.getQualifiedName()));
-            if (!isImpl && candidate.getSuperclass() != null
-                    && interfaceRef.getQualifiedName().equals(candidate.getSuperclass().getQualifiedName())) {
+            if (!isImpl
+                    && candidate.getSuperclass() != null
+                    && interfaceRef
+                            .getQualifiedName()
+                            .equals(candidate.getSuperclass().getQualifiedName())) {
                 isImpl = true;
             }
             if (!isImpl) continue;
@@ -118,12 +158,7 @@ public class StringExpressionResolver {
     }
 
     private static Set<String> resolveFromCallers(
-            CtType<?> type,
-            CtMethod<?> method,
-            int paramIndex,
-            CtModel model,
-            int depth,
-            Set<String> visited) {
+            CtType<?> type, CtMethod<?> method, int paramIndex, CtModel model, int depth, Set<String> visited) {
 
         String frameKey = type.getQualifiedName() + "#" + method.getSimpleName() + "#" + paramIndex;
         if (!visited.add(frameKey)) return Set.of();
@@ -146,20 +181,15 @@ public class StringExpressionResolver {
                 CtType<?> callerType = inv.getParent(CtType.class);
                 if (callerMethod == null || callerType == null) continue;
 
-                results.addAll(resolve(
-                        inv.getArguments().get(paramIndex),
-                        callerType, callerMethod, model, depth, visited));
+                results.addAll(
+                        resolve(inv.getArguments().get(paramIndex), callerType, callerMethod, model, depth, visited));
             }
         }
         return results;
     }
 
     private static Set<String> resolveFromMessageBuilderInCallers(
-            CtType<?> type,
-            CtMethod<?> method,
-            CtModel model,
-            int depth,
-            Set<String> visited) {
+            CtType<?> type, CtMethod<?> method, CtModel model, int depth, Set<String> visited) {
 
         String frameKey = type.getQualifiedName() + "#" + method.getSimpleName() + "#msg";
         if (!visited.add(frameKey)) return Set.of();
@@ -186,8 +216,7 @@ public class StringExpressionResolver {
                     // KafkaHeaders.TOPIC but misses custom constants whose name lacks "TOPIC".
                     String firstArgText = inv.getArguments().get(0).toString();
                     if (!firstArgText.contains("TOPIC")) continue;
-                    results.addAll(resolve(
-                            inv.getArguments().get(1), callerType, callerMethod, model, depth, visited));
+                    results.addAll(resolve(inv.getArguments().get(1), callerType, callerMethod, model, depth, visited));
                 }
             }
         }

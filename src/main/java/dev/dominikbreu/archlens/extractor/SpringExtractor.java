@@ -689,7 +689,8 @@ public class SpringExtractor {
         if (arg instanceof CtVariableRead<?> vr && vr.getVariable() instanceof CtFieldReference<?> fr) {
             try {
                 CtField<?> decl = fr.getDeclaration();
-                if (decl != null && decl.getDefaultExpression() instanceof CtLiteral<?> lit
+                if (decl != null
+                        && decl.getDefaultExpression() instanceof CtLiteral<?> lit
                         && lit.getValue() instanceof String s) {
                     SpringConfigResolver.ResolvedValue resolved = config.resolveWithKey(s);
                     site.topicArgKind = TopicArgKind.LITERAL;
@@ -698,7 +699,8 @@ public class SpringExtractor {
                     site.topicPropertyKey = resolved.wasResolved() ? resolved.propertyKey() : null;
                     return;
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
 
         // Variable read: method parameter or local variable
@@ -735,7 +737,8 @@ public class SpringExtractor {
                     site.topicPropertyKey = resolved.wasResolved() ? resolved.propertyKey() : null;
                     return;
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
 
         // Method invocation (e.g. event.getType(), event.getTopic())

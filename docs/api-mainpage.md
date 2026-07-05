@@ -17,6 +17,9 @@ contributors and anyone tracing a problem to its source.
 | `dev.dominikbreu.archlens.view` | Architecture view projections and view kinds |
 | `dev.dominikbreu.archlens.build` | Build system detection (Maven, Gradle) |
 | `dev.dominikbreu.archlens.likec4` | LikeC4 model projection and document structure |
+| `dev.dominikbreu.archlens.workflow` | Workflow continuation semantics: traversal policy and path linking |
+| `dev.dominikbreu.archlens.merger` | Deployment metadata merging from Docker Compose and Ansible |
+| `dev.dominikbreu.archlens.dashboard` | Standalone terminal REPL dashboard (runs when the jar is launched interactively) |
 | `dev.dominikbreu.archlens.tracing` | OpenTelemetry span helpers |
 
 ## Key entry points

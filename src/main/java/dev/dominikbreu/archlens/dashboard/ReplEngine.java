@@ -12,6 +12,11 @@ public final class ReplEngine {
 
     private final Map<String, McpServerFeatures.SyncToolSpecification> toolsByName;
 
+    /**
+     * Creates a REPL engine over the given tool specifications.
+     *
+     * @param tools the MCP tool specifications the REPL can dispatch to
+     */
     public ReplEngine(List<McpServerFeatures.SyncToolSpecification> tools) {
         this.toolsByName = new LinkedHashMap<>();
         for (McpServerFeatures.SyncToolSpecification spec : tools) {
@@ -19,10 +24,21 @@ public final class ReplEngine {
         }
     }
 
+    /**
+     * Returns the tool specifications available to this REPL.
+     *
+     * @return the available tool specifications
+     */
     public List<McpServerFeatures.SyncToolSpecification> tools() {
         return List.copyOf(toolsByName.values());
     }
 
+    /**
+     * Parses and executes a single REPL input line.
+     *
+     * @param line the raw REPL input
+     * @return the dispatch outcome (event to display, or a quit request)
+     */
     public DispatchResult dispatch(String line) {
         String trimmed = line.strip();
         if (":quit".equals(trimmed)) {

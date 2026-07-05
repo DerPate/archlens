@@ -17,6 +17,13 @@ public final class ReplCommandParser {
 
     private ReplCommandParser() {}
 
+    /**
+     * Parses a REPL input line into a tool name and argument map.
+     *
+     * @param line the raw REPL input
+     * @return the parsed command
+     * @throws ReplParseException if the line is malformed
+     */
     public static ParsedCommand parse(String line) throws ReplParseException {
         List<String> tokens = tokenize(line.strip());
         if (tokens.isEmpty()) {

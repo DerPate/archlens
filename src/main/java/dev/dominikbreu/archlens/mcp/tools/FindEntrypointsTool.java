@@ -16,10 +16,21 @@ public class FindEntrypointsTool {
 
     private final ModelCache cache;
 
+    /**
+     * Initializes the entrypoint finder tool with access to the model cache.
+     *
+     * @param cache model cache to query
+     */
     public FindEntrypointsTool(ModelCache cache) {
         this.cache = cache;
     }
 
+    /**
+     * Executes the entrypoint finder tool, returning entrypoints matching the filters.
+     *
+     * @param args arguments containing optional appId, type, and httpMethod filters
+     * @return list of matching entrypoints
+     */
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();

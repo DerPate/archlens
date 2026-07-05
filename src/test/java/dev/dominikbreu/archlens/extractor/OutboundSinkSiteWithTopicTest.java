@@ -1,9 +1,10 @@
 package dev.dominikbreu.archlens.extractor;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import dev.dominikbreu.archlens.model.*;
 import dev.dominikbreu.archlens.model.ids.ComponentId;
 import org.junit.jupiter.api.Test;
-import static org.assertj.core.api.Assertions.assertThat;
 
 class OutboundSinkSiteWithTopicTest {
 

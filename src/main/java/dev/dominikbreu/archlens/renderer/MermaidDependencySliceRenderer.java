@@ -17,8 +17,17 @@ import java.util.Set;
  */
 public class MermaidDependencySliceRenderer {
 
+    /** Creates a new dependency-slice renderer. */
     public MermaidDependencySliceRenderer() {}
 
+    /**
+     * Renders a Mermaid dependency slice around a focus node.
+     *
+     * @param graph the graph to render
+     * @param ref the focus component/node reference
+     * @param depth how many hops to include around the focus
+     * @return the Mermaid diagram source
+     */
     public String render(GraphQuery graph, String ref, int depth) {
         GraphNodeId rootId = graph.resolveComponent(ref).orElse(null);
         if (rootId == null) return "flowchart LR\n    missing[\"Component not found: " + escape(ref) + "\"]\n";

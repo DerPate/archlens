@@ -1,5 +1,9 @@
 package dev.dominikbreu.archlens.extractor;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.HashSet;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import spoon.reflect.CtModel;
@@ -7,9 +11,6 @@ import spoon.reflect.code.CtInvocation;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtType;
 import spoon.reflect.visitor.filter.TypeFilter;
-import java.util.HashSet;
-import java.util.Set;
-import static org.assertj.core.api.Assertions.assertThat;
 
 class StringExpressionResolverTest extends ExtractorTestBase {
 
@@ -42,10 +43,10 @@ class StringExpressionResolverTest extends ExtractorTestBase {
         CtType<?> callerType = type("com.example.kafka.BudgetControlService");
         CtMethod<?> callerMethod = method(callerType, "trigger");
         // The literal "budgetControl" is arg[0] of the sendEvent call
-        CtInvocation<?> call = callerMethod.getElements(new TypeFilter<>(CtInvocation.class))
-                .stream()
+        CtInvocation<?> call = callerMethod.getElements(new TypeFilter<>(CtInvocation.class)).stream()
                 .filter(inv -> "sendEvent".equals(inv.getExecutable().getSimpleName()))
-                .findFirst().orElseThrow();
+                .findFirst()
+                .orElseThrow();
 
         Set<String> result = StringExpressionResolver.resolve(
                 call.getArguments().get(0), callerType, callerMethod, model, 5, new HashSet<>());
@@ -58,10 +59,10 @@ class StringExpressionResolverTest extends ExtractorTestBase {
         // PushNotificationService.send() calls setHeader(KafkaHeaders.TOPIC, KafkaConfig.PUSH_NOTIFICATION_TOPIC)
         CtType<?> callerType = type("com.example.kafka.PushNotificationService");
         CtMethod<?> callerMethod = method(callerType, "send");
-        CtInvocation<?> setHeaderCall = callerMethod.getElements(new TypeFilter<>(CtInvocation.class))
-                .stream()
+        CtInvocation<?> setHeaderCall = callerMethod.getElements(new TypeFilter<>(CtInvocation.class)).stream()
                 .filter(inv -> "setHeader".equals(inv.getExecutable().getSimpleName()))
-                .findFirst().orElseThrow();
+                .findFirst()
+                .orElseThrow();
         // arg[1] is KafkaConfig.PUSH_NOTIFICATION_TOPIC (a static field read)
 
         Set<String> result = StringExpressionResolver.resolve(
@@ -74,10 +75,10 @@ class StringExpressionResolverTest extends ExtractorTestBase {
     void returnsEmptyWhenDepthIsZero() {
         CtType<?> callerType = type("com.example.kafka.BudgetControlService");
         CtMethod<?> callerMethod = method(callerType, "trigger");
-        CtInvocation<?> call = callerMethod.getElements(new TypeFilter<>(CtInvocation.class))
-                .stream()
+        CtInvocation<?> call = callerMethod.getElements(new TypeFilter<>(CtInvocation.class)).stream()
                 .filter(inv -> "sendEvent".equals(inv.getExecutable().getSimpleName()))
-                .findFirst().orElseThrow();
+                .findFirst()
+                .orElseThrow();
 
         Set<String> result = StringExpressionResolver.resolve(
                 call.getArguments().get(0), callerType, callerMethod, model, 0, new HashSet<>());
@@ -92,10 +93,10 @@ class StringExpressionResolverTest extends ExtractorTestBase {
         CtType<?> producerType = type("com.example.kafka.KafkaJsonProducer");
         CtMethod<?> sendEvent = method(producerType, "sendEvent");
         // arg[0] of the kafkaTemplate.send(topic,...) call inside sendEvent is a CtVariableRead of `topic`
-        CtInvocation<?> sendCall = sendEvent.getElements(new TypeFilter<>(CtInvocation.class))
-                .stream()
+        CtInvocation<?> sendCall = sendEvent.getElements(new TypeFilter<>(CtInvocation.class)).stream()
                 .filter(inv -> "send".equals(inv.getExecutable().getSimpleName()))
-                .findFirst().orElseThrow();
+                .findFirst()
+                .orElseThrow();
 
         Set<String> result = StringExpressionResolver.resolve(
                 sendCall.getArguments().get(0), producerType, sendEvent, model, 10, new HashSet<>());
@@ -109,10 +110,10 @@ class StringExpressionResolverTest extends ExtractorTestBase {
         // SisKafkaEvent.getType() returns "sisPDFCreation"
         CtType<?> producerType = type("com.example.kafka.KafkaProducer");
         CtMethod<?> sendEvent = method(producerType, "sendEvent");
-        CtInvocation<?> sendCall = sendEvent.getElements(new TypeFilter<>(CtInvocation.class))
-                .stream()
+        CtInvocation<?> sendCall = sendEvent.getElements(new TypeFilter<>(CtInvocation.class)).stream()
                 .filter(inv -> "send".equals(inv.getExecutable().getSimpleName()))
-                .findFirst().orElseThrow();
+                .findFirst()
+                .orElseThrow();
         // arg[0] is event.getType() — a CtInvocation
 
         Set<String> result = StringExpressionResolver.resolve(
@@ -127,10 +128,10 @@ class StringExpressionResolverTest extends ExtractorTestBase {
         // PushNotificationService.send() sets KafkaHeaders.TOPIC = KafkaConfig.PUSH_NOTIFICATION_TOPIC
         CtType<?> producerType = type("com.example.kafka.KafkaJsonProducer");
         CtMethod<?> sendMessage = method(producerType, "sendMessage");
-        CtInvocation<?> sendCall = sendMessage.getElements(new TypeFilter<>(CtInvocation.class))
-                .stream()
+        CtInvocation<?> sendCall = sendMessage.getElements(new TypeFilter<>(CtInvocation.class)).stream()
                 .filter(inv -> "send".equals(inv.getExecutable().getSimpleName()))
-                .findFirst().orElseThrow();
+                .findFirst()
+                .orElseThrow();
         // arg[0] is `message` — a CtVariableRead of a Message<String> parameter
 
         Set<String> result = StringExpressionResolver.resolve(
@@ -144,10 +145,10 @@ class StringExpressionResolverTest extends ExtractorTestBase {
         // Just verifying resolve() terminates — use a deep depth cap
         CtType<?> producerType = type("com.example.kafka.KafkaJsonProducer");
         CtMethod<?> sendEvent = method(producerType, "sendEvent");
-        CtInvocation<?> sendCall = sendEvent.getElements(new TypeFilter<>(CtInvocation.class))
-                .stream()
+        CtInvocation<?> sendCall = sendEvent.getElements(new TypeFilter<>(CtInvocation.class)).stream()
                 .filter(inv -> "send".equals(inv.getExecutable().getSimpleName()))
-                .findFirst().orElseThrow();
+                .findFirst()
+                .orElseThrow();
 
         // Should not hang regardless of cycle guard trigger
         Set<String> result = StringExpressionResolver.resolve(

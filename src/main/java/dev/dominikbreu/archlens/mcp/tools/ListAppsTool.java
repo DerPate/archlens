@@ -14,10 +14,21 @@ public class ListAppsTool {
 
     private final ModelCache cache;
 
+    /**
+     * Creates the tool with access to the model cache.
+     *
+     * @param cache model cache to query
+     */
     public ListAppsTool(ModelCache cache) {
         this.cache = cache;
     }
 
+    /**
+     * Lists the indexed applications with their packaging and technology, as text and structured data.
+     *
+     * @param args tool arguments (unused)
+     * @return the indexed applications
+     */
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
