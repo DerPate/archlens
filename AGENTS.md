@@ -81,6 +81,12 @@ java -jar target/archlens.jar
 ## Conventions
 
 - Keep Java source compatible with Java 25.
+- **Document as you go.** The codebase is not fully documented yet and we are
+  catching up incrementally. When you add or modify a public type, method, or
+  constructor, add a Javadoc comment if it lacks one — document record components
+  with `@param`, and method params/returns with `@param`/`@return`. Don't
+  document public API you didn't touch; just don't leave what you touched bare.
+  (Missing-doc warnings are non-fatal, so this is a convention, not a build gate.)
 - Prefer entity/model changes that are covered by focused tests.
 - Do not skip Spotless or SpotBugs to make `verify` pass. Fix formatting with
   `mvn spotless:apply` and address or explicitly justify SpotBugs findings.
