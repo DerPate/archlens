@@ -19,15 +19,18 @@ public final class WorkflowGraphBuilder {
     private final WorkflowTraversalPolicy policy;
     private final WorkflowLinker linker;
 
+    /** Creates a builder using the default {@link WorkflowTraversalPolicy}. */
     public WorkflowGraphBuilder() {
         this(new WorkflowTraversalPolicy());
     }
 
+    /** Creates a builder using the given traversal {@code policy}. */
     public WorkflowGraphBuilder(WorkflowTraversalPolicy policy) {
         this.policy = policy;
         this.linker = new WorkflowLinker(policy);
     }
 
+    /** Builds the canonical workflow graph for {@code model}; returns an empty graph when {@code model} is {@code null}. */
     public WorkflowGraph build(ArchitectureModel model) {
         if (model == null) {
             return new WorkflowGraph(List.of(), Map.of(), Map.of(), Map.of());

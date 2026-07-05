@@ -32,7 +32,6 @@ import spoon.reflect.code.CtLiteral;
 import spoon.reflect.code.CtLocalVariable;
 import spoon.reflect.code.CtReturn;
 import spoon.reflect.code.CtTry;
-import spoon.reflect.code.CtTypeAccess;
 import spoon.reflect.code.CtVariableRead;
 import spoon.reflect.code.CtVariableWrite;
 import spoon.reflect.declaration.CtElement;
@@ -553,8 +552,10 @@ public class CallGraphExtractor {
             ExtractionContext ctx) {
         String fromMethod = method.getSimpleName();
         for (CtInvocation<?> inv : scan.invocations()) {
-            if (inv.getTarget() instanceof CtFieldRead<?>) continue; // cross-component, handled elsewhere
-            if (inv.getTarget() instanceof CtTypeAccess<?>) continue; // static call
+            // Only follow implicit/explicit `this` calls — anything else (field, local var, chained
+            // call, static access, …) is not an intra-component self-dispatch.
+            CtExpression<?> target = inv.getTarget();
+            if (target != null && !(target instanceof spoon.reflect.code.CtThisAccess<?>)) continue;
             String toMethod = inv.getExecutable().getSimpleName();
             if (!ownMethodNames.contains(toMethod)) continue;
             if (toMethod.equals(fromMethod)) continue; // ignore trivial self-call

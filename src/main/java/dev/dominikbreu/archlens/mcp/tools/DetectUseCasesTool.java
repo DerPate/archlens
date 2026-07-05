@@ -22,10 +22,21 @@ public class DetectUseCasesTool {
     private final UseCaseDetector detector = new UseCaseDetector();
     private final ObjectMapper mapper = new ObjectMapper();
 
+    /**
+     * Initializes the use case detection tool with access to the model cache.
+     *
+     * @param cache model cache to query
+     */
     public DetectUseCasesTool(ModelCache cache) {
         this.cache = cache;
     }
 
+    /**
+     * Executes the use case detection tool, returning detected business use cases.
+     *
+     * @param args arguments containing optional module filter and maxDepth
+     * @return list of detected use cases with call chains
+     */
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();

@@ -20,14 +20,17 @@ public final class WorkflowLinker {
 
     private final WorkflowTraversalPolicy policy;
 
+    /** Creates a linker using the default {@link WorkflowTraversalPolicy}. */
     public WorkflowLinker() {
         this(new WorkflowTraversalPolicy());
     }
 
+    /** Creates a linker using the given traversal {@code policy}. */
     public WorkflowLinker(WorkflowTraversalPolicy policy) {
         this.policy = policy;
     }
 
+    /** Returns the typed workflow continuation links derived from the model's data-flow sink links; empty when {@code model} is {@code null}. */
     public List<WorkflowLink> link(ArchitectureModel model) {
         if (model == null) {
             return List.of();

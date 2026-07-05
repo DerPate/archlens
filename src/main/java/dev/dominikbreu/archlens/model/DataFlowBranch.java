@@ -9,9 +9,13 @@ import java.util.List;
 public class DataFlowBranch {
     /** Source language branch construct. */
     public enum Kind {
+        /** If statement branch. */
         IF,
+        /** Switch statement branch. */
         SWITCH,
+        /** Ternary operator branch. */
         TERNARY,
+        /** Try-catch statement branch. */
         TRY
     }
 

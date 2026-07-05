@@ -14,10 +14,21 @@ public class FindComponentsTool {
 
     private final ModelCache cache;
 
+    /**
+     * Initializes the component finder tool with access to the model cache.
+     *
+     * @param cache model cache to query
+     */
     public FindComponentsTool(ModelCache cache) {
         this.cache = cache;
     }
 
+    /**
+     * Executes the component finder tool, returning components matching the filters.
+     *
+     * @param args arguments containing optional appId, type, and technology filters
+     * @return list of matching components
+     */
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();

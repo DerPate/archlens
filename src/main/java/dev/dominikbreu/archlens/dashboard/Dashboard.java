@@ -25,12 +25,23 @@ public final class Dashboard {
     private final ReplEngine engine;
     private final DashboardState state = new DashboardState();
 
+    /**
+     * Initializes the dashboard with available MCP tool specifications and server version.
+     *
+     * @param tools list of available tool specifications
+     * @param serverVersion the server version string
+     */
     public Dashboard(List<McpServerFeatures.SyncToolSpecification> tools, String serverVersion) {
         this.engine = new ReplEngine(tools);
         state.logSystemMessage("archlens " + serverVersion + " — standalone dashboard");
         state.logSystemMessage("No workspace indexed yet — try: index_workspace paths=[\"./your-repo\"]");
     }
 
+    /**
+     * Runs the interactive terminal dashboard and REPL loop.
+     *
+     * @throws IOException if terminal initialization fails
+     */
     public void run() throws IOException {
         try (Terminal terminal = TerminalBuilder.builder().system(true).build()) {
             terminal.puts(InfoCmp.Capability.enter_ca_mode);

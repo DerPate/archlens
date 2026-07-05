@@ -1,5 +1,7 @@
 # Maven
 target/
+# Gradle (test-fixture projects generate .gradle/ caches)
+.gradle/
 dependency-reduced-pom.xml
 pom.xml.tag
 pom.xml.releaseBackup
@@ -14,7 +16,7 @@ release.properties
 *.ear
 
 # Runtime/cache output
-.spoon-mcp-cache/
+.archlens-cache/
 .worktrees
 
 # OWASP Dependency-Check output

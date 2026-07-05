@@ -23,10 +23,22 @@ public class TraceDataFlowTool {
 
     private final ModelCache cache;
 
+    /**
+     * Creates the tool with access to the model cache.
+     *
+     * @param cache model cache to query
+     */
     public TraceDataFlowTool(ModelCache cache) {
         this.cache = cache;
     }
 
+    /**
+     * Traces where an entrypoint parameter or message payload flows, returning the data-flow paths
+     * and their sinks as text and structured data.
+     *
+     * @param args arguments identifying the entrypoint and tracked parameter
+     * @return the traced data-flow paths
+     */
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
