@@ -31,8 +31,8 @@
         <slf4j.version>2.0.18</slf4j.version>
         <otel.version>1.63.0</otel.version>
         <tinkerpop.version>3.8.1</tinkerpop.version>
-        <jreleaser.version>1.24.0</jreleaser.version>
-        <jline.version>4.2.1</jline.version>
+        <jreleaser.version>1.25.0</jreleaser.version>
+        <jline.version>4.3.1</jline.version>
     </properties>
 
     <dependencies>
@@ -75,7 +75,7 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>6.1.0</version>
+            <version>6.1.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -256,7 +256,7 @@
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
-                <version>3.7.0</version>
+                <version>3.8.0</version>
                 <configuration>
                     <java>
                         <cleanthat>
