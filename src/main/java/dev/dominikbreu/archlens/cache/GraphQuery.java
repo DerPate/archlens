@@ -942,6 +942,15 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Finds edges by optional label (case-insensitive) and property filters.
+     *
+     * @param label edge label to match, or blank for any label
+     * @param filters property predicates applied to edges (supports comparison prefixes)
+     * @param limit maximum edges returned; non-positive falls back to 25, capped at 50,000
+     *     (matching {@link #findNodes} semantics)
+     * @return matching edges, at most {@code limit}
+     */
     public List<GraphEdge> findEdges(String label, Map<String, String> filters, int limit) {
         lock.lock();
         try {
@@ -955,7 +964,7 @@ public class GraphQuery {
             return traversal.toList().stream()
                     .filter(e -> normalizedLabel == null || e.label().equalsIgnoreCase(normalizedLabel))
                     .map(this::toEdge)
-                    .limit(normalizeLimit(limit))
+                    .limit(normalizeFindEdgesLimit(limit))
                     .toList();
         } finally {
             lock.unlock();
@@ -1407,6 +1416,16 @@ public class GraphQuery {
 
     private static long normalizeFindNodesLimit(int limit) {
         return limit <= 0 ? Long.MAX_VALUE : Math.clamp(limit, 1, 50_000);
+    }
+
+    /**
+     * Normalizes the caller-supplied limit for {@link #findEdges}. Mirrors
+     * {@link #normalizeFindNodesLimit} with a hard cap of 50,000 so exhaustive edge queries
+     * (e.g. MCP {@code find_edges}, {@link #dependencyEdges}) are not silently truncated at the
+     * small traversal cap; keeps the historical default of 25 for non-positive limits.
+     */
+    private static int normalizeFindEdgesLimit(int limit) {
+        return Math.clamp(limit <= 0 ? 25 : limit, 1, 50_000);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
