@@ -122,7 +122,7 @@ public class DataFlowTracer {
         Map<String, Integer> nodeCounters = new LinkedHashMap<>();
         Map<String, String> currentNodeByOriginal = createRootNodes(ep, index, pathsByOriginal, nodeCounters);
 
-        DfsContext ctx = new DfsContext(pathsByOriginal, index, new HashSet<>(), nodeCounters);
+        DfsContext ctx = new DfsContext(pathsByOriginal, index, new HashSet<>(), nodeCounters, new HashMap<>());
         dfs(ctx, ep.componentId, ep.name, currentToOriginal, currentNodeByOriginal, 0, Map.of());
 
         for (DataFlowPath path : pathsByOriginal.values()) {
@@ -339,12 +339,19 @@ public class DataFlowTracer {
         return keys;
     }
 
-    /** Invariant state shared across all frames of a single entrypoint's DFS. */
+    /**
+     * Invariant state shared across all frames of a single entrypoint's DFS.
+     *
+     * <p>{@code seenSinkKeys} maps each tracked name (path) to the {@link #sinkIdentityKey}s
+     * already recorded for it, so a call-graph diamond that revisits a sink-bearing method
+     * does not append byte-identical {@link DataFlowSink} records twice.
+     */
     private record DfsContext(
             Map<String, DataFlowPath> pathsByOriginal,
             ModelIndex index,
             Set<dev.dominikbreu.archlens.model.ids.MethodRef> onCurrentPath,
-            Map<String, Integer> nodeCounters) {}
+            Map<String, Integer> nodeCounters,
+            Map<String, Set<String>> seenSinkKeys) {}
 
     private record BranchTopologyMetadata(String branchId, String armId, String label) {}
 
@@ -411,7 +418,7 @@ public class DataFlowTracer {
                 sink.calleeQualifiedName = site.calleeQualifiedName;
                 sink.callerComponentId = compId;
                 DataFlowPath path = ctx.pathsByOriginal().get(origName);
-                path.sinks.add(sink);
+                addSinkOnce(ctx, origName, path, sink);
                 recordSinkNode(ctx, path, origName, currentNodeByOriginal.get(origName), sink, null);
             }
         }
@@ -437,7 +444,7 @@ public class DataFlowTracer {
                 DataFlowSink sink = new DataFlowSink(
                         DataFlowSink.Kind.STORE, fieldOwner, compName, fieldName, fw.source, fieldName, fieldOwner);
                 sink.callerComponentId = compId;
-                path.sinks.add(sink);
+                addSinkOnce(ctx, e.getValue(), path, sink);
                 recordSinkNode(ctx, path, e.getValue(), currentNodeByOriginal.get(e.getValue()), sink, null);
             }
         }
@@ -518,7 +525,7 @@ public class DataFlowTracer {
             }
             sink.callerComponentId = edge.fromComponentId;
             DataFlowPath path = ctx.pathsByOriginal().get(originalName);
-            path.sinks.add(sink);
+            addSinkOnce(ctx, originalName, path, sink);
             recordSinkNode(ctx, path, originalName, currentNodeByOriginal.get(originalName), sink, edge);
         }
     }
@@ -567,6 +574,55 @@ public class DataFlowTracer {
                 sink.fieldName,
                 sink.source));
         addTopologyEdge(path, fromNodeId, nodeId, edge);
+    }
+
+    /**
+     * Appends {@code sink} to {@code path.sinks} unless an identical sink was already recorded for
+     * the same path. A call-graph diamond (two call routes converging on the same method) makes the
+     * DFS visit a sink-bearing method once per route; without this guard each visit appends a
+     * byte-identical {@link DataFlowSink}, which surfaces downstream as duplicate DataFlowSink
+     * vertices and duplicate WORKFLOW_LINK edges in the projected graph. Flow-topology nodes are
+     * unaffected: {@link #recordSinkNode} still runs per route so every branch arm terminates at a
+     * sink node.
+     *
+     * @param ctx          DFS context holding the per-path identity keys recorded so far
+     * @param originalName tracked-name key identifying the path within this trace
+     * @param path         path the sink belongs to
+     * @param sink         fully populated candidate sink record
+     */
+    private void addSinkOnce(DfsContext ctx, String originalName, DataFlowPath path, DataFlowSink sink) {
+        Set<String> seen = ctx.seenSinkKeys().computeIfAbsent(originalName, ignored -> new HashSet<>());
+        if (seen.add(sinkIdentityKey(sink))) {
+            path.sinks.add(sink);
+        }
+    }
+
+    /**
+     * Builds a key over every identity-bearing field of a sink; equal keys mean the records are
+     * indistinguishable duplicates (same kind, target, destination, and source location).
+     *
+     * @param s the sink to fingerprint
+     * @return identity key for duplicate suppression within a single path
+     */
+    private static String sinkIdentityKey(DataFlowSink s) {
+        return String.join(
+                "|",
+                String.valueOf(s.kind),
+                s.componentId != null ? s.componentId.serialize() : "",
+                String.valueOf(s.method),
+                String.valueOf(s.channel),
+                String.valueOf(s.topic),
+                s.broker != null ? s.broker.name() : "",
+                String.valueOf(s.topicPropertyKey),
+                String.valueOf(s.payloadType),
+                String.valueOf(s.entityType),
+                String.valueOf(s.repositoryOperation),
+                String.valueOf(s.linkEvidence),
+                String.valueOf(s.calleeQualifiedName),
+                s.callerComponentId != null ? s.callerComponentId.serialize() : "",
+                String.valueOf(s.fieldName),
+                s.fieldOwnerComponentId != null ? s.fieldOwnerComponentId.serialize() : "",
+                s.source != null ? s.source.file + ":" + s.source.line : "");
     }
 
     private void addTopologyEdge(DataFlowPath path, String fromNodeId, String toNodeId, CallEdge edge) {
