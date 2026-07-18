@@ -952,6 +952,88 @@ class DataFlowTracerTest {
         });
     }
 
+    // ── diamond call routes must not duplicate identical sinks ───────────────────
+
+    @Test
+    void diamondCallRoutesRecordMessagingSinkOnce() {
+        // Entrypoint fans out into two branches that converge on the same publishing
+        // method (a call-graph diamond). The single outbound site behind it must be
+        // recorded as ONE sink per path, not once per route.
+        ArchitectureModel model = buildModel();
+        model.components.add(comp("Publisher", ComponentType.SERVICE));
+        model.components.add(comp("Consumer", ComponentType.MESSAGE_DRIVEN_BEAN));
+
+        addCallEdge(model, "OrderResource", "create", "OrderService", "createFromTemp", Map.of("order", "order"));
+        addCallEdge(model, "OrderResource", "create", "OrderService", "createFromDraft", Map.of("order", "order"));
+        addCallEdge(model, "OrderService", "createFromTemp", "Publisher", "publishCreated", Map.of("order", "order"));
+        addCallEdge(model, "OrderService", "createFromDraft", "Publisher", "publishCreated", Map.of("order", "order"));
+
+        OutboundSinkSite site = new OutboundSinkSite();
+        site.id = "outbound:publisher";
+        site.kind = DataFlowSink.Kind.MESSAGING;
+        site.componentId = ComponentId.of("Publisher");
+        site.method = "publishCreated";
+        site.channel = "orders.created";
+        site.topic = "orders.created";
+        site.broker = MessagingBroker.KAFKA;
+        site.source = new SourceInfo("Publisher.java", 42, "spring-kafka-template-send", 0.95);
+        model.outboundSinkSites.add(site);
+
+        Entrypoint consumerEp = new Entrypoint();
+        consumerEp.id = EntrypointId.deserialize("consume");
+        consumerEp.name = "consume";
+        consumerEp.type = EntrypointType.MESSAGING_CONSUMER;
+        consumerEp.componentId = ComponentId.of("Consumer");
+        consumerEp.channelName = "orders.created";
+        consumerEp.broker = MessagingBroker.KAFKA;
+        consumerEp.parameters.add("event");
+        model.entrypoints.add(consumerEp);
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        DataFlowPath publishPath = paths.stream()
+                .filter(p -> "order".equals(p.trackedParam))
+                .findFirst()
+                .orElseThrow();
+        assertThat(publishPath.sinks)
+                .filteredOn(s -> s.kind == DataFlowSink.Kind.MESSAGING && "orders.created".equals(s.channel))
+                .as("one outbound site must yield one sink even when reached via two call routes")
+                .hasSize(1);
+
+        model.dataFlowPaths.addAll(paths);
+        List<dev.dominikbreu.archlens.workflow.WorkflowLink> links =
+                new dev.dominikbreu.archlens.workflow.WorkflowLinker().link(model);
+        assertThat(links)
+                .filteredOn(l -> publishPath.id.serialize().equals(l.fromPathId()))
+                .as("duplicate sinks must not fan out into duplicate WORKFLOW_LINKs")
+                .hasSize(1);
+    }
+
+    @Test
+    void diamondCallRoutesRecordPersistenceSinkOnce() {
+        // Two branches converge on a helper whose single repository call edge must be
+        // recorded as ONE persistence sink per path, not once per route.
+        ArchitectureModel model = buildModel();
+        model.components.add(comp("Helper", ComponentType.SERVICE));
+
+        addCallEdge(model, "OrderResource", "create", "OrderService", "createFromTemp", Map.of("order", "order"));
+        addCallEdge(model, "OrderResource", "create", "OrderService", "createFromDraft", Map.of("order", "order"));
+        addCallEdge(model, "OrderService", "createFromTemp", "Helper", "persist", Map.of("order", "order"));
+        addCallEdge(model, "OrderService", "createFromDraft", "Helper", "persist", Map.of("order", "order"));
+        addCallEdge(model, "Helper", "persist", "OrderRepository", "save", Map.of("order", "entity"));
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        DataFlowPath path = paths.stream()
+                .filter(p -> "order".equals(p.trackedParam))
+                .findFirst()
+                .orElseThrow();
+        assertThat(path.sinks)
+                .filteredOn(s -> s.kind == DataFlowSink.Kind.PERSISTENCE && "save".equals(s.method))
+                .as("one repository call edge must yield one sink even when reached via two call routes")
+                .hasSize(1);
+    }
+
     // ── G8: messaging link by normalized broker/topic ────────────────────────────
 
     @Test
