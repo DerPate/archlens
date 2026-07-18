@@ -124,12 +124,85 @@ public class DataFlowTracer {
 
         DfsContext ctx = new DfsContext(pathsByOriginal, index, new HashSet<>(), nodeCounters, new HashMap<>());
         dfs(ctx, ep.componentId, ep.name, currentToOriginal, currentNodeByOriginal, 0, Map.of(), null);
+        addCallGraphReachMessagingSinks(ep, index, pathsByOriginal);
 
         for (DataFlowPath path : pathsByOriginal.values()) {
             boolean hasSinks = !path.sinks.isEmpty();
             boolean isConsumerWithSteps = ep.type == EntrypointType.MESSAGING_CONSUMER && !path.steps.isEmpty();
             if (hasSinks || isConsumerWithSteps) result.add(path);
         }
+    }
+
+    /**
+     * Fallback for messaging sends that are reachable from the entrypoint through the call graph
+     * but never entered by the tracked-parameter DFS — e.g. the payload is a freshly constructed
+     * local, so no tracked name maps into the wrapper frame. Adds at most one MESSAGING sink per
+     * channel not already covered by a data-flow sink, tagged with {@code call-graph-reach}
+     * evidence so downstream workflow links carry reduced confidence. Caller-restricted sites use
+     * the restriction (the method containing the resolved call site) as the reachability anchor.
+     */
+    private void addCallGraphReachMessagingSinks(
+            Entrypoint ep, ModelIndex index, Map<String, DataFlowPath> pathsByOriginal) {
+        if (pathsByOriginal.isEmpty()) return;
+        Set<String> coveredChannels = new HashSet<>();
+        for (DataFlowPath path : pathsByOriginal.values()) {
+            for (DataFlowSink sink : path.sinks) {
+                if (sink.kind == DataFlowSink.Kind.MESSAGING && sink.channel != null) {
+                    coveredChannels.add(sink.channel);
+                }
+            }
+        }
+        Set<dev.dominikbreu.archlens.model.ids.MethodRef> reachable = null;
+        DataFlowPath firstPath = pathsByOriginal.values().iterator().next();
+        for (OutboundSinkSite site : index.outboundSinks.all()) {
+            if (site.kind != DataFlowSink.Kind.MESSAGING) continue;
+            String channel = firstNonBlank(site.topic, site.channel);
+            if (channel == null || coveredChannels.contains(channel)) continue;
+            dev.dominikbreu.archlens.model.ids.MethodRef location = site.restrictedCallerComponentId != null
+                    ? new dev.dominikbreu.archlens.model.ids.MethodRef(
+                            site.restrictedCallerComponentId, site.restrictedCallerMethod)
+                    : new dev.dominikbreu.archlens.model.ids.MethodRef(site.componentId, site.method);
+            if (reachable == null) reachable = reachableMethods(ep, index);
+            if (!reachable.contains(location)) continue;
+            Component comp = index.components.get(site.componentId);
+            DataFlowSink sink = new DataFlowSink(
+                    DataFlowSink.Kind.MESSAGING,
+                    site.componentId,
+                    comp != null ? comp.name : site.componentId.serialize(),
+                    site.calleeMethod,
+                    site.source);
+            sink.channel = channel;
+            sink.topic = site.topic;
+            sink.broker = site.broker;
+            sink.topicPropertyKey = site.topicPropertyKey;
+            sink.payloadType = site.payloadType;
+            sink.linkEvidence =
+                    site.linkEvidence == null ? "call-graph-reach" : site.linkEvidence + "+call-graph-reach";
+            sink.calleeQualifiedName = site.calleeQualifiedName;
+            sink.callerComponentId = location.component();
+            firstPath.sinks.add(sink);
+            coveredChannels.add(channel);
+        }
+    }
+
+    /** Breadth-first closure of inline-traversable call edges from the entrypoint root method. */
+    private Set<dev.dominikbreu.archlens.model.ids.MethodRef> reachableMethods(Entrypoint ep, ModelIndex index) {
+        Set<dev.dominikbreu.archlens.model.ids.MethodRef> visited = new HashSet<>();
+        java.util.ArrayDeque<dev.dominikbreu.archlens.model.ids.MethodRef> queue = new java.util.ArrayDeque<>();
+        dev.dominikbreu.archlens.model.ids.MethodRef root =
+                new dev.dominikbreu.archlens.model.ids.MethodRef(ep.componentId, ep.name);
+        visited.add(root);
+        queue.add(root);
+        while (!queue.isEmpty() && visited.size() < 20_000) {
+            dev.dominikbreu.archlens.model.ids.MethodRef current = queue.poll();
+            for (CallEdge edge : index.callAdj.edges(current.component(), current.method())) {
+                if (!traversalPolicy.canTraverseInline(edge)) continue;
+                dev.dominikbreu.archlens.model.ids.MethodRef next =
+                        new dev.dominikbreu.archlens.model.ids.MethodRef(edge.toComponentId, edge.toMethod);
+                if (visited.add(next)) queue.add(next);
+            }
+        }
+        return visited;
     }
 
     private LinkedHashSet<String> collectTrackedNames(Entrypoint ep, ModelIndex index) {

@@ -27,6 +27,23 @@ class SpringExtractorTest extends ExtractorTestBase {
     }
 
     @Test
+    void hibernateEntityEventListenersBecomeEntrypoints() {
+        // Hibernate entity lifecycle listeners carry no Spring entrypoint annotation but are
+        // real Kafka producer roots (the ORM invokes them on entity writes).
+        CtModel ctModel = scan("kafka-topic-resolver-sample");
+        ArchitectureModel kafkaModel = emptyModel("app:kafka-topic-resolver-sample");
+        File root = new File(projectPath("kafka-topic-resolver-sample"));
+        new SpringExtractor(new SpringConfigResolver().resolve(root))
+                .extract(ctModel.getAllTypes(), kafkaModel, AppId.of("app:kafka-topic-resolver-sample"));
+
+        assertThat(kafkaModel.entrypoints).anySatisfy(ep -> {
+            assertThat(ep.type).isEqualTo(EntrypointType.ENTITY_EVENT_LISTENER);
+            assertThat(ep.name).isEqualTo("onPostUpdate");
+            assertThat(ep.componentId.qualifiedName()).endsWith("EntityEventListener");
+        });
+    }
+
+    @Test
     void detectsSpringComponents() {
         assertComponent("GradleSpringApplication", ComponentType.SERVICE, "spring-boot");
         assertComponent("OrderController", ComponentType.REST_RESOURCE, "spring");
