@@ -1112,6 +1112,116 @@ class DataFlowTracerTest {
         return site;
     }
 
+    // ── call-graph-reach fallback for messaging sends without tracked data flow ──
+
+    @Test
+    void callGraphReachFallbackRecordsMessagingSinkWhenTrackedFlowDies() {
+        // The wrapper is reached via the call graph, but the payload is a freshly
+        // constructed local, so no tracked parameter flows into the wrapper frame and
+        // the data-flow DFS never enters it. The entrypoint must still be credited
+        // with the send — at reduced strength (distinct evidence tag).
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("PayslipController", ComponentType.REST_RESOURCE));
+        model.components.add(comp("PayslipService", ComponentType.SERVICE));
+        model.components.add(comp("KafkaProducer", ComponentType.SERVICE));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = EntrypointId.deserialize("payslip-book");
+        ep.name = "book";
+        ep.type = EntrypointType.REST_ENDPOINT;
+        ep.componentId = ComponentId.of("PayslipController");
+        ep.parameters.add("dto");
+        model.entrypoints.add(ep);
+
+        addCallEdge(model, "PayslipController", "book", "PayslipService", "buildBookingEvent", Map.of("dto", "dto"));
+        // Fresh local payload — the tracked name is killed at the wrapper call, so the
+        // data-flow DFS never enters the wrapper frame.
+        addCallEdge(model, "PayslipService", "buildBookingEvent", "KafkaProducer", "sendKafkaEvent", Map.of());
+        model.callEdges.getLast().killedTrackedNames.add("dto");
+
+        OutboundSinkSite site = new OutboundSinkSite();
+        site.id = "outbound:KafkaProducer#sendKafkaEvent:payslip";
+        site.kind = DataFlowSink.Kind.MESSAGING;
+        site.componentId = ComponentId.of("KafkaProducer");
+        site.method = "sendKafkaEvent";
+        site.topic = "payslip";
+        site.channel = "payslip";
+        site.broker = MessagingBroker.KAFKA;
+        site.linkEvidence = "spring-kafka-template-send";
+        site.source = new SourceInfo("KafkaProducer.java", 30, "spring-kafka-template-send", 0.95);
+        site.restrictedCallerComponentId = ComponentId.of("PayslipService");
+        site.restrictedCallerMethod = "buildBookingEvent";
+        model.outboundSinkSites.add(site);
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        DataFlowPath path = paths.stream()
+                .filter(p -> p.entrypointId.equals(EntrypointId.deserialize("payslip-book")))
+                .findFirst()
+                .orElseThrow();
+        assertThat(path.sinks).anySatisfy(sink -> {
+            assertThat(sink.kind).isEqualTo(DataFlowSink.Kind.MESSAGING);
+            assertThat(sink.channel).isEqualTo("payslip");
+            assertThat(sink.linkEvidence).contains("call-graph-reach");
+        });
+    }
+
+    @Test
+    void callGraphReachFallbackLinksToConsumersAtReducedConfidence() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("PayslipController", ComponentType.REST_RESOURCE));
+        model.components.add(comp("PayslipService", ComponentType.SERVICE));
+        model.components.add(comp("KafkaProducer", ComponentType.SERVICE));
+        model.components.add(comp("PayslipListener", ComponentType.MESSAGE_DRIVEN_BEAN));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = EntrypointId.deserialize("payslip-book");
+        ep.name = "book";
+        ep.type = EntrypointType.REST_ENDPOINT;
+        ep.componentId = ComponentId.of("PayslipController");
+        ep.parameters.add("dto");
+        model.entrypoints.add(ep);
+
+        Entrypoint consumer = new Entrypoint();
+        consumer.id = EntrypointId.deserialize("payslip-consume");
+        consumer.name = "listen";
+        consumer.type = EntrypointType.MESSAGING_CONSUMER;
+        consumer.componentId = ComponentId.of("PayslipListener");
+        consumer.channelName = "payslip";
+        consumer.broker = MessagingBroker.KAFKA;
+        consumer.parameters.add("event");
+        model.entrypoints.add(consumer);
+
+        addCallEdge(model, "PayslipController", "book", "PayslipService", "buildBookingEvent", Map.of("dto", "dto"));
+        addCallEdge(model, "PayslipService", "buildBookingEvent", "KafkaProducer", "sendKafkaEvent", Map.of());
+        model.callEdges.getLast().killedTrackedNames.add("dto");
+
+        OutboundSinkSite site = new OutboundSinkSite();
+        site.id = "outbound:KafkaProducer#sendKafkaEvent:payslip";
+        site.kind = DataFlowSink.Kind.MESSAGING;
+        site.componentId = ComponentId.of("KafkaProducer");
+        site.method = "sendKafkaEvent";
+        site.topic = "payslip";
+        site.channel = "payslip";
+        site.broker = MessagingBroker.KAFKA;
+        site.linkEvidence = "spring-kafka-template-send";
+        site.source = new SourceInfo("KafkaProducer.java", 30, "spring-kafka-template-send", 0.95);
+        site.restrictedCallerComponentId = ComponentId.of("PayslipService");
+        site.restrictedCallerMethod = "buildBookingEvent";
+        model.outboundSinkSites.add(site);
+
+        List<DataFlowPath> paths = tracer.trace(model);
+        model.dataFlowPaths.addAll(paths);
+        List<dev.dominikbreu.archlens.workflow.WorkflowLink> links =
+                new dev.dominikbreu.archlens.workflow.WorkflowLinker().link(model);
+
+        assertThat(links).anySatisfy(link -> {
+            assertThat(link.channel()).isEqualTo("payslip");
+            assertThat(link.evidence()).contains("call-graph-reach");
+            assertThat(link.confidence()).isLessThan(0.9);
+        });
+    }
+
     // ── G8: messaging link by normalized broker/topic ────────────────────────────
 
     @Test

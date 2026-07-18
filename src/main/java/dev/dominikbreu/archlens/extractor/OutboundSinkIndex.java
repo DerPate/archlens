@@ -13,6 +13,7 @@ import java.util.Map;
 public final class OutboundSinkIndex {
 
     private final Map<MethodRef, List<OutboundSinkSite>> index;
+    private final List<OutboundSinkSite> all;
 
     /**
      * Builds an outbound sink index from a collection of sink sites.
@@ -26,11 +27,21 @@ public final class OutboundSinkIndex {
             index.computeIfAbsent(new MethodRef(site.componentId, site.method), k -> new ArrayList<>())
                     .add(site);
         }
-        return new OutboundSinkIndex(index);
+        return new OutboundSinkIndex(index, List.copyOf(sites));
     }
 
-    private OutboundSinkIndex(Map<MethodRef, List<OutboundSinkSite>> index) {
+    private OutboundSinkIndex(Map<MethodRef, List<OutboundSinkSite>> index, List<OutboundSinkSite> all) {
         this.index = index;
+        this.all = all;
+    }
+
+    /**
+     * Returns every indexed sink site, in insertion order.
+     *
+     * @return all sink sites
+     */
+    public List<OutboundSinkSite> all() {
+        return all;
     }
 
     /**

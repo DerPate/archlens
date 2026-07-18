@@ -168,6 +168,23 @@ public class SpringExtractor {
         return type.getMethods().stream().anyMatch(method -> hasAnnotation(method, SCHEDULED));
     }
 
+    private static final Set<String> HIBERNATE_EVENT_LISTENER_INTERFACES =
+            Set.of("PostInsertEventListener", "PostUpdateEventListener", "PostDeleteEventListener");
+    private static final Set<String> HIBERNATE_EVENT_LISTENER_METHODS =
+            Set.of("onPostInsert", "onPostUpdate", "onPostDelete");
+
+    /**
+     * Detects Hibernate entity lifecycle listener methods ({@code onPostInsert/Update/Delete} on a
+     * type implementing the matching {@code org.hibernate.event.spi} interface). These beans have
+     * no Spring entrypoint annotation but are real producer roots — the ORM invokes them on every
+     * entity write, so their outbound sends would otherwise be unreachable from any entrypoint.
+     */
+    private boolean isEntityEventListenerMethod(CtMethod<?> method, CtType<?> type) {
+        if (!HIBERNATE_EVENT_LISTENER_METHODS.contains(method.getSimpleName())) return false;
+        return type.getSuperInterfaces().stream()
+                .anyMatch(i -> HIBERNATE_EVENT_LISTENER_INTERFACES.contains(i.getSimpleName()));
+    }
+
     private boolean hasListenerMethod(CtType<?> type) {
         // Class-level @KafkaListener (multi-method listener with @KafkaHandler on methods)
         if (hasAnnotation(type, KAFKA_LISTENER)
@@ -244,6 +261,10 @@ public class SpringExtractor {
                     model);
             if (isMainMethod(method) || isRunnerMethod(method, type)) {
                 addSimpleEntrypoint(method, type, component, EntrypointType.MAIN_METHOD, "startup", model);
+            }
+            if (isEntityEventListenerMethod(method, type)) {
+                addSimpleEntrypoint(
+                        method, type, component, EntrypointType.ENTITY_EVENT_LISTENER, "entity-event", model);
             }
         }
         if (component.type == ComponentType.HTTP_CLIENT && hasAnnotation(type, FEIGN_CLIENT)) {
