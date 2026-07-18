@@ -13,14 +13,23 @@ import java.util.Set;
 public class CallEdge {
     /** Source-level control-flow context for the call site. */
     public enum ControlFlowKind {
+        /** Call site not guarded by any branch. */
         UNCONDITIONAL,
+        /** Call site in the then branch of an if statement. */
         IF_THEN,
+        /** Call site in the else branch of an if statement. */
         IF_ELSE,
+        /** Call site in a case branch of a switch statement. */
         SWITCH_CASE,
+        /** Call site in the default branch of a switch statement. */
         SWITCH_DEFAULT,
+        /** Call site in the then expression of a ternary operator. */
         TERNARY_THEN,
+        /** Call site in the else expression of a ternary operator. */
         TERNARY_ELSE,
+        /** Call site in a catch block. */
         CATCH,
+        /** Call site in a finally block. */
         FINALLY
     }
 

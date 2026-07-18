@@ -17,10 +17,21 @@ public class GetComponentDependenciesTool {
 
     private final ModelCache cache;
 
+    /**
+     * Initializes the component dependencies tool with access to the model cache.
+     *
+     * @param cache model cache to query
+     */
     public GetComponentDependenciesTool(ModelCache cache) {
         this.cache = cache;
     }
 
+    /**
+     * Executes the component dependencies tool, returning dependencies around the specified component.
+     *
+     * @param args arguments containing componentId or component name
+     * @return dependencies and their call paths
+     */
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();

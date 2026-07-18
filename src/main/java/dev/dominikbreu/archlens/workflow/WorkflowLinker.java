@@ -20,14 +20,17 @@ public final class WorkflowLinker {
 
     private final WorkflowTraversalPolicy policy;
 
+    /** Creates a linker using the default {@link WorkflowTraversalPolicy}. */
     public WorkflowLinker() {
         this(new WorkflowTraversalPolicy());
     }
 
+    /** Creates a linker using the given traversal {@code policy}. */
     public WorkflowLinker(WorkflowTraversalPolicy policy) {
         this.policy = policy;
     }
 
+    /** Returns the typed workflow continuation links derived from the model's data-flow sink links; empty when {@code model} is {@code null}. */
     public List<WorkflowLink> link(ArchitectureModel model) {
         if (model == null) {
             return List.of();
@@ -152,7 +155,7 @@ public final class WorkflowLinker {
                 sink.entityType,
                 sink.repositoryOperation,
                 sink.linkEvidence,
-                confidenceFor(kind));
+                confidenceFor(kind, sink.linkEvidence));
     }
 
     private static WorkflowLink.Kind kindFor(DataFlowSink sink) {
@@ -164,11 +167,20 @@ public final class WorkflowLinker {
         return null;
     }
 
-    private static double confidenceFor(WorkflowLink.Kind kind) {
-        return switch (kind) {
-            case MESSAGING, EVENT_BUS -> 0.90;
-            case STATE_HANDOFF -> 0.75;
-            case PERSISTENCE_HANDOFF -> 0.60;
-        };
+    /**
+     * Base confidence per link kind, reduced to 0.60 for links whose producing sink was recorded
+     * by the call-graph-reach fallback (control-flow reachability without a tracked data flow).
+     */
+    private static double confidenceFor(WorkflowLink.Kind kind, String evidence) {
+        double base =
+                switch (kind) {
+                    case MESSAGING, EVENT_BUS -> 0.90;
+                    case STATE_HANDOFF -> 0.75;
+                    case PERSISTENCE_HANDOFF -> 0.60;
+                };
+        if (evidence != null && evidence.contains("call-graph-reach")) {
+            return Math.min(base, 0.60);
+        }
+        return base;
     }
 }

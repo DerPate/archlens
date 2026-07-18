@@ -134,6 +134,43 @@ class ArchitectureGraphTest {
     }
 
     @Test
+    void findEdgesHonorsExplicitLimitAboveOneHundred() {
+        GraphQuery graph = buildGraph(modelWithDependencyFanOut(150));
+
+        List<GraphQuery.GraphEdge> edges = graph.findEdges("DEPENDS_ON", Map.of(), 20_000);
+
+        assertThat(edges).hasSize(150);
+    }
+
+    @Test
+    void findEdgesKeepsDefaultLimitWhenLimitIsNotPositive() {
+        GraphQuery graph = buildGraph(modelWithDependencyFanOut(150));
+
+        List<GraphQuery.GraphEdge> edges = graph.findEdges("DEPENDS_ON", Map.of(), 0);
+
+        assertThat(edges).hasSize(25);
+    }
+
+    private static ArchitectureModel modelWithDependencyFanOut(int dependencyCount) {
+        ArchitectureModel model = new ArchitectureModel("test");
+        Component hub = component("Hub", ComponentType.SERVICE);
+        model.components.add(hub);
+        for (int i = 0; i < dependencyCount; i++) {
+            Component target = component("Target" + i, ComponentType.SERVICE);
+            model.components.add(target);
+
+            Dependency dependency = new Dependency();
+            dependency.fromId = hub.id;
+            dependency.toId = target.id;
+            dependency.id = DependencyId.of(dependency.fromId, dependency.toId);
+            dependency.kind = "method-call";
+            dependency.confidence = 0.9;
+            model.dependencies.add(dependency);
+        }
+        return model;
+    }
+
+    @Test
     void projectsAgentClassificationMetadataAndFilters() {
         ArchitectureModel model = model();
         Component redisLock = new Component();

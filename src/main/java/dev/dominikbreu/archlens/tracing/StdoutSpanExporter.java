@@ -9,6 +9,10 @@ import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
 
+/**
+ * OpenTelemetry {@link SpanExporter} that prints each finished span to stdout — a lightweight
+ * exporter for local debugging when no OTLP collector is configured.
+ */
 public class StdoutSpanExporter implements SpanExporter {
 
     @Override

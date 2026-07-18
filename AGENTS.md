@@ -4,14 +4,14 @@ This file gives coding agents the shortest reliable path through the project.
 
 ## Project Shape
 
-ArchLens is a Java 21 Maven project. It runs as a stdio Model Context Protocol server and exposes architecture-analysis tools built on top of Spoon.
+ArchLens is a Java 25 Maven project. It runs as a stdio Model Context Protocol server and exposes architecture-analysis tools built on top of Spoon.
 
 Important paths:
 
-- `src/main/java/dev/dominikbreu/spoonmcp/Main.java`: process entry point.
-- `src/main/java/dev/dominikbreu/spoonmcp/mcp/McpServer.java`: JSON-RPC loop, MCP initialize response, tool registry, and dispatch.
-- `src/main/java/dev/dominikbreu/spoonmcp/mcp/tools/`: individual MCP tool adapters.
-- `src/main/java/dev/dominikbreu/spoonmcp/cache/`: data-access layer for tools.
+- `src/main/java/dev/dominikbreu/archlens/Main.java`: process entry point.
+- `src/main/java/dev/dominikbreu/archlens/mcp/McpServer.java`: JSON-RPC loop, MCP initialize response, tool registry, and dispatch.
+- `src/main/java/dev/dominikbreu/archlens/mcp/tools/`: individual MCP tool adapters.
+- `src/main/java/dev/dominikbreu/archlens/cache/`: data-access layer for tools.
   - `ModelCache.java`: stores/loads the graph; exposes `graph()` which returns a `GraphQuery`.
   - `GraphStore.java`: owns the TinkerPop `TinkerGraph` instance. Low-level vertex/edge CRUD
     and GraphSON serialization. Not referenced by tools or renderers.
@@ -21,16 +21,16 @@ Important paths:
     (`findNodes`, `findEdges`, `neighborhood`, `paths`, `impactedBy`, `summary`) plus typed
     lookups `component(ComponentId)`, `entrypoint(EntrypointId)`, `app(AppId)`. Returns
     `GraphNode` sealed records — no raw TinkerPop types leak out.
-- `src/main/java/dev/dominikbreu/spoonmcp/extractor/`: Java/Spoon architecture extraction.
-- `src/main/java/dev/dominikbreu/spoonmcp/extractor/objectflow/`: source-derived
+- `src/main/java/dev/dominikbreu/archlens/extractor/`: Java/Spoon architecture extraction.
+- `src/main/java/dev/dominikbreu/archlens/extractor/objectflow/`: source-derived
   receiver and object-flow analysis used by call graph and field access extraction.
-- `src/main/java/dev/dominikbreu/spoonmcp/workflow/`: shared workflow traversal and
+- `src/main/java/dev/dominikbreu/archlens/workflow/`: shared workflow traversal and
   linking semantics used by pipeline, use-case, runtime-flow, and graph projections.
-- `src/main/java/dev/dominikbreu/spoonmcp/model/`: extraction-side data model only.
+- `src/main/java/dev/dominikbreu/archlens/model/`: extraction-side data model only.
   Classes here are produced by extractors and consumed by `GraphProjector`. They are
   never imported in `mcp/tools/` or `renderer/` (except `model/ids/` which are value types).
-- `src/main/java/dev/dominikbreu/spoonmcp/merger/`: deployment metadata merging from Docker Compose and Ansible files.
-- `src/main/java/dev/dominikbreu/spoonmcp/renderer/`: Mermaid rendering.
+- `src/main/java/dev/dominikbreu/archlens/merger/`: deployment metadata merging from Docker Compose and Ansible files.
+- `src/main/java/dev/dominikbreu/archlens/renderer/`: Mermaid rendering.
 - `src/test/java/`: unit tests.
 - `src/test/resources/testprojects/`: fixture projects used by tests.
 
@@ -80,7 +80,13 @@ java -jar target/archlens.jar
 
 ## Conventions
 
-- Keep Java source compatible with Java 21.
+- Keep Java source compatible with Java 25.
+- **Document as you go.** The codebase is not fully documented yet and we are
+  catching up incrementally. When you add or modify a public type, method, or
+  constructor, add a Javadoc comment if it lacks one — document record components
+  with `@param`, and method params/returns with `@param`/`@return`. Don't
+  document public API you didn't touch; just don't leave what you touched bare.
+  (Missing-doc warnings are non-fatal, so this is a convention, not a build gate.)
 - Prefer entity/model changes that are covered by focused tests.
 - Do not skip Spotless or SpotBugs to make `verify` pass. Fix formatting with
   `mvn spotless:apply` and address or explicitly justify SpotBugs findings.

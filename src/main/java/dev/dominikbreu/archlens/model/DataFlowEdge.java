@@ -6,8 +6,11 @@ package dev.dominikbreu.archlens.model;
 public class DataFlowEdge {
     /** Control-flow semantics for this edge. */
     public enum Kind {
+        /** Always taken. */
         UNCONDITIONAL,
+        /** Taken conditionally. */
         CONDITIONAL,
+        /** Taken only on exception. */
         EXCEPTION
     }
 

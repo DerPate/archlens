@@ -16,10 +16,21 @@ public class CallFlowTool {
     private final ModelCache cache;
     private final MermaidCallFlowRenderer renderer = new MermaidCallFlowRenderer();
 
+    /**
+     * Initializes the call flow tool with access to the model cache.
+     *
+     * @param cache model cache to query
+     */
     public CallFlowTool(ModelCache cache) {
         this.cache = cache;
     }
 
+    /**
+     * Executes the call flow tool, returning call-flow steps and Mermaid diagram for an entrypoint.
+     *
+     * @param args arguments containing entrypointId or entrypointName
+     * @return call flow text summary with steps, plus structured step data and diagram
+     */
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();

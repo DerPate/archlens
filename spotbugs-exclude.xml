@@ -48,12 +48,34 @@
     </Match>
 
     <!--
+        OutboundSinkIndex.all() returns a list created with List.copyOf (immutable).
+        SpotBugs cannot prove the immutability through the private constructor.
+    -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP"/>
+        <Class name="dev.dominikbreu.archlens.extractor.OutboundSinkIndex"/>
+        <Method name="all"/>
+    </Match>
+
+    <!--
         Public fields on model classes (Entrypoint, Component, FieldAccess, etc.) are written
         by extractors and read by Jackson for JSON serialisation. SpotBugs cannot track
         reflection-based reads, so it incorrectly flags them as unread.
     -->
     <Match>
         <Bug pattern="URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"/>
+    </Match>
+
+    <!--
+        OutboundSinkSite follows the same public-field model convention as the other model
+        classes, but additionally clones itself internally (withTopic) so the resolver can
+        expand one site per topic/caller. PA_PUBLIC_PRIMITIVE_ATTRIBUTE fires only because of
+        those internal writes; making the fields private would break the extractor/Jackson
+        convention used across the model package.
+    -->
+    <Match>
+        <Bug pattern="PA_PUBLIC_PRIMITIVE_ATTRIBUTE"/>
+        <Class name="dev.dominikbreu.archlens.model.OutboundSinkSite"/>
     </Match>
 
     <!--

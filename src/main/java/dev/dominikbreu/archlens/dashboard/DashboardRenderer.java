@@ -10,6 +10,13 @@ public final class DashboardRenderer {
 
     private DashboardRenderer() {}
 
+    /**
+     * Renders the dashboard state into a two-pane terminal layout.
+     *
+     * @param state the dashboard state
+     * @param terminalWidth the target terminal width
+     * @return formatted terminal output string
+     */
     public static String render(DashboardState state, int terminalWidth) {
         int width = Math.max(terminalWidth, MIN_WIDTH);
         int paneWidth = (width - 3) / 2;

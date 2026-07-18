@@ -920,6 +920,7 @@ class GraphProjector {
             case WEBSOCKET_ENDPOINT -> "websocket";
             case SSE_ENDPOINT -> "sse";
             case GRPC_METHOD -> "grpc";
+            case ENTITY_EVENT_LISTENER -> "entity-event";
             case UNKNOWN -> "unknown";
         };
     }

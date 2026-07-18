@@ -4,6 +4,11 @@ import java.io.File;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Fallback {@link BuildProjectDetector} for source trees with no recognized build system. Treats the
+ * directory as a single plain-Java module rooted at {@code src/main/java} (falling back to the root),
+ * reported as {@link BuildSystem#UNKNOWN} with low confidence.
+ */
 public class UnknownBuildProjectDetector implements BuildProjectDetector {
 
     @Override

@@ -952,6 +952,276 @@ class DataFlowTracerTest {
         });
     }
 
+    // ── diamond call routes must not duplicate identical sinks ───────────────────
+
+    @Test
+    void diamondCallRoutesRecordMessagingSinkOnce() {
+        // Entrypoint fans out into two branches that converge on the same publishing
+        // method (a call-graph diamond). The single outbound site behind it must be
+        // recorded as ONE sink per path, not once per route.
+        ArchitectureModel model = buildModel();
+        model.components.add(comp("Publisher", ComponentType.SERVICE));
+        model.components.add(comp("Consumer", ComponentType.MESSAGE_DRIVEN_BEAN));
+
+        addCallEdge(model, "OrderResource", "create", "OrderService", "createFromTemp", Map.of("order", "order"));
+        addCallEdge(model, "OrderResource", "create", "OrderService", "createFromDraft", Map.of("order", "order"));
+        addCallEdge(model, "OrderService", "createFromTemp", "Publisher", "publishCreated", Map.of("order", "order"));
+        addCallEdge(model, "OrderService", "createFromDraft", "Publisher", "publishCreated", Map.of("order", "order"));
+
+        OutboundSinkSite site = new OutboundSinkSite();
+        site.id = "outbound:publisher";
+        site.kind = DataFlowSink.Kind.MESSAGING;
+        site.componentId = ComponentId.of("Publisher");
+        site.method = "publishCreated";
+        site.channel = "orders.created";
+        site.topic = "orders.created";
+        site.broker = MessagingBroker.KAFKA;
+        site.source = new SourceInfo("Publisher.java", 42, "spring-kafka-template-send", 0.95);
+        model.outboundSinkSites.add(site);
+
+        Entrypoint consumerEp = new Entrypoint();
+        consumerEp.id = EntrypointId.deserialize("consume");
+        consumerEp.name = "consume";
+        consumerEp.type = EntrypointType.MESSAGING_CONSUMER;
+        consumerEp.componentId = ComponentId.of("Consumer");
+        consumerEp.channelName = "orders.created";
+        consumerEp.broker = MessagingBroker.KAFKA;
+        consumerEp.parameters.add("event");
+        model.entrypoints.add(consumerEp);
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        DataFlowPath publishPath = paths.stream()
+                .filter(p -> "order".equals(p.trackedParam))
+                .findFirst()
+                .orElseThrow();
+        assertThat(publishPath.sinks)
+                .filteredOn(s -> s.kind == DataFlowSink.Kind.MESSAGING && "orders.created".equals(s.channel))
+                .as("one outbound site must yield one sink even when reached via two call routes")
+                .hasSize(1);
+
+        model.dataFlowPaths.addAll(paths);
+        List<dev.dominikbreu.archlens.workflow.WorkflowLink> links =
+                new dev.dominikbreu.archlens.workflow.WorkflowLinker().link(model);
+        assertThat(links)
+                .filteredOn(l -> publishPath.id.serialize().equals(l.fromPathId()))
+                .as("duplicate sinks must not fan out into duplicate WORKFLOW_LINKs")
+                .hasSize(1);
+    }
+
+    @Test
+    void diamondCallRoutesRecordPersistenceSinkOnce() {
+        // Two branches converge on a helper whose single repository call edge must be
+        // recorded as ONE persistence sink per path, not once per route.
+        ArchitectureModel model = buildModel();
+        model.components.add(comp("Helper", ComponentType.SERVICE));
+
+        addCallEdge(model, "OrderResource", "create", "OrderService", "createFromTemp", Map.of("order", "order"));
+        addCallEdge(model, "OrderResource", "create", "OrderService", "createFromDraft", Map.of("order", "order"));
+        addCallEdge(model, "OrderService", "createFromTemp", "Helper", "persist", Map.of("order", "order"));
+        addCallEdge(model, "OrderService", "createFromDraft", "Helper", "persist", Map.of("order", "order"));
+        addCallEdge(model, "Helper", "persist", "OrderRepository", "save", Map.of("order", "entity"));
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        DataFlowPath path = paths.stream()
+                .filter(p -> "order".equals(p.trackedParam))
+                .findFirst()
+                .orElseThrow();
+        assertThat(path.sinks)
+                .filteredOn(s -> s.kind == DataFlowSink.Kind.PERSISTENCE && "save".equals(s.method))
+                .as("one repository call edge must yield one sink even when reached via two call routes")
+                .hasSize(1);
+    }
+
+    // ── caller-restricted wrapper sites (per-call-site topic attribution) ────────
+
+    @Test
+    void restrictedWrapperSitesAttributeTopicsOnlyToMatchingCallerChains() {
+        // Two controllers reach the same messaging wrapper method through different
+        // services. Each expanded site is restricted to the caller whose call site
+        // supplied the topic; the tracer must not union both topics onto both chains.
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("AccountController", ComponentType.REST_RESOURCE));
+        model.components.add(comp("VacationController", ComponentType.REST_RESOURCE));
+        model.components.add(comp("AccountService", ComponentType.SERVICE));
+        model.components.add(comp("VacationService", ComponentType.SERVICE));
+        model.components.add(comp("KafkaJsonProducer", ComponentType.SERVICE));
+
+        Entrypoint accountEp = new Entrypoint();
+        accountEp.id = EntrypointId.deserialize("account-add");
+        accountEp.name = "add";
+        accountEp.type = EntrypointType.REST_ENDPOINT;
+        accountEp.componentId = ComponentId.of("AccountController");
+        accountEp.parameters.add("dto");
+        model.entrypoints.add(accountEp);
+
+        Entrypoint vacationEp = new Entrypoint();
+        vacationEp.id = EntrypointId.deserialize("vacation-cancel");
+        vacationEp.name = "cancel";
+        vacationEp.type = EntrypointType.REST_ENDPOINT;
+        vacationEp.componentId = ComponentId.of("VacationController");
+        vacationEp.parameters.add("dto");
+        model.entrypoints.add(vacationEp);
+
+        addCallEdge(model, "AccountController", "add", "AccountService", "add", Map.of("dto", "dto"));
+        addCallEdge(model, "AccountService", "add", "KafkaJsonProducer", "sendKafkaEvent", Map.of("dto", "payload"));
+        addCallEdge(model, "VacationController", "cancel", "VacationService", "cancel", Map.of("dto", "dto"));
+        addCallEdge(
+                model, "VacationService", "cancel", "KafkaJsonProducer", "sendKafkaEvent", Map.of("dto", "payload"));
+
+        model.outboundSinkSites.add(restrictedWrapperSite("account", "AccountService", "add"));
+        model.outboundSinkSites.add(restrictedWrapperSite("vacationCancellation", "VacationService", "cancel"));
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        DataFlowPath accountPath = paths.stream()
+                .filter(p -> p.entrypointId.equals(EntrypointId.deserialize("account-add")))
+                .findFirst()
+                .orElseThrow();
+        DataFlowPath vacationPath = paths.stream()
+                .filter(p -> p.entrypointId.equals(EntrypointId.deserialize("vacation-cancel")))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(accountPath.sinks)
+                .filteredOn(s -> s.kind == DataFlowSink.Kind.MESSAGING)
+                .extracting(s -> s.channel)
+                .as("AccountController chain must carry only the topic passed at its own call site")
+                .containsExactly("account");
+        assertThat(vacationPath.sinks)
+                .filteredOn(s -> s.kind == DataFlowSink.Kind.MESSAGING)
+                .extracting(s -> s.channel)
+                .as("VacationController chain must carry only the topic passed at its own call site")
+                .containsExactly("vacationCancellation");
+    }
+
+    private static OutboundSinkSite restrictedWrapperSite(String topic, String callerComp, String callerMethod) {
+        OutboundSinkSite site = new OutboundSinkSite();
+        site.id = "outbound:KafkaJsonProducer#sendKafkaEvent:" + topic;
+        site.kind = DataFlowSink.Kind.MESSAGING;
+        site.componentId = ComponentId.of("KafkaJsonProducer");
+        site.method = "sendKafkaEvent";
+        site.topic = topic;
+        site.channel = topic;
+        site.broker = MessagingBroker.KAFKA;
+        site.linkEvidence = "spring-kafka-template-send";
+        site.source = new SourceInfo("KafkaJsonProducer.java", 20, "spring-kafka-template-send", 0.95);
+        site.restrictedCallerComponentId = ComponentId.of(callerComp);
+        site.restrictedCallerMethod = callerMethod;
+        return site;
+    }
+
+    // ── call-graph-reach fallback for messaging sends without tracked data flow ──
+
+    @Test
+    void callGraphReachFallbackRecordsMessagingSinkWhenTrackedFlowDies() {
+        // The wrapper is reached via the call graph, but the payload is a freshly
+        // constructed local, so no tracked parameter flows into the wrapper frame and
+        // the data-flow DFS never enters it. The entrypoint must still be credited
+        // with the send — at reduced strength (distinct evidence tag).
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("PayslipController", ComponentType.REST_RESOURCE));
+        model.components.add(comp("PayslipService", ComponentType.SERVICE));
+        model.components.add(comp("KafkaProducer", ComponentType.SERVICE));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = EntrypointId.deserialize("payslip-book");
+        ep.name = "book";
+        ep.type = EntrypointType.REST_ENDPOINT;
+        ep.componentId = ComponentId.of("PayslipController");
+        ep.parameters.add("dto");
+        model.entrypoints.add(ep);
+
+        addCallEdge(model, "PayslipController", "book", "PayslipService", "buildBookingEvent", Map.of("dto", "dto"));
+        // Fresh local payload — the tracked name is killed at the wrapper call, so the
+        // data-flow DFS never enters the wrapper frame.
+        addCallEdge(model, "PayslipService", "buildBookingEvent", "KafkaProducer", "sendKafkaEvent", Map.of());
+        model.callEdges.getLast().killedTrackedNames.add("dto");
+
+        OutboundSinkSite site = new OutboundSinkSite();
+        site.id = "outbound:KafkaProducer#sendKafkaEvent:payslip";
+        site.kind = DataFlowSink.Kind.MESSAGING;
+        site.componentId = ComponentId.of("KafkaProducer");
+        site.method = "sendKafkaEvent";
+        site.topic = "payslip";
+        site.channel = "payslip";
+        site.broker = MessagingBroker.KAFKA;
+        site.linkEvidence = "spring-kafka-template-send";
+        site.source = new SourceInfo("KafkaProducer.java", 30, "spring-kafka-template-send", 0.95);
+        site.restrictedCallerComponentId = ComponentId.of("PayslipService");
+        site.restrictedCallerMethod = "buildBookingEvent";
+        model.outboundSinkSites.add(site);
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        DataFlowPath path = paths.stream()
+                .filter(p -> p.entrypointId.equals(EntrypointId.deserialize("payslip-book")))
+                .findFirst()
+                .orElseThrow();
+        assertThat(path.sinks).anySatisfy(sink -> {
+            assertThat(sink.kind).isEqualTo(DataFlowSink.Kind.MESSAGING);
+            assertThat(sink.channel).isEqualTo("payslip");
+            assertThat(sink.linkEvidence).contains("call-graph-reach");
+        });
+    }
+
+    @Test
+    void callGraphReachFallbackLinksToConsumersAtReducedConfidence() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("PayslipController", ComponentType.REST_RESOURCE));
+        model.components.add(comp("PayslipService", ComponentType.SERVICE));
+        model.components.add(comp("KafkaProducer", ComponentType.SERVICE));
+        model.components.add(comp("PayslipListener", ComponentType.MESSAGE_DRIVEN_BEAN));
+
+        Entrypoint ep = new Entrypoint();
+        ep.id = EntrypointId.deserialize("payslip-book");
+        ep.name = "book";
+        ep.type = EntrypointType.REST_ENDPOINT;
+        ep.componentId = ComponentId.of("PayslipController");
+        ep.parameters.add("dto");
+        model.entrypoints.add(ep);
+
+        Entrypoint consumer = new Entrypoint();
+        consumer.id = EntrypointId.deserialize("payslip-consume");
+        consumer.name = "listen";
+        consumer.type = EntrypointType.MESSAGING_CONSUMER;
+        consumer.componentId = ComponentId.of("PayslipListener");
+        consumer.channelName = "payslip";
+        consumer.broker = MessagingBroker.KAFKA;
+        consumer.parameters.add("event");
+        model.entrypoints.add(consumer);
+
+        addCallEdge(model, "PayslipController", "book", "PayslipService", "buildBookingEvent", Map.of("dto", "dto"));
+        addCallEdge(model, "PayslipService", "buildBookingEvent", "KafkaProducer", "sendKafkaEvent", Map.of());
+        model.callEdges.getLast().killedTrackedNames.add("dto");
+
+        OutboundSinkSite site = new OutboundSinkSite();
+        site.id = "outbound:KafkaProducer#sendKafkaEvent:payslip";
+        site.kind = DataFlowSink.Kind.MESSAGING;
+        site.componentId = ComponentId.of("KafkaProducer");
+        site.method = "sendKafkaEvent";
+        site.topic = "payslip";
+        site.channel = "payslip";
+        site.broker = MessagingBroker.KAFKA;
+        site.linkEvidence = "spring-kafka-template-send";
+        site.source = new SourceInfo("KafkaProducer.java", 30, "spring-kafka-template-send", 0.95);
+        site.restrictedCallerComponentId = ComponentId.of("PayslipService");
+        site.restrictedCallerMethod = "buildBookingEvent";
+        model.outboundSinkSites.add(site);
+
+        List<DataFlowPath> paths = tracer.trace(model);
+        model.dataFlowPaths.addAll(paths);
+        List<dev.dominikbreu.archlens.workflow.WorkflowLink> links =
+                new dev.dominikbreu.archlens.workflow.WorkflowLinker().link(model);
+
+        assertThat(links).anySatisfy(link -> {
+            assertThat(link.channel()).isEqualTo("payslip");
+            assertThat(link.evidence()).contains("call-graph-reach");
+            assertThat(link.confidence()).isLessThan(0.9);
+        });
+    }
+
     // ── G8: messaging link by normalized broker/topic ────────────────────────────
 
     @Test

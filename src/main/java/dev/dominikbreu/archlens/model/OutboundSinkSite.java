@@ -40,7 +40,50 @@ public class OutboundSinkSite {
     public String linkEvidence;
     /** Source location. */
     public SourceInfo source;
+    /** Classification of how the topic argument was derived. */
+    public TopicArgKind topicArgKind;
+    /** Index of the topic argument parameter, if PARAM_REF; otherwise -1. */
+    public int topicArgParamIndex = -1;
+    /**
+     * When non-null, this site only applies to call chains entering {@link #method} from this
+     * caller component. Set by {@code MessagingTopicResolver} when a wrapper site is expanded
+     * per caller call site, so the data-flow tracer attributes each resolved topic only to the
+     * chains that actually pass it.
+     */
+    public dev.dominikbreu.archlens.model.ids.ComponentId restrictedCallerComponentId;
+    /** Caller method (simple name) that {@link #restrictedCallerComponentId} scopes this site to. */
+    public String restrictedCallerMethod;
 
     /** Creates an empty site for JSON deserialization. */
     public OutboundSinkSite() {}
+
+    /**
+     * Returns a shallow clone of this site with {@code topic} and {@code channel} set to {@code resolvedTopic}.
+     * All other fields are copied as-is from this instance.
+     *
+     * @param resolvedTopic the resolved topic name, or null to preserve null values
+     * @return a new OutboundSinkSite with the same fields except topic and channel
+     */
+    public OutboundSinkSite withTopic(String resolvedTopic) {
+        OutboundSinkSite copy = new OutboundSinkSite();
+        copy.id = this.id;
+        copy.kind = this.kind;
+        copy.componentId = this.componentId;
+        copy.method = this.method;
+        copy.calleeQualifiedName = this.calleeQualifiedName;
+        copy.calleeMethod = this.calleeMethod;
+        copy.broker = this.broker;
+        copy.topic = resolvedTopic;
+        copy.channel = resolvedTopic;
+        copy.topicPropertyKey = this.topicPropertyKey;
+        copy.payloadVarName = this.payloadVarName;
+        copy.payloadType = this.payloadType;
+        copy.linkEvidence = this.linkEvidence;
+        copy.source = this.source;
+        copy.topicArgKind = this.topicArgKind;
+        copy.topicArgParamIndex = this.topicArgParamIndex;
+        copy.restrictedCallerComponentId = this.restrictedCallerComponentId;
+        copy.restrictedCallerMethod = this.restrictedCallerMethod;
+        return copy;
+    }
 }

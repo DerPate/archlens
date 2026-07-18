@@ -76,7 +76,12 @@ public class GraphQuery {
         this.store = store;
     }
 
-    /** Builds a query from a model directly — useful in tests and non-cache contexts. */
+    /**
+     * Builds a query from a model directly — useful in tests and non-cache contexts.
+     *
+     * @param model the architecture model
+     * @return a new GraphQuery backed by the model's projected graph
+     */
     public static GraphQuery from(ArchitectureModel model) {
         GraphStore store = new GraphStore();
         new GraphProjector().project(model, store);
@@ -85,7 +90,11 @@ public class GraphQuery {
 
     // --- existence / count ---
 
-    /** True when the graph was built from a model (even an empty one). False when no workspace was ever indexed. */
+    /**
+     * Checks if the graph was built from a model.
+     *
+     * @return true if the graph was indexed, false if no workspace was ever indexed
+     */
     public boolean isIndexed() {
         lock.lock();
         try {
@@ -95,6 +104,11 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Checks if the graph contains any nodes.
+     *
+     * @return true if the graph is empty, false if nodes have been indexed
+     */
     public boolean isEmpty() {
         lock.lock();
         try {
@@ -104,7 +118,12 @@ public class GraphQuery {
         }
     }
 
-    /** Count of vertices with the given label. */
+    /**
+     * Counts vertices with the given label.
+     *
+     * @param label the vertex label to count
+     * @return the number of vertices with that label
+     */
     public long countByLabel(String label) {
         lock.lock();
         try {
@@ -117,7 +136,12 @@ public class GraphQuery {
 
     // --- typed lookups ---
 
-    /** O(1) lookup by ComponentId. */
+    /**
+     * Looks up a component node by ID in O(1) time.
+     *
+     * @param id the component ID
+     * @return the component node, or null if not found
+     */
     public GraphNode component(ComponentId id) {
         lock.lock();
         try {
@@ -129,7 +153,12 @@ public class GraphQuery {
         }
     }
 
-    /** O(1) lookup by EntrypointId. */
+    /**
+     * Looks up an entrypoint node by ID in O(1) time.
+     *
+     * @param id the entrypoint ID
+     * @return the entrypoint node, or null if not found
+     */
     public GraphNode entrypoint(EntrypointId id) {
         lock.lock();
         try {
@@ -141,7 +170,12 @@ public class GraphQuery {
         }
     }
 
-    /** O(1) lookup by AppId. */
+    /**
+     * Looks up an application node by ID in O(1) time.
+     *
+     * @param id the application ID
+     * @return the application node, or null if not found
+     */
     public GraphNode app(AppId id) {
         lock.lock();
         try {
@@ -153,7 +187,11 @@ public class GraphQuery {
         }
     }
 
-    /** All entrypoint nodes. */
+    /**
+     * Returns all entrypoint nodes.
+     *
+     * @return list of all entrypoint nodes
+     */
     public List<GraphNode> allEntrypoints() {
         lock.lock();
         try {
@@ -163,7 +201,11 @@ public class GraphQuery {
         }
     }
 
-    /** All application nodes. */
+    /**
+     * Returns all application nodes.
+     *
+     * @return list of all application nodes
+     */
     public List<GraphNode> allApps() {
         lock.lock();
         try {
@@ -173,7 +215,11 @@ public class GraphQuery {
         }
     }
 
-    /** All application nodes as typed list. */
+    /**
+     * Returns all application nodes as a typed list.
+     *
+     * @return list of application nodes
+     */
     public List<ApplicationNode> allApplicationNodes() {
         lock.lock();
         try {
@@ -186,7 +232,11 @@ public class GraphQuery {
         }
     }
 
-    /** All component nodes as typed list. */
+    /**
+     * Returns all component nodes as a typed list.
+     *
+     * @return list of component nodes
+     */
     public List<ComponentNode> allComponentNodes() {
         lock.lock();
         try {
@@ -199,7 +249,11 @@ public class GraphQuery {
         }
     }
 
-    /** All container nodes as typed list. */
+    /**
+     * Returns all container nodes as a typed list.
+     *
+     * @return list of container nodes
+     */
     public List<ContainerNode> allContainerNodes() {
         lock.lock();
         try {
@@ -212,7 +266,11 @@ public class GraphQuery {
         }
     }
 
-    /** All external-system nodes as typed list. */
+    /**
+     * Returns all external-system nodes as a typed list.
+     *
+     * @return list of external-system nodes
+     */
     public List<ExternalSystemNode> allExternalSystemNodes() {
         lock.lock();
         try {
@@ -225,7 +283,11 @@ public class GraphQuery {
         }
     }
 
-    /** All DEPENDS_ON edges. */
+    /**
+     * Returns all dependency edges.
+     *
+     * @return list of DEPENDS_ON edges
+     */
     public List<GraphEdge> dependencyEdges() {
         lock.lock();
         try {
@@ -235,7 +297,11 @@ public class GraphQuery {
         }
     }
 
-    /** All CALLS edges (unbounded — use for building adjacency maps). */
+    /**
+     * Returns all call edges without bounds.
+     *
+     * @return list of all CALLS edges (may be large)
+     */
     public List<GraphEdge> allCallEdges() {
         lock.lock();
         try {
@@ -251,7 +317,12 @@ public class GraphQuery {
         }
     }
 
-    /** Component IDs owned by the given application node (via OWNS edges). */
+    /**
+     * Returns component IDs owned by the given application node.
+     *
+     * @param appNodeId the application node ID
+     * @return list of owned component node IDs
+     */
     public List<GraphNodeId> componentIdsOwnedBy(GraphNodeId appNodeId) {
         lock.lock();
         try {
@@ -266,7 +337,12 @@ public class GraphQuery {
         }
     }
 
-    /** Component IDs inside the given container node (via CONTAINS edges). */
+    /**
+     * Returns component IDs inside the given container node.
+     *
+     * @param containerNodeId the container node ID
+     * @return list of contained component node IDs
+     */
     public List<GraphNodeId> componentIdsInContainer(GraphNodeId containerNodeId) {
         lock.lock();
         try {
@@ -281,7 +357,12 @@ public class GraphQuery {
         }
     }
 
-    /** Containers whose appId matches the given app. */
+    /**
+     * Returns containers owned by the given application.
+     *
+     * @param appId the application ID
+     * @return list of container nodes matching the app
+     */
     public List<ContainerNode> containersForApp(AppId appId) {
         lock.lock();
         try {
@@ -295,7 +376,12 @@ public class GraphQuery {
         }
     }
 
-    /** Child apps (internal modules) whose parentAppId matches the given parent. */
+    /**
+     * Returns child applications whose parent matches the given app.
+     *
+     * @param parentId the parent application ID
+     * @return list of child application nodes
+     */
     public List<ApplicationNode> childApps(AppId parentId) {
         lock.lock();
         try {
@@ -310,7 +396,12 @@ public class GraphQuery {
         }
     }
 
-    /** True when the vertex with the given ID is an ExternalSystem. */
+    /**
+     * Checks if the given node is an external system.
+     *
+     * @param nodeId the node ID to check
+     * @return true if the node is an ExternalSystem, false otherwise
+     */
     public boolean isExternalSystem(GraphNodeId nodeId) {
         lock.lock();
         try {
@@ -321,7 +412,11 @@ public class GraphQuery {
         }
     }
 
-    /** Entrypoint count per container ID (key = container vertex ID). */
+    /**
+     * Returns entrypoint counts per container.
+     *
+     * @return map of container vertex ID to entrypoint count
+     */
     public Map<String, Long> entrypointCountPerContainer() {
         lock.lock();
         try {
@@ -344,7 +439,12 @@ public class GraphQuery {
         }
     }
 
-    /** Find the pre-computed runtime flow for the given entrypoint reference (id, name, path). */
+    /**
+     * Finds the pre-computed runtime flow for the given entrypoint reference.
+     *
+     * @param ref the entrypoint ID, name, or HTTP path
+     * @return the runtime flow node, or empty if not found
+     */
     public Optional<RuntimeFlowNode> runtimeFlowForEntrypoint(String ref) {
         lock.lock();
         try {
@@ -362,7 +462,12 @@ public class GraphQuery {
         }
     }
 
-    /** Ordered steps for the given flow node. */
+    /**
+     * Returns ordered steps for the given flow node.
+     *
+     * @param flowId the flow node ID
+     * @return list of runtime flow steps, ordered by step order
+     */
     public List<RuntimeFlowStepNode> flowSteps(GraphNodeId flowId) {
         lock.lock();
         try {
@@ -382,7 +487,12 @@ public class GraphQuery {
         }
     }
 
-    /** FLOW_CALLS edges (step→step) for the given flow — carries fromComponentId/toComponentId/label. */
+    /**
+     * Returns call edges (step to step) for the given flow.
+     *
+     * @param flowId the flow node ID
+     * @return list of FLOW_CALLS edges
+     */
     public List<GraphEdge> flowCallEdges(GraphNodeId flowId) {
         lock.lock();
         try {
@@ -402,7 +512,11 @@ public class GraphQuery {
         }
     }
 
-    /** True when the graph contains CALLS edges (i.e. call-graph data was indexed). */
+    /**
+     * Checks if the graph contains call edges.
+     *
+     * @return true if call-graph data was indexed, false otherwise
+     */
     public boolean hasCallGraph() {
         lock.lock();
         try {
@@ -412,7 +526,11 @@ public class GraphQuery {
         }
     }
 
-    /** All RuntimeFlow nodes as a typed list. */
+    /**
+     * Returns all runtime flow nodes as a typed list.
+     *
+     * @return list of all runtime flow nodes
+     */
     public List<RuntimeFlowNode> allRuntimeFlows() {
         lock.lock();
         try {
@@ -425,7 +543,11 @@ public class GraphQuery {
         }
     }
 
-    /** All DataFlowPath nodes. */
+    /**
+     * Returns all data flow path nodes.
+     *
+     * @return list of all DataFlowPath nodes
+     */
     public List<DataFlowPathNode> allDataFlowPaths() {
         lock.lock();
         try {
@@ -438,7 +560,12 @@ public class GraphQuery {
         }
     }
 
-    /** Sinks reachable from a DataFlowPath vertex via REACHES edges. */
+    /**
+     * Returns sinks reachable from a DataFlowPath vertex.
+     *
+     * @param pathId the data flow path ID
+     * @return list of reachable data flow sink nodes
+     */
     public List<DataFlowSinkNode> pathSinks(GraphNodeId pathId) {
         lock.lock();
         try {
@@ -457,7 +584,12 @@ public class GraphQuery {
         }
     }
 
-    /** Linear DataFlowStep nodes for a path, ordered by stepIndex. */
+    /**
+     * Returns linear data flow steps for a path, ordered by step index.
+     *
+     * @param pathId the data flow path ID
+     * @return list of data flow steps, ordered by index
+     */
     public List<DataFlowStepNode> pathDataFlowSteps(GraphNodeId pathId) {
         lock.lock();
         try {
@@ -477,7 +609,12 @@ public class GraphQuery {
         }
     }
 
-    /** DataFlowNode topology vertices for a path (topology graph, newer paths only), ordered by insertion index. */
+    /**
+     * Returns data flow node topology vertices for a path, ordered by insertion index.
+     *
+     * @param pathId the data flow path ID
+     * @return list of data flow nodes, ordered by insertion index
+     */
     public List<DataFlowNodeNode> pathFlowNodes(GraphNodeId pathId) {
         lock.lock();
         try {
@@ -497,7 +634,12 @@ public class GraphQuery {
         }
     }
 
-    /** DataFlowBranch vertices for a path. */
+    /**
+     * Returns data flow branch vertices for a path.
+     *
+     * @param pathId the data flow path ID
+     * @return list of data flow branch nodes
+     */
     public List<DataFlowBranchNode> pathBranches(GraphNodeId pathId) {
         lock.lock();
         try {
@@ -516,7 +658,12 @@ public class GraphQuery {
         }
     }
 
-    /** DataFlowBranchArm vertices for a branch vertex. */
+    /**
+     * Returns branch arm vertices for a branch vertex.
+     *
+     * @param branchId the branch node ID
+     * @return list of branch arm nodes
+     */
     public List<DataFlowBranchArmNode> branchArms(GraphNodeId branchId) {
         lock.lock();
         try {
@@ -535,7 +682,12 @@ public class GraphQuery {
         }
     }
 
-    /** FLOW_EDGE graph edges (topology edges between DataFlowNode vertices) for a path. */
+    /**
+     * Returns flow topology edges for a path.
+     *
+     * @param pathId the data flow path ID
+     * @return list of FLOW_EDGE edges
+     */
     public List<GraphEdge> pathFlowEdges(GraphNodeId pathId) {
         lock.lock();
         try {
@@ -555,7 +707,11 @@ public class GraphQuery {
         }
     }
 
-    /** Reconstructs all pre-computed pipeline chains from the graph. */
+    /**
+     * Reconstructs all pre-computed pipeline chains from the graph.
+     *
+     * @return list of reconstructed pipeline chains
+     */
     public List<Chain> allPipelineChains() {
         lock.lock();
         try {
@@ -570,7 +726,11 @@ public class GraphQuery {
         }
     }
 
-    /** Diagnostic statistics for explaining why no pipeline chains were produced. */
+    /**
+     * Returns diagnostic statistics for pipeline chain analysis.
+     *
+     * @return pipeline diagnostic data
+     */
     public PipelineDiagnostic pipelineDiagnostic() {
         lock.lock();
         try {
@@ -632,6 +792,18 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Diagnostic counts describing how pipeline chains were stitched, surfaced by
+     * {@link #pipelineDiagnostic()}.
+     *
+     * @param totalPaths total traced data-flow paths
+     * @param linkedPaths paths linked into a downstream continuation
+     * @param messagingSinks messaging sink writes seen
+     * @param unresolvedMessaging messaging sinks whose destination could not be resolved
+     * @param consumerTopics distinct consumer topics observed
+     * @param persistenceWrites persistence write sinks seen
+     * @param persistenceReads persistence read sinks seen
+     */
     public record PipelineDiagnostic(
             int totalPaths,
             int linkedPaths,
@@ -757,6 +929,11 @@ public class GraphQuery {
 
     // --- query methods ---
 
+    /**
+     * Returns per-label node and edge counts for the whole graph.
+     *
+     * @return the graph summary
+     */
     public GraphSummary summary() {
         lock.lock();
         try {
@@ -784,6 +961,14 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Returns a bounded snapshot of the whole graph: up to {@code limit} nodes (clamped to
+     * [1, 50000], default 5000) and every edge that connects two included nodes, plus metadata
+     * describing totals and whether the result was truncated.
+     *
+     * @param limit the maximum number of nodes to include
+     * @return the graph snapshot
+     */
     public GraphSnapshot snapshot(int limit) {
         lock.lock();
         try {
@@ -823,6 +1008,17 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Finds nodes matching an optional label, an optional free-text {@code query} (matched against
+     * each node's searchable fields), and an optional map of exact/predicate property filters.
+     * Blank label or query means "no constraint". Results are capped at {@code limit}.
+     *
+     * @param label vertex label to match, or blank for any
+     * @param query free-text query over searchable fields, or blank for any
+     * @param filters exact/predicate property filters
+     * @param limit maximum number of results
+     * @return the matching nodes
+     */
     public List<GraphNode> findNodes(String label, String query, Map<String, String> filters, int limit) {
         lock.lock();
         try {
@@ -845,6 +1041,12 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Resolves the given component ids to their graph nodes, skipping nulls, duplicates, and misses.
+     *
+     * @param ids the component ids to resolve
+     * @return the resolved component nodes
+     */
     public List<GraphNode> nodesByComponentIds(Iterable<ComponentId> ids) {
         lock.lock();
         try {
@@ -861,6 +1063,12 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Resolves the given entrypoint ids to their graph nodes, skipping nulls, duplicates, and misses.
+     *
+     * @param ids the entrypoint ids to resolve
+     * @return the resolved entrypoint nodes
+     */
     public List<GraphNode> nodesByEntrypointIds(Iterable<EntrypointId> ids) {
         lock.lock();
         try {
@@ -877,6 +1085,13 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Returns the component nodes directly owned by the application with the exact {@code appId}
+     * (following {@code OWNS} edges). See {@link #componentNodesOwnedByQuery} for partial matching.
+     *
+     * @param appId the exact owning application id
+     * @return the owned component nodes
+     */
     public List<GraphNode> componentNodesOwnedBy(AppId appId) {
         lock.lock();
         try {
@@ -898,6 +1113,9 @@ public class GraphQuery {
      * Resolves components owned by any application whose id contains {@code appIdQuery}
      * (case-insensitive partial match), unlike {@link #componentNodesOwnedBy} which requires
      * the exact app id. Matches the partial-match convention used elsewhere in graph search.
+     *
+     * @param appIdQuery the application ID query (partial match, case-insensitive)
+     * @return list of component nodes owned by matching applications
      */
     public List<GraphNode> componentNodesOwnedByQuery(String appIdQuery) {
         lock.lock();
@@ -916,6 +1134,16 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Returns the edges incident to {@code nodeId} in the given {@code direction}
+     * ({@code in}/{@code incoming}, {@code out}/{@code outgoing}, or {@code both} — the default for
+     * a blank value), capped at {@code limit}. Returns empty if the node is absent.
+     *
+     * @param nodeId the node whose edges to return
+     * @param direction {@code in}, {@code out}, or {@code both} (default for blank)
+     * @param limit maximum number of edges
+     * @return the incident edges
+     */
     public List<GraphEdge> neighborhood(GraphNodeId nodeId, String direction, int limit) {
         lock.lock();
         try {
@@ -942,6 +1170,15 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Finds edges by optional label (case-insensitive) and property filters.
+     *
+     * @param label edge label to match, or blank for any label
+     * @param filters property predicates applied to edges (supports comparison prefixes)
+     * @param limit maximum edges returned; non-positive falls back to 25, capped at 50,000
+     *     (matching {@link #findNodes} semantics)
+     * @return matching edges, at most {@code limit}
+     */
     public List<GraphEdge> findEdges(String label, Map<String, String> filters, int limit) {
         lock.lock();
         try {
@@ -955,13 +1192,22 @@ public class GraphQuery {
             return traversal.toList().stream()
                     .filter(e -> normalizedLabel == null || e.label().equalsIgnoreCase(normalizedLabel))
                     .map(this::toEdge)
-                    .limit(normalizeLimit(limit))
+                    .limit(normalizeFindEdgesLimit(limit))
                     .toList();
         } finally {
             lock.unlock();
         }
     }
 
+    /**
+     * Returns the edges that run between two nodes both present in {@code nodeIds} (the induced
+     * subgraph), optionally restricted to the given edge {@code labels} (empty means all labels).
+     * Each directed edge is reported once, ordered deterministically.
+     *
+     * @param nodeIds the node set defining the induced subgraph
+     * @param labels edge labels to include, or empty for all
+     * @return the edges within the induced subgraph
+     */
     public List<GraphEdge> findEdgesBetween(Set<GraphNodeId> nodeIds, Set<String> labels) {
         lock.lock();
         try {
@@ -985,6 +1231,17 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Returns simple (acyclic) directed paths from {@code fromId} to {@code toId}, following
+     * outgoing edges up to {@code maxDepth} hops (clamped to [1, 8], default 5) and capped at
+     * {@code limit} paths. Returns empty if either endpoint is absent.
+     *
+     * @param fromId the start node
+     * @param toId the target node
+     * @param maxDepth maximum hops (clamped to [1, 8], default 5)
+     * @param limit maximum number of paths
+     * @return the matching paths
+     */
     public List<GraphPath> paths(GraphNodeId fromId, GraphNodeId toId, int maxDepth, int limit) {
         lock.lock();
         try {
@@ -1008,6 +1265,16 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Returns the nodes that transitively depend on {@code targetId} — i.e. those that can reach it
+     * by following incoming edges up to {@code maxDepth} hops (clamped to [1, 8], default 3),
+     * capped at {@code limit}. This is the impact/blast-radius slice for a change to the target.
+     *
+     * @param targetId the node whose dependents to find
+     * @param maxDepth maximum hops (clamped to [1, 8], default 3)
+     * @param limit maximum number of results
+     * @return the impacted nodes
+     */
     public List<GraphNode> impactedBy(GraphNodeId targetId, int maxDepth, int limit) {
         lock.lock();
         try {
@@ -1032,6 +1299,19 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Returns the nodes reachable from {@code from} by repeatedly following edges in the given
+     * {@code direction}, optionally restricted to a single {@code edgeLabel}, up to {@code depth}
+     * hops (clamped to [1, 10], default 1) and capped at {@code limit}. Intermediate nodes are
+     * included (emit-style traversal); the start node is deduplicated out.
+     *
+     * @param from the start node
+     * @param direction {@code in}, {@code out}, or {@code both}
+     * @param edgeLabel restrict to a single edge label, or blank for any
+     * @param depth maximum hops (clamped to [1, 10], default 1)
+     * @param limit maximum number of results
+     * @return the reachable nodes
+     */
     public List<GraphNode> reachable(GraphNodeId from, String direction, String edgeLabel, int depth, int limit) {
         lock.lock();
         try {
@@ -1053,6 +1333,13 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Resolves a component reference given either its exact serialized id or a name fragment,
+     * returning the matching component node id if exactly one can be identified.
+     *
+     * @param nameOrId the component's serialized id or a name fragment
+     * @return the resolved component node id, or empty if not uniquely identified
+     */
     public Optional<GraphNodeId> resolveComponent(String nameOrId) {
         lock.lock();
         try {
@@ -1080,7 +1367,12 @@ public class GraphQuery {
         }
     }
 
-    /** Resolves an entrypoint reference (id, name, or "METHOD /path") to its graph node ID. */
+    /**
+     * Resolves an entrypoint reference (id, name, or "METHOD /path") to its graph node ID.
+     *
+     * @param ref the entrypoint ID, name, or HTTP path
+     * @return the resolved graph node ID, or empty if not found
+     */
     public Optional<GraphNodeId> resolveEntrypoint(String ref) {
         lock.lock();
         try {
@@ -1409,6 +1701,16 @@ public class GraphQuery {
         return limit <= 0 ? Long.MAX_VALUE : Math.clamp(limit, 1, 50_000);
     }
 
+    /**
+     * Normalizes the caller-supplied limit for {@link #findEdges}. Mirrors
+     * {@link #normalizeFindNodesLimit} with a hard cap of 50,000 so exhaustive edge queries
+     * (e.g. MCP {@code find_edges}, {@link #dependencyEdges}) are not silently truncated at the
+     * small traversal cap; keeps the historical default of 25 for non-positive limits.
+     */
+    private static int normalizeFindEdgesLimit(int limit) {
+        return Math.clamp(limit <= 0 ? 25 : limit, 1, 50_000);
+    }
+
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static P<Object> toGremlinPredicate(String filterValue) {
         if (StringUtils.isBlank(filterValue)) return null;
@@ -1427,10 +1729,36 @@ public class GraphQuery {
     // Public types — used by tools and renderers
     // =========================================================================
 
+    /**
+     * Per-label node and edge counts for the whole graph.
+     *
+     * @param nodeCount total number of nodes
+     * @param edgeCount total number of edges
+     * @param labels node count keyed by vertex label
+     * @param edges edge count keyed by edge label
+     */
     public record GraphSummary(int nodeCount, int edgeCount, Map<String, Integer> labels, Map<String, Integer> edges) {}
 
+    /**
+     * A bounded export of the graph.
+     *
+     * @param metadata totals and truncation info for this snapshot
+     * @param nodes the included nodes
+     * @param edges the edges between included nodes
+     */
     public record GraphSnapshot(GraphSnapshotMetadata metadata, List<GraphNode> nodes, List<GraphEdge> edges) {}
 
+    /**
+     * Totals and truncation flag describing a {@link GraphSnapshot}.
+     *
+     * @param nodeCount total nodes in the graph
+     * @param edgeCount total edges in the graph
+     * @param includedNodeCount nodes actually included in the snapshot
+     * @param includedEdgeCount edges actually included in the snapshot
+     * @param truncated whether the snapshot omitted nodes due to the limit
+     * @param labels node count keyed by vertex label
+     * @param edges edge count keyed by edge label
+     */
     public record GraphSnapshotMetadata(
             int nodeCount,
             int edgeCount,
@@ -1440,10 +1768,29 @@ public class GraphQuery {
             Map<String, Integer> labels,
             Map<String, Integer> edges) {}
 
+    /**
+     * A directed edge between two graph nodes.
+     *
+     * @param fromId the source node id
+     * @param toId the target node id
+     * @param label the edge label
+     * @param properties the edge properties
+     */
     public record GraphEdge(GraphNodeId fromId, GraphNodeId toId, String label, Map<String, Object> properties) {}
 
+    /**
+     * An ordered path through the graph.
+     *
+     * @param nodes the visited nodes in order
+     * @param edgeLabels the labels of the edges between consecutive nodes
+     */
     public record GraphPath(List<GraphNode> nodes, List<String> edgeLabels) {}
 
+    /**
+     * Sealed supertype of every typed graph node returned by queries. Each variant corresponds to a
+     * graph vertex label and exposes typed accessors plus a searchable {@link #properties()} view
+     * and {@link #matches(String)} predicate, so callers never touch raw TinkerPop vertices.
+     */
     public sealed interface GraphNode
             permits ApplicationNode,
                     ComponentNode,
@@ -1488,6 +1835,17 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Graph node for an indexed application or module (vertex label {@code Application}).
+     *
+     * @param id the node id
+     * @param name the application name
+     * @param technology the detected technology/framework
+     * @param packagingType the packaging type (e.g. {@code jar}, {@code war})
+     * @param role the architectural role
+     * @param rootPath the source root path
+     * @param parentAppId the parent application id, or {@code null} for a top-level app
+     */
     public record ApplicationNode(
             GraphNodeId id,
             String name,
@@ -1526,6 +1884,34 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Graph node for a source component/class (vertex label {@code Component}).
+     *
+     * @param id the node id
+     * @param name the simple class name
+     * @param type the component type classification
+     * @param qualifiedName the fully-qualified class name
+     * @param packageName the package name
+     * @param module the owning application/module id
+     * @param technology the detected technology/framework
+     * @param stereotypes annotation- or convention-derived stereotypes
+     * @param source the source location
+     * @param fanIn number of incoming dependency edges
+     * @param fanOut number of outgoing dependency edges
+     * @param degree total edge degree
+     * @param ownedEntrypointCount number of entrypoints owned by this component
+     * @param architecturalWeight computed architectural significance score
+     * @param workflowRelevant whether the component participates in a traced workflow
+     * @param businessRelevant whether the component is classified as business logic
+     * @param infrastructureRole infrastructure role, if any
+     * @param noiseScore computed noise score (higher = less architecturally relevant)
+     * @param workflowBridgeScore score for bridging distinct workflows
+     * @param entrypointReachable whether reachable from an entrypoint
+     * @param primaryRole primary classified role
+     * @param supportRole secondary/support role
+     * @param agentCategory agent-facing category classification
+     * @param classificationEvidence human-readable evidence for the classification
+     */
     public record ComponentNode(
             GraphNodeId id,
             String name,
@@ -1610,6 +1996,23 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Graph node for an entrypoint — REST endpoint, messaging consumer, scheduler, or main method
+     * (vertex label {@code Entrypoint}).
+     *
+     * @param id the node id
+     * @param name the entrypoint name
+     * @param type the entrypoint type
+     * @param httpMethod the HTTP method for REST endpoints, or {@code null}
+     * @param path the HTTP path for REST endpoints, or {@code null}
+     * @param channelName the messaging channel name, or {@code null}
+     * @param broker the messaging broker, or {@code null}
+     * @param topic the broker-side destination/topic, or {@code null}
+     * @param parameters the entrypoint parameter names
+     * @param protocol the transport protocol, or {@code null}
+     * @param componentId the owning component id
+     * @param source the source location
+     */
     public record EntrypointNode(
             GraphNodeId id,
             String name,
@@ -1665,6 +2068,21 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Graph node for a declared interface / API surface (vertex label {@code Interface}).
+     *
+     * @param id the node id
+     * @param name the interface name
+     * @param type the interface type/kind
+     * @param path the associated path, or {@code null}
+     * @param componentId the owning component id
+     * @param module the owning application/module id
+     * @param technology the detected technology/framework
+     * @param broker the messaging broker, or {@code null}
+     * @param topic the broker-side destination/topic, or {@code null}
+     * @param externalServiceName the external service name, or {@code null}
+     * @param source the source location
+     */
     public record InterfaceNode(
             GraphNodeId id,
             String name,
@@ -1715,6 +2133,15 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Graph node for a logical container grouping components (vertex label {@code Container}).
+     *
+     * @param id the node id
+     * @param name the container name
+     * @param appId the owning application id
+     * @param technology the detected technology/framework
+     * @param derivedFrom how the container was inferred
+     */
     public record ContainerNode(GraphNodeId id, String name, AppId appId, String technology, String derivedFrom)
             implements GraphNode {
         @Override
@@ -1739,6 +2166,18 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Graph node for a deployment target inferred from Docker Compose/Ansible metadata
+     * (vertex label {@code Deployment}).
+     *
+     * @param id the node id
+     * @param name the deployment/service name
+     * @param type the deployment type
+     * @param ports exposed ports
+     * @param dependsOn names of deployments this one depends on
+     * @param roles assigned deployment roles
+     * @param hosts target hosts
+     */
     public record DeploymentNode(
             GraphNodeId id,
             String name,
@@ -1776,6 +2215,14 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Graph node for an external system a component talks to (vertex label {@code ExternalSystem}).
+     *
+     * @param id the node id
+     * @param name the external system name
+     * @param kind the external system kind (e.g. database, broker, HTTP service)
+     * @param technology the detected technology
+     */
     public record ExternalSystemNode(GraphNodeId id, String name, String kind, String technology) implements GraphNode {
         @Override
         public String label() {
@@ -1797,6 +2244,14 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Graph node for a runtime flow rooted at an entrypoint (vertex label {@code RuntimeFlow}).
+     *
+     * @param id the node id
+     * @param name the flow name
+     * @param entrypointId the originating entrypoint id
+     * @param stepCount the number of steps in the flow
+     */
     public record RuntimeFlowNode(GraphNodeId id, String name, EntrypointId entrypointId, int stepCount)
             implements GraphNode {
         @Override
@@ -1818,6 +2273,17 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Graph node for a single step within a runtime flow (vertex label {@code RuntimeFlowStep}).
+     *
+     * @param id the node id
+     * @param name the step name
+     * @param flowId the owning runtime-flow id
+     * @param order the step order within the flow
+     * @param componentId the component executing this step
+     * @param componentType the component's type
+     * @param via how this step was reached (call/injection/etc.)
+     */
     public record RuntimeFlowStepNode(
             GraphNodeId id,
             String name,
@@ -1853,6 +2319,17 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Graph node for a traced data-flow path from an entrypoint parameter to its sinks
+     * (vertex label {@code DataFlowPath}).
+     *
+     * @param id the node id
+     * @param name the path name
+     * @param entrypointId the originating entrypoint id
+     * @param trackedParam the traced parameter name
+     * @param stepCount the number of steps along the path
+     * @param sinkCount the number of sinks the path reaches
+     */
     public record DataFlowPathNode(
             GraphNodeId id, String name, EntrypointId entrypointId, String trackedParam, int stepCount, int sinkCount)
             implements GraphNode {
@@ -1880,6 +2357,29 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Graph node for a data-flow sink — a persistence, messaging, HTTP, store, or similar terminal
+     * write (vertex label {@code DataFlowSink}).
+     *
+     * @param id the node id
+     * @param name the sink name
+     * @param sinkKind the kind of sink
+     * @param pathId the owning data-flow path id
+     * @param componentId the component performing the write
+     * @param method the method performing the write
+     * @param fieldName the shared-state field written, or {@code null}
+     * @param fieldOwnerComponentId the component owning the written field, or {@code null}
+     * @param channel the messaging channel, or {@code null}
+     * @param broker the messaging broker, or {@code null}
+     * @param topic the broker-side destination/topic, or {@code null}
+     * @param topicPropertyKey the config property key the topic was resolved from, or {@code null}
+     * @param payloadType the message/payload type, or {@code null}
+     * @param entityType the persisted entity type, or {@code null}
+     * @param repositoryOperation the repository operation, or {@code null}
+     * @param linkEvidence evidence for a downstream workflow link, or {@code null}
+     * @param calleeQualifiedName the qualified name of the called sink API, or {@code null}
+     * @param source the source location
+     */
     public record DataFlowSinkNode(
             GraphNodeId id,
             String name,
@@ -1950,6 +2450,21 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Graph node for a node within a data-flow path graph (vertex label {@code DataFlowNode}).
+     *
+     * @param id the node id
+     * @param name the node name
+     * @param pathId the owning data-flow path id
+     * @param flowNodeId the node's id within the path graph
+     * @param nodeOrder the node's order within the path
+     * @param nodeKind the node kind
+     * @param componentId the associated component id
+     * @param componentName the associated component name
+     * @param method the associated method
+     * @param localName the local variable name, or {@code null}
+     * @param source the source location
+     */
     public record DataFlowNodeNode(
             GraphNodeId id,
             String name,
@@ -2001,6 +2516,16 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Graph node for a conditional branch point in a data-flow path (vertex label {@code DataFlowBranch}).
+     *
+     * @param id the node id
+     * @param name the branch name
+     * @param pathId the owning data-flow path id
+     * @param branchId the branch id within the path
+     * @param branchKind the branch kind (e.g. {@code if}, {@code switch})
+     * @param source the source location
+     */
     public record DataFlowBranchNode(
             GraphNodeId id, String name, String pathId, String branchId, String branchKind, SourceInfo source)
             implements GraphNode {
@@ -2035,6 +2560,17 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Graph node for one arm of a data-flow branch (vertex label {@code DataFlowBranchArm}).
+     *
+     * @param id the node id
+     * @param name the arm name
+     * @param pathId the owning data-flow path id
+     * @param branchId the owning branch id
+     * @param branchArmId the arm id within the branch
+     * @param armLabel the arm label (e.g. {@code then}, {@code else}, a case value)
+     * @param entryNodeId the id of the first node entered on this arm
+     */
     public record DataFlowBranchArmNode(
             GraphNodeId id,
             String name,
@@ -2076,6 +2612,18 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Graph node for a single step along a data-flow path (vertex label {@code DataFlowStep}).
+     *
+     * @param id the node id
+     * @param name the step name
+     * @param pathId the owning data-flow path id
+     * @param stepIndex the step index within the path
+     * @param componentId the component executing this step
+     * @param componentName the component name
+     * @param method the method at this step
+     * @param localName the local variable name, or {@code null}
+     */
     public record DataFlowStepNode(
             GraphNodeId id,
             String name,
@@ -2118,6 +2666,15 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Graph node for a stitched cross-entrypoint pipeline chain (vertex label {@code PipelineChain}).
+     *
+     * @param id the node id
+     * @param name the chain name
+     * @param segmentCount the number of segments in the chain
+     * @param rootEntrypointId the entrypoint the chain starts from
+     * @param linkKinds the kinds of workflow links joining the segments
+     */
     public record PipelineChainNode(
             GraphNodeId id, String name, int segmentCount, String rootEntrypointId, List<String> linkKinds)
             implements GraphNode {
@@ -2143,6 +2700,14 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Fallback graph node for a vertex whose label maps to no typed {@link GraphNode} variant.
+     *
+     * @param id the node id
+     * @param label the raw vertex label
+     * @param name the node display name
+     * @param rawProperties the vertex properties, passed through unchanged
+     */
     public record UnknownNode(GraphNodeId id, String label, String name, Map<String, Object> rawProperties)
             implements GraphNode {
         @Override
