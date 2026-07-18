@@ -92,10 +92,20 @@ public class MessagingTopicResolver {
                 continue;
             }
 
-            List<OutboundSinkSite> perCaller =
-                    expandPerCallSite(site, containingType, containingMethod, sendInv, spoonModel);
-            if (!perCaller.isEmpty()) {
-                model.outboundSinkSites.addAll(perCaller);
+            TopicParam topicParam = topicParameter(site, containingMethod, sendInv);
+            if (topicParam != null) {
+                // Parameter-fed topic: per-call-site expansion is authoritative. When no call
+                // site resolves (e.g. a dead overload with no callers), keep the site
+                // unresolved instead of falling back to the global caller walk — that walk
+                // matches call sites of ALL overloads by simple name and would re-union every
+                // caller's topic onto every chain reaching the wrapper.
+                List<OutboundSinkSite> perCaller =
+                        expandPerCallSite(site, containingType, containingMethod, topicParam, spoonModel);
+                if (perCaller.isEmpty()) {
+                    model.outboundSinkSites.add(site); // keep with null topic
+                } else {
+                    model.outboundSinkSites.addAll(perCaller);
+                }
                 continue;
             }
 
@@ -117,26 +127,22 @@ public class MessagingTopicResolver {
         }
     }
 
-    /**
-     * Expands a wrapper-method site whose topic flows in through a parameter into one
-     * caller-restricted site per (call site, resolved literal). Returns an empty list when the
-     * topic argument is not tied to a wrapper parameter or no call site resolves to a literal —
-     * the caller then falls back to the unrestricted global resolution.
-     */
-    private List<OutboundSinkSite> expandPerCallSite(
-            OutboundSinkSite site,
-            CtType<?> wrapperType,
-            CtMethod<?> wrapperMethod,
-            CtInvocation<?> sendInv,
-            CtModel spoonModel) {
+    /** How the topic reaches the send call: wrapper parameter index, plus the accessor method
+     * name when the topic is {@code <param>.<accessor>()} rather than the parameter itself. */
+    private record TopicParam(int paramIndex, String accessor) {}
 
+    /**
+     * Determines whether the site's topic is fed through a parameter of the wrapper method —
+     * directly ({@link TopicArgKind#PARAM_REF}) or via an accessor call on a parameter
+     * ({@link TopicArgKind#METHOD_CALL}). Returns {@code null} when it is not.
+     */
+    private TopicParam topicParameter(OutboundSinkSite site, CtMethod<?> wrapperMethod, CtInvocation<?> sendInv) {
         CtExpression<?> topicArg = sendInv.getArguments().get(0);
-        int paramIndex = -1;
-        String topicAccessor = null; // non-null → topic = <argument>.<accessor>() at the call site
 
         if (site.topicArgKind == TopicArgKind.PARAM_REF && site.topicArgParamIndex >= 0) {
-            paramIndex = site.topicArgParamIndex;
-        } else if (site.topicArgKind == TopicArgKind.METHOD_CALL
+            return new TopicParam(site.topicArgParamIndex, null);
+        }
+        if (site.topicArgKind == TopicArgKind.METHOD_CALL
                 && topicArg instanceof CtInvocation<?> topicInv
                 && topicInv.getTarget() instanceof CtVariableRead<?> receiver
                 && topicInv.getExecutable() != null) {
@@ -145,16 +151,31 @@ public class MessagingTopicResolver {
                     List<CtParameter<?>> params = wrapperMethod.getParameters();
                     for (int i = 0; i < params.size(); i++) {
                         if (params.get(i).getSimpleName().equals(param.getSimpleName())) {
-                            paramIndex = i;
-                            break;
+                            return new TopicParam(
+                                    i, topicInv.getExecutable().getSimpleName());
                         }
                     }
-                    topicAccessor = topicInv.getExecutable().getSimpleName();
                 }
             } catch (Exception ignored) {
             }
         }
-        if (paramIndex < 0) return List.of();
+        return null;
+    }
+
+    /**
+     * Expands a wrapper-method site whose topic flows in through a parameter into one
+     * caller-restricted site per (call site, resolved literal). Returns an empty list when no
+     * call site of this overload resolves to a literal.
+     */
+    private List<OutboundSinkSite> expandPerCallSite(
+            OutboundSinkSite site,
+            CtType<?> wrapperType,
+            CtMethod<?> wrapperMethod,
+            TopicParam topicParam,
+            CtModel spoonModel) {
+
+        int paramIndex = topicParam.paramIndex();
+        String topicAccessor = topicParam.accessor();
 
         List<OutboundSinkSite> expanded = new ArrayList<>();
         for (CtInvocation<?> callSite : callSitesOf(wrapperType, wrapperMethod, spoonModel)) {
