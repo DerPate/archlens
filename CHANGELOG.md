@@ -3,6 +3,18 @@
 All notable changes to this project will be appended by JReleaser.
 
 <!-- JRELEASER_CHANGELOG_APPEND - Do not remove or modify this section -->
+## [Unreleased]
+
+### Fixes
+
+- **`find_edges` no longer silently capped at 100 results:** `GraphQuery.normalizeLimit` clamped
+  every edge query to 100, so MCP `query_architecture_graph` `find_edges` (default limit 256),
+  `dependencyEdges` (100,000), `get_component_dependencies` and `infer_containers` (10,000) all
+  returned at most 100 edges with no truncation indicator. `findEdges` now uses a dedicated
+  `normalizeFindEdgesLimit` with the same 50,000 cap as `findNodes`, keeping the historical
+  default of 25 for non-positive limits. Traversal queries (`neighborhood`, `paths`,
+  `impacted_by`, `reachable`) intentionally keep the small cap and are unchanged.
+
 ## [spoon-mcp-server-1.3.0]
 
 ## Changelog
