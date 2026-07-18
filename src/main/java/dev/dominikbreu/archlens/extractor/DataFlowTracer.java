@@ -376,7 +376,14 @@ public class DataFlowTracer {
 
             recordSteps(ctx, compId, method, compName, currentToOriginal);
             recordOutboundSinks(
-                    ctx, compId, method, compName, currentToOriginal, currentNodeByOriginal, resolvedCallerArgs, caller);
+                    ctx,
+                    compId,
+                    method,
+                    compName,
+                    currentToOriginal,
+                    currentNodeByOriginal,
+                    resolvedCallerArgs,
+                    caller);
             recordFieldWriteSinks(ctx, compId, method, compName, depth, currentToOriginal, currentNodeByOriginal);
             traverseCallEdges(ctx, compId, method, currentToOriginal, currentNodeByOriginal, depth);
         } finally {
