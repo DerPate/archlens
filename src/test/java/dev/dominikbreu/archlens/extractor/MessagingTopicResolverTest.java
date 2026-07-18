@@ -88,12 +88,18 @@ class MessagingTopicResolverTest extends ExtractorTestBase {
         });
         // The per-wrapper union must not leak: no unrestricted "account" site and no
         // "account" site attributed to BudgetControlService (and vice versa).
-        assertThat(sites).noneMatch(site -> "account".equals(site.topic)
-                && (site.restrictedCallerComponentId == null
-                        || site.restrictedCallerComponentId.qualifiedName().endsWith("BudgetControlService")));
-        assertThat(sites).noneMatch(site -> "budgetControl".equals(site.topic)
-                && (site.restrictedCallerComponentId == null
-                        || site.restrictedCallerComponentId.qualifiedName().endsWith("AccountService")));
+        assertThat(sites)
+                .noneMatch(site -> "account".equals(site.topic)
+                        && (site.restrictedCallerComponentId == null
+                                || site.restrictedCallerComponentId
+                                        .qualifiedName()
+                                        .endsWith("BudgetControlService")));
+        assertThat(sites)
+                .noneMatch(site -> "budgetControl".equals(site.topic)
+                        && (site.restrictedCallerComponentId == null
+                                || site.restrictedCallerComponentId
+                                        .qualifiedName()
+                                        .endsWith("AccountService")));
     }
 
     // ── overloaded wrapper, topic in 3rd parameter (missing sinks / defect B) ────
@@ -128,9 +134,10 @@ class MessagingTopicResolverTest extends ExtractorTestBase {
         });
         // ServiceInquiryService only calls the resolvable 3-arg overload — the
         // expansion of the 1-arg overload must not attach to it.
-        assertThat(sites).noneMatch(site -> "sisPDFCreation".equals(site.topic)
-                && site.restrictedCallerComponentId != null
-                && site.restrictedCallerComponentId.qualifiedName().endsWith("ServiceInquiryService"));
+        assertThat(sites)
+                .noneMatch(site -> "sisPDFCreation".equals(site.topic)
+                        && site.restrictedCallerComponentId != null
+                        && site.restrictedCallerComponentId.qualifiedName().endsWith("ServiceInquiryService"));
     }
 
     private static List<OutboundSinkSite> kafkaSites(ArchitectureModel model) {

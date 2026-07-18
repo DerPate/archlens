@@ -151,8 +151,7 @@ public class MessagingTopicResolver {
                     List<CtParameter<?>> params = wrapperMethod.getParameters();
                     for (int i = 0; i < params.size(); i++) {
                         if (params.get(i).getSimpleName().equals(param.getSimpleName())) {
-                            return new TopicParam(
-                                    i, topicInv.getExecutable().getSimpleName());
+                            return new TopicParam(i, topicInv.getExecutable().getSimpleName());
                         }
                     }
                 }
