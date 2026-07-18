@@ -89,7 +89,10 @@ class StringExpressionResolverTest extends ExtractorTestBase {
     @Test
     void resolvesParamRefByWalkingCallers() {
         // KafkaJsonProducer.sendEvent(String topic, ...) — topic is a PARAM_REF
-        // BudgetControlService.trigger() passes literal "budgetControl"
+        // BudgetControlService.trigger() passes literal "budgetControl";
+        // AccountService.register() passes literal "account". The caller walk
+        // returns the union across all callers by design (per-caller attribution
+        // happens in MessagingTopicResolver, not here).
         CtType<?> producerType = type("com.example.kafka.KafkaJsonProducer");
         CtMethod<?> sendEvent = method(producerType, "sendEvent");
         // arg[0] of the kafkaTemplate.send(topic,...) call inside sendEvent is a CtVariableRead of `topic`
@@ -101,7 +104,7 @@ class StringExpressionResolverTest extends ExtractorTestBase {
         Set<String> result = StringExpressionResolver.resolve(
                 sendCall.getArguments().get(0), producerType, sendEvent, model, 10, new HashSet<>());
 
-        assertThat(result).containsExactly("budgetControl");
+        assertThat(result).containsExactlyInAnyOrder("budgetControl", "account");
     }
 
     @Test

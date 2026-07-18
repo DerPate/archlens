@@ -125,7 +125,13 @@ public class StringExpressionResolver {
         return Set.of();
     }
 
-    private static Set<String> resolveFromImplementations(
+    /**
+     * Collects the literal return values of {@code methodName} across all implementations /
+     * subclasses of {@code interfaceRef} found in the model. Package-visible so
+     * {@link MessagingTopicResolver} can reuse it as the fallback for caller-restricted
+     * topic expansion.
+     */
+    static Set<String> resolveFromImplementations(
             CtTypeReference<?> interfaceRef, String methodName, CtModel model, int depth, Set<String> visited) {
 
         String frameKey = interfaceRef.getQualifiedName() + "#" + methodName;

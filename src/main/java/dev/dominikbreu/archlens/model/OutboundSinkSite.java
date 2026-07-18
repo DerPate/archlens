@@ -44,6 +44,15 @@ public class OutboundSinkSite {
     public TopicArgKind topicArgKind;
     /** Index of the topic argument parameter, if PARAM_REF; otherwise -1. */
     public int topicArgParamIndex = -1;
+    /**
+     * When non-null, this site only applies to call chains entering {@link #method} from this
+     * caller component. Set by {@code MessagingTopicResolver} when a wrapper site is expanded
+     * per caller call site, so the data-flow tracer attributes each resolved topic only to the
+     * chains that actually pass it.
+     */
+    public dev.dominikbreu.archlens.model.ids.ComponentId restrictedCallerComponentId;
+    /** Caller method (simple name) that {@link #restrictedCallerComponentId} scopes this site to. */
+    public String restrictedCallerMethod;
 
     /** Creates an empty site for JSON deserialization. */
     public OutboundSinkSite() {}
@@ -73,6 +82,8 @@ public class OutboundSinkSite {
         copy.source = this.source;
         copy.topicArgKind = this.topicArgKind;
         copy.topicArgParamIndex = this.topicArgParamIndex;
+        copy.restrictedCallerComponentId = this.restrictedCallerComponentId;
+        copy.restrictedCallerMethod = this.restrictedCallerMethod;
         return copy;
     }
 }
