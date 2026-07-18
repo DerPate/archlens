@@ -65,4 +65,77 @@ class MessagingTopicResolverTest extends ExtractorTestBase {
             assertThat(site.topicArgKind).isEqualTo(TopicArgKind.LITERAL);
         });
     }
+
+    // ── per-call-site attribution (topic-union over-attribution / defect A) ──────
+
+    @Test
+    void paramRefTopicIsRestrictedToTheCallerThatPassesIt() {
+        ArchitectureModel model =
+                new ArchitectureExtractor().extract(List.of(projectPath("kafka-topic-resolver-sample")));
+        List<OutboundSinkSite> sites = kafkaSites(model);
+
+        assertThat(sites).anySatisfy(site -> {
+            assertThat(site.topic).isEqualTo("budgetControl");
+            assertThat(site.restrictedCallerComponentId).isNotNull();
+            assertThat(site.restrictedCallerComponentId.qualifiedName()).endsWith("BudgetControlService");
+            assertThat(site.restrictedCallerMethod).isEqualTo("trigger");
+        });
+        assertThat(sites).anySatisfy(site -> {
+            assertThat(site.topic).isEqualTo("account");
+            assertThat(site.restrictedCallerComponentId).isNotNull();
+            assertThat(site.restrictedCallerComponentId.qualifiedName()).endsWith("AccountService");
+            assertThat(site.restrictedCallerMethod).isEqualTo("register");
+        });
+        // The per-wrapper union must not leak: no unrestricted "account" site and no
+        // "account" site attributed to BudgetControlService (and vice versa).
+        assertThat(sites).noneMatch(site -> "account".equals(site.topic)
+                && (site.restrictedCallerComponentId == null
+                        || site.restrictedCallerComponentId.qualifiedName().endsWith("BudgetControlService")));
+        assertThat(sites).noneMatch(site -> "budgetControl".equals(site.topic)
+                && (site.restrictedCallerComponentId == null
+                        || site.restrictedCallerComponentId.qualifiedName().endsWith("AccountService")));
+    }
+
+    // ── overloaded wrapper, topic in 3rd parameter (missing sinks / defect B) ────
+
+    @Test
+    void thirdArgTopicOfOverloadedWrapperResolvesPerCallSite() {
+        ArchitectureModel model =
+                new ArchitectureExtractor().extract(List.of(projectPath("kafka-topic-resolver-sample")));
+
+        assertThat(kafkaSites(model)).anySatisfy(site -> {
+            assertThat(site.topic).isEqualTo("serviceInquiryAccepted");
+            assertThat(site.restrictedCallerComponentId).isNotNull();
+            assertThat(site.restrictedCallerComponentId.qualifiedName()).endsWith("ServiceInquiryService");
+            assertThat(site.restrictedCallerMethod).isEqualTo("accept");
+        });
+    }
+
+    @Test
+    void methodCallExpansionIsTaggedAndDoesNotLeakOntoOtherOverloadsCallers() {
+        ArchitectureModel model =
+                new ArchitectureExtractor().extract(List.of(projectPath("kafka-topic-resolver-sample")));
+        List<OutboundSinkSite> sites = kafkaSites(model);
+
+        // Statically unresolvable site (event.getType()) keeps the expand-to-all-literals
+        // heuristic, but expanded sites must carry a distinct evidence tag and be
+        // restricted to callers of that overload.
+        assertThat(sites).anySatisfy(site -> {
+            assertThat(site.topic).isEqualTo("sisPDFCreation");
+            assertThat(site.linkEvidence).contains("topic-expansion");
+            assertThat(site.restrictedCallerComponentId).isNotNull();
+            assertThat(site.restrictedCallerComponentId.qualifiedName()).endsWith("SisService");
+        });
+        // ServiceInquiryService only calls the resolvable 3-arg overload — the
+        // expansion of the 1-arg overload must not attach to it.
+        assertThat(sites).noneMatch(site -> "sisPDFCreation".equals(site.topic)
+                && site.restrictedCallerComponentId != null
+                && site.restrictedCallerComponentId.qualifiedName().endsWith("ServiceInquiryService"));
+    }
+
+    private static List<OutboundSinkSite> kafkaSites(ArchitectureModel model) {
+        return model.outboundSinkSites.stream()
+                .filter(s -> s.broker == MessagingBroker.KAFKA)
+                .toList();
+    }
 }

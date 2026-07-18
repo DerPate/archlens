@@ -28,6 +28,8 @@ class OutboundSinkSiteWithTopicTest {
         original.source = new SourceInfo("PaymentService.java", 42, "method-call", 0.95);
         original.topicArgKind = TopicArgKind.PARAM_REF;
         original.topicArgParamIndex = 1;
+        original.restrictedCallerComponentId = ComponentId.of("BudgetControlService");
+        original.restrictedCallerMethod = "trigger";
 
         OutboundSinkSite copy = original.withTopic("budgetControl");
 
@@ -48,6 +50,8 @@ class OutboundSinkSiteWithTopicTest {
         assertThat(copy.source).isEqualTo(original.source);
         assertThat(copy.topicArgKind).isEqualTo(TopicArgKind.PARAM_REF);
         assertThat(copy.topicArgParamIndex).isEqualTo(1);
+        assertThat(copy.restrictedCallerComponentId).isEqualTo(ComponentId.of("BudgetControlService"));
+        assertThat(copy.restrictedCallerMethod).isEqualTo("trigger");
 
         // Assert original is unchanged
         assertThat(original.topic).isNull();

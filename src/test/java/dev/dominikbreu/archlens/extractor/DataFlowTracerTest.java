@@ -1034,6 +1034,84 @@ class DataFlowTracerTest {
                 .hasSize(1);
     }
 
+    // ── caller-restricted wrapper sites (per-call-site topic attribution) ────────
+
+    @Test
+    void restrictedWrapperSitesAttributeTopicsOnlyToMatchingCallerChains() {
+        // Two controllers reach the same messaging wrapper method through different
+        // services. Each expanded site is restricted to the caller whose call site
+        // supplied the topic; the tracer must not union both topics onto both chains.
+        ArchitectureModel model = new ArchitectureModel("test");
+        model.components.add(comp("AccountController", ComponentType.REST_RESOURCE));
+        model.components.add(comp("VacationController", ComponentType.REST_RESOURCE));
+        model.components.add(comp("AccountService", ComponentType.SERVICE));
+        model.components.add(comp("VacationService", ComponentType.SERVICE));
+        model.components.add(comp("KafkaJsonProducer", ComponentType.SERVICE));
+
+        Entrypoint accountEp = new Entrypoint();
+        accountEp.id = EntrypointId.deserialize("account-add");
+        accountEp.name = "add";
+        accountEp.type = EntrypointType.REST_ENDPOINT;
+        accountEp.componentId = ComponentId.of("AccountController");
+        accountEp.parameters.add("dto");
+        model.entrypoints.add(accountEp);
+
+        Entrypoint vacationEp = new Entrypoint();
+        vacationEp.id = EntrypointId.deserialize("vacation-cancel");
+        vacationEp.name = "cancel";
+        vacationEp.type = EntrypointType.REST_ENDPOINT;
+        vacationEp.componentId = ComponentId.of("VacationController");
+        vacationEp.parameters.add("dto");
+        model.entrypoints.add(vacationEp);
+
+        addCallEdge(model, "AccountController", "add", "AccountService", "add", Map.of("dto", "dto"));
+        addCallEdge(model, "AccountService", "add", "KafkaJsonProducer", "sendKafkaEvent", Map.of("dto", "payload"));
+        addCallEdge(model, "VacationController", "cancel", "VacationService", "cancel", Map.of("dto", "dto"));
+        addCallEdge(
+                model, "VacationService", "cancel", "KafkaJsonProducer", "sendKafkaEvent", Map.of("dto", "payload"));
+
+        model.outboundSinkSites.add(restrictedWrapperSite("account", "AccountService", "add"));
+        model.outboundSinkSites.add(restrictedWrapperSite("vacationCancellation", "VacationService", "cancel"));
+
+        List<DataFlowPath> paths = tracer.trace(model);
+
+        DataFlowPath accountPath = paths.stream()
+                .filter(p -> p.entrypointId.equals(EntrypointId.deserialize("account-add")))
+                .findFirst()
+                .orElseThrow();
+        DataFlowPath vacationPath = paths.stream()
+                .filter(p -> p.entrypointId.equals(EntrypointId.deserialize("vacation-cancel")))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(accountPath.sinks)
+                .filteredOn(s -> s.kind == DataFlowSink.Kind.MESSAGING)
+                .extracting(s -> s.channel)
+                .as("AccountController chain must carry only the topic passed at its own call site")
+                .containsExactly("account");
+        assertThat(vacationPath.sinks)
+                .filteredOn(s -> s.kind == DataFlowSink.Kind.MESSAGING)
+                .extracting(s -> s.channel)
+                .as("VacationController chain must carry only the topic passed at its own call site")
+                .containsExactly("vacationCancellation");
+    }
+
+    private static OutboundSinkSite restrictedWrapperSite(String topic, String callerComp, String callerMethod) {
+        OutboundSinkSite site = new OutboundSinkSite();
+        site.id = "outbound:KafkaJsonProducer#sendKafkaEvent:" + topic;
+        site.kind = DataFlowSink.Kind.MESSAGING;
+        site.componentId = ComponentId.of("KafkaJsonProducer");
+        site.method = "sendKafkaEvent";
+        site.topic = topic;
+        site.channel = topic;
+        site.broker = MessagingBroker.KAFKA;
+        site.linkEvidence = "spring-kafka-template-send";
+        site.source = new SourceInfo("KafkaJsonProducer.java", 20, "spring-kafka-template-send", 0.95);
+        site.restrictedCallerComponentId = ComponentId.of(callerComp);
+        site.restrictedCallerMethod = callerMethod;
+        return site;
+    }
+
     // ── G8: messaging link by normalized broker/topic ────────────────────────────
 
     @Test

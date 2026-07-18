@@ -123,7 +123,7 @@ public class DataFlowTracer {
         Map<String, String> currentNodeByOriginal = createRootNodes(ep, index, pathsByOriginal, nodeCounters);
 
         DfsContext ctx = new DfsContext(pathsByOriginal, index, new HashSet<>(), nodeCounters, new HashMap<>());
-        dfs(ctx, ep.componentId, ep.name, currentToOriginal, currentNodeByOriginal, 0, Map.of());
+        dfs(ctx, ep.componentId, ep.name, currentToOriginal, currentNodeByOriginal, 0, Map.of(), null);
 
         for (DataFlowPath path : pathsByOriginal.values()) {
             boolean hasSinks = !path.sinks.isEmpty();
@@ -362,7 +362,8 @@ public class DataFlowTracer {
             Map<String, String> currentToOriginal,
             Map<String, String> currentNodeByOriginal,
             int depth,
-            Map<String, String> resolvedCallerArgs) {
+            Map<String, String> resolvedCallerArgs,
+            dev.dominikbreu.archlens.model.ids.MethodRef caller) {
 
         dev.dominikbreu.archlens.model.ids.MethodRef nodeKey =
                 new dev.dominikbreu.archlens.model.ids.MethodRef(compId, method);
@@ -375,7 +376,7 @@ public class DataFlowTracer {
 
             recordSteps(ctx, compId, method, compName, currentToOriginal);
             recordOutboundSinks(
-                    ctx, compId, method, compName, currentToOriginal, currentNodeByOriginal, resolvedCallerArgs);
+                    ctx, compId, method, compName, currentToOriginal, currentNodeByOriginal, resolvedCallerArgs, caller);
             recordFieldWriteSinks(ctx, compId, method, compName, depth, currentToOriginal, currentNodeByOriginal);
             traverseCallEdges(ctx, compId, method, currentToOriginal, currentNodeByOriginal, depth);
         } finally {
@@ -395,6 +396,13 @@ public class DataFlowTracer {
         }
     }
 
+    /**
+     * Records the outbound sink sites registered for this method on every tracked path. Sites
+     * carrying a caller restriction (set by {@code MessagingTopicResolver} when a wrapper site was
+     * expanded per caller call site) are skipped unless {@code caller} — the DFS frame that invoked
+     * this method — matches, so each caller chain only carries the topic passed at its own call
+     * site instead of the union across all callers.
+     */
     private void recordOutboundSinks(
             DfsContext ctx,
             dev.dominikbreu.archlens.model.ids.ComponentId compId,
@@ -402,8 +410,16 @@ public class DataFlowTracer {
             String compName,
             Map<String, String> currentToOriginal,
             Map<String, String> currentNodeByOriginal,
-            Map<String, String> resolvedCallerArgs) {
+            Map<String, String> resolvedCallerArgs,
+            dev.dominikbreu.archlens.model.ids.MethodRef caller) {
         for (OutboundSinkSite site : ctx.index().outboundSinks.sites(compId, method)) {
+            if (site.restrictedCallerComponentId != null
+                    && (caller == null
+                            || !site.restrictedCallerComponentId.equals(caller.component())
+                            || (site.restrictedCallerMethod != null
+                                    && !site.restrictedCallerMethod.equals(caller.method())))) {
+                continue;
+            }
             String topic = site.topic != null ? resolvedCallerArgs.getOrDefault(site.topic, site.topic) : null;
             String channel = site.channel != null ? resolvedCallerArgs.getOrDefault(site.channel, site.channel) : null;
             for (String origName : currentToOriginal.values()) {
@@ -488,7 +504,8 @@ public class DataFlowTracer {
                             nextMapping,
                             nextNodeByOriginal,
                             nextDepth,
-                            edge.resolvedLiteralArgs);
+                            edge.resolvedLiteralArgs,
+                            new dev.dominikbreu.archlens.model.ids.MethodRef(compId, method));
                 }
             }
         }
