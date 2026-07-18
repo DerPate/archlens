@@ -48,6 +48,16 @@
     </Match>
 
     <!--
+        OutboundSinkIndex.all() returns a list created with List.copyOf (immutable).
+        SpotBugs cannot prove the immutability through the private constructor.
+    -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP"/>
+        <Class name="dev.dominikbreu.archlens.extractor.OutboundSinkIndex"/>
+        <Method name="all"/>
+    </Match>
+
+    <!--
         Public fields on model classes (Entrypoint, Component, FieldAccess, etc.) are written
         by extractors and read by Jackson for JSON serialisation. SpotBugs cannot track
         reflection-based reads, so it incorrectly flags them as unread.
