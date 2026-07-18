@@ -57,6 +57,18 @@
     </Match>
 
     <!--
+        OutboundSinkSite follows the same public-field model convention as the other model
+        classes, but additionally clones itself internally (withTopic) so the resolver can
+        expand one site per topic/caller. PA_PUBLIC_PRIMITIVE_ATTRIBUTE fires only because of
+        those internal writes; making the fields private would break the extractor/Jackson
+        convention used across the model package.
+    -->
+    <Match>
+        <Bug pattern="PA_PUBLIC_PRIMITIVE_ATTRIBUTE"/>
+        <Class name="dev.dominikbreu.archlens.model.OutboundSinkSite"/>
+    </Match>
+
+    <!--
         Best-effort parsers that must not block the main analysis on any input error.
         AnsibleMerger / DockerComposeMerger: SnakeYAML + file I/O can throw a wide variety
         of runtime and checked exceptions on malformed input.
