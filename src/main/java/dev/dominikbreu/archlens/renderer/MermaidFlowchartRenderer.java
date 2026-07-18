@@ -28,8 +28,17 @@ public class MermaidFlowchartRenderer {
     private static final String NODE_CLOSE_PAREN = ")\"]\n";
     private static final String NODE_CLOSE = "\"]\n";
 
+    /** Creates a new flowchart renderer. */
     public MermaidFlowchartRenderer() {}
 
+    /**
+     * Renders a Mermaid architecture flowchart.
+     *
+     * @param graph the graph to render
+     * @param appIdFilter restrict to a single application id, or {@code null} for all
+     * @param level the aggregation level to render at
+     * @return the Mermaid diagram source
+     */
     public String render(GraphQuery graph, String appIdFilter, String level) {
         String lvl = level != null ? level.toLowerCase() : "component";
 

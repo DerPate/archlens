@@ -122,14 +122,87 @@ public class DataFlowTracer {
         Map<String, Integer> nodeCounters = new LinkedHashMap<>();
         Map<String, String> currentNodeByOriginal = createRootNodes(ep, index, pathsByOriginal, nodeCounters);
 
-        DfsContext ctx = new DfsContext(pathsByOriginal, index, new HashSet<>(), nodeCounters);
-        dfs(ctx, ep.componentId, ep.name, currentToOriginal, currentNodeByOriginal, 0, Map.of());
+        DfsContext ctx = new DfsContext(pathsByOriginal, index, new HashSet<>(), nodeCounters, new HashMap<>());
+        dfs(ctx, ep.componentId, ep.name, currentToOriginal, currentNodeByOriginal, 0, Map.of(), null);
+        addCallGraphReachMessagingSinks(ep, index, pathsByOriginal);
 
         for (DataFlowPath path : pathsByOriginal.values()) {
             boolean hasSinks = !path.sinks.isEmpty();
             boolean isConsumerWithSteps = ep.type == EntrypointType.MESSAGING_CONSUMER && !path.steps.isEmpty();
             if (hasSinks || isConsumerWithSteps) result.add(path);
         }
+    }
+
+    /**
+     * Fallback for messaging sends that are reachable from the entrypoint through the call graph
+     * but never entered by the tracked-parameter DFS — e.g. the payload is a freshly constructed
+     * local, so no tracked name maps into the wrapper frame. Adds at most one MESSAGING sink per
+     * channel not already covered by a data-flow sink, tagged with {@code call-graph-reach}
+     * evidence so downstream workflow links carry reduced confidence. Caller-restricted sites use
+     * the restriction (the method containing the resolved call site) as the reachability anchor.
+     */
+    private void addCallGraphReachMessagingSinks(
+            Entrypoint ep, ModelIndex index, Map<String, DataFlowPath> pathsByOriginal) {
+        if (pathsByOriginal.isEmpty()) return;
+        Set<String> coveredChannels = new HashSet<>();
+        for (DataFlowPath path : pathsByOriginal.values()) {
+            for (DataFlowSink sink : path.sinks) {
+                if (sink.kind == DataFlowSink.Kind.MESSAGING && sink.channel != null) {
+                    coveredChannels.add(sink.channel);
+                }
+            }
+        }
+        Set<dev.dominikbreu.archlens.model.ids.MethodRef> reachable = null;
+        DataFlowPath firstPath = pathsByOriginal.values().iterator().next();
+        for (OutboundSinkSite site : index.outboundSinks.all()) {
+            if (site.kind != DataFlowSink.Kind.MESSAGING) continue;
+            String channel = firstNonBlank(site.topic, site.channel);
+            if (channel == null || coveredChannels.contains(channel)) continue;
+            dev.dominikbreu.archlens.model.ids.MethodRef location = site.restrictedCallerComponentId != null
+                    ? new dev.dominikbreu.archlens.model.ids.MethodRef(
+                            site.restrictedCallerComponentId, site.restrictedCallerMethod)
+                    : new dev.dominikbreu.archlens.model.ids.MethodRef(site.componentId, site.method);
+            if (reachable == null) reachable = reachableMethods(ep, index);
+            if (!reachable.contains(location)) continue;
+            Component comp = index.components.get(site.componentId);
+            DataFlowSink sink = new DataFlowSink(
+                    DataFlowSink.Kind.MESSAGING,
+                    site.componentId,
+                    comp != null ? comp.name : site.componentId.serialize(),
+                    site.calleeMethod,
+                    site.source);
+            sink.channel = channel;
+            sink.topic = site.topic;
+            sink.broker = site.broker;
+            sink.topicPropertyKey = site.topicPropertyKey;
+            sink.payloadType = site.payloadType;
+            sink.linkEvidence =
+                    site.linkEvidence == null ? "call-graph-reach" : site.linkEvidence + "+call-graph-reach";
+            sink.calleeQualifiedName = site.calleeQualifiedName;
+            sink.callerComponentId = location.component();
+            firstPath.sinks.add(sink);
+            coveredChannels.add(channel);
+        }
+    }
+
+    /** Breadth-first closure of inline-traversable call edges from the entrypoint root method. */
+    private Set<dev.dominikbreu.archlens.model.ids.MethodRef> reachableMethods(Entrypoint ep, ModelIndex index) {
+        Set<dev.dominikbreu.archlens.model.ids.MethodRef> visited = new HashSet<>();
+        java.util.ArrayDeque<dev.dominikbreu.archlens.model.ids.MethodRef> queue = new java.util.ArrayDeque<>();
+        dev.dominikbreu.archlens.model.ids.MethodRef root =
+                new dev.dominikbreu.archlens.model.ids.MethodRef(ep.componentId, ep.name);
+        visited.add(root);
+        queue.add(root);
+        while (!queue.isEmpty() && visited.size() < 20_000) {
+            dev.dominikbreu.archlens.model.ids.MethodRef current = queue.poll();
+            for (CallEdge edge : index.callAdj.edges(current.component(), current.method())) {
+                if (!traversalPolicy.canTraverseInline(edge)) continue;
+                dev.dominikbreu.archlens.model.ids.MethodRef next =
+                        new dev.dominikbreu.archlens.model.ids.MethodRef(edge.toComponentId, edge.toMethod);
+                if (visited.add(next)) queue.add(next);
+            }
+        }
+        return visited;
     }
 
     private LinkedHashSet<String> collectTrackedNames(Entrypoint ep, ModelIndex index) {
@@ -339,12 +412,19 @@ public class DataFlowTracer {
         return keys;
     }
 
-    /** Invariant state shared across all frames of a single entrypoint's DFS. */
+    /**
+     * Invariant state shared across all frames of a single entrypoint's DFS.
+     *
+     * <p>{@code seenSinkKeys} maps each tracked name (path) to the {@link #sinkIdentityKey}s
+     * already recorded for it, so a call-graph diamond that revisits a sink-bearing method
+     * does not append byte-identical {@link DataFlowSink} records twice.
+     */
     private record DfsContext(
             Map<String, DataFlowPath> pathsByOriginal,
             ModelIndex index,
             Set<dev.dominikbreu.archlens.model.ids.MethodRef> onCurrentPath,
-            Map<String, Integer> nodeCounters) {}
+            Map<String, Integer> nodeCounters,
+            Map<String, Set<String>> seenSinkKeys) {}
 
     private record BranchTopologyMetadata(String branchId, String armId, String label) {}
 
@@ -355,7 +435,8 @@ public class DataFlowTracer {
             Map<String, String> currentToOriginal,
             Map<String, String> currentNodeByOriginal,
             int depth,
-            Map<String, String> resolvedCallerArgs) {
+            Map<String, String> resolvedCallerArgs,
+            dev.dominikbreu.archlens.model.ids.MethodRef caller) {
 
         dev.dominikbreu.archlens.model.ids.MethodRef nodeKey =
                 new dev.dominikbreu.archlens.model.ids.MethodRef(compId, method);
@@ -368,7 +449,14 @@ public class DataFlowTracer {
 
             recordSteps(ctx, compId, method, compName, currentToOriginal);
             recordOutboundSinks(
-                    ctx, compId, method, compName, currentToOriginal, currentNodeByOriginal, resolvedCallerArgs);
+                    ctx,
+                    compId,
+                    method,
+                    compName,
+                    currentToOriginal,
+                    currentNodeByOriginal,
+                    resolvedCallerArgs,
+                    caller);
             recordFieldWriteSinks(ctx, compId, method, compName, depth, currentToOriginal, currentNodeByOriginal);
             traverseCallEdges(ctx, compId, method, currentToOriginal, currentNodeByOriginal, depth);
         } finally {
@@ -388,6 +476,13 @@ public class DataFlowTracer {
         }
     }
 
+    /**
+     * Records the outbound sink sites registered for this method on every tracked path. Sites
+     * carrying a caller restriction (set by {@code MessagingTopicResolver} when a wrapper site was
+     * expanded per caller call site) are skipped unless {@code caller} — the DFS frame that invoked
+     * this method — matches, so each caller chain only carries the topic passed at its own call
+     * site instead of the union across all callers.
+     */
     private void recordOutboundSinks(
             DfsContext ctx,
             dev.dominikbreu.archlens.model.ids.ComponentId compId,
@@ -395,8 +490,16 @@ public class DataFlowTracer {
             String compName,
             Map<String, String> currentToOriginal,
             Map<String, String> currentNodeByOriginal,
-            Map<String, String> resolvedCallerArgs) {
+            Map<String, String> resolvedCallerArgs,
+            dev.dominikbreu.archlens.model.ids.MethodRef caller) {
         for (OutboundSinkSite site : ctx.index().outboundSinks.sites(compId, method)) {
+            if (site.restrictedCallerComponentId != null
+                    && (caller == null
+                            || !site.restrictedCallerComponentId.equals(caller.component())
+                            || (site.restrictedCallerMethod != null
+                                    && !site.restrictedCallerMethod.equals(caller.method())))) {
+                continue;
+            }
             String topic = site.topic != null ? resolvedCallerArgs.getOrDefault(site.topic, site.topic) : null;
             String channel = site.channel != null ? resolvedCallerArgs.getOrDefault(site.channel, site.channel) : null;
             for (String origName : currentToOriginal.values()) {
@@ -411,7 +514,7 @@ public class DataFlowTracer {
                 sink.calleeQualifiedName = site.calleeQualifiedName;
                 sink.callerComponentId = compId;
                 DataFlowPath path = ctx.pathsByOriginal().get(origName);
-                path.sinks.add(sink);
+                addSinkOnce(ctx, origName, path, sink);
                 recordSinkNode(ctx, path, origName, currentNodeByOriginal.get(origName), sink, null);
             }
         }
@@ -437,7 +540,7 @@ public class DataFlowTracer {
                 DataFlowSink sink = new DataFlowSink(
                         DataFlowSink.Kind.STORE, fieldOwner, compName, fieldName, fw.source, fieldName, fieldOwner);
                 sink.callerComponentId = compId;
-                path.sinks.add(sink);
+                addSinkOnce(ctx, e.getValue(), path, sink);
                 recordSinkNode(ctx, path, e.getValue(), currentNodeByOriginal.get(e.getValue()), sink, null);
             }
         }
@@ -481,7 +584,8 @@ public class DataFlowTracer {
                             nextMapping,
                             nextNodeByOriginal,
                             nextDepth,
-                            edge.resolvedLiteralArgs);
+                            edge.resolvedLiteralArgs,
+                            new dev.dominikbreu.archlens.model.ids.MethodRef(compId, method));
                 }
             }
         }
@@ -518,7 +622,7 @@ public class DataFlowTracer {
             }
             sink.callerComponentId = edge.fromComponentId;
             DataFlowPath path = ctx.pathsByOriginal().get(originalName);
-            path.sinks.add(sink);
+            addSinkOnce(ctx, originalName, path, sink);
             recordSinkNode(ctx, path, originalName, currentNodeByOriginal.get(originalName), sink, edge);
         }
     }
@@ -567,6 +671,55 @@ public class DataFlowTracer {
                 sink.fieldName,
                 sink.source));
         addTopologyEdge(path, fromNodeId, nodeId, edge);
+    }
+
+    /**
+     * Appends {@code sink} to {@code path.sinks} unless an identical sink was already recorded for
+     * the same path. A call-graph diamond (two call routes converging on the same method) makes the
+     * DFS visit a sink-bearing method once per route; without this guard each visit appends a
+     * byte-identical {@link DataFlowSink}, which surfaces downstream as duplicate DataFlowSink
+     * vertices and duplicate WORKFLOW_LINK edges in the projected graph. Flow-topology nodes are
+     * unaffected: {@link #recordSinkNode} still runs per route so every branch arm terminates at a
+     * sink node.
+     *
+     * @param ctx          DFS context holding the per-path identity keys recorded so far
+     * @param originalName tracked-name key identifying the path within this trace
+     * @param path         path the sink belongs to
+     * @param sink         fully populated candidate sink record
+     */
+    private void addSinkOnce(DfsContext ctx, String originalName, DataFlowPath path, DataFlowSink sink) {
+        Set<String> seen = ctx.seenSinkKeys().computeIfAbsent(originalName, ignored -> new HashSet<>());
+        if (seen.add(sinkIdentityKey(sink))) {
+            path.sinks.add(sink);
+        }
+    }
+
+    /**
+     * Builds a key over every identity-bearing field of a sink; equal keys mean the records are
+     * indistinguishable duplicates (same kind, target, destination, and source location).
+     *
+     * @param s the sink to fingerprint
+     * @return identity key for duplicate suppression within a single path
+     */
+    private static String sinkIdentityKey(DataFlowSink s) {
+        return String.join(
+                "|",
+                String.valueOf(s.kind),
+                s.componentId != null ? s.componentId.serialize() : "",
+                String.valueOf(s.method),
+                String.valueOf(s.channel),
+                String.valueOf(s.topic),
+                s.broker != null ? s.broker.name() : "",
+                String.valueOf(s.topicPropertyKey),
+                String.valueOf(s.payloadType),
+                String.valueOf(s.entityType),
+                String.valueOf(s.repositoryOperation),
+                String.valueOf(s.linkEvidence),
+                String.valueOf(s.calleeQualifiedName),
+                s.callerComponentId != null ? s.callerComponentId.serialize() : "",
+                String.valueOf(s.fieldName),
+                s.fieldOwnerComponentId != null ? s.fieldOwnerComponentId.serialize() : "",
+                s.source != null ? s.source.file + ":" + s.source.line : "");
     }
 
     private void addTopologyEdge(DataFlowPath path, String fromNodeId, String toNodeId, CallEdge edge) {

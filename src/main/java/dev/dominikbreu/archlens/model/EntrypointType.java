@@ -30,6 +30,8 @@ public enum EntrypointType {
     SSE_ENDPOINT,
     /** gRPC service method ({@code @GrpcService} or {@code BindableService}). */
     GRPC_METHOD,
+    /** JPA/Hibernate entity lifecycle listener (e.g. {@code PostUpdateEventListener}). */
+    ENTITY_EVENT_LISTENER,
     /** Entrypoint whose trigger type could not be classified. */
     UNKNOWN
 }

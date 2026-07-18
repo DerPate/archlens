@@ -12,6 +12,10 @@ import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Configures the OpenTelemetry SDK (OTLP gRPC export, or a stdout fallback) used to trace the
+ * server. Utility class — not instantiable.
+ */
 public class TracingConfig {
 
     private static final Logger log = LoggerFactory.getLogger(TracingConfig.class);

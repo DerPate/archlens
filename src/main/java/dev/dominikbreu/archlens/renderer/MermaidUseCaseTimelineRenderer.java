@@ -9,8 +9,17 @@ import org.apache.commons.lang3.StringUtils;
  */
 public class MermaidUseCaseTimelineRenderer {
 
+    /** Creates a new use-case timeline renderer. */
     public MermaidUseCaseTimelineRenderer() {}
 
+    /**
+     * Renders a Mermaid Gantt-style timeline of use-case execution.
+     *
+     * @param flows the runtime flows to place on the timeline
+     * @param graph the graph the flows belong to
+     * @param maxDepth how deep to expand each flow
+     * @return the Mermaid diagram source
+     */
     public String render(List<GraphQuery.RuntimeFlowNode> flows, GraphQuery graph, int maxDepth) {
         if (flows.isEmpty()) {
             return "gantt\n    title Use Case Execution Order\n    note[no use cases found]\n";

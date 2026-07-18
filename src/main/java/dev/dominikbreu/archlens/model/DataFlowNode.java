@@ -8,8 +8,11 @@ import dev.dominikbreu.archlens.model.ids.ComponentId;
 public class DataFlowNode {
     /** Role of this node in the topology. */
     public enum Kind {
+        /** Root/source node. */
         ROOT,
+        /** Method invocation or field access node. */
         METHOD,
+        /** Outbound sink node. */
         SINK
     }
 

@@ -15,10 +15,21 @@ public class InferContainersTool {
 
     private final ModelCache cache;
 
+    /**
+     * Creates the tool with access to the model cache.
+     *
+     * @param cache model cache to query
+     */
     public InferContainersTool(ModelCache cache) {
         this.cache = cache;
     }
 
+    /**
+     * Infers logical containers that group related components, returning them as text and structured data.
+     *
+     * @param args tool arguments (optional application filter)
+     * @return the inferred containers
+     */
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();

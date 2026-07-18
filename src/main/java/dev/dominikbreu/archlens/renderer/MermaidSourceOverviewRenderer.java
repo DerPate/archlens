@@ -14,8 +14,16 @@ import java.util.stream.Collectors;
  */
 public class MermaidSourceOverviewRenderer {
 
+    /** Creates a new source-overview renderer. */
     public MermaidSourceOverviewRenderer() {}
 
+    /**
+     * Renders a Mermaid package/source overview grouped by package.
+     *
+     * @param graph the graph to render
+     * @param maxComponentsPerPackage cap on components shown per package
+     * @return the Mermaid diagram source
+     */
     public String render(GraphQuery graph, int maxComponentsPerPackage) {
         int maxPerPackage = maxComponentsPerPackage <= 0 ? 25 : maxComponentsPerPackage;
         List<GraphQuery.ComponentNode> components = graph.allComponentNodes();

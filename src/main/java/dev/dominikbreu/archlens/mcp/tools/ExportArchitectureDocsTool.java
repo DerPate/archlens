@@ -28,10 +28,21 @@ public class ExportArchitectureDocsTool {
     private final MermaidDependencySliceRenderer dependencySliceRenderer = new MermaidDependencySliceRenderer();
     private final MermaidDependencyMapRenderer dependencyMapRenderer = new MermaidDependencyMapRenderer();
 
+    /**
+     * Initializes the architecture documentation export tool with access to the model cache.
+     *
+     * @param cache model cache to query
+     */
     public ExportArchitectureDocsTool(ModelCache cache) {
         this.cache = cache;
     }
 
+    /**
+     * Executes the architecture documentation export tool, writing Markdown with diagrams.
+     *
+     * @param args arguments containing optional outputPath
+     * @return confirmation message plus metadata about generated diagrams
+     */
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();

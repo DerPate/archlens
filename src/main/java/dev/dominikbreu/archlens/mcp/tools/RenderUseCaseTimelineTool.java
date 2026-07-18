@@ -16,10 +16,21 @@ public class RenderUseCaseTimelineTool {
     private final ModelCache cache;
     private final MermaidUseCaseTimelineRenderer renderer = new MermaidUseCaseTimelineRenderer();
 
+    /**
+     * Creates the tool with access to the model cache.
+     *
+     * @param cache model cache to query
+     */
     public RenderUseCaseTimelineTool(ModelCache cache) {
         this.cache = cache;
     }
 
+    /**
+     * Renders a Mermaid timeline of use-case execution order for an entrypoint.
+     *
+     * @param args arguments identifying the entrypoint/use case
+     * @return the timeline diagram and supporting data
+     */
     public ToolResult execute(Map<String, Object> args) {
         try {
             GraphQuery graph = cache.graph();
