@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "quarkus-integration-config",
+  "workspace": "../../../src/test/resources/testprojects/quarkus-sample",
+  "questions": [
+    {
+      "id": "configuration-context-known-key",
+      "question": "What does the orders-in messaging connector property resolve to?",
+      "tool": "answer_architecture_question",
+      "arguments": {"family": "configuration_context", "query": "mp.messaging.incoming.orders-in.connector"},
+      "assertions": [
+        {
+          "path": "answer.declarations",
+          "where": {"properties.key": "mp.messaging.incoming.orders-in.connector", "properties.value": "smallrye-kafka"},
+          "minCount": 1
+        }
+      ]
+    },
+    {
+      "id": "external-integration-unresolved-base-url",
+      "question": "Which use cases call the billing integration client, and where is its base URL configured?",
+      "tool": "answer_architecture_question",
+      "arguments": {"family": "external_integration_context", "component": "BillingClient"},
+      "assertions": [
+        {"path": "unresolved", "contains": "base-url-not-modeled"},
+        {"path": "unresolved", "contains": "no-caller-resolved"}
+      ]
+    }
+  ]
+}
