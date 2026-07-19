@@ -2,16 +2,10 @@ package dev.dominikbreu.archlens.extractor;
 
 import dev.dominikbreu.archlens.model.MessagingBroker;
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.yaml.snakeyaml.Yaml;
 
 /**
  * Resolves SmallRye Reactive Messaging channel configuration from
@@ -25,8 +19,9 @@ import org.yaml.snakeyaml.Yaml;
  *       — broker-side destination name (Kafka topic, AMQP address, RabbitMQ queue/exchange)</li>
  * </ul>
  *
- * <p>This is the only configuration file read in the entire extractor pipeline. Reading any
- * other property is forbidden — see {@code docs/ARCHITECTURE.md}.
+ * <p>File reading and flattening is shared with {@link ConfigPropertyResolver} via
+ * {@link PropertyFileReader}. This resolver's own scope stays narrow: only the
+ * {@code mp.messaging.*} property family — see {@code docs/ARCHITECTURE.md}.
  */
 public class MessagingConfigResolver {
 
@@ -35,9 +30,6 @@ public class MessagingConfigResolver {
 
     private static final Pattern DESTINATION_KEY = Pattern.compile(
             "^mp\\.messaging\\.(incoming|outgoing)\\.(.+)\\.(topic|address|queue\\.name|exchange\\.name)$");
-
-    private static final List<String> RESOURCE_FILES =
-            List.of("application.properties", "application.yaml", "application.yml");
 
     /** Per-channel resolved configuration. */
     public static final class ChannelConfig {
@@ -68,25 +60,11 @@ public class MessagingConfigResolver {
      * @return map from channel name to {@link ChannelConfig}; missing channels are simply absent
      */
     public Map<String, ChannelConfig> resolve(File moduleRoot) {
+        File resources = new File(moduleRoot, "src/main/resources");
+        Map<String, String> flat = PropertyFileReader.readAll(resources);
         Map<String, MessagingBroker> brokers = new LinkedHashMap<>();
         Map<String, String> topics = new LinkedHashMap<>();
-        File resources = new File(moduleRoot, "src/main/resources");
-        if (!resources.isDirectory()) return Map.of();
-
-        for (String name : RESOURCE_FILES) {
-            File file = new File(resources, name);
-            if (!file.isFile()) continue;
-            try {
-                Map<String, String> flat;
-                if (name.endsWith(".properties")) {
-                    flat = readProperties(file);
-                } else {
-                    flat = readYaml(file);
-                }
-                collect(flat, brokers, topics);
-            } catch (IOException _) {
-            }
-        }
+        collect(flat, brokers, topics);
 
         Map<String, ChannelConfig> result = new LinkedHashMap<>();
         for (Map.Entry<String, MessagingBroker> e : brokers.entrySet()) {
@@ -110,53 +88,6 @@ public class MessagingConfigResolver {
             if (dm.matches()) {
                 // First value wins — incoming/outgoing rarely conflict for the same channel name.
                 topics.putIfAbsent(dm.group(2), entry.getValue());
-            }
-        }
-    }
-
-    private Map<String, String> readProperties(File file) throws IOException {
-        Properties props = new Properties();
-        try (InputStream in = Files.newInputStream(file.toPath())) {
-            props.load(in);
-        }
-        Map<String, String> out = new LinkedHashMap<>();
-        for (String key : props.stringPropertyNames()) {
-            out.put(key, props.getProperty(key));
-        }
-        return out;
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, String> readYaml(File file) throws IOException {
-        Yaml yaml = new Yaml();
-        Object root;
-        try (InputStream in = Files.newInputStream(file.toPath())) {
-            root = yaml.load(in);
-        }
-        Map<String, String> out = new LinkedHashMap<>();
-        if (!(root instanceof Map<?, ?> map)) return out;
-        Map<String, Object> flat = new LinkedHashMap<>();
-        flatten("", (Map<String, Object>) map, flat);
-        for (Map.Entry<String, Object> entry : flat.entrySet()) {
-            out.put(entry.getKey(), String.valueOf(entry.getValue()));
-        }
-        return out;
-    }
-
-    @SuppressWarnings("unchecked")
-    private void flatten(String prefix, Map<String, Object> in, Map<String, Object> out) {
-        for (Map.Entry<String, Object> entry : in.entrySet()) {
-            String key;
-            if (prefix.isEmpty()) {
-                key = entry.getKey();
-            } else {
-                key = prefix + "." + entry.getKey();
-            }
-            Object value = entry.getValue();
-            if (value instanceof Map<?, ?> nested) {
-                flatten(key, (Map<String, Object>) nested, out);
-            } else {
-                out.put(key, value);
             }
         }
     }

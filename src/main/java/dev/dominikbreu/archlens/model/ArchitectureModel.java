@@ -64,6 +64,9 @@ public class ArchitectureModel {
     /** Effective method transaction policies extracted from framework declarations/defaults. */
     @JsonProperty("transaction_policies")
     public List<TransactionPolicy> transactionPolicies = new ArrayList<>();
+    /** Discovered non-secret configuration properties. */
+    @JsonProperty("config_properties")
+    public List<ConfigProperty> configProperties = new ArrayList<>();
 
     /** Creates an empty architecture model for JSON deserialization. */
     public ArchitectureModel() {}
