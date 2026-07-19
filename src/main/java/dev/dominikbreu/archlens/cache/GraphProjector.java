@@ -183,6 +183,8 @@ class GraphProjector {
         set(vertex, "channelName", entrypoint.channelName);
         setLower(vertex, BROKER, entrypoint.broker != null ? entrypoint.broker.name() : null);
         set(vertex, TOPIC, entrypoint.topic);
+        set(vertex, "triggerKind", entrypoint.triggerKind);
+        set(vertex, "triggerExpression", entrypoint.triggerExpression);
         set(vertex, "parameters", String.join(",", entrypoint.parameters));
         set(vertex, "protocol", protocolFor(entrypoint));
         set(vertex, COMPONENT_ID, entrypoint.componentId != null ? entrypoint.componentId.serialize() : null);
