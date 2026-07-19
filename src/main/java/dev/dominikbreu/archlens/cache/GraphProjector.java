@@ -247,12 +247,13 @@ class GraphProjector {
     }
 
     private void addConfigurationEdges(ArchitectureModel sourceModel) {
+        Map<String, ConfigProperty> propertiesByKey = new LinkedHashMap<>();
+        for (ConfigProperty property : sourceModel.configProperties) {
+            propertiesByKey.putIfAbsent(property.key, property);
+        }
         for (ExternalSystem externalSystem : sourceModel.externalSystems) {
             if (StringUtils.isBlank(externalSystem.baseUrlConfigKey)) continue;
-            ConfigProperty property = sourceModel.configProperties.stream()
-                    .filter(p -> p.key != null && p.key.contains(externalSystem.baseUrlConfigKey))
-                    .findFirst()
-                    .orElse(null);
+            ConfigProperty property = findBaseUrlProperty(propertiesByKey, externalSystem.baseUrlConfigKey);
             if (property == null) continue;
             addEdge(
                     externalSystem.id,
@@ -260,6 +261,18 @@ class GraphProjector {
                     "CONFIGURED_BY",
                     EvidenceNormalizer.fromSource(externalSystem.source));
         }
+    }
+
+    private static ConfigProperty findBaseUrlProperty(Map<String, ConfigProperty> propertiesByKey, String configKey) {
+        for (String candidate : List.of(
+                "quarkus.rest-client." + configKey + ".url",
+                "quarkus.rest-client." + configKey + ".uri",
+                configKey + "/mp-rest/url",
+                configKey + "/mp-rest/uri")) {
+            ConfigProperty match = propertiesByKey.get(candidate);
+            if (match != null) return match;
+        }
+        return null;
     }
 
     private void addPersistenceUnit(PersistenceUnitInfo unit) {

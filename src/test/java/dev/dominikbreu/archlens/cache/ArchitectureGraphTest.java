@@ -653,6 +653,31 @@ class ArchitectureGraphTest {
     }
 
     @Test
+    void configuredByDoesNotMatchAnUnrelatedPropertyContainingTheConfigKeyAsASubstring() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        ExternalSystem billing = new ExternalSystem();
+        billing.id = "ext:rest:billing";
+        billing.name = "billing";
+        billing.kind = "REST_API";
+        billing.technology = "microprofile-rest-client";
+        billing.baseUrlConfigKey = "billing";
+        model.externalSystems.add(billing);
+
+        ConfigProperty unrelated = new ConfigProperty();
+        unrelated.id = "config:reports-app:reports.billing.enabled";
+        unrelated.key = "reports.billing.enabled";
+        unrelated.value = "true";
+        unrelated.resolved = true;
+        unrelated.appId = AppId.of("reports-app");
+        unrelated.sourceFile = "application.properties";
+        model.configProperties.add(unrelated);
+
+        GraphQuery graph = buildGraph(model);
+
+        assertThat(graph.findEdges("CONFIGURED_BY", Map.of(), 10)).isEmpty();
+    }
+
+    @Test
     void exposesMessagingEntrypointMetadataOnGraphNode() {
         ArchitectureModel model = new ArchitectureModel("test");
         Entrypoint ep = new Entrypoint();
