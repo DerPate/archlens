@@ -78,7 +78,19 @@ Indexing a mid-sized Spring Boot service (~500 components, ~300 entrypoints) and
         "sourceFile": ".../AuditController.java",
         "sourceLine": 44,
         "derivedFrom": "annotation",
-        "confidence": 1.0
+        "confidence": 1.0,
+        "confidenceBand": "known",
+        "ambiguous": false,
+        "evidence": "annotation"
+      },
+      "evidence": {
+        "sourceFile": ".../AuditController.java",
+        "sourceLine": 44,
+        "derivedFrom": "annotation",
+        "confidence": 1.0,
+        "confidenceBand": "known",
+        "ambiguous": false,
+        "evidence": "annotation"
       }
       }
     ]

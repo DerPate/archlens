@@ -2,6 +2,7 @@
 target/
 # Gradle (test-fixture projects generate .gradle/ caches)
 .gradle/
+src/test/resources/testprojects/*/bin/
 dependency-reduced-pom.xml
 pom.xml.tag
 pom.xml.releaseBackup
@@ -23,6 +24,10 @@ release.properties
 dependency-check-report.html
 dependency-check-report.json
 dependency-check-report.xml
+
+# Python (benchmark/Phoenix scripts)
+__pycache__/
+*.pyc
 
 # Logs
 *.log

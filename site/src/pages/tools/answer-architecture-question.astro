@@ -1,0 +1,69 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  title="answer_architecture_question — ArchLens"
+  description="Answer stable Java maintenance questions with evidence, unresolved facts, and ambiguity preserved."
+>
+  <section class="tool-page">
+    <div class="container">
+      <div class="tool-page-header">
+        <h1 class="tool-page-title">answer_architecture_question</h1>
+        <span class="tool-page-badge">Query</span>
+      </div>
+
+      <p class="tool-page-intro">
+        A question-oriented view over the indexed graph. It combines the relevant graph nodes and
+        edges into four stable contracts: persistence destination, consumer context, grouped
+        change impact, and transaction context. Missing runtime configuration is returned as an
+        unresolved fact instead of being guessed.
+      </p>
+
+      <h2 class="tool-section-label">Arguments</h2>
+      <table class="arg-table">
+        <thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>family</td><td>string</td><td>yes</td><td><code>persistence_destination</code>, <code>consumer_context</code>, <code>impact</code>, or <code>transaction_context</code>.</td></tr>
+          <tr><td>entrypoint</td><td>string</td><td>by family</td><td>Entrypoint ID, name, or <code>METHOD /path</code>.</td></tr>
+          <tr><td>component</td><td>string</td><td>by family</td><td>Component simple name or qualified ID.</td></tr>
+          <tr><td>query</td><td>string</td><td>—</td><td>Persistence operation, entity, or component query.</td></tr>
+          <tr><td>param / method</td><td>string</td><td>—</td><td>Optional parameter or method selector.</td></tr>
+          <tr><td>maxDepth</td><td>integer</td><td>—</td><td>Impact depth. Default: <code>4</code>.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 class="tool-section-label">Example</h2>
+      <div class="terminal-card">
+        <div class="terminal-top"><span></span><span></span><span></span><strong>tools/call</strong></div>
+        <pre><code>{`{
+  "name": "answer_architecture_question",
+  "arguments": {
+    "family": "persistence_destination",
+    "entrypoint": "POST /api/orders/{id}",
+    "param": "id"
+  }
+}`}</code></pre>
+      </div>
+
+      <h2 class="tool-section-label">Output</h2>
+      <p class="tool-page-intro">
+        Every response contains <code>family</code>, <code>status</code>,
+        <code>subject</code>, <code>answer</code>, <code>unresolved</code>, and
+        <code>ambiguous</code>. A <code>partial</code> or <code>ambiguous</code> status is a valid,
+        evidence-bearing answer. Family-specific sections include evidence chains, destinations,
+        upstream/downstream context, grouped impact, or transaction scope transitions.
+      </p>
+
+      <h2 class="tool-section-label">Related tools</h2>
+      <div class="related-pills">
+        <a href="/tools/index-workspace" class="related-pill">index_workspace</a>
+        <a href="/tools/query-architecture-graph" class="related-pill">query_architecture_graph</a>
+        <a href="/tools/trace-data-flow" class="related-pill">trace_data_flow</a>
+        <a href="/tools/render-pipeline" class="related-pill">render_pipeline</a>
+      </div>
+
+      <a href="/#tools" class="tool-back-link">← All tools</a>
+    </div>
+  </section>
+</BaseLayout>

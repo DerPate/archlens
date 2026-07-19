@@ -8,6 +8,10 @@ This guide walks through building ArchLens and wiring it into an MCP client.
 - Maven 3.9 or newer (`mvn -v`)
 - An MCP-capable client (Claude Desktop, Claude Code, or any client that can launch a stdio MCP server)
 
+Java 25 is required to run ArchLens, not the application being analyzed. The target
+workspace does not need to build or run on Java 25 because ArchLens reads its source with
+Spoon in no-classpath mode.
+
 ### Installing prerequisites on Linux
 
 Pick the snippet for your distribution. All three install OpenJDK 25 and Maven from the official package repositories.

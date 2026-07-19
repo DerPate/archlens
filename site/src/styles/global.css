@@ -398,6 +398,7 @@ pre {
 }
 
 .workflow-section,
+.dashboard-section,
 .install-section {
   background: color-mix(in srgb, var(--terminal-charcoal) 74%, var(--void-black));
 }
@@ -597,38 +598,32 @@ pre {
   overflow: hidden;
 }
 
-/* ── Phase strip ───────────────────────────────────────────── */
-.phase-strip {
-  border-block: 1px solid var(--border-soft);
-  background: var(--terminal-charcoal);
-  margin-bottom: 2rem;
-}
-
-.phase-strip-grid {
+/* ── Tool groups ───────────────────────────────────────────── */
+.tool-groups {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1px;
+  gap: 2rem;
 }
 
-.phase-strip-label {
+.tool-group-heading {
   min-height: 56px;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  margin: 0 0 1rem;
   padding: 0.75rem 1rem;
+  border: 1px solid var(--border-soft);
+  background: var(--terminal-charcoal);
   font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  border-inline: 1px solid color-mix(in srgb, var(--surface-0) 38%, transparent);
 }
 
-.phase-strip-label--index  { color: var(--electric-cyan); }
-.phase-strip-label--query  { color: var(--matrix-green); }
-.phase-strip-label--render { color: var(--agent-orange); }
-.phase-strip-label--export { color: var(--console-gray); }
+.tool-group--index .tool-group-heading  { color: var(--electric-cyan); }
+.tool-group--query .tool-group-heading  { color: var(--matrix-green); }
+.tool-group--render .tool-group-heading { color: var(--agent-orange); }
+.tool-group--export .tool-group-heading { color: var(--console-gray); }
 
-/* ── Tool grid ─────────────────────────────────────────────── */
-.tool-grid {
+.tool-group-list {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1rem;
@@ -869,20 +864,14 @@ pre {
   .quickstart-grid {
     grid-template-columns: 1fr;
   }
-  .tool-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .phase-strip-grid {
+  .tool-group-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 680px) {
-  .tool-grid {
+  .tool-group-list {
     grid-template-columns: 1fr;
-  }
-  .phase-strip-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .api-teaser {
     flex-direction: column;
