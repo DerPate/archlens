@@ -291,6 +291,15 @@ public class QuarkusExtractor {
         ep.name = method.getSimpleName();
         ep.componentId = component.id;
         ep.source = new SourceInfo(getFile(method), getLine(method), ANNOTATION, 1.0);
+        String cron = getAnnotationAttributeValue(method, SCHEDULED_ANNOTATIONS, "cron");
+        String every = getAnnotationAttributeValue(method, SCHEDULED_ANNOTATIONS, "every");
+        if (!cron.isEmpty()) {
+            ep.triggerKind = "CRON";
+            ep.triggerExpression = cron;
+        } else if (!every.isEmpty()) {
+            ep.triggerKind = "EVERY";
+            ep.triggerExpression = every;
+        }
         model.entrypoints.add(ep);
     }
 

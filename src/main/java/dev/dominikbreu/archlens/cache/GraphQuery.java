@@ -1510,6 +1510,8 @@ public class GraphQuery {
                         vStr(vertex, "channelName"),
                         vEnum(vertex, BROKER, MessagingBroker.class),
                         vStr(vertex, TOPIC),
+                        vStr(vertex, "triggerKind"),
+                        vStr(vertex, "triggerExpression"),
                         vList(vertex, "parameters"),
                         vStr(vertex, "protocol"),
                         vComponentId(vertex, COMPONENT_ID),
@@ -2113,6 +2115,8 @@ public class GraphQuery {
      * @param channelName the messaging channel name, or {@code null}
      * @param broker the messaging broker, or {@code null}
      * @param topic the broker-side destination/topic, or {@code null}
+     * @param triggerKind the scheduler trigger kind, or {@code null}
+     * @param triggerExpression the raw declared scheduler trigger value, or {@code null}
      * @param parameters the entrypoint parameter names
      * @param protocol the transport protocol, or {@code null}
      * @param componentId the owning component id
@@ -2127,6 +2131,8 @@ public class GraphQuery {
             String channelName,
             MessagingBroker broker,
             String topic,
+            String triggerKind,
+            String triggerExpression,
             List<String> parameters,
             String protocol,
             ComponentId componentId,
@@ -2151,6 +2157,8 @@ public class GraphQuery {
             m.put("topic", topic);
             if (!parameters.isEmpty()) m.put("parameters", String.join(",", parameters));
             m.put("protocol", protocol);
+            m.put("triggerKind", triggerKind);
+            m.put("triggerExpression", triggerExpression);
             if (componentId != null) m.put("componentId", componentId.serialize());
             putEvidenceProperties(m, source);
             m.entrySet().removeIf(e -> e.getValue() == null);

@@ -27,6 +27,10 @@ public class Entrypoint {
     public String topic;
     /** Component that owns the entrypoint. */
     public ComponentId componentId;
+    /** Scheduler trigger kind (CRON, FIXED_RATE, FIXED_DELAY, EVERY), or null for non-scheduler entrypoints. */
+    public String triggerKind;
+    /** Raw declared trigger value (cron expression, millisecond interval, duration string). */
+    public String triggerExpression;
     /** Source file and evidence metadata for this entrypoint. */
     public SourceInfo source;
     /** Parameter names of the entrypoint method, in declaration order. */

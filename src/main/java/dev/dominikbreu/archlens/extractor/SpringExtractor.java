@@ -217,7 +217,7 @@ public class SpringExtractor {
                 addInterface(method, component, "rest_endpoint", mapping.method() + " " + fullPath, fullPath, model);
             }
             if (hasAnnotation(method, SCHEDULED)) {
-                addSimpleEntrypoint(method, type, component, EntrypointType.SCHEDULER, "scheduled", model);
+                addScheduledEntrypoint(method, type, component, model);
             }
             addListenerEntrypoint(
                     method,
@@ -299,6 +299,35 @@ public class SpringExtractor {
         ep.name = method.getSimpleName();
         ep.componentId = component.id;
         ep.source = new SourceInfo(getFile(method), getLine(method), ANNOTATION, 0.95);
+        model.entrypoints.add(ep);
+    }
+
+    private void addScheduledEntrypoint(
+            CtMethod<?> method, CtType<?> type, Component component, ArchitectureModel model) {
+        dev.dominikbreu.archlens.model.ids.EntrypointId id = new dev.dominikbreu.archlens.model.ids.EntrypointId(
+                dev.dominikbreu.archlens.model.ids.ComponentId.of(type.getQualifiedName()),
+                method.getSimpleName(),
+                "scheduled");
+        if (model.entrypoints.stream().anyMatch(e -> id.equals(e.id))) return;
+        Entrypoint ep = new Entrypoint();
+        ep.id = id;
+        ep.type = EntrypointType.SCHEDULER;
+        ep.name = method.getSimpleName();
+        ep.componentId = component.id;
+        ep.source = new SourceInfo(getFile(method), getLine(method), ANNOTATION, 0.95);
+        String cron = annotationAttribute(method, SCHEDULED, "cron");
+        String fixedRate = firstNonEmptyAttribute(method, SCHEDULED, "fixedRate", "fixedRateString");
+        String fixedDelay = firstNonEmptyAttribute(method, SCHEDULED, "fixedDelay", "fixedDelayString");
+        if (!cron.isEmpty()) {
+            ep.triggerKind = "CRON";
+            ep.triggerExpression = cron;
+        } else if (!fixedRate.isEmpty()) {
+            ep.triggerKind = "FIXED_RATE";
+            ep.triggerExpression = fixedRate;
+        } else if (!fixedDelay.isEmpty()) {
+            ep.triggerKind = "FIXED_DELAY";
+            ep.triggerExpression = fixedDelay;
+        }
         model.entrypoints.add(ep);
     }
 
