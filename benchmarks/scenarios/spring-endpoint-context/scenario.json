@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "id": "spring-endpoint-context",
+  "workspace": "../../../src/test/resources/testprojects/spring-pipeline-sample",
+  "questions": [
+    {
+      "id": "endpoint-context-forward-typed",
+      "question": "Give the complete endpoint context for order creation.",
+      "tool": "answer_architecture_question",
+      "arguments": {"family": "endpoint_context", "entrypoint": "POST /api/orders/{id}"},
+      "assertions": [
+        {"path": "answer.mode", "equals": "forward"},
+        {"path": "answer.inbound.httpMethod", "equals": "POST"},
+        {
+          "path": "answer.dataFlowSinks",
+          "where": {"properties.entityType": "com.example.pipeline.model.OrderEntity"},
+          "minCount": 1
+        },
+        {"path": "unresolved", "contains": "security-not-modeled"}
+      ]
+    },
+    {
+      "id": "endpoint-context-forward-natural-language",
+      "question": "What happens on POST /api/orders/{id}?",
+      "tool": "answer_architecture_question",
+      "arguments": {"question": "What happens on POST /api/orders/{id}?"},
+      "assertions": [
+        {"path": "interpretation.intent", "equals": "endpoint_context"},
+        {"path": "answer.mode", "equals": "forward"},
+        {"path": "answer.owningComponent.id", "equals": "com.example.pipeline.api.OrderController"}
+      ]
+    },
+    {
+      "id": "endpoint-context-reverse",
+      "question": "Which endpoints call OrderRepository?",
+      "tool": "answer_architecture_question",
+      "arguments": {"question": "Which endpoints call OrderRepository?"},
+      "assertions": [
+        {"path": "interpretation.intent", "equals": "endpoint_context"},
+        {"path": "answer.mode", "equals": "reverse"},
+        {
+          "path": "answer.affectedEntrypoints",
+          "where": {"properties.path": "/api/orders/{id}"},
+          "minCount": 1
+        }
+      ]
+    },
+    {
+      "id": "unsupported-question",
+      "question": "What color is the sky?",
+      "tool": "answer_architecture_question",
+      "arguments": {"question": "What color is the sky?"},
+      "assertions": [{"path": "status", "equals": "unsupported"}]
+    },
+    {
+      "id": "needs-clarification-question",
+      "question": "Does persist break anything?",
+      "tool": "answer_architecture_question",
+      "arguments": {"question": "Does persist break anything?"},
+      "assertions": [
+        {"path": "status", "equals": "needs-clarification"},
+        {"path": "clarifications", "minCount": 1}
+      ]
+    }
+  ]
+}
