@@ -7,7 +7,7 @@ import javax.ejb.TransactionAttribute;
 import javax.ejb.TransactionAttributeType;
 import com.example.model.Customer;
 
-@Stateless
+@Stateless(name = "CustomerProcessor")
 public class CustomerEjb {
 
     @PersistenceContext(unitName = "customer-unit")

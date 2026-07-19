@@ -62,19 +62,24 @@ public class JavaEEExtractor {
         ComponentType compType = null;
         String tech = "javaee";
         List<String> stereos = new ArrayList<>();
+        String ejbName = null;
 
         if (hasAnn(type, EJB_STATELESS)) {
             compType = ComponentType.EJB_STATELESS;
             stereos.add("ejb-stateless");
+            ejbName = getAnnotationNameValue(type, EJB_STATELESS);
         } else if (hasAnn(type, EJB_STATEFUL)) {
             compType = ComponentType.EJB_STATEFUL;
             stereos.add("ejb-stateful");
+            ejbName = getAnnotationNameValue(type, EJB_STATEFUL);
         } else if (hasAnn(type, EJB_SINGLETON)) {
             compType = ComponentType.EJB_SINGLETON;
             stereos.add("ejb-singleton");
+            ejbName = getAnnotationNameValue(type, EJB_SINGLETON);
         } else if (hasAnn(type, MESSAGE_DRIVEN)) {
             compType = ComponentType.MESSAGE_DRIVEN_BEAN;
             stereos.add("mdb");
+            ejbName = getAnnotationNameValue(type, MESSAGE_DRIVEN);
         } else if (hasAnn(type, JAX_RS_PATH)) {
             compType = ComponentType.REST_RESOURCE;
             stereos.add("jax-rs");
@@ -94,6 +99,7 @@ public class JavaEEExtractor {
         c.module = appId;
         c.technology = tech;
         c.stereotypes = stereos;
+        c.ejbName = ejbName;
         c.source = new SourceInfo(getFile(type), getLine(type), ANNOTATION, 0.95);
         return c;
     }
@@ -203,6 +209,28 @@ public class JavaEEExtractor {
         } catch (Exception _) {
             return "";
         }
+    }
+
+    private String getAnnotationNameValue(CtElement element, Set<String> names) {
+        for (var ann : element.getAnnotations()) {
+            if (!annMatches(ann, names)) continue;
+            try {
+                CtExpression<?> val = ann.getValue("name");
+                if (val == null) return null;
+                if (val instanceof CtLiteral<?> lit) {
+                    Object v = lit.getValue();
+                    return v != null && !v.toString().isEmpty() ? v.toString() : null;
+                }
+                String str = val.toString();
+                if (str.startsWith("\"") && str.endsWith("\"")) {
+                    return str.substring(1, str.length() - 1);
+                }
+                return str;
+            } catch (Exception _) {
+                return null;
+            }
+        }
+        return null;
     }
 
     private String normalizePath(String path) {

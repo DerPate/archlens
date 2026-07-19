@@ -23,6 +23,12 @@ public class Component {
     public String technology;
     /** Additional framework or architecture labels discovered during extraction. */
     public List<String> stereotypes = new ArrayList<>();
+    /**
+     * Explicit EJB name from {@code @Stateless}/{@code @Singleton}/{@code @Stateful}/
+     * {@code @MessageDriven}({@code name=...}), when declared; null when the ejb-name defaults
+     * to the simple class name.
+     */
+    public String ejbName;
     /** Source file and evidence metadata for this component. */
     public SourceInfo source;
 
