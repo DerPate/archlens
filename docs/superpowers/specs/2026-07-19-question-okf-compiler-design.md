@@ -102,7 +102,7 @@ omitted only when the indexed graph identifies exactly one project root.
 ```json
 {
   "status": "created",
-  "conceptPath": "/work/order-service/docs/agent-wiki/investigations/persistence-destination/order-resource-create-a18f42c9.md",
+  "conceptPath": "/work/order-service/docs/agent-wiki/investigations/persistence-destination/order-resource-create-a18f42c9d070.md",
   "indexPath": "/work/order-service/docs/agent-wiki/index.md",
   "logPath": "/work/order-service/docs/agent-wiki/log.md",
   "semanticKey": "a18f42c9...",
@@ -120,8 +120,9 @@ non-writing outcome that identifies the target and warns that a second call with
 
 `answer_architecture_question` will add a normalized `request` object to its common structured
 envelope. It contains canonical effective selectors after natural-language interpretation or
-typed argument resolution. Examples include canonical entrypoint/component IDs, `target`,
-`param`, `method`, `field`, `query`, mode, and traversal limits that define the declared scope.
+typed argument resolution. It excludes the raw natural-language wording and selectors ignored by
+the resolved family. Examples include canonical entrypoint/component IDs, `target`, `param`,
+`method`, `field`, `query`, mode, and traversal limits that define the declared scope.
 
 This is an additive MCP contract change. It is required because typed calls currently lose some
 meaning-changing selectors in their result. Deriving identity from the returned answer would be
@@ -155,7 +156,8 @@ policy.
 - canonical resolved subject ID;
 - canonical target ID where applicable;
 - meaning-changing selectors such as parameter, method, field, query, or mode; and
-- traversal limits only when they define the investigation's declared scope.
+- `maxDepth` for `impact`, reverse `endpoint_context`, and `relationship`, where it defines the
+  investigation's declared scope.
 
 It hashes the canonical JSON with SHA-256 and combines a readable subject slug with a short hash
 suffix. Map insertion order and natural-language rewording do not affect identity.
@@ -183,9 +185,9 @@ classes. Graph access remains through `GraphQuery`.
 
 ## Project and Path Safety
 
-The compiler obtains indexed roots from graph application `rootPath` properties. `projectPath`
-must resolve to one of those roots. Omitting it is valid only when a single distinct root exists.
-The selected canonical project path is recorded in the generated concept.
+For this feature, an indexed project root is a distinct canonical graph application `rootPath`.
+`projectPath` must resolve to one of those roots. Omitting it is valid only when exactly one such
+root exists. The selected canonical project path is recorded in the generated concept.
 
 `bundlePath` and `templatePath` resolve relative to the selected project root. The compiler
 rejects:
@@ -208,18 +210,18 @@ docs/agent-wiki/
 ├── log.md
 └── investigations/
     └── <family-slug>/
-        └── <subject-slug>-<semantic-key-prefix>.md
+        └── <subject-slug>-<12-hex-semantic-key-prefix>.md
 ```
 
 Example:
 
 ```text
-investigations/persistence-destination/order-resource-create-a18f42c9.md
+investigations/persistence-destination/order-resource-create-a18f42c9d070.md
 ```
 
-The full SHA-256 semantic key is stored in frontmatter. The readable filename suffix uses enough
-leading characters to make accidental collisions impractical; before writing, the compiler also
-confirms that an existing target carries the same full key.
+The full SHA-256 semantic key is stored in frontmatter. The readable filename suffix uses its first
+12 hexadecimal characters. Before writing, the compiler also confirms that an existing target
+carries the same full key.
 
 Recompiling the same semantic investigation after re-indexing updates the same concept. Changes
 to selectors that alter meaning produce a different concept.
@@ -279,9 +281,9 @@ block placeholders:
 ArchLens renders the structured blocks; the template does not traverse arbitrary objects or
 execute expressions. This avoids adding a programming-capable template engine in version 1.
 
-The compiler rejects templates with a missing required placeholder, duplicate `frontmatter`, or
-an unknown placeholder. Customization belongs in the template because generated concept files are
-fully replaced during refresh.
+All eight listed placeholders must appear exactly once, even when a block renders empty. The
+compiler rejects a missing, duplicate, or unknown placeholder. Customization belongs in the
+template because generated concept files are fully replaced during refresh.
 
 ## Index and Log Updates
 
