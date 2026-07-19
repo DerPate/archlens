@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "id": "spring-full-domain",
+  "workspace": "../../../src/test/resources/testprojects/spring-pipeline-sample",
+  "questions": [
+    {
+      "id": "messaging-flow-forward",
+      "question": "Who publishes orders.created?",
+      "tool": "answer_architecture_question",
+      "arguments": {"question": "Who publishes orders.created?"},
+      "assertions": [
+        {"path": "interpretation.intent", "equals": "messaging_flow"},
+        {"path": "answer.topic", "equals": "orders.created"}
+      ]
+    },
+    {
+      "id": "scheduled-workflow-trigger-evidence",
+      "question": "What does this scheduled job trigger?",
+      "tool": "answer_architecture_question",
+      "arguments": {"family": "scheduled_workflow", "entrypoint": "dispatchReadyOrders"},
+      "assertions": [
+        {"path": "answer.triggerEvidence.kind", "equals": "FIXED_DELAY"},
+        {"path": "answer.triggerEvidence.expression", "equals": "1000"},
+        {"path": "answer.runtimeCalls", "minCount": 1}
+      ]
+    },
+    {
+      "id": "state-lifecycle-unresolved-field",
+      "question": "Where is field nonexistentField written and read?",
+      "tool": "answer_architecture_question",
+      "arguments": {"family": "state_lifecycle", "field": "nonexistentField"},
+      "assertions": [
+        {"path": "unresolved", "contains": "no-writer-resolved-for-field:nonexistentField"}
+      ]
+    },
+    {
+      "id": "relationship-neighborhood",
+      "question": "How is OrderRepository related to the rest of the system?",
+      "tool": "answer_architecture_question",
+      "arguments": {"family": "relationship", "component": "OrderRepository"},
+      "assertions": [
+        {"path": "status", "equals": "resolved"}
+      ]
+    }
+  ]
+}
