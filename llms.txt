@@ -1,6 +1,6 @@
 # ArchLens
 
-ArchLens is a Java 21 Maven project that implements a stdio Model Context
+ArchLens is a Java 25 Maven project that implements a stdio Model Context
 Protocol (MCP) server for static architecture analysis of Java workspaces. It uses
 [Spoon](https://spoon.gforge.inria.fr/) to parse and model Java sources, then exposes
 architecture-oriented tools (component listing, dependency tracing, call graph extraction,
@@ -12,7 +12,7 @@ The server is designed for consumption by LLM agents and MCP-capable clients
 
 ## At A Glance
 
-- Language / runtime: Java 21
+- Language / runtime: Java 25
 - Build tool: Maven 3.9+
 - Entry point: `dev.dominikbreu.archlens.Main`
 - Packaging: shaded jar via `maven-shade-plugin` → `target/archlens.jar`
@@ -32,6 +32,7 @@ The server is designed for consumption by LLM agents and MCP-capable clients
 - [Install & client wiring](https://github.com/DerPate/archlens/blob/main/docs/INSTALL.md)
 - [MCP tool and prompt reference](https://github.com/DerPate/archlens/blob/main/docs/TOOLS.md)
 - [Architecture & package responsibilities](https://github.com/DerPate/archlens/blob/main/docs/ARCHITECTURE.md)
+- [Roadmap](https://github.com/DerPate/archlens/blob/main/docs/ROADMAP.md)
 - [Graph-based source architecture POC](https://github.com/DerPate/archlens/blob/main/docs/SOURCE_ARCHITECTURE_POC.md)
 - [Agent contributor guide](https://github.com/DerPate/archlens/blob/main/AGENTS.md)
 - [Contributing guide](https://github.com/DerPate/archlens/blob/main/CONTRIBUTING.md)
@@ -173,9 +174,10 @@ Prompts are workflow templates for clients and agents; they do not replace tools
   in `mcp/tools/` or `renderer/`. Only `model/ids/` value types are permitted as query
   parameters. `IndexWorkspaceTool` projects the model into the graph via `GraphProjector`
   then persists it as GraphSON; no JSON model file is written.
-- `GraphQuery.GraphNode` is a sealed interface with 15 typed per-label records:
+- `GraphQuery.GraphNode` is a sealed interface with 21 typed per-label records:
   `ComponentNode`, `EntrypointNode`, `ApplicationNode`, `InterfaceNode`, `ContainerNode`,
-  `DeploymentNode`, `ExternalSystemNode`, `RuntimeFlowNode`, `RuntimeFlowStepNode`,
+  `DeploymentNode`, `ExternalSystemNode`, `PersistenceUnitNode`, `DataSourceNode`,
+  `PersistenceOperationNode`, `TransactionBoundaryNode`, `RuntimeFlowNode`, `RuntimeFlowStepNode`,
   `DataFlowPathNode`, `DataFlowSinkNode`, `DataFlowNodeNode`, `DataFlowBranchNode`,
   `DataFlowBranchArmNode`, `PipelineChainNode`, and `UnknownNode` (fallback).
   Pattern-match on the record type for typed field access; `properties()` is
@@ -244,6 +246,41 @@ Prompts are workflow templates for clients and agents; they do not replace tools
   persistence sinks expose destination/entity/link evidence, external systems are
   `ExternalSystem` nodes, and `CALLS` edges expose propagation/debug fields such as
   `paramMapping`, `resolvedLiteralArgs`, `assignedToVar`, and `killedTrackedNames`.
+- Persistence topology is extracted from `persistence.xml`, `@PersistenceContext`, `@Resource`,
+  `@DataSourceDefinition`, Spring datasource config, Java EE resource refs, and project-local
+  WildFly descriptors. Query `PersistenceUnit` and `DataSource` nodes plus
+  `DECLARES_PERSISTENCE_UNIT`, `USES_PERSISTENCE_UNIT`, `USES_DATASOURCE`, `MANAGES_ENTITY`, and
+  `CONNECTS_TO` edges. Unmatched JNDI bindings stay `unresolved=true`. Database endpoints never
+  include credentials, URL user-info, query parameters, or credential-store expressions.
+- Method-local EntityManager calls are `PersistenceOperation` nodes linked to their component,
+  entity, and persistence unit. Effective Spring, Jakarta/Javax, Quarkus, and EJB policies are
+  `TransactionBoundary` nodes; EJB container-managed methods default to `REQUIRED`, method
+  declarations override type declarations, and `TransactionManagement(BEAN)` becomes
+  `PROGRAMMATIC`. Resolved Spring XML advice and EJB `ejb-jar.xml` overrides are method-scoped;
+  unresolved XML pointcuts stay app-linked ambiguous evidence through
+  `DECLARES_TRANSACTION_CONFIG`. Inherited policies, Spring self-invocation, mixed XML/annotation
+  advice, and programmatic transaction APIs retain explicit limitations and reduced confidence.
+  Runtime-flow steps expose inferred begin/join/suspend/nested/none transitions,
+  scope ids, confidence, and limitations. Never treat `persistence.xml transaction-type=JTA` as
+  proof that a transaction is active.
+- Evidence-bearing graph nodes and edges expose a normalized contract in both `properties`
+  and the structured item's additive `evidence` object: `derivedFrom`, `sourceFile`,
+  `sourceLine`, `confidence`, `confidenceBand` (`known`, `inferred`, `ambiguous`, `unknown`),
+  `ambiguous`, and a short `evidence` reason. Confidence is an evidence-strength score, not a
+  probability. Prefer reviewing `ambiguous` facts rather than traversing them as workflow truth.
+- `answer_architecture_question` provides five stable graph-only contracts:
+  `persistence_destination`, `consumer_context`, `impact`, `transaction_context`, and
+  `endpoint_context`. Every result contains `status`, `interpretation`, `queryPlan`, `subject`,
+  family-specific `answer`, `evidenceChain`, `unresolved`, `ambiguous`, `clarifications`, and
+  `suggestedQuestions`; partial, ambiguous, needs-clarification, and unsupported results are
+  valid answers and missing runtime configuration must never be invented. Pass a
+  natural-language `question` instead of a typed `family` to route through a deterministic
+  keyword-based planner — no embedded LLM is used, so unrecognized wording returns `unsupported`
+  rather than a guess.
+- Run `python3 scripts/run-benchmark.py` after packaging to execute deterministic architecture
+  questions against the real stdio MCP server. The committed `benchmarks/baseline.json` supplies
+  per-scenario performance/graph-size baselines and passing question IDs; generated reports record
+  deltas and regressions under `target/benchmark/`.
 - For source architecture summaries start with `query_architecture_graph` filters
   `agentCategory=core-workflow` or `agentCategory=boundary`, then inspect `supportRole`
   only when support code matters.
@@ -313,5 +350,5 @@ Prompts are workflow templates for clients and agents; they do not replace tools
 - Generated artifacts (`target/`, `.archlens-cache/`, `dependency-reduced-pom.xml`)
   are git-ignored and must not be committed.
 - This repo intentionally ships no GitHub Actions or pre-commit hooks.
-- Code style is imperative Java 21 (no Mutiny / reactive). Use constructor injection
+- Code style is imperative Java 25 (no Mutiny / reactive). Use constructor injection
   in beans and JBoss/Quarkus logging only when adding logging.
