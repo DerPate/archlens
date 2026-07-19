@@ -3,13 +3,19 @@ package dev.dominikbreu.archlens.mcp.tools;
 import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.cache.ModelCache;
 import dev.dominikbreu.archlens.mcp.tools.question.Answer;
+import dev.dominikbreu.archlens.mcp.tools.question.ConfigurationContextAnswerer;
 import dev.dominikbreu.archlens.mcp.tools.question.ConsumerContextAnswerer;
 import dev.dominikbreu.archlens.mcp.tools.question.EndpointContextAnswerer;
+import dev.dominikbreu.archlens.mcp.tools.question.ExternalIntegrationContextAnswerer;
 import dev.dominikbreu.archlens.mcp.tools.question.ImpactAnswerer;
 import dev.dominikbreu.archlens.mcp.tools.question.Interpretation;
+import dev.dominikbreu.archlens.mcp.tools.question.MessagingFlowAnswerer;
 import dev.dominikbreu.archlens.mcp.tools.question.PersistenceDestinationAnswerer;
 import dev.dominikbreu.archlens.mcp.tools.question.QueryPlanRecorder;
 import dev.dominikbreu.archlens.mcp.tools.question.QuestionPlanner;
+import dev.dominikbreu.archlens.mcp.tools.question.RelationshipAnswerer;
+import dev.dominikbreu.archlens.mcp.tools.question.ScheduledWorkflowAnswerer;
+import dev.dominikbreu.archlens.mcp.tools.question.StateLifecycleAnswerer;
 import dev.dominikbreu.archlens.mcp.tools.question.TransactionContextAnswerer;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -74,9 +80,10 @@ public class AnswerArchitectureQuestionTool {
             QueryPlanRecorder recorder = new QueryPlanRecorder();
             Answer answer = dispatch(family, graph, effectiveArgs, recorder);
             if (answer == null) {
-                return ToolResult.error(
-                        "Unknown question family: " + family
-                                + ". Use persistence_destination, consumer_context, impact, transaction_context, or endpoint_context.");
+                return ToolResult.error("Unknown question family: " + family
+                        + ". Use persistence_destination, consumer_context, impact, transaction_context, "
+                        + "endpoint_context, messaging_flow, state_lifecycle, scheduled_workflow, "
+                        + "external_integration_context, configuration_context, or relationship.");
             }
             Map<String, Object> structured = answer.structured(family, interpretation, recorder);
             return new ToolResult(format(family, structured), structured);
@@ -93,6 +100,12 @@ public class AnswerArchitectureQuestionTool {
             case "impact" -> ImpactAnswerer.answer(graph, args, recorder);
             case "transaction_context" -> TransactionContextAnswerer.answer(graph, args, recorder);
             case "endpoint_context" -> EndpointContextAnswerer.answer(graph, args, recorder);
+            case "messaging_flow" -> MessagingFlowAnswerer.answer(graph, args, recorder);
+            case "state_lifecycle" -> StateLifecycleAnswerer.answer(graph, args, recorder);
+            case "scheduled_workflow" -> ScheduledWorkflowAnswerer.answer(graph, args, recorder);
+            case "external_integration_context" -> ExternalIntegrationContextAnswerer.answer(graph, args, recorder);
+            case "configuration_context" -> ConfigurationContextAnswerer.answer(graph, args, recorder);
+            case "relationship" -> RelationshipAnswerer.answer(graph, args, recorder);
             default -> null;
         };
     }
@@ -113,6 +126,8 @@ public class AnswerArchitectureQuestionTool {
                 merged.putIfAbsent("component", subject.ref());
                 merged.putIfAbsent("query", subject.ref());
             }
+            case "field" -> merged.putIfAbsent("field", subject.ref());
+            case "topic" -> merged.putIfAbsent("query", subject.ref());
             default -> {}
         }
         return merged;

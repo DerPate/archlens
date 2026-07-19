@@ -77,12 +77,49 @@ public final class QuestionPlanner {
                         Trigger.regex("/\\S+", 3),
                         Trigger.literal("calls service", 2),
                         Trigger.regex("\\bcalls?\\b", 1)));
+        table.put(
+                "messaging_flow",
+                List.of(
+                        Trigger.regex("publish(es)?", 3),
+                        Trigger.regex("\\btopic\\b|\\bchannel\\b|\\bqueue\\b|\\bbroker\\b", 2),
+                        Trigger.literal("downstream", 1)));
+        table.put(
+                "scheduled_workflow",
+                List.of(
+                        Trigger.regex("\\bjob\\b|schedule[dr]?", 3),
+                        Trigger.literal("cron", 3),
+                        Trigger.regex("triggers?", 2),
+                        Trigger.regex("fixed rate|fixed delay", 2)));
+        table.put(
+                "state_lifecycle",
+                List.of(
+                        Trigger.literal("field", 2),
+                        Trigger.literal("written", 2),
+                        Trigger.regex("read and|read.*writ", 2)));
+        table.put(
+                "configuration_context",
+                List.of(
+                        Trigger.regex("config(uration)?", 3),
+                        Trigger.literal("base url", 2),
+                        Trigger.regex("propert(y|ies)", 2),
+                        Trigger.literal("placeholder", 1)));
+        table.put(
+                "external_integration_context",
+                List.of(
+                        Trigger.literal("integration", 3),
+                        Trigger.literal("client", 2),
+                        Trigger.literal("external", 2)));
+        table.put(
+                "relationship",
+                List.of(Trigger.literal("relationship", 3), Trigger.regex("how.*related|connected to", 2)));
         return Map.copyOf(table);
     }
 
     private static final Pattern METHOD_PATH =
             Pattern.compile("\\b(GET|POST|PUT|PATCH|DELETE)\\s+(/\\S+)", Pattern.CASE_INSENSITIVE);
     private static final Pattern QUOTED = Pattern.compile("[`'\"]([^`'\"]+)[`'\"]");
+    private static final Pattern FIELD_NAME =
+            Pattern.compile("\\bfield\\s+([A-Za-z][A-Za-z0-9_]*)\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern QUALIFIED_NAME =
             Pattern.compile("\\b([a-z][a-zA-Z0-9]*(?:\\.[A-Za-z][a-zA-Z0-9]*)+)\\b");
     private static final Pattern CAPITALIZED_WORD = Pattern.compile("\\b([A-Z][A-Za-z0-9]*)\\b");
@@ -142,6 +179,10 @@ public final class QuestionPlanner {
         var quoted = QUOTED.matcher(question);
         if (quoted.find()) {
             return List.of(new Interpretation.SubjectCandidate("exact", quoted.group(1), 0.9));
+        }
+        var fieldName = FIELD_NAME.matcher(question);
+        if (fieldName.find()) {
+            return List.of(new Interpretation.SubjectCandidate("field", fieldName.group(1), 0.85));
         }
         var qualified = QUALIFIED_NAME.matcher(question);
         if (qualified.find()) {
