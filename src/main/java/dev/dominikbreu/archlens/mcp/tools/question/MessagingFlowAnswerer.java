@@ -110,8 +110,7 @@ public final class MessagingFlowAnswerer {
         for (EntrypointNode consumer : messagingEntrypoints.stream()
                 .filter(e -> CONSUMER_TYPES.contains(e.type()))
                 .toList()) {
-            for (DataFlowPathNode path : graph.allDataFlowPaths()) {
-                if (!path.entrypointId().serialize().equals(consumer.id().serialize())) continue;
+            for (DataFlowPathNode path : graph.pathsForEntrypoint(consumer.id())) {
                 for (DataFlowSinkNode sink : graph.pathSinks(path.id())) {
                     downstreamSinks.add(QuestionSupport.nodeMap(sink));
                 }
