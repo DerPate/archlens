@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<server xmlns="urn:jboss:domain:20.0">
+  <profile>
+    <subsystem xmlns="urn:jboss:domain:datasources:7.2">
+      <datasources>
+        <datasource jndi-name="java:/jdbc/CustomerDS" pool-name="CustomerDS">
+          <connection-url>jdbc:postgresql://db.example:5432/customers?ssl=true&amp;user=archlens</connection-url>
+          <driver>postgresql</driver>
+          <security>
+            <user-name>archlens</user-name>
+            <password>fixture-secret</password>
+          </security>
+        </datasource>
+      </datasources>
+    </subsystem>
+  </profile>
+</server>

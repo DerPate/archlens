@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "scenarios": [
+    {
+      "id": "javaee-consumer",
+      "metrics": {"indexDurationMs": 1070.91, "nodeCount": 37, "edgeCount": 58},
+      "passingQuestions": [
+        "notification-consumer-binding",
+        "notification-consumer-context-contract",
+        "customer-ejb-database-topology",
+        "customer-datasource-evidence",
+        "customer-save-transaction",
+        "customer-audit-ejb-xml-transaction",
+        "customer-entity-manager-operation"
+      ]
+    },
+    {
+      "id": "quarkus-transaction",
+      "metrics": {"indexDurationMs": 1564.21, "nodeCount": 174, "edgeCount": 289},
+      "passingQuestions": ["quarkus-type-transaction", "quarkus-xml-persistence"]
+    },
+    {
+      "id": "spring-impact",
+      "metrics": {"indexDurationMs": 1193.93, "nodeCount": 84, "edgeCount": 165},
+      "passingQuestions": ["replace-order-repository", "replace-order-repository-contract"]
+    },
+    {
+      "id": "spring-persistence",
+      "metrics": {"indexDurationMs": 1279.32, "nodeCount": 84, "edgeCount": 165},
+      "passingQuestions": [
+        "order-id-persistence",
+        "order-id-persistence-contract",
+        "spring-method-transaction-override",
+        "spring-call-flow-transaction-scope",
+        "spring-transaction-context-contract"
+      ]
+    },
+    {
+      "id": "spring-xml-transaction",
+      "metrics": {"indexDurationMs": 982.61, "nodeCount": 11, "edgeCount": 12},
+      "passingQuestions": [
+        "resolved-spring-xml-advice",
+        "inherited-spring-policy",
+        "unresolved-spring-pointcut"
+      ]
+    }
+  ]
+}

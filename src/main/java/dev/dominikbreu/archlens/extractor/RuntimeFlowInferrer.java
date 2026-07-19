@@ -110,7 +110,8 @@ public class RuntimeFlowInferrer {
         if (!visitedComps.contains(compId)) {
             visitedComps.add(compId);
             if (visible) {
-                flow.steps.add(new RuntimeFlowStep(flow.steps.size(), compId, comp.name, comp.type.name(), via));
+                flow.steps.add(
+                        new RuntimeFlowStep(flow.steps.size(), compId, comp.name, comp.type.name(), via, method));
             }
         }
 
@@ -194,8 +195,8 @@ public class RuntimeFlowInferrer {
     private void addVisibleStep(
             RuntimeFlow flow, String compIdStr, Component comp, String fromCompIdStr, Map<String, String> viaForNode) {
         String via = viaForNode.getOrDefault(compIdStr, "call");
-        flow.steps.add(
-                new RuntimeFlowStep(flow.steps.size(), ComponentId.of(compIdStr), comp.name, comp.type.name(), via));
+        flow.steps.add(new RuntimeFlowStep(
+                flow.steps.size(), ComponentId.of(compIdStr), comp.name, comp.type.name(), via, null));
         if (fromCompIdStr != null) {
             flow.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of(fromCompIdStr), ComponentId.of(compIdStr), via));
         }

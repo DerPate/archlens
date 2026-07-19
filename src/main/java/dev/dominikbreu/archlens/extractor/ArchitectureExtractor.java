@@ -44,6 +44,8 @@ public class ArchitectureExtractor {
     private final DataFlowTracer dataFlowTracer = new DataFlowTracer();
     private final BuildMetadataService buildMetadataService = new BuildMetadataService();
     private final SourceFactIndexBuilder sourceFactIndexBuilder = new SourceFactIndexBuilder();
+    private final PersistenceTopologyExtractor persistenceTopologyExtractor = new PersistenceTopologyExtractor();
+    private final TransactionPolicyExtractor transactionPolicyExtractor = new TransactionPolicyExtractor();
 
     /** Creates an extractor with the default scanner and extraction passes. */
     public ArchitectureExtractor() {}
@@ -83,6 +85,7 @@ public class ArchitectureExtractor {
 
             int sitesBefore = model.outboundSinkSites.size();
             dispatchExtractors(types, model, work.app().id, work.module(), tech);
+            persistenceTopologyExtractor.extract(work.module(), types, model, work.app().id);
 
             Map<String, MessagingConfigResolver.ChannelConfig> resolved =
                     messagingConfigResolver.resolve(work.module().root());
@@ -104,8 +107,10 @@ public class ArchitectureExtractor {
             SourceFactIndex sourceFacts = sourceFactIndexBuilder.build(
                     ctModel, work.module().name(), work.module().sourceRoots().size());
             Span.current().setAttribute("sourceFactTypes." + work.module().name(), sourceFacts.typeCount());
+            transactionPolicyExtractor.extract(sourceFacts, model, work.app().id, work.module());
             ObjectFlowIndex objectFlowIndex = new ObjectFlowIndexBuilder().build(ctModel, model, sourceFacts);
             new CallGraphExtractor(objectFlowIndex, sourceFacts).extract(ctModel, model);
+            new TransactionPolicyPostProcessor().apply(model);
             work.ctModel = null;
         }
         Span.current().setAttribute("modules", modules.size());
@@ -128,6 +133,7 @@ public class ArchitectureExtractor {
                 model.runtimeFlows.add(flow);
             }
         }
+        new TransactionScopeInferrer().infer(model);
     }
 
     private CtModel buildCtModel(BuildModule module, String phase) {

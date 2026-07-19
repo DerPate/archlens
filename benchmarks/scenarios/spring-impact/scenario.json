@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "spring-impact",
+  "workspace": "../../../src/test/resources/testprojects/spring-pipeline-sample",
+  "questions": [
+    {
+      "id": "replace-order-repository",
+      "question": "What may be affected if OrderRepository is replaced?",
+      "tool": "query_architecture_graph",
+      "arguments": {
+        "action": "impacted_by",
+        "nodeId": "com.example.pipeline.repository.OrderRepository",
+        "maxDepth": 4
+      },
+      "assertions": [
+        {
+          "path": "nodes",
+          "where": {"id": "com.example.pipeline.service.OrderService"},
+          "minCount": 1,
+          "requiredFields": ["evidence.derivedFrom", "evidence.confidenceBand"]
+        },
+        {
+          "path": "nodes",
+          "where": {"id": "com.example.pipeline.api.OrderController"},
+          "minCount": 1,
+          "requiredFields": ["evidence.derivedFrom", "evidence.confidenceBand"]
+        }
+      ]
+    },
+    {
+      "id": "replace-order-repository-contract",
+      "question": "Which entrypoints, workflows, persistence facts, and integrations are grouped in the OrderRepository impact?",
+      "tool": "answer_architecture_question",
+      "arguments": {"family": "impact", "component": "OrderRepository", "maxDepth": 4},
+      "assertions": [
+        {"path": "status", "equals": "resolved"},
+        {
+          "path": "answer.components",
+          "where": {"id": "com.example.pipeline.service.OrderService"},
+          "minCount": 1
+        },
+        {"path": "answer.entrypoints", "minCount": 1},
+        {"path": "answer.evidenceChains", "minCount": 1}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence xmlns="https://jakarta.ee/xml/ns/persistence" version="3.0">
+  <persistence-unit name="customer-unit" transaction-type="JTA">
+    <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
+    <jta-data-source>java:/jdbc/CustomerDS</jta-data-source>
+    <class>com.example.model.Customer</class>
+    <mapping-file>META-INF/customer-orm.xml</mapping-file>
+  </persistence-unit>
+</persistence>

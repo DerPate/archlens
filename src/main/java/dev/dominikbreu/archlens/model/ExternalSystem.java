@@ -13,6 +13,8 @@ public class ExternalSystem {
     public String kind;
     /** Technology label (kafka, mqtt, microprofile-rest-client, ...). */
     public String technology;
+    /** Source evidence for configured external systems, when available. */
+    public SourceInfo source;
 
     /** Creates an empty external system for JSON deserialization. */
     public ExternalSystem() {}

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence xmlns="https://jakarta.ee/xml/ns/persistence" version="3.0">
+  <persistence-unit name="spring-orders" transaction-type="RESOURCE_LOCAL">
+    <class>com.example.pipeline.model.OrderEntity</class>
+  </persistence-unit>
+</persistence>

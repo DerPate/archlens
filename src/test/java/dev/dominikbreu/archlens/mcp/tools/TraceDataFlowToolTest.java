@@ -123,6 +123,22 @@ class TraceDataFlowToolTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void structuredSinksExposeDestinationAndEvidence() {
+        ToolResult result = tool(richModel()).execute(Map.of("entrypointId", "CustomerController#get"));
+
+        Map<String, Object> path = ((List<Map<String, Object>>) result.structured()).getFirst();
+        Map<String, Object> sink = ((List<Map<String, Object>>) path.get("sinks")).getFirst();
+        Map<String, Object> evidence = (Map<String, Object>) sink.get("evidence");
+
+        assertThat(sink).containsEntry("kind", "store").containsEntry("fieldName", "cache");
+        assertThat(evidence)
+                .containsEntry("derivedFrom", "field-write")
+                .containsEntry("confidenceBand", "known")
+                .containsEntry("ambiguous", false);
+    }
+
+    @Test
     void format_prefersTopologyWhenPresent() {
         ArchitectureModel model = richModel();
         DataFlowPath path = model.dataFlowPaths.getFirst();

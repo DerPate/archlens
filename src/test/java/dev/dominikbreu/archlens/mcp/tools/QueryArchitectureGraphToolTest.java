@@ -181,6 +181,27 @@ class QueryArchitectureGraphToolTest {
                 .contains("linkEvidence=spring-kafka-template-send");
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void structuredNodesExposeNormalizedEvidence(@TempDir Path tempDir) throws Exception {
+        ModelCache cache = new ModelCache(tempDir.toString());
+        ArchitectureModel model = model();
+        model.components.getFirst().source =
+                new dev.dominikbreu.archlens.model.SourceInfo("src/PaymentService.java", 12, "annotation", 0.95);
+        cache.store(model);
+        QueryArchitectureGraphTool tool = new QueryArchitectureGraphTool(cache);
+
+        ToolResult result = tool.execute(Map.of("action", "find_nodes", "label", "Component"));
+        Map<String, Object> node = ((java.util.List<Map<String, Object>>) result.structured()).getFirst();
+        Map<String, Object> evidence = (Map<String, Object>) node.get("evidence");
+
+        assertThat(evidence)
+                .containsEntry("derivedFrom", "annotation")
+                .containsEntry("sourceFile", "src/PaymentService.java")
+                .containsEntry("confidenceBand", "known")
+                .containsEntry("ambiguous", false);
+    }
+
     private ArchitectureModel model() {
         ArchitectureModel model = new ArchitectureModel("test");
         Component component = new Component();
