@@ -112,7 +112,9 @@ final class TransactionXmlPolicyResolver {
                 String methodName = Objects.toString(childText(methodElement, "method-name"), "*");
                 for (Component component : model.components.stream()
                         .filter(value -> appId.equals(value.module)
-                                && (value.name.equals(ejbName) || value.qualifiedName.equals(ejbName)))
+                                && ((value.ejbName != null && value.ejbName.equals(ejbName))
+                                        || value.name.equals(ejbName)
+                                        || value.qualifiedName.equals(ejbName)))
                         .toList()) {
                     SourceType type = facts.type(component.qualifiedName);
                     if (type == null) continue;

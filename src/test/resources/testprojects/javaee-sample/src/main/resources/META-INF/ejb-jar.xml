@@ -3,7 +3,7 @@
     <assembly-descriptor>
         <container-transaction>
             <method>
-                <ejb-name>CustomerEjb</ejb-name>
+                <ejb-name>CustomerProcessor</ejb-name>
                 <method-name>audit</method-name>
             </method>
             <trans-attribute>NotSupported</trans-attribute>
