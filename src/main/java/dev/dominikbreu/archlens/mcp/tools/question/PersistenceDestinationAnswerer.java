@@ -66,16 +66,19 @@ public final class PersistenceDestinationAnswerer {
             }
         }
 
-        for (GraphNode node : graph.findNodes("PersistenceOperation", query, Map.of(), QuestionSupport.DEFAULT_LIMIT)) {
-            if (!(node instanceof PersistenceOperationNode operation)) continue;
-            if (component != null
-                    && !Objects.equals(
-                            component.id().serialize(),
-                            operation.componentId() != null
-                                    ? operation.componentId().serialize()
-                                    : null)) continue;
-            operations.add(QuestionSupport.nodeMap(operation));
-            destinations.add(destinationFor(graph, operation.entityType(), operation, result));
+        if (component != null || query != null) {
+            for (GraphNode node :
+                    graph.findNodes("PersistenceOperation", query, Map.of(), QuestionSupport.DEFAULT_LIMIT)) {
+                if (!(node instanceof PersistenceOperationNode operation)) continue;
+                if (component != null
+                        && !Objects.equals(
+                                component.id().serialize(),
+                                operation.componentId() != null
+                                        ? operation.componentId().serialize()
+                                        : null)) continue;
+                operations.add(QuestionSupport.nodeMap(operation));
+                destinations.add(destinationFor(graph, operation.entityType(), operation, result));
+            }
         }
 
         if (operations.isEmpty()) result.unresolved.add("no-persistence-operation-matched");
