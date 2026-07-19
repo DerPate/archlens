@@ -134,6 +134,37 @@ class ArchitectureGraphTest {
     }
 
     @Test
+    void normalizesEvidenceOnNodesAndEdges() {
+        ArchitectureModel model = model();
+        model.dependencies.getFirst().derivedFrom = "constructor-injection";
+        model.dependencies.getFirst().confidence = 0.85;
+
+        GraphQuery graph = buildGraph(model);
+
+        GraphQuery.GraphNode service = graph.component(ComponentId.of("OrderService"));
+        assertThat(service.properties())
+                .containsEntry("derivedFrom", "annotation")
+                .containsEntry("confidenceBand", "known")
+                .containsEntry("ambiguous", false)
+                .containsEntry("evidence", "annotation");
+        assertThat(graph.findEdges("DEPENDS_ON", Map.of(), 10).getFirst().properties())
+                .containsEntry("derivedFrom", "constructor-injection")
+                .containsEntry("confidenceBand", "inferred")
+                .containsEntry("ambiguous", false)
+                .containsEntry("evidence", "constructor-injection");
+    }
+
+    @Test
+    void looksUpAnyTypedNodeByGraphId() {
+        GraphQuery graph = buildGraph(model());
+
+        assertThat(graph.node(dev.dominikbreu.archlens.model.ids.GraphNodeId.of("OrderService")))
+                .isInstanceOf(GraphQuery.ComponentNode.class)
+                .extracting(GraphQuery.GraphNode::name)
+                .isEqualTo("OrderService");
+    }
+
+    @Test
     void findEdgesHonorsExplicitLimitAboveOneHundred() {
         GraphQuery graph = buildGraph(modelWithDependencyFanOut(150));
 

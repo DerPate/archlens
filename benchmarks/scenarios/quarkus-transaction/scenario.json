@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "id": "quarkus-transaction",
+  "workspace": "../../../src/test/resources/testprojects/quarkus-sample",
+  "questions": [
+    {
+      "id": "quarkus-type-transaction",
+      "question": "Which effective Jakarta transaction policy governs the Quarkus OrderService methods?",
+      "tool": "query_architecture_graph",
+      "arguments": {"action": "find_nodes", "label": "TransactionBoundary", "query": "OrderService"},
+      "assertions": [{
+        "path": "nodes",
+        "where": {
+          "label": "TransactionBoundary",
+          "properties.componentId": "com.example.service.OrderService",
+          "properties.policy": "SUPPORTS",
+          "properties.declarationLevel": "type"
+        },
+        "minCount": 1,
+        "requiredFields": ["properties.sourceFile", "evidence.confidenceBand"]
+      }]
+    },
+    {
+      "id": "quarkus-xml-persistence",
+      "question": "How is the XML-configured Quarkus persistence unit represented without a runtime datasource descriptor?",
+      "tool": "query_architecture_graph",
+      "arguments": {"action": "find_nodes", "label": "DataSource", "query": "QuarkusDS"},
+      "assertions": [{
+        "path": "nodes",
+        "where": {
+          "label": "DataSource",
+          "properties.jndiName": "java:/QuarkusDS",
+          "properties.unresolved": true
+        },
+        "minCount": 1,
+        "absentFields": ["properties.endpoint"]
+      }]
+    }
+  ]
+}

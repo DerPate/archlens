@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "id": "javaee-consumer",
+  "workspace": "../../../src/test/resources/testprojects/javaee-sample",
+  "questions": [
+    {
+      "id": "notification-consumer-binding",
+      "question": "What is known about the NotificationMDB consumer binding?",
+      "tool": "query_architecture_graph",
+      "arguments": {
+        "action": "find_nodes",
+        "label": "Entrypoint",
+        "query": "NotificationMDB"
+      },
+      "assertions": [
+        {
+          "path": "nodes",
+          "where": {
+            "label": "Entrypoint",
+            "properties.entrypointType": "JMS_CONSUMER"
+          },
+          "minCount": 1,
+          "requiredFields": [
+            "properties.sourceFile",
+            "properties.sourceLine",
+            "properties.derivedFrom",
+            "properties.confidence",
+            "properties.confidenceBand",
+            "properties.ambiguous",
+            "evidence.derivedFrom",
+            "evidence.confidenceBand"
+          ],
+          "absentFields": ["properties.channelName", "properties.topic"]
+        }
+      ]
+    },
+    {
+      "id": "notification-consumer-context-contract",
+      "question": "What inbound, upstream, and downstream context is known for NotificationMDB?",
+      "tool": "answer_architecture_question",
+      "arguments": {
+        "family": "consumer_context",
+        "entrypoint": "NotificationMDB#onMessage"
+      },
+      "assertions": [
+        {"path": "status", "equals": "partial"},
+        {"path": "answer.inboundBinding.label", "equals": "Entrypoint"},
+        {"path": "unresolved", "contains": "consumer-binding-destination-not-resolved"}
+      ]
+    },
+    {
+      "id": "customer-ejb-database-topology",
+      "question": "Which configured database backs CustomerEjb, through which persistence unit and JNDI datasource?",
+      "tool": "query_architecture_graph",
+      "arguments": {
+        "action": "paths",
+        "fromId": "com.example.ejb.CustomerEjb",
+        "toId": "external:database:javaee-sample:postgresql://db.example:5432/customers",
+        "maxDepth": 4
+      },
+      "assertions": [
+        {
+          "path": "paths",
+          "where": {
+            "nodeIds": [
+              "com.example.ejb.CustomerEjb",
+              "persistence-unit:javaee-sample:customer-unit",
+              "datasource:javaee-sample:jdbc/customerds",
+              "external:database:javaee-sample:postgresql://db.example:5432/customers"
+            ],
+            "edgeLabels": [
+              "USES_PERSISTENCE_UNIT",
+              "USES_DATASOURCE",
+              "CONNECTS_TO"
+            ]
+          },
+          "minCount": 1
+        }
+      ]
+    },
+    {
+      "id": "customer-datasource-evidence",
+      "question": "What WildFly evidence supports the CustomerDS database destination?",
+      "tool": "query_architecture_graph",
+      "arguments": {
+        "action": "find_nodes",
+        "label": "DataSource",
+        "query": "CustomerDS"
+      },
+      "assertions": [
+        {
+          "path": "nodes",
+          "where": {
+            "label": "DataSource",
+            "properties.jndiName": "java:/jdbc/CustomerDS",
+            "properties.endpoint": "postgresql://db.example:5432/customers",
+            "properties.derivedFrom": "wildfly-config",
+            "properties.confidenceBand": "known",
+            "properties.unresolved": false
+          },
+          "minCount": 1,
+          "requiredFields": [
+            "properties.sourceFile",
+            "evidence.derivedFrom",
+            "evidence.confidenceBand"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "customer-save-transaction",
+      "question": "Which transaction policy governs CustomerEjb.save and its EntityManager.persist operation?",
+      "tool": "query_architecture_graph",
+      "arguments": {"action": "find_nodes", "label": "TransactionBoundary", "query": "save"},
+      "assertions": [{
+        "path": "nodes",
+        "where": {
+          "label": "TransactionBoundary",
+          "properties.componentId": "com.example.ejb.CustomerEjb",
+          "properties.policy": "REQUIRES_NEW",
+          "properties.declarationLevel": "method",
+          "properties.derivedFrom": "annotation"
+        },
+        "minCount": 1,
+        "requiredFields": ["properties.sourceFile", "evidence.confidenceBand"]
+      }]
+    },
+    {
+      "id": "customer-audit-ejb-xml-transaction",
+      "question": "Which EJB descriptor policy governs CustomerEjb.audit?",
+      "tool": "query_architecture_graph",
+      "arguments": {"action": "find_nodes", "label": "TransactionBoundary", "query": "audit"},
+      "assertions": [{
+        "path": "nodes",
+        "where": {
+          "label": "TransactionBoundary",
+          "properties.componentId": "com.example.ejb.CustomerEjb",
+          "properties.framework": "ejb-xml",
+          "properties.policy": "NOT_SUPPORTED",
+          "properties.declarationLevel": "xml"
+        },
+        "minCount": 1,
+        "requiredFields": ["properties.sourceFile", "evidence.confidenceBand"]
+      }]
+    },
+    {
+      "id": "customer-entity-manager-operation",
+      "question": "Which method-local EntityManager operation writes Customer and which persistence unit does it use?",
+      "tool": "query_architecture_graph",
+      "arguments": {"action": "find_nodes", "label": "PersistenceOperation", "query": "persist"},
+      "assertions": [{
+        "path": "nodes",
+        "where": {
+          "label": "PersistenceOperation",
+          "properties.componentId": "com.example.ejb.CustomerEjb",
+          "properties.methodName": "save",
+          "properties.operation": "persist",
+          "properties.entityType": "com.example.model.Customer",
+          "properties.persistenceUnitName": "customer-unit"
+        },
+        "minCount": 1,
+        "requiredFields": ["properties.sourceFile", "evidence.derivedFrom"]
+      }]
+    }
+  ]
+}

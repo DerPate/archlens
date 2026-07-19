@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans https://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/aop https://www.springframework.org/schema/aop/spring-aop.xsd
+           http://www.springframework.org/schema/tx https://www.springframework.org/schema/tx/spring-tx.xsd">
+    <tx:advice id="orderTransactions">
+        <tx:attributes>
+            <tx:method name="write" propagation="REQUIRES_NEW" rollback-for="java.io.IOException"/>
+            <tx:method name="load*" propagation="SUPPORTS" read-only="true"/>
+        </tx:attributes>
+    </tx:advice>
+    <aop:config>
+        <aop:pointcut id="xmlOrderOperations"
+                      expression="execution(* com.example.xml.XmlOrderService.*(..))"/>
+        <aop:advisor advice-ref="orderTransactions" pointcut-ref="xmlOrderOperations"/>
+    </aop:config>
+
+    <tx:advice id="unresolvedTransactions">
+        <tx:attributes>
+            <tx:method name="*" propagation="MANDATORY"/>
+        </tx:attributes>
+    </tx:advice>
+    <aop:config>
+        <aop:advisor advice-ref="unresolvedTransactions" pointcut-ref="serviceOperation"/>
+    </aop:config>
+</beans>

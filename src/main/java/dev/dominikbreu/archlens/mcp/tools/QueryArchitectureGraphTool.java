@@ -203,6 +203,78 @@ public class QueryArchitectureGraphTool {
             case GraphQuery.ContainerNode cn ->
                 appendFields(sb, "technology", cn.technology(), "derivedFrom", cn.derivedFrom(), "appId", cn.appId());
             case GraphQuery.ExternalSystemNode es -> appendFields(sb, "kind", es.kind(), "technology", es.technology());
+            case GraphQuery.PersistenceUnitNode pu ->
+                appendFields(
+                        sb,
+                        "appId",
+                        pu.appId(),
+                        "provider",
+                        pu.provider(),
+                        "transactionType",
+                        pu.transactionType(),
+                        "jtaDataSource",
+                        pu.jtaDataSource(),
+                        "nonJtaDataSource",
+                        pu.nonJtaDataSource(),
+                        "managedClasses",
+                        String.join(",", pu.managedClasses()),
+                        "unresolvedPlaceholders",
+                        String.join(",", pu.unresolvedPlaceholders()));
+            case GraphQuery.DataSourceNode ds ->
+                appendFields(
+                        sb,
+                        "appId",
+                        ds.appId(),
+                        "jndiName",
+                        ds.jndiName(),
+                        "driver",
+                        ds.driver(),
+                        "endpoint",
+                        ds.endpoint(),
+                        "databaseKind",
+                        ds.databaseKind(),
+                        "declarationKind",
+                        ds.declarationKind(),
+                        "unresolved",
+                        ds.unresolved());
+            case GraphQuery.PersistenceOperationNode po ->
+                appendFields(
+                        sb,
+                        "componentId",
+                        po.componentId(),
+                        "method",
+                        po.methodSignature(),
+                        "operation",
+                        po.operation(),
+                        "entityType",
+                        po.entityType(),
+                        "persistenceUnit",
+                        po.persistenceUnitName());
+            case GraphQuery.TransactionBoundaryNode tb ->
+                appendFields(
+                        sb,
+                        "componentId",
+                        tb.componentId(),
+                        "method",
+                        tb.methodSignature(),
+                        "framework",
+                        tb.framework(),
+                        "policy",
+                        tb.policy(),
+                        "nativePolicy",
+                        tb.nativePolicy(),
+                        "readOnly",
+                        tb.readOnly(),
+                        "isolation",
+                        tb.isolation(),
+                        "declarationLevel",
+                        tb.declarationLevel(),
+                        "defaulted",
+                        tb.defaulted(),
+                        "programmatic",
+                        tb.programmatic(),
+                        "limitations",
+                        String.join(",", tb.limitations()));
             case GraphQuery.RuntimeFlowNode rf ->
                 appendFields(sb, "entrypointId", rf.entrypointId(), "stepCount", rf.stepCount());
             case GraphQuery.RuntimeFlowStepNode rs ->
@@ -217,7 +289,19 @@ public class QueryArchitectureGraphTool {
                         "componentType",
                         rs.componentType(),
                         "via",
-                        rs.via());
+                        rs.via(),
+                        "method",
+                        rs.method(),
+                        "transactionPolicy",
+                        rs.transactionPolicy(),
+                        "transactionTransition",
+                        rs.transactionTransition(),
+                        "transactionScopeId",
+                        rs.transactionScopeId(),
+                        "transactionConfidence",
+                        rs.transactionConfidence(),
+                        "transactionLimitations",
+                        rs.transactionLimitations());
             case GraphQuery.DataFlowPathNode dp ->
                 appendFields(
                         sb,
@@ -304,6 +388,17 @@ public class QueryArchitectureGraphTool {
             case GraphQuery.DeploymentNode dn -> appendFields(sb, "type", dn.type());
             case GraphQuery.UnknownNode un -> appendProperties(sb, un.rawProperties());
         }
+        Map<String, Object> evidence = ToolArgs.evidenceAsMap(node.properties());
+        appendFields(
+                sb,
+                "derivedFrom",
+                evidence.get("derivedFrom"),
+                "confidence",
+                evidence.get("confidence"),
+                "confidenceBand",
+                evidence.get("confidenceBand"),
+                "ambiguous",
+                evidence.get("ambiguous"));
     }
 
     private void appendFields(StringBuilder sb, Object... keysAndValues) {

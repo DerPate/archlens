@@ -10,6 +10,7 @@ import java.util.List;
  * @param enclosingMethodId the fact id of the method that contains this invocation
  * @param receiverExpression the receiver expression as a string (may be {@code null} for static calls)
  * @param executableName the name of the invoked method or constructor
+ * @param executableDeclaringType qualified declaring type of the invoked executable, when known
  * @param argumentExpressions the argument expressions as strings
  * @param assignedTo the variable name this invocation result is assigned to, or {@code null}
  * @param evidence the evidence kind used to extract this invocation
@@ -21,6 +22,7 @@ public record SourceInvocation(
         SourceFactId enclosingMethodId,
         String receiverExpression,
         String executableName,
+        String executableDeclaringType,
         List<String> argumentExpressions,
         String assignedTo,
         SourceEvidence evidence,

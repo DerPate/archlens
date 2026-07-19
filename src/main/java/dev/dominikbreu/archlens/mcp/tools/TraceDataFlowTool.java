@@ -88,6 +88,16 @@ public class TraceDataFlowTool {
                                 sinkMap.put("name", sink.name());
                                 sinkMap.put("method", sink.method());
                                 sinkMap.put("fieldName", sink.fieldName());
+                                sinkMap.put("entityType", sink.entityType());
+                                sinkMap.put("repositoryOperation", sink.repositoryOperation());
+                                sinkMap.put("channel", sink.channel());
+                                sinkMap.put(
+                                        "broker",
+                                        sink.broker() != null ? sink.broker().name() : null);
+                                sinkMap.put("topic", sink.topic());
+                                Map<String, Object> evidence = ToolArgs.evidenceAsMap(sink.properties());
+                                if (!evidence.isEmpty()) sinkMap.put("evidence", evidence);
+                                sinkMap.entrySet().removeIf(item -> item.getValue() == null);
                                 return sinkMap;
                             })
                             .toList());
@@ -321,6 +331,8 @@ public class TraceDataFlowTool {
             if ("store".equals(sink.sinkKind() != null ? sink.sinkKind().value() : "") && sink.fieldName() != null) {
                 sb.append("  field=").append(sink.fieldName());
             }
+            Object confidenceBand = sink.properties().get("confidenceBand");
+            if (confidenceBand != null) sb.append("  evidence=").append(confidenceBand);
             appendSinkSource(sb, sink);
             sb.append("\n");
         }

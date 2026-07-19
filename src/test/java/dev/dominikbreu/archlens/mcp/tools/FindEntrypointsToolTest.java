@@ -11,8 +11,12 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class FindEntrypointsToolTest {
+
+    @TempDir
+    java.nio.file.Path tempDir;
 
     private FindEntrypointsTool tool;
     private ArchitectureModel model;
@@ -186,7 +190,7 @@ class FindEntrypointsToolTest {
 
     @Test
     void missingIndex_isError() {
-        ToolResult result = new FindEntrypointsTool(new ModelCache(null)).execute(Map.of());
+        ToolResult result = new FindEntrypointsTool(new ModelCache(tempDir.toString())).execute(Map.of());
 
         assertThat(result.error()).isTrue();
     }

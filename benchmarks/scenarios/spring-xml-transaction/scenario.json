@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "id": "spring-xml-transaction",
+  "workspace": "../../../src/test/resources/testprojects/spring-xml-transaction-sample",
+  "questions": [
+    {
+      "id": "resolved-spring-xml-advice",
+      "question": "Which XML transaction policy governs XmlOrderService.write?",
+      "tool": "query_architecture_graph",
+      "arguments": {"action": "find_nodes", "label": "TransactionBoundary", "query": "write"},
+      "assertions": [{
+        "path": "nodes",
+        "where": {
+          "properties.componentId": "com.example.xml.XmlOrderService",
+          "properties.framework": "spring-xml",
+          "properties.policy": "REQUIRES_NEW",
+          "properties.declarationLevel": "xml"
+        },
+        "minCount": 1,
+        "requiredFields": ["properties.rollbackRules", "evidence.confidenceBand"]
+      }]
+    },
+    {
+      "id": "inherited-spring-policy",
+      "question": "Does InheritedService.inspect inherit a type-level transaction policy?",
+      "tool": "query_architecture_graph",
+      "arguments": {"action": "find_nodes", "label": "TransactionBoundary", "query": "inspect"},
+      "assertions": [{
+        "path": "nodes",
+        "where": {
+          "properties.componentId": "com.example.xml.InheritedService",
+          "properties.policy": "REQUIRED",
+          "properties.declarationLevel": "inherited-type"
+        },
+        "minCount": 1,
+        "requiredFields": ["properties.limitations", "properties.confidence"]
+      }]
+    },
+    {
+      "id": "unresolved-spring-pointcut",
+      "question": "How is an unresolved Spring AOP pointcut represented?",
+      "tool": "query_architecture_graph",
+      "arguments": {
+        "action": "find_nodes",
+        "label": "TransactionBoundary",
+        "filters": {"declarationLevel": "xml-unresolved"}
+      },
+      "assertions": [{
+        "path": "nodes",
+        "where": {
+          "properties.framework": "spring-xml",
+          "properties.declarationLevel": "xml-unresolved",
+          "properties.confidenceBand": "ambiguous"
+        },
+        "minCount": 1,
+        "requiredFields": ["properties.limitations", "properties.sourceFile"]
+      }]
+    }
+  ]
+}

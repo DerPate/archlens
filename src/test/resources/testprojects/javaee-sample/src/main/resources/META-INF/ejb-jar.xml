@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ejb-jar xmlns="http://xmlns.jcp.org/xml/ns/javaee" version="3.2">
+    <assembly-descriptor>
+        <container-transaction>
+            <method>
+                <ejb-name>CustomerEjb</ejb-name>
+                <method-name>audit</method-name>
+            </method>
+            <trans-attribute>NotSupported</trans-attribute>
+        </container-transaction>
+    </assembly-descriptor>
+</ejb-jar>

@@ -3,6 +3,7 @@ package com.example.api;
 import javax.ws.rs.*;
 import javax.ejb.EJB;
 import com.example.ejb.CustomerEjb;
+import com.example.model.Customer;
 import java.util.List;
 
 @Path("/customers")
@@ -15,7 +16,7 @@ public class CustomerResource {
     public List<Object> list() { return null; }
 
     @POST
-    public Object create(Object customer) { return null; }
+    public Customer create(Customer customer) { customerEjb.save(customer); return customer; }
 
     @GET
     @Path("/{id}")

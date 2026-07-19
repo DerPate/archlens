@@ -367,6 +367,9 @@ public class SourceFactIndexBuilder {
                 invocation.getExecutable() == null
                         ? null
                         : invocation.getExecutable().getSimpleName(),
+                invocation.getExecutable() == null || invocation.getExecutable().getDeclaringType() == null
+                        ? null
+                        : invocation.getExecutable().getDeclaringType().getQualifiedName(),
                 invocation.getArguments().stream().map(this::expressionText).toList(),
                 assignedTo,
                 SourceEvidence.DIRECT_TYPE_REFERENCE,

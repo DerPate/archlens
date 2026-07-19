@@ -15,15 +15,21 @@ import dev.dominikbreu.archlens.model.DataFlowNode;
 import dev.dominikbreu.archlens.model.DataFlowPath;
 import dev.dominikbreu.archlens.model.DataFlowSink;
 import dev.dominikbreu.archlens.model.DataFlowStep;
+import dev.dominikbreu.archlens.model.DataSourceInfo;
+import dev.dominikbreu.archlens.model.DataSourceUsage;
 import dev.dominikbreu.archlens.model.Dependency;
 import dev.dominikbreu.archlens.model.DeploymentEntry;
 import dev.dominikbreu.archlens.model.Entrypoint;
 import dev.dominikbreu.archlens.model.ExternalSystem;
 import dev.dominikbreu.archlens.model.FieldAccess;
 import dev.dominikbreu.archlens.model.InterfaceEntry;
+import dev.dominikbreu.archlens.model.PersistenceOperation;
+import dev.dominikbreu.archlens.model.PersistenceUnitInfo;
+import dev.dominikbreu.archlens.model.PersistenceUnitUsage;
 import dev.dominikbreu.archlens.model.RuntimeFlow;
 import dev.dominikbreu.archlens.model.RuntimeFlowStep;
 import dev.dominikbreu.archlens.model.SourceInfo;
+import dev.dominikbreu.archlens.model.TransactionPolicy;
 import dev.dominikbreu.archlens.model.ids.GraphNodeId;
 import dev.dominikbreu.archlens.workflow.WorkflowLink;
 import dev.dominikbreu.archlens.workflow.WorkflowLinker;
@@ -90,6 +96,10 @@ class GraphProjector {
         sourceModel.interfaces.forEach(this::addInterface);
         sourceModel.containers.forEach(this::addContainer);
         sourceModel.deployments.forEach(this::addDeployment);
+        sourceModel.persistenceUnits.forEach(this::addPersistenceUnit);
+        sourceModel.dataSources.forEach(this::addDataSource);
+        sourceModel.persistenceOperations.forEach(this::addPersistenceOperation);
+        sourceModel.transactionPolicies.forEach(this::addTransactionBoundary);
         sourceModel.externalSystems.forEach(this::addExternalSystem);
         sourceModel.runtimeFlows.forEach(this::addRuntimeFlow);
 
@@ -117,6 +127,8 @@ class GraphProjector {
                 addEdge(container.id, componentId.serialize(), "CONTAINS", Map.of(SOURCE, "container.componentIds"))));
         sourceModel.deployments.forEach(deployment -> deployment.appIds.forEach(
                 appId -> addEdge(deployment.id, appId.serialize(), "DEPLOYS", Map.of(SOURCE, "deployment.appIds"))));
+        addPersistenceTopologyEdges(sourceModel);
+        addMethodPolicyEdges(sourceModel);
         sourceModel.dependencies.forEach(dependency -> addEdge(
                 dependency.fromId.serialize(),
                 dependency.toId.serialize(),
@@ -215,6 +227,213 @@ class GraphProjector {
         setLower(vertex, "type", externalSystem.kind);
         setLower(vertex, "externalSystemKind", externalSystem.kind);
         set(vertex, TECHNOLOGY, externalSystem.technology);
+        setSource(vertex, externalSystem.source);
+    }
+
+    private void addPersistenceUnit(PersistenceUnitInfo unit) {
+        Vertex vertex = addVertex(unit.id, "PersistenceUnit", unit.name);
+        set(vertex, "kind", "persistenceUnit");
+        set(vertex, "appId", unit.appId != null ? unit.appId.serialize() : null);
+        set(vertex, "provider", unit.provider);
+        setLower(vertex, "transactionType", unit.transactionType);
+        set(vertex, "jtaDataSource", unit.jtaDataSource);
+        set(vertex, "nonJtaDataSource", unit.nonJtaDataSource);
+        set(vertex, "managedClasses", String.join(",", unit.managedClasses));
+        set(vertex, "mappingFiles", String.join(",", unit.mappingFiles));
+        set(vertex, "unresolvedPlaceholders", String.join(",", unit.unresolvedPlaceholders));
+        setSource(vertex, unit.source);
+    }
+
+    private void addDataSource(DataSourceInfo dataSource) {
+        Vertex vertex = addVertex(dataSource.id, "DataSource", dataSource.name);
+        set(vertex, "kind", "dataSource");
+        set(vertex, "appId", dataSource.appId != null ? dataSource.appId.serialize() : null);
+        set(vertex, "jndiName", dataSource.jndiName);
+        set(vertex, "aliases", String.join(",", dataSource.aliases));
+        set(vertex, "driver", dataSource.driver);
+        set(vertex, "endpoint", dataSource.endpoint);
+        set(vertex, "databaseKind", dataSource.databaseKind);
+        set(vertex, "declarationKind", dataSource.declarationKind);
+        set(vertex, "unresolved", dataSource.unresolved);
+        setSource(vertex, dataSource.source);
+    }
+
+    private void addPersistenceOperation(PersistenceOperation operation) {
+        Vertex vertex = addVertex(operation.id, "PersistenceOperation", operation.operation);
+        set(vertex, "kind", "persistenceOperation");
+        set(vertex, "appId", operation.appId != null ? operation.appId.serialize() : null);
+        set(vertex, COMPONENT_ID, operation.componentId != null ? operation.componentId.serialize() : null);
+        set(vertex, "methodName", operation.methodName);
+        set(vertex, "methodSignature", operation.methodSignature);
+        set(vertex, "operation", operation.operation);
+        set(vertex, "entityType", operation.entityType);
+        set(vertex, "persistenceUnitName", operation.persistenceUnitName);
+        setSource(vertex, operation.source);
+    }
+
+    private void addTransactionBoundary(TransactionPolicy policy) {
+        Vertex vertex = addVertex(policy.id, "TransactionBoundary", policy.methodName);
+        set(vertex, "kind", "transactionBoundary");
+        set(vertex, "appId", policy.appId != null ? policy.appId.serialize() : null);
+        set(vertex, COMPONENT_ID, policy.componentId != null ? policy.componentId.serialize() : null);
+        set(vertex, "methodName", policy.methodName);
+        set(vertex, "methodSignature", policy.methodSignature);
+        set(vertex, "framework", policy.framework);
+        set(vertex, "policy", policy.policy);
+        set(vertex, "nativePolicy", policy.nativePolicy);
+        set(vertex, "readOnly", policy.readOnly);
+        set(vertex, "isolation", policy.isolation);
+        set(vertex, "rollbackRules", String.join(",", policy.rollbackRules));
+        set(vertex, "declarationLevel", policy.declarationLevel);
+        set(vertex, "defaulted", policy.defaulted);
+        set(vertex, "programmatic", policy.programmatic);
+        set(vertex, "limitations", String.join(",", policy.limitations));
+        setSource(vertex, policy.source);
+    }
+
+    private void addMethodPolicyEdges(ArchitectureModel sourceModel) {
+        for (PersistenceOperation operation : sourceModel.persistenceOperations) {
+            if (operation.componentId != null)
+                addEdge(
+                        operation.componentId.serialize(),
+                        operation.id,
+                        "PERFORMS_PERSISTENCE_OPERATION",
+                        EvidenceNormalizer.fromSource(operation.source));
+            sourceModel.persistenceUnits.stream()
+                    .filter(unit -> Objects.equals(unit.appId, operation.appId)
+                            && Objects.equals(unit.name, operation.persistenceUnitName))
+                    .findFirst()
+                    .ifPresent(unit -> addEdge(
+                            operation.id,
+                            unit.id,
+                            "USES_PERSISTENCE_UNIT",
+                            EvidenceNormalizer.fromSource(operation.source)));
+            if (operation.entityType != null
+                    && sourceModel.components.stream()
+                            .anyMatch(component -> operation.entityType.equals(component.qualifiedName))) {
+                addEdge(
+                        operation.id,
+                        operation.entityType,
+                        "OPERATES_ON_ENTITY",
+                        EvidenceNormalizer.fromSource(operation.source));
+            }
+        }
+        for (TransactionPolicy policy : sourceModel.transactionPolicies) {
+            if (policy.componentId != null) {
+                addEdge(
+                        policy.componentId.serialize(),
+                        policy.id,
+                        "HAS_TRANSACTION_BOUNDARY",
+                        EvidenceNormalizer.fromSource(policy.source));
+            } else if (policy.appId != null) {
+                addEdge(
+                        policy.appId.serialize(),
+                        policy.id,
+                        "DECLARES_TRANSACTION_CONFIG",
+                        EvidenceNormalizer.fromSource(policy.source));
+            }
+            sourceModel.persistenceOperations.stream()
+                    .filter(operation -> Objects.equals(operation.componentId, policy.componentId)
+                            && Objects.equals(operation.methodSignature, policy.methodSignature))
+                    .forEach(operation -> addEdge(
+                            policy.id,
+                            operation.id,
+                            "GOVERNS_OPERATION",
+                            EvidenceNormalizer.fromSource(policy.source)));
+            sourceModel.entrypoints.stream()
+                    .filter(entrypoint -> Objects.equals(entrypoint.componentId, policy.componentId)
+                            && Objects.equals(entrypoint.name, policy.methodName))
+                    .forEach(entrypoint -> addEdge(
+                            entrypoint.id.serialize(),
+                            policy.id,
+                            "USES_TRANSACTION_POLICY",
+                            EvidenceNormalizer.fromSource(policy.source)));
+        }
+    }
+
+    private void addPersistenceTopologyEdges(ArchitectureModel sourceModel) {
+        for (PersistenceUnitInfo unit : sourceModel.persistenceUnits) {
+            if (unit.appId != null) {
+                addEdge(
+                        unit.appId.serialize(),
+                        unit.id,
+                        "DECLARES_PERSISTENCE_UNIT",
+                        EvidenceNormalizer.fromSource(unit.source));
+            }
+            for (String dataSourceName :
+                    List.of(Objects.toString(unit.jtaDataSource, ""), Objects.toString(unit.nonJtaDataSource, ""))) {
+                DataSourceInfo dataSource = findDataSource(sourceModel, unit, dataSourceName);
+                if (dataSource != null) {
+                    addEdge(unit.id, dataSource.id, "USES_DATASOURCE", EvidenceNormalizer.fromSource(unit.source));
+                }
+            }
+            for (String managedClass : unit.managedClasses) {
+                if (sourceModel.components.stream()
+                        .anyMatch(component -> managedClass.equals(component.id.serialize()))) {
+                    addEdge(unit.id, managedClass, "MANAGES_ENTITY", EvidenceNormalizer.fromSource(unit.source));
+                }
+            }
+        }
+        for (PersistenceUnitUsage usage : sourceModel.persistenceUnitUsages) {
+            PersistenceUnitInfo unit = findPersistenceUnit(sourceModel, usage);
+            if (unit == null) continue;
+            String from = usage.componentId != null
+                    ? usage.componentId.serialize()
+                    : usage.appId != null ? usage.appId.serialize() : null;
+            addEdge(from, unit.id, "USES_PERSISTENCE_UNIT", EvidenceNormalizer.fromSource(usage.source));
+        }
+        for (DataSourceUsage usage : sourceModel.dataSourceUsages) {
+            DataSourceInfo dataSource = findDataSource(sourceModel, usage.appId, usage.dataSourceName);
+            if (dataSource == null) continue;
+            String from = usage.componentId != null
+                    ? usage.componentId.serialize()
+                    : usage.appId != null ? usage.appId.serialize() : null;
+            addEdge(from, dataSource.id, "USES_DATASOURCE", EvidenceNormalizer.fromSource(usage.source));
+        }
+        for (DataSourceInfo dataSource : sourceModel.dataSources) {
+            if (StringUtils.isBlank(dataSource.endpoint) || dataSource.appId == null) continue;
+            String externalId = "external:database:" + dataSource.appId.serialize() + ":" + dataSource.endpoint;
+            addEdge(dataSource.id, externalId, "CONNECTS_TO", EvidenceNormalizer.fromSource(dataSource.source));
+        }
+    }
+
+    private static PersistenceUnitInfo findPersistenceUnit(ArchitectureModel sourceModel, PersistenceUnitUsage usage) {
+        List<PersistenceUnitInfo> candidates = sourceModel.persistenceUnits.stream()
+                .filter(unit -> Objects.equals(unit.appId, usage.appId))
+                .toList();
+        if (StringUtils.isBlank(usage.unitName)) return candidates.size() == 1 ? candidates.getFirst() : null;
+        return candidates.stream()
+                .filter(unit -> usage.unitName.equals(unit.name))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static DataSourceInfo findDataSource(
+            ArchitectureModel sourceModel, PersistenceUnitInfo unit, String dataSourceName) {
+        return findDataSource(sourceModel, unit.appId, dataSourceName);
+    }
+
+    private static DataSourceInfo findDataSource(
+            ArchitectureModel sourceModel, dev.dominikbreu.archlens.model.ids.AppId appId, String dataSourceName) {
+        if (StringUtils.isBlank(dataSourceName)) return null;
+        String normalized = normalizeJndi(dataSourceName);
+        return sourceModel.dataSources.stream()
+                .filter(dataSource -> Objects.equals(dataSource.appId, appId))
+                .filter(dataSource -> normalized.equals(normalizeJndi(dataSource.jndiName))
+                        || normalized.equals(normalizeJndi(dataSource.name))
+                        || dataSource.aliases.stream()
+                                .map(GraphProjector::normalizeJndi)
+                                .anyMatch(normalized::equals))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static String normalizeJndi(String value) {
+        String normalized = Objects.toString(value, "").strip().toLowerCase(Locale.ROOT);
+        for (String prefix : List.of("java:comp/env/", "java:/", "java:jboss/")) {
+            if (normalized.startsWith(prefix)) normalized = normalized.substring(prefix.length());
+        }
+        return normalized;
     }
 
     private void addRuntimeFlow(RuntimeFlow flow) {
@@ -240,6 +459,12 @@ class GraphProjector {
             set(stepVertex, COMPONENT_ID, step.componentId != null ? step.componentId.serialize() : null);
             setLower(stepVertex, "componentType", step.componentType);
             set(stepVertex, "via", step.via);
+            set(stepVertex, METHOD, step.method);
+            set(stepVertex, "transactionPolicy", step.transactionPolicy);
+            set(stepVertex, "transactionTransition", step.transactionTransition);
+            set(stepVertex, "transactionScopeId", step.transactionScopeId);
+            set(stepVertex, "transactionConfidence", step.transactionConfidence);
+            set(stepVertex, "transactionLimitations", step.transactionLimitations);
             addEdge(flow.id, stepId, "HAS_STEP", Map.of("order", step.order));
             addEdge(
                     stepId,
@@ -302,6 +527,8 @@ class GraphProjector {
             if (callEdge.source != null) {
                 props.put(SOURCE_FILE, Objects.toString(callEdge.source.file, ""));
                 props.put(SOURCE_LINE, callEdge.source.line);
+                props.put(DERIVED_FROM, Objects.toString(callEdge.source.derivedFrom, ""));
+                props.put(CONFIDENCE, callEdge.source.confidence);
             }
             addEdge(callEdge.fromComponentId.serialize(), callEdge.toComponentId.serialize(), "CALLS", props);
         }
@@ -688,6 +915,7 @@ class GraphProjector {
         if (access.source != null) {
             properties.put(SOURCE_FILE, Objects.toString(access.source.file, ""));
             properties.put(SOURCE_LINE, access.source.line);
+            properties.put(DERIVED_FROM, Objects.toString(access.source.derivedFrom, ""));
             properties.put(CONFIDENCE, access.source.confidence);
         }
         return properties;
@@ -820,7 +1048,16 @@ class GraphProjector {
                                 REL_STATE_HANDOFF,
                                 "ON_FIELD",
                                 "AT_COMPONENT",
-                                "HAS_SEGMENT")
+                                "HAS_SEGMENT",
+                                "USES_PERSISTENCE_UNIT",
+                                "USES_DATASOURCE",
+                                "MANAGES_ENTITY",
+                                "USES_TRANSACTION_POLICY",
+                                "HAS_TRANSACTION_BOUNDARY",
+                                "GOVERNS_OPERATION",
+                                "PERFORMS_PERSISTENCE_OPERATION",
+                                "OPERATES_ON_ENTITY",
+                                "CONNECTS_TO")
                         .where(org.apache.tinkerpop.gremlin.process.traversal.P.without("seen"))
                         .aggregate("seen"))
                 .cap("seen")
@@ -878,7 +1115,7 @@ class GraphProjector {
             return;
         }
         Edge edge = from.addEdge(label, to);
-        properties.forEach((key, value) -> set(edge, key, value));
+        EvidenceNormalizer.normalize(properties).forEach((key, value) -> set(edge, key, value));
     }
 
     private Component componentById(String componentId) {
@@ -974,12 +1211,6 @@ class GraphProjector {
     }
 
     private static void setSource(Vertex vertex, SourceInfo source) {
-        if (source == null) {
-            return;
-        }
-        set(vertex, SOURCE_FILE, source.file);
-        set(vertex, SOURCE_LINE, source.line);
-        set(vertex, DERIVED_FROM, source.derivedFrom);
-        set(vertex, CONFIDENCE, source.confidence);
+        EvidenceNormalizer.fromSource(source).forEach((key, value) -> set(vertex, key, value));
     }
 }

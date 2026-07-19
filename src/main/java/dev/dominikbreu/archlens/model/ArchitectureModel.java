@@ -46,6 +46,24 @@ public class ArchitectureModel {
      *  cannot be modelled as call edges because the callee is not a project component. */
     @JsonProperty("outbound_sink_sites")
     public List<OutboundSinkSite> outboundSinkSites = new ArrayList<>();
+    /** Persistence units declared by standard JPA descriptors. */
+    @JsonProperty("persistence_units")
+    public List<PersistenceUnitInfo> persistenceUnits = new ArrayList<>();
+    /** Datasource declarations and unresolved datasource bindings. */
+    @JsonProperty("data_sources")
+    public List<DataSourceInfo> dataSources = new ArrayList<>();
+    /** Source-level references from components to persistence units. */
+    @JsonProperty("persistence_unit_usages")
+    public List<PersistenceUnitUsage> persistenceUnitUsages = new ArrayList<>();
+    /** Source/config references from components or applications to datasources. */
+    @JsonProperty("data_source_usages")
+    public List<DataSourceUsage> dataSourceUsages = new ArrayList<>();
+    /** Method-local EntityManager operations linked to persistence topology. */
+    @JsonProperty("persistence_operations")
+    public List<PersistenceOperation> persistenceOperations = new ArrayList<>();
+    /** Effective method transaction policies extracted from framework declarations/defaults. */
+    @JsonProperty("transaction_policies")
+    public List<TransactionPolicy> transactionPolicies = new ArrayList<>();
 
     /** Creates an empty architecture model for JSON deserialization. */
     public ArchitectureModel() {}

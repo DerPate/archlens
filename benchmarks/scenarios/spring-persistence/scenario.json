@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "id": "spring-persistence",
+  "workspace": "../../../src/test/resources/testprojects/spring-pipeline-sample",
+  "questions": [
+    {
+      "id": "order-id-persistence",
+      "question": "Where is the order id ultimately persisted?",
+      "tool": "query_architecture_graph",
+      "arguments": {
+        "action": "find_nodes",
+        "label": "DataFlowSink",
+        "filters": {"sinkKind": "persistence"}
+      },
+      "assertions": [
+        {
+          "path": "nodes",
+          "where": {
+            "label": "DataFlowSink",
+            "properties.sinkKind": "persistence",
+            "properties.repositoryOperation": "save",
+            "properties.entityType": "com.example.pipeline.model.OrderEntity"
+          },
+          "minCount": 1,
+          "requiredFields": [
+            "properties.sourceFile",
+            "properties.sourceLine",
+            "properties.derivedFrom",
+            "properties.confidence",
+            "properties.confidenceBand",
+            "properties.ambiguous",
+            "evidence.derivedFrom",
+            "evidence.confidenceBand"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "order-id-persistence-contract",
+      "question": "Give the complete evidence-bearing persistence destination contract for the order id.",
+      "tool": "answer_architecture_question",
+      "arguments": {
+        "family": "persistence_destination",
+        "entrypoint": "POST /api/orders/{id}",
+        "param": "id"
+      },
+      "assertions": [
+        {"path": "status", "equals": "partial"},
+        {
+          "path": "answer.operations",
+          "where": {"properties.entityType": "com.example.pipeline.model.OrderEntity"},
+          "minCount": 1,
+          "requiredFields": ["evidence.confidenceBand"]
+        },
+        {
+          "path": "answer.destinations",
+          "where": {"entityType": "com.example.pipeline.model.OrderEntity"},
+          "minCount": 1,
+          "requiredFields": ["persistenceUnit", "evidenceChain"]
+        },
+        {"path": "unresolved", "contains": "datasource-not-resolved:spring-orders"}
+      ]
+    },
+    {
+      "id": "spring-method-transaction-override",
+      "question": "Does OrderService.markReady override the type-level read-only transaction?",
+      "tool": "query_architecture_graph",
+      "arguments": {"action": "find_nodes", "label": "TransactionBoundary", "query": "markReady"},
+      "assertions": [{
+        "path": "nodes",
+        "where": {
+          "label": "TransactionBoundary",
+          "properties.framework": "spring",
+          "properties.policy": "REQUIRES_NEW",
+          "properties.readOnly": false,
+          "properties.declarationLevel": "method"
+        },
+        "minCount": 1,
+        "requiredFields": ["properties.limitations", "evidence.confidenceBand"]
+      }]
+    },
+    {
+      "id": "spring-call-flow-transaction-scope",
+      "question": "Which repository call probably shares the transaction started by OrderService.create?",
+      "tool": "call_flow",
+      "arguments": {"entrypointName": "POST /api/orders/{id}"},
+      "assertions": [{
+        "path": "steps",
+        "where": {
+          "componentId": "com.example.pipeline.repository.OrderRepository",
+          "transactionTransition": "join",
+          "transactionLimitations": "no-effective-policy"
+        },
+        "minCount": 1,
+        "requiredFields": ["transactionScopeId", "transactionConfidence"]
+      }]
+    },
+    {
+      "id": "spring-transaction-context-contract",
+      "question": "Give the effective transaction policies, scope transitions, governed calls, and caveats for order creation.",
+      "tool": "answer_architecture_question",
+      "arguments": {"family": "transaction_context", "entrypoint": "POST /api/orders/{id}"},
+      "assertions": [
+        {
+          "path": "answer.policies",
+          "where": {"properties.policy": "REQUIRED"},
+          "minCount": 1,
+          "requiredFields": ["evidence.confidenceBand"]
+        },
+        {
+          "path": "answer.scopeTransitions",
+          "where": {"properties.transactionTransition": "begin"},
+          "minCount": 1
+        },
+        {"path": "answer.caveats", "contains": "proxy-semantics-runtime-dependent"}
+      ]
+    }
+  ]
+}

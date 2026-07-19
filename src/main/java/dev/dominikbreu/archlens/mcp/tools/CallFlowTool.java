@@ -85,6 +85,18 @@ public class CallFlowTool {
                                             ? step.componentId().serialize()
                                             : "")
                             .append(")\n");
+                    if (step.transactionPolicy() != null || step.transactionTransition() != null) {
+                        sb.append("     tx=")
+                                .append(step.transactionPolicy() != null ? step.transactionPolicy() : "unknown")
+                                .append(", transition=")
+                                .append(step.transactionTransition())
+                                .append(step.transactionScopeId() != null ? ", scope=" + step.transactionScopeId() : "")
+                                .append(
+                                        step.transactionLimitations() != null
+                                                ? ", limitations=" + step.transactionLimitations()
+                                                : "")
+                                .append("\n");
+                    }
                     Map<String, Object> stepMap = new LinkedHashMap<>();
                     stepMap.put("order", step.order());
                     stepMap.put("componentType", step.componentType());
@@ -92,6 +104,12 @@ public class CallFlowTool {
                     stepMap.put(
                             "componentId",
                             step.componentId() != null ? step.componentId().serialize() : null);
+                    stepMap.put("method", step.method());
+                    stepMap.put("transactionPolicy", step.transactionPolicy());
+                    stepMap.put("transactionTransition", step.transactionTransition());
+                    stepMap.put("transactionScopeId", step.transactionScopeId());
+                    stepMap.put("transactionConfidence", step.transactionConfidence());
+                    stepMap.put("transactionLimitations", step.transactionLimitations());
                     structuredSteps.add(stepMap);
                 }
             }

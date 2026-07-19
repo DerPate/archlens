@@ -91,12 +91,20 @@ class UntestedToolsCoverageTest {
 
     @Test
     void callFlow_byEntrypointId_runs() {
-        assertThat(entrypointId).isNotNull();
-        String result = new CallFlowTool(cache)
-                .execute(Map.of("entrypointId", entrypointId))
-                .text();
-        assertThat(result).doesNotStartWith("Error");
-        assertNoTypedIdNoise(result);
+        String transactionalEntrypoint = model.entrypoints.stream()
+                .filter(entrypoint -> "com.example.api.OrderResource".equals(entrypoint.componentId.serialize())
+                        && "get".equals(entrypoint.name))
+                .findFirst()
+                .orElseThrow()
+                .id
+                .serialize();
+        ToolResult result = new CallFlowTool(cache).execute(Map.of("entrypointId", transactionalEntrypoint));
+        assertThat(result.text()).doesNotStartWith("Error");
+        assertThat(result.text()).contains("tx=SUPPORTS", "transition=none");
+        assertThat(result.structured())
+                .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+                .containsKey("steps");
+        assertNoTypedIdNoise(result.text());
     }
 
     @Test

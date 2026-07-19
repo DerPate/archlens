@@ -188,6 +188,23 @@ public class GraphQuery {
     }
 
     /**
+     * Looks up any typed graph node by its graph identifier.
+     *
+     * @param id graph node identifier
+     * @return the typed node, or {@code null} when absent
+     */
+    public GraphNode node(GraphNodeId id) {
+        lock.lock();
+        try {
+            if (id == null) return null;
+            Vertex vertex = store.verticesById.get(id);
+            return vertex != null ? toNode(vertex) : null;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
      * Returns all entrypoint nodes.
      *
      * @return list of all entrypoint nodes
@@ -1527,7 +1544,68 @@ public class GraphQuery {
                         vList(vertex, "roles"),
                         vList(vertex, "hosts"));
             case "ExternalSystem" ->
-                new ExternalSystemNode(nodeId, name, vStr(vertex, "externalSystemKind"), vStr(vertex, TECHNOLOGY));
+                new ExternalSystemNode(
+                        nodeId, name, vStr(vertex, "externalSystemKind"), vStr(vertex, TECHNOLOGY), vSource(vertex));
+            case "PersistenceUnit" ->
+                new PersistenceUnitNode(
+                        nodeId,
+                        name,
+                        AppId.of(vStr(vertex, "appId")),
+                        vStr(vertex, "provider"),
+                        vStr(vertex, "transactionType"),
+                        vStr(vertex, "jtaDataSource"),
+                        vStr(vertex, "nonJtaDataSource"),
+                        vList(vertex, "managedClasses"),
+                        vList(vertex, "mappingFiles"),
+                        vList(vertex, "unresolvedPlaceholders"),
+                        vBool(vertex, "entrypointReachable"),
+                        vSource(vertex));
+            case "DataSource" ->
+                new DataSourceNode(
+                        nodeId,
+                        name,
+                        AppId.of(vStr(vertex, "appId")),
+                        vStr(vertex, "jndiName"),
+                        vList(vertex, "aliases"),
+                        vStr(vertex, "driver"),
+                        vStr(vertex, "endpoint"),
+                        vStr(vertex, "databaseKind"),
+                        vStr(vertex, "declarationKind"),
+                        vBool(vertex, "unresolved"),
+                        vBool(vertex, "entrypointReachable"),
+                        vSource(vertex));
+            case "PersistenceOperation" ->
+                new PersistenceOperationNode(
+                        nodeId,
+                        name,
+                        AppId.of(vStr(vertex, "appId")),
+                        vComponentId(vertex, COMPONENT_ID),
+                        vStr(vertex, "methodName"),
+                        vStr(vertex, "methodSignature"),
+                        vStr(vertex, "operation"),
+                        vStr(vertex, "entityType"),
+                        vStr(vertex, "persistenceUnitName"),
+                        vSource(vertex));
+            case "TransactionBoundary" ->
+                new TransactionBoundaryNode(
+                        nodeId,
+                        name,
+                        AppId.of(vStr(vertex, "appId")),
+                        vComponentId(vertex, COMPONENT_ID),
+                        vStr(vertex, "methodName"),
+                        vStr(vertex, "methodSignature"),
+                        vStr(vertex, "framework"),
+                        vStr(vertex, "policy"),
+                        vStr(vertex, "nativePolicy"),
+                        vOptionalBool(vertex, "readOnly").orElse(null),
+                        vStr(vertex, "isolation"),
+                        vList(vertex, "rollbackRules"),
+                        vStr(vertex, "declarationLevel"),
+                        vBool(vertex, "defaulted"),
+                        vBool(vertex, "programmatic"),
+                        vList(vertex, "limitations"),
+                        vBool(vertex, "entrypointReachable"),
+                        vSource(vertex));
             case "RuntimeFlow" ->
                 new RuntimeFlowNode(
                         nodeId,
@@ -1542,7 +1620,13 @@ public class GraphQuery {
                         vInt(vertex, "order"),
                         vComponentId(vertex, COMPONENT_ID),
                         vStr(vertex, "componentType"),
-                        vStr(vertex, "via"));
+                        vStr(vertex, "via"),
+                        vStr(vertex, METHOD),
+                        vStr(vertex, "transactionPolicy"),
+                        vStr(vertex, "transactionTransition"),
+                        vStr(vertex, "transactionScopeId"),
+                        vDouble(vertex, "transactionConfidence"),
+                        vStr(vertex, "transactionLimitations"));
             case "DataFlowPath" ->
                 new DataFlowPathNode(
                         nodeId,
@@ -1642,6 +1726,13 @@ public class GraphQuery {
         return it.hasNext() && Boolean.TRUE.equals(it.next().value());
     }
 
+    private Optional<Boolean> vOptionalBool(Vertex v, String key) {
+        var it = v.properties(key);
+        return it.hasNext()
+                ? Optional.of(Boolean.valueOf(Objects.toString(it.next().value())))
+                : Optional.empty();
+    }
+
     private <T extends Enum<T>> T vEnum(Vertex v, String key, Class<T> cls) {
         String s = vStr(v, key);
         if (s == null || s.isBlank()) return null;
@@ -1667,6 +1758,10 @@ public class GraphQuery {
         String file = vStr(v, SOURCE_FILE);
         if (file == null) return null;
         return new SourceInfo(file, vInt(v, SOURCE_LINE), vStr(v, DERIVED_FROM), vDouble(v, CONFIDENCE));
+    }
+
+    private static void putEvidenceProperties(Map<String, Object> properties, SourceInfo source) {
+        properties.putAll(EvidenceNormalizer.fromSource(source));
     }
 
     private GraphEdge toEdge(Edge edge) {
@@ -1799,6 +1894,10 @@ public class GraphQuery {
                     ContainerNode,
                     DeploymentNode,
                     ExternalSystemNode,
+                    PersistenceUnitNode,
+                    DataSourceNode,
+                    PersistenceOperationNode,
+                    TransactionBoundaryNode,
                     RuntimeFlowNode,
                     RuntimeFlowStepNode,
                     DataFlowPathNode,
@@ -1956,12 +2055,7 @@ public class GraphQuery {
             if (module != null) m.put("module", module.serialize());
             m.put("technology", technology);
             if (!stereotypes.isEmpty()) m.put("stereotypes", String.join(",", stereotypes));
-            if (source != null) {
-                m.put("sourceFile", source.file);
-                m.put("sourceLine", source.line);
-                m.put("derivedFrom", source.derivedFrom);
-                m.put("confidence", source.confidence);
-            }
+            putEvidenceProperties(m, source);
             m.put("fanIn", fanIn);
             m.put("fanOut", fanOut);
             m.put("degree", degree);
@@ -2047,12 +2141,7 @@ public class GraphQuery {
             if (!parameters.isEmpty()) m.put("parameters", String.join(",", parameters));
             m.put("protocol", protocol);
             if (componentId != null) m.put("componentId", componentId.serialize());
-            if (source != null) {
-                m.put("sourceFile", source.file);
-                m.put("sourceLine", source.line);
-                m.put("derivedFrom", source.derivedFrom);
-                m.put("confidence", source.confidence);
-            }
+            putEvidenceProperties(m, source);
             m.entrySet().removeIf(e -> e.getValue() == null);
             return m;
         }
@@ -2103,7 +2192,7 @@ public class GraphQuery {
 
         @Override
         public Map<String, Object> properties() {
-            return GraphNode.propsOf(
+            Map<String, Object> properties = GraphNode.propsOf(
                     "interfaceType",
                     type,
                     "type",
@@ -2122,6 +2211,8 @@ public class GraphQuery {
                     topic,
                     "externalServiceName",
                     externalServiceName);
+            putEvidenceProperties(properties, source);
+            return properties;
         }
 
         @Override
@@ -2222,8 +2313,10 @@ public class GraphQuery {
      * @param name the external system name
      * @param kind the external system kind (e.g. database, broker, HTTP service)
      * @param technology the detected technology
+     * @param source source/config evidence, when available
      */
-    public record ExternalSystemNode(GraphNodeId id, String name, String kind, String technology) implements GraphNode {
+    public record ExternalSystemNode(GraphNodeId id, String name, String kind, String technology, SourceInfo source)
+            implements GraphNode {
         @Override
         public String label() {
             return "ExternalSystem";
@@ -2231,8 +2324,10 @@ public class GraphQuery {
 
         @Override
         public Map<String, Object> properties() {
-            return GraphNode.propsOf(
+            Map<String, Object> properties = GraphNode.propsOf(
                     "kind", "externalSystem", "externalSystemKind", kind, "type", kind, "technology", technology);
+            putEvidenceProperties(properties, source);
+            return properties;
         }
 
         @Override
@@ -2241,6 +2336,272 @@ public class GraphQuery {
                     || GraphNode.q(query, name)
                     || GraphNode.q(query, kind)
                     || GraphNode.q(query, technology);
+        }
+    }
+
+    /**
+     * Graph node for a persistence unit declared in {@code persistence.xml}.
+     *
+     * @param id node identifier
+     * @param name persistence-unit name
+     * @param appId owning application/module
+     * @param provider configured persistence provider
+     * @param transactionType configured transaction type
+     * @param jtaDataSource JTA datasource reference
+     * @param nonJtaDataSource non-JTA datasource reference
+     * @param managedClasses explicitly managed entity classes
+     * @param mappingFiles ORM mapping files
+     * @param unresolvedPlaceholders unresolved descriptor expressions
+     * @param entrypointReachable whether reachable from a known entrypoint
+     * @param source descriptor evidence
+     */
+    public record PersistenceUnitNode(
+            GraphNodeId id,
+            String name,
+            AppId appId,
+            String provider,
+            String transactionType,
+            String jtaDataSource,
+            String nonJtaDataSource,
+            List<String> managedClasses,
+            List<String> mappingFiles,
+            List<String> unresolvedPlaceholders,
+            boolean entrypointReachable,
+            SourceInfo source)
+            implements GraphNode {
+        @Override
+        public String label() {
+            return "PersistenceUnit";
+        }
+
+        @Override
+        public Map<String, Object> properties() {
+            Map<String, Object> properties = GraphNode.propsOf(
+                    "appId",
+                    appId != null ? appId.serialize() : null,
+                    "provider",
+                    provider,
+                    "transactionType",
+                    transactionType,
+                    "jtaDataSource",
+                    jtaDataSource,
+                    "nonJtaDataSource",
+                    nonJtaDataSource,
+                    "managedClasses",
+                    managedClasses.isEmpty() ? null : String.join(",", managedClasses),
+                    "mappingFiles",
+                    mappingFiles.isEmpty() ? null : String.join(",", mappingFiles),
+                    "unresolvedPlaceholders",
+                    unresolvedPlaceholders.isEmpty() ? null : String.join(",", unresolvedPlaceholders),
+                    "entrypointReachable",
+                    entrypointReachable);
+            putEvidenceProperties(properties, source);
+            return properties;
+        }
+
+        @Override
+        public boolean matches(String query) {
+            return GraphNode.q(query, id.serialize())
+                    || GraphNode.q(query, name)
+                    || GraphNode.q(query, provider)
+                    || GraphNode.q(query, transactionType)
+                    || GraphNode.q(query, jtaDataSource)
+                    || GraphNode.q(query, nonJtaDataSource)
+                    || managedClasses.stream().anyMatch(value -> GraphNode.q(query, value));
+        }
+    }
+
+    /**
+     * Graph node for a configured or unresolved datasource binding.
+     *
+     * @param id node identifier
+     * @param name datasource display name
+     * @param appId associated application/module
+     * @param jndiName primary JNDI binding
+     * @param aliases additional bindings
+     * @param driver configured driver or datasource class
+     * @param endpoint sanitized database endpoint
+     * @param databaseKind inferred database technology
+     * @param declarationKind configuration source kind
+     * @param unresolved whether no concrete declaration/endpoint could be resolved
+     * @param entrypointReachable whether reachable from a known entrypoint
+     * @param source configuration evidence
+     */
+    public record DataSourceNode(
+            GraphNodeId id,
+            String name,
+            AppId appId,
+            String jndiName,
+            List<String> aliases,
+            String driver,
+            String endpoint,
+            String databaseKind,
+            String declarationKind,
+            boolean unresolved,
+            boolean entrypointReachable,
+            SourceInfo source)
+            implements GraphNode {
+        @Override
+        public String label() {
+            return "DataSource";
+        }
+
+        @Override
+        public Map<String, Object> properties() {
+            Map<String, Object> properties = GraphNode.propsOf(
+                    "appId",
+                    appId != null ? appId.serialize() : null,
+                    "jndiName",
+                    jndiName,
+                    "aliases",
+                    aliases.isEmpty() ? null : String.join(",", aliases),
+                    "driver",
+                    driver,
+                    "endpoint",
+                    endpoint,
+                    "databaseKind",
+                    databaseKind,
+                    "declarationKind",
+                    declarationKind,
+                    "unresolved",
+                    unresolved,
+                    "entrypointReachable",
+                    entrypointReachable);
+            putEvidenceProperties(properties, source);
+            return properties;
+        }
+
+        @Override
+        public boolean matches(String query) {
+            return GraphNode.q(query, id.serialize())
+                    || GraphNode.q(query, name)
+                    || GraphNode.q(query, jndiName)
+                    || GraphNode.q(query, driver)
+                    || GraphNode.q(query, endpoint)
+                    || GraphNode.q(query, databaseKind)
+                    || aliases.stream().anyMatch(value -> GraphNode.q(query, value));
+        }
+    }
+
+    /** Typed graph node for one method-local EntityManager operation. */
+    public record PersistenceOperationNode(
+            GraphNodeId id,
+            String name,
+            AppId appId,
+            ComponentId componentId,
+            String methodName,
+            String methodSignature,
+            String operation,
+            String entityType,
+            String persistenceUnitName,
+            SourceInfo source)
+            implements GraphNode {
+        @Override
+        public String label() {
+            return "PersistenceOperation";
+        }
+
+        @Override
+        public Map<String, Object> properties() {
+            Map<String, Object> p = GraphNode.propsOf(
+                    "appId",
+                    appId != null ? appId.serialize() : null,
+                    "componentId",
+                    componentId != null ? componentId.serialize() : null,
+                    "methodName",
+                    methodName,
+                    "methodSignature",
+                    methodSignature,
+                    "operation",
+                    operation,
+                    "entityType",
+                    entityType,
+                    "persistenceUnitName",
+                    persistenceUnitName);
+            putEvidenceProperties(p, source);
+            return p;
+        }
+
+        @Override
+        public boolean matches(String query) {
+            return GraphNode.q(query, id.serialize())
+                    || GraphNode.q(query, methodName)
+                    || GraphNode.q(query, operation)
+                    || GraphNode.q(query, entityType)
+                    || GraphNode.q(query, persistenceUnitName);
+        }
+    }
+
+    /** Typed graph node for the effective transaction policy governing one method. */
+    public record TransactionBoundaryNode(
+            GraphNodeId id,
+            String name,
+            AppId appId,
+            ComponentId componentId,
+            String methodName,
+            String methodSignature,
+            String framework,
+            String policy,
+            String nativePolicy,
+            Boolean readOnly,
+            String isolation,
+            List<String> rollbackRules,
+            String declarationLevel,
+            boolean defaulted,
+            boolean programmatic,
+            List<String> limitations,
+            boolean entrypointReachable,
+            SourceInfo source)
+            implements GraphNode {
+        @Override
+        public String label() {
+            return "TransactionBoundary";
+        }
+
+        @Override
+        public Map<String, Object> properties() {
+            Map<String, Object> p = GraphNode.propsOf(
+                    "appId",
+                    appId != null ? appId.serialize() : null,
+                    "componentId",
+                    componentId != null ? componentId.serialize() : null,
+                    "methodName",
+                    methodName,
+                    "methodSignature",
+                    methodSignature,
+                    "framework",
+                    framework,
+                    "policy",
+                    policy,
+                    "nativePolicy",
+                    nativePolicy,
+                    "readOnly",
+                    readOnly,
+                    "isolation",
+                    isolation,
+                    "rollbackRules",
+                    rollbackRules.isEmpty() ? null : String.join(",", rollbackRules),
+                    "declarationLevel",
+                    declarationLevel,
+                    "defaulted",
+                    defaulted,
+                    "programmatic",
+                    programmatic,
+                    "limitations",
+                    limitations.isEmpty() ? null : String.join(",", limitations),
+                    "entrypointReachable",
+                    entrypointReachable);
+            putEvidenceProperties(p, source);
+            return p;
+        }
+
+        @Override
+        public boolean matches(String query) {
+            return GraphNode.q(query, id.serialize())
+                    || GraphNode.q(query, methodName)
+                    || GraphNode.q(query, framework)
+                    || GraphNode.q(query, policy)
+                    || GraphNode.q(query, declarationLevel);
         }
     }
 
@@ -2283,6 +2644,12 @@ public class GraphQuery {
      * @param componentId the component executing this step
      * @param componentType the component's type
      * @param via how this step was reached (call/injection/etc.)
+     * @param method governed method name
+     * @param transactionPolicy effective normalized transaction policy
+     * @param transactionTransition inferred transition
+     * @param transactionScopeId inferred active scope id
+     * @param transactionConfidence evidence strength for the transition
+     * @param transactionLimitations visible inference caveats
      */
     public record RuntimeFlowStepNode(
             GraphNodeId id,
@@ -2291,8 +2658,26 @@ public class GraphQuery {
             int order,
             ComponentId componentId,
             String componentType,
-            String via)
+            String via,
+            String method,
+            String transactionPolicy,
+            String transactionTransition,
+            String transactionScopeId,
+            double transactionConfidence,
+            String transactionLimitations)
             implements GraphNode {
+        /** Backward-compatible constructor for steps without transaction metadata. */
+        public RuntimeFlowStepNode(
+                GraphNodeId id,
+                String name,
+                String flowId,
+                int order,
+                ComponentId componentId,
+                String componentType,
+                String via) {
+            this(id, name, flowId, order, componentId, componentType, via, null, null, null, null, 0.0, null);
+        }
+
         @Override
         public String label() {
             return "RuntimeFlowStep";
@@ -2310,7 +2695,19 @@ public class GraphQuery {
                     "componentType",
                     componentType,
                     "via",
-                    via);
+                    via,
+                    "method",
+                    method,
+                    "transactionPolicy",
+                    transactionPolicy,
+                    "transactionTransition",
+                    transactionTransition,
+                    "transactionScopeId",
+                    transactionScopeId,
+                    "transactionConfidence",
+                    transactionConfidence,
+                    "transactionLimitations",
+                    transactionLimitations);
         }
 
         @Override
@@ -2407,7 +2804,7 @@ public class GraphQuery {
 
         @Override
         public Map<String, Object> properties() {
-            return GraphNode.propsOf(
+            Map<String, Object> properties = GraphNode.propsOf(
                     "sinkKind",
                     sinkKind != null ? sinkKind.value() : null,
                     "pathId",
@@ -2438,6 +2835,8 @@ public class GraphQuery {
                     linkEvidence,
                     "calleeQualifiedName",
                     calleeQualifiedName);
+            putEvidenceProperties(properties, source);
+            return properties;
         }
 
         @Override
@@ -2493,12 +2892,7 @@ public class GraphQuery {
             m.put("componentName", componentName);
             m.put("method", method);
             m.put("localName", localName);
-            if (source != null) {
-                m.put("sourceFile", source.file);
-                m.put("sourceLine", source.line);
-                m.put("derivedFrom", source.derivedFrom);
-                m.put("confidence", source.confidence);
-            }
+            putEvidenceProperties(m, source);
             m.entrySet().removeIf(e -> e.getValue() == null);
             return m;
         }
@@ -2540,12 +2934,7 @@ public class GraphQuery {
             m.put("pathId", pathId);
             m.put("branchId", branchId);
             m.put("branchKind", branchKind);
-            if (source != null) {
-                m.put("sourceFile", source.file);
-                m.put("sourceLine", source.line);
-                m.put("derivedFrom", source.derivedFrom);
-                m.put("confidence", source.confidence);
-            }
+            putEvidenceProperties(m, source);
             m.entrySet().removeIf(e -> e.getValue() == null);
             return m;
         }
