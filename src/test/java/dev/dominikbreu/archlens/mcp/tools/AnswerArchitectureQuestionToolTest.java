@@ -181,6 +181,30 @@ class AnswerArchitectureQuestionToolTest {
                         assertThat(nested(entrypoint, "properties", "path")).isEqualTo("/api/orders/{id}"));
     }
 
+    @Test
+    void naturalLanguageMessagingQuestionMatchesTypedMessagingFlowCall() {
+        ToolResult typed =
+                tool("spring-pipeline-sample").execute(Map.of("family", "messaging_flow", "entrypoint", "onCreated"));
+        ToolResult natural =
+                tool("spring-pipeline-sample").execute(Map.of("question", "Who publishes orders.created?"));
+
+        Map<String, Object> typedStructured = structured(typed);
+        Map<String, Object> naturalStructured = structured(natural);
+        assertThat(naturalStructured).containsEntry("family", "messaging_flow");
+        assertThat(nested(naturalStructured, "interpretation", "intent")).isEqualTo("messaging_flow");
+        assertThat(answer(naturalStructured))
+                .containsEntry("topic", answer(typedStructured).get("topic"));
+    }
+
+    @Test
+    void naturalLanguageStateLifecycleQuestionRoutesToStateLifecycleIntent() {
+        ToolResult result = tool("spring-pipeline-sample")
+                .execute(Map.of("question", "Where is field orderStatus written and read?"));
+
+        Map<String, Object> structured = structured(result);
+        assertThat(nested(structured, "interpretation", "intent")).isEqualTo("state_lifecycle");
+    }
+
     private static AnswerArchitectureQuestionTool tool(String fixture) {
         return tool(extract(fixture));
     }

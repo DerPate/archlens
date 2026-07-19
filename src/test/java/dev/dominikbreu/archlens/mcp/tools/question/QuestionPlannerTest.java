@@ -16,7 +16,7 @@ class QuestionPlannerTest {
 
     @Test
     void recognizesConsumerContextQuestions() {
-        Interpretation result = planner.interpret("What consumes the orders.created channel?");
+        Interpretation result = planner.interpret("What consumes and processes orders.created?");
         assertThat(result.intent()).isEqualTo("consumer_context");
     }
 
@@ -80,5 +80,44 @@ class QuestionPlannerTest {
         assertThat(result.subjectCandidates())
                 .extracting(Interpretation.SubjectCandidate::ref)
                 .contains("persistence_destination", "impact");
+    }
+
+    @Test
+    void recognizesMessagingFlowQuestions() {
+        assertThat(planner.interpret("Who publishes the orders.created topic?").intent())
+                .isEqualTo("messaging_flow");
+    }
+
+    @Test
+    void recognizesScheduledWorkflowQuestions() {
+        assertThat(planner.interpret("What does this scheduled job trigger?").intent())
+                .isEqualTo("scheduled_workflow");
+    }
+
+    @Test
+    void recognizesStateLifecycleQuestions() {
+        assertThat(planner.interpret("Where is field orderStatus written and read?")
+                        .intent())
+                .isEqualTo("state_lifecycle");
+    }
+
+    @Test
+    void recognizesConfigurationContextQuestions() {
+        assertThat(planner.interpret("Where is the base url configured?").intent())
+                .isEqualTo("configuration_context");
+    }
+
+    @Test
+    void recognizesExternalIntegrationContextQuestions() {
+        assertThat(planner.interpret("Which use cases call the billing integration client?")
+                        .intent())
+                .isEqualTo("external_integration_context");
+    }
+
+    @Test
+    void recognizesRelationshipQuestions() {
+        assertThat(planner.interpret("How is OrderService related to OrderRepository?")
+                        .intent())
+                .isEqualTo("relationship");
     }
 }

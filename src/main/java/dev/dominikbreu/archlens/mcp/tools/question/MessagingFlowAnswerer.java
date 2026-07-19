@@ -35,7 +35,7 @@ public final class MessagingFlowAnswerer {
     public static Answer answer(GraphQuery graph, Map<String, Object> args, QueryPlanRecorder recorder) {
         Answer result = new Answer();
         String entrypointRef = QuestionSupport.first(args, "entrypoint", "entrypointId", "entrypointName");
-        String topicRef = QuestionSupport.first(args, "query", "topic");
+        String topicRef = QuestionSupport.first(args, "query", "topic", "component");
 
         List<EntrypointNode> messagingEntrypoints = new ArrayList<>();
         if (entrypointRef != null) {
