@@ -71,7 +71,8 @@ class McpServerTest {
         assertThat(tool.inputSchema()).extractingByKey("properties").isInstanceOfSatisfying(Map.class, props -> {
             assertThat(props).containsKey("question");
             assertThat(((Map<?, ?>) props.get("family")).get("description").toString())
-                    .contains("endpoint_context");
+                    .contains("endpoint_context")
+                    .contains("relationship");
         });
         assertThat(tool.outputSchema()).extractingByKey("properties").isInstanceOfSatisfying(Map.class, props -> {
             assertThat(props)
