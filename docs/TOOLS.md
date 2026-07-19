@@ -15,6 +15,13 @@ populate `structuredContent` with the same data as JSON, validated against each 
 written file, not structured data. Clients that only read `content[0].text` continue to work
 exactly as before — `structuredContent` is additive.
 
+Graph node and edge items with source-derived evidence include an additive `evidence` object.
+It normalizes `derivedFrom`, `sourceFile`, `sourceLine`, numeric `confidence`, categorical
+`confidenceBand` (`known`, `inferred`, `ambiguous`, `unknown`), explicit `ambiguous`, and a short
+human-readable `evidence` reason. The same fields remain in the item's `properties` map for
+filtering and backward compatibility. Confidence is an evidence-strength score, not a statistical
+probability.
+
 See `docs/STRUCTURED_OUTPUT.md` for a worked example and why this is worth using from an
 agent's instructions, not just from a typed client.
 
@@ -233,6 +240,21 @@ Example — system-level diagram:
 ## `call_flow`
 
 Return the runtime call flow for an entry point: ordered steps and a Mermaid `flowchart TD`.
+
+When an effective transaction policy is known, each structured step additionally exposes
+`method`, `transactionPolicy`, `transactionTransition`, `transactionScopeId`,
+`transactionConfidence`, and `transactionLimitations`. Scope inference does not traverse the
+messaging/event-bus boundaries already excluded by workflow traversal. Spring steps retain an
+explicit proxy/runtime-semantics limitation.
+
+Effective policies are resolved from Spring, Jakarta/Javax, Quarkus, and EJB annotations,
+inherited type declarations, EJB defaults, Spring XML `tx:advice`/`aop:advisor` rules, and EJB
+`ejb-jar.xml` container-transaction declarations. Method declarations override type declarations;
+exact descriptor rules override defaults. Programmatic APIs stop confirmed scope inference.
+Unresolvable Spring pointcuts remain standalone `TransactionBoundary` evidence with
+`declarationLevel=xml-unresolved`, reduced confidence, and an explicit limitation. Self-invocation
+and coexisting XML/annotation advice likewise remain visible instead of being treated as certain
+runtime proxy behavior.
 
 When call-graph data is available (after a full `index_workspace`), the tool performs a
 DFS over actual method-call edges from the entrypoint method — each step’s `via` field
@@ -467,6 +489,10 @@ or `com.azure.storage.*` (→ `object-storage`) are detected even when the calle
 not a project component, via {@code outbound_sink_sites} captured during call-graph
 extraction. Sinks land on the entrypoint method's data-flow path at depth 0.
 
+Structured sink results include destination metadata (`entityType`, `repositoryOperation`,
+`channel`, `broker`, `topic`) when known and the normalized `evidence` object when source evidence
+is available. Human-readable sink lines show the confidence band alongside the source location.
+
 **New entrypoint families:** `EVENT_BUS_CONSUMER` (Vert.x `eventBus.consumer(addr, handler)`),
 `WEBSOCKET_ENDPOINT` (`@ServerEndpoint` + `@OnMessage`), `SSE_ENDPOINT` (REST methods
 producing `text/event-stream` or with an `SseEventSink`/`Sse` parameter or return type),
@@ -699,7 +725,8 @@ Arguments: none.
 
 Query the indexed architecture model as a graph. The graph view includes applications,
 components, entrypoints, interfaces, containers, deployments, runtime flows, data-flow
-paths, data-flow sinks, branch-aware data-flow topology nodes, and their relationships.
+paths, data-flow sinks, persistence units, datasources, safe database endpoints,
+branch-aware data-flow topology nodes, and their relationships.
 
 Arguments:
 
@@ -734,6 +761,12 @@ Structured result shapes depend on the action and active MCP structured-output m
 
 Useful graph properties include:
 
+- Evidence-bearing nodes and edges use the shared properties `derivedFrom`, `sourceFile`,
+  `sourceLine`, `confidence`, `confidenceBand`, `ambiguous`, and `evidence`. `known` means direct,
+  high-strength evidence; `inferred` means a supported derivation; `ambiguous` is review material
+  excluded from default workflow truth; `unknown` means no useful strength could be established.
+  Use `filters` such as `{"confidenceBand":"ambiguous"}` to review uncertain graph facts.
+
 - Component nodes: `componentType`, `qualifiedName`, `packageName`, `module`, `technology`,
   `sourceFile`, `sourceLine`, `confidence`, `fanIn`, `fanOut`, `entrypointReachable`,
   `architecturalWeight`, `workflowRelevant`, `businessRelevant`, `infrastructureRole`,
@@ -762,6 +795,25 @@ Useful graph properties include:
   `query_architecture_graph`, but public graph exports omit them from
   `snapshot.nodes` because they are synthetic grouping hints.
 - ExternalSystem nodes: `externalSystemKind`, `technology`.
+- PersistenceUnit nodes (label `PersistenceUnit`): `appId`, `provider`, `transactionType`,
+  `jtaDataSource`, `nonJtaDataSource`, `managedClasses`, `mappingFiles`,
+  `unresolvedPlaceholders`, and normalized descriptor evidence. Standard
+  `META-INF/persistence.xml` files are the declaration source.
+- DataSource nodes (label `DataSource`): `appId`, `jndiName`, `aliases`, `driver`,
+  sanitized `endpoint`, `databaseKind`, `declarationKind`, and `unresolved`. Sources include
+  `@Resource`, `@DataSourceDefinition`, Spring datasource configuration, Java EE resource refs,
+  and project-local WildFly `standalone.xml`, `domain.xml`, or `*-ds.xml` descriptors.
+  Passwords, usernames, credential-store expressions, URL user-info, query parameters, and
+  semicolon connection properties are never projected. A reference without a matching
+  declaration remains a queryable `unresolved=true` datasource instead of gaining a fabricated
+  database target.
+- PersistenceOperation nodes (label `PersistenceOperation`): method-local `EntityManager`
+  operations with `componentId`, `methodName`, `methodSignature`, `operation`, `entityType`, and
+  `persistenceUnitName` plus invocation evidence.
+- TransactionBoundary nodes (label `TransactionBoundary`): effective Spring, Jakarta/Javax,
+  Quarkus, or EJB method policies. Properties include `framework`, normalized `policy`,
+  `nativePolicy`, `readOnly`, `isolation`, `rollbackRules`, `declarationLevel`, `defaulted`,
+  `programmatic`, and visible `limitations`.
 - DataFlowPath nodes (label `DataFlowPath`): `entrypointId`, `trackedParam`,
   `stepCount`, `sinkCount`.
 - DataFlowSink nodes (label `DataFlowSink`): `sinkKind` (`persistence`, `messaging`,
@@ -813,6 +865,20 @@ Edge labels:
   `query_architecture_graph`; public viewer exports omit it from `snapshot.edges`
   because it is a synthetic grouping helper rather than source-level behavior.
 - `DEPLOYS` — Deployment → Application
+- `DECLARES_PERSISTENCE_UNIT` — Application → PersistenceUnit
+- `DECLARES_TRANSACTION_CONFIG` — Application → unresolved TransactionBoundary XML evidence
+- `USES_PERSISTENCE_UNIT` — Component (or Application) → PersistenceUnit. Source annotations
+  such as `@PersistenceContext(unitName=...)` carry their own evidence.
+- `USES_DATASOURCE` — PersistenceUnit, Component, or Application → DataSource. JNDI aliases are
+  matched after normalizing `java:/`, `java:jboss/`, and `java:comp/env/` prefixes.
+- `MANAGES_ENTITY` — PersistenceUnit → Component (`ENTITY`) for explicitly listed managed classes.
+- `CONNECTS_TO` — DataSource → ExternalSystem (`DATABASE`) only when a safe non-secret endpoint
+  can be derived.
+- `PERFORMS_PERSISTENCE_OPERATION` — Component → PersistenceOperation
+- `OPERATES_ON_ENTITY` — PersistenceOperation → entity Component
+- `HAS_TRANSACTION_BOUNDARY` — Component → TransactionBoundary
+- `GOVERNS_OPERATION` — TransactionBoundary → PersistenceOperation for the same method signature
+- `USES_TRANSACTION_POLICY` — Entrypoint → effective TransactionBoundary
 - `DEPENDS_ON` — Component → Component (or Component → ExternalSystem)
 - `CALLS` — Component → Component method-call evidence from source invocations.
   Properties include `fromMethod`, `toMethod`, `callKind`, `receiverEvidence`,
@@ -940,6 +1006,87 @@ Example — find every messaging entrypoint bound to an in-memory channel:
 
 ```json
 { "action": "find_nodes", "label": "Interface", "filters": { "broker": "IN_MEMORY" } }
+```
+
+## `answer_architecture_question`
+
+Answer one stable maintenance-question family directly from graph evidence. This tool is a
+question-oriented view over `GraphQuery`; it does not access the discarded extraction model.
+Accepts either a typed `family` selector or a natural-language `question` — an explicit `family`
+always takes precedence when both are given.
+
+Arguments:
+
+- `family`: `persistence_destination`, `consumer_context`, `impact`, `transaction_context`, or
+  `endpoint_context`.
+- `question`: natural-language question. When `family` is omitted, a deterministic keyword-based
+  planner infers the intent and subject; unrecognized wording returns `status: "unsupported"`
+  rather than a fabricated answer, and wording that ties between two intents returns
+  `status: "needs-clarification"` with `clarifications` options instead of guessing.
+- `entrypoint`: entrypoint ID, name, or `METHOD /path` selector.
+- `component`: component simple name or qualified ID.
+- `query`: persistence operation/entity or component query.
+- `param`: tracked entrypoint parameter for persistence questions.
+- `method`: optional method filter for component transaction questions.
+- `maxDepth`: impact/reverse-endpoint traversal depth, default `4`.
+
+All families return the common structured envelope:
+
+```json
+{
+  "family": "impact",
+  "status": "resolved",
+  "interpretation": {},
+  "queryPlan": [],
+  "subject": {},
+  "answer": {},
+  "evidenceChain": [],
+  "unresolved": [],
+  "ambiguous": [],
+  "clarifications": [],
+  "suggestedQuestions": []
+}
+```
+
+`status` is `partial` whenever expected configuration or topology cannot be resolved,
+`ambiguous` whenever the subject or evidence is not unique, `needs-clarification` when a
+`question` input's intent (or extracted subject) can't be confidently narrowed to one candidate,
+and `unsupported` when `question` wording doesn't match any known intent. All four are successful
+answers, not tool errors. `interpretation` (populated whenever `question` was supplied) reports
+the inferred `intent`, `confidence`, `subjectCandidates`, and the original `rawQuestion`.
+`queryPlan` lists the graph operations the answerer performed, in order. Family-specific `answer`
+contracts are:
+
+- persistence destination: `origins`, `transformations`, `operations`, and `destinations`, where
+  each destination includes entity, persistence unit, datasource, external system, and evidence
+  chain when known;
+- consumer context: `inboundBinding`, `upstream`, and `downstream`;
+- impact: nodes grouped into `entrypoints`, `workflows`, `persistence`,
+  `externalIntegrations`, and `components`, plus `evidenceChains`;
+- transaction context: `policies`, `scopeTransitions`, `governedCalls`, and `caveats`;
+- endpoint context: `mode` (`forward` or `reverse`); forward mode returns `inbound`,
+  `owningComponent`, `runtimeCalls`, `dataFlowSinks`, `transactionTransitions`, and
+  `outboundCalls` for a given entrypoint (missing security/response-schema facts are always
+  reported in `unresolved`, since ArchLens doesn't model them); reverse mode returns
+  `affectedEntrypoints` (REST/SSE/WebSocket/gRPC entrypoints that transitively reach the given
+  component) and `otherEntrypoints` (non-REST-typed callers, reported but not hidden).
+
+Examples:
+
+```json
+{
+  "family": "persistence_destination",
+  "entrypoint": "POST /api/orders/{id}",
+  "param": "id"
+}
+```
+
+```json
+{ "question": "What happens on POST /api/orders/{id}?" }
+```
+
+```json
+{ "question": "Which endpoints call OrderRepository?" }
 ```
 
 ## `export_architecture_docs`
