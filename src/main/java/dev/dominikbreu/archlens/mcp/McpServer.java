@@ -405,7 +405,9 @@ public class McpServer {
                 schema().opt(
                                 "family",
                                 TYPE_STRING,
-                                "persistence_destination | consumer_context | impact | transaction_context | endpoint_context")
+                                "persistence_destination | consumer_context | impact | transaction_context | "
+                                        + "endpoint_context | messaging_flow | state_lifecycle | scheduled_workflow | "
+                                        + "external_integration_context | configuration_context | relationship")
                         .opt(
                                 "question",
                                 TYPE_STRING,
@@ -416,6 +418,8 @@ public class McpServer {
                         .opt("query", TYPE_STRING, "Persistence operation/entity or component query")
                         .opt("param", TYPE_STRING, "Tracked entrypoint parameter for persistence questions")
                         .opt("method", TYPE_STRING, "Method name for component transaction questions")
+                        .opt("field", TYPE_STRING, "Shared-state field name for state_lifecycle questions")
+                        .opt("target", TYPE_STRING, "Second subject for relationship path questions")
                         .opt(MAX_DEPTH, TYPE_INTEGER, "Maximum impact/reverse-endpoint traversal depth (default 4)"),
                 schema().opt("family", TYPE_STRING, "Resolved question family, or 'unsupported'/'needs-clarification'")
                         .opt(
