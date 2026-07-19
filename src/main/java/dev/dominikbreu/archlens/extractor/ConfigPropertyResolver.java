@@ -37,17 +37,21 @@ public class ConfigPropertyResolver {
      */
     public void resolve(File moduleRoot, AppId appId, ArchitectureModel model) {
         File resources = new File(moduleRoot, RESOURCES_SUBDIR);
-        Map<String, String> flat = PropertyFileReader.readAll(resources);
-        for (Map.Entry<String, String> entry : flat.entrySet()) {
+        resolve(PropertyFileReader.readAll(resources), appId, model);
+    }
+
+    void resolve(Map<String, PropertyFileReader.PropertyEntry> flat, AppId appId, ArchitectureModel model) {
+        for (Map.Entry<String, PropertyFileReader.PropertyEntry> entry : flat.entrySet()) {
             if (isSecretKey(entry.getKey())) continue;
+            PropertyFileReader.PropertyEntry propertyEntry = entry.getValue();
             ConfigProperty property = new ConfigProperty();
             property.id = "config:" + appId.serialize() + ":" + entry.getKey();
             property.key = entry.getKey();
-            property.value = entry.getValue();
-            property.resolved = entry.getValue() == null
-                    || !PLACEHOLDER.matcher(entry.getValue()).find();
+            property.value = propertyEntry.value();
+            property.resolved = propertyEntry.value() == null
+                    || !PLACEHOLDER.matcher(propertyEntry.value()).find();
             property.appId = appId;
-            property.sourceFile = resourceFileName(resources);
+            property.sourceFile = propertyEntry.sourceFile();
             property.source = new SourceInfo(property.sourceFile, 0, "config-file", 0.8);
             model.configProperties.add(property);
         }
@@ -56,12 +60,5 @@ public class ConfigPropertyResolver {
     private static boolean isSecretKey(String key) {
         String lower = key.toLowerCase(Locale.ROOT);
         return SECRET_MARKERS.stream().anyMatch(lower::contains);
-    }
-
-    private static String resourceFileName(File resources) {
-        for (String candidate : List.of("application.properties", "application.yaml", "application.yml")) {
-            if (new File(resources, candidate).isFile()) return candidate;
-        }
-        return "application.properties";
     }
 }
