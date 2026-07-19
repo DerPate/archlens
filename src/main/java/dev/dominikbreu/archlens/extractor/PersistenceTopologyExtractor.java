@@ -436,7 +436,7 @@ public class PersistenceTopologyExtractor {
         }
         Map<String, String> result = new LinkedHashMap<>();
         for (String key : properties.stringPropertyNames()) {
-            if (key.startsWith("spring.datasource.") && !isSecretKey(key)) {
+            if (key.startsWith("spring.datasource.") && !SecretKeyFilter.isSecretKey(key)) {
                 result.put(key, properties.getProperty(key));
             }
         }
@@ -462,18 +462,13 @@ public class PersistenceTopologyExtractor {
                     continue;
                 }
                 String fullKey = String.join(".", prefix) + (prefix.isEmpty() ? "" : ".") + key;
-                if (fullKey.startsWith("spring.datasource.") && !isSecretKey(fullKey)) {
+                if (fullKey.startsWith("spring.datasource.") && !SecretKeyFilter.isSecretKey(fullKey)) {
                     result.put(fullKey, unquote(value));
                 }
             }
         } catch (IOException _) {
         }
         return result;
-    }
-
-    private static boolean isSecretKey(String key) {
-        String lower = key.toLowerCase(Locale.ROOT);
-        return lower.contains("password") || lower.contains("username") || lower.contains("credential");
     }
 
     private static Document parseXml(Path path) {
