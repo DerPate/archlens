@@ -4,6 +4,7 @@ import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.cache.ModelCache;
 import dev.dominikbreu.archlens.mcp.tools.question.Answer;
 import dev.dominikbreu.archlens.mcp.tools.question.ConsumerContextAnswerer;
+import dev.dominikbreu.archlens.mcp.tools.question.EndpointContextAnswerer;
 import dev.dominikbreu.archlens.mcp.tools.question.ImpactAnswerer;
 import dev.dominikbreu.archlens.mcp.tools.question.Interpretation;
 import dev.dominikbreu.archlens.mcp.tools.question.PersistenceDestinationAnswerer;
@@ -91,6 +92,7 @@ public class AnswerArchitectureQuestionTool {
             case "consumer_context" -> ConsumerContextAnswerer.answer(graph, args, recorder);
             case "impact" -> ImpactAnswerer.answer(graph, args, recorder);
             case "transaction_context" -> TransactionContextAnswerer.answer(graph, args, recorder);
+            case "endpoint_context" -> EndpointContextAnswerer.answer(graph, args, recorder);
             default -> null;
         };
     }
