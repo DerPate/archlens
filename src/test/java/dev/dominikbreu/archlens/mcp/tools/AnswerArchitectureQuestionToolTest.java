@@ -33,6 +33,20 @@ class AnswerArchitectureQuestionToolTest {
     }
 
     @Test
+    void structuredResultIncludesCanonicalSemanticRequest() {
+        ToolResult result = tool("spring-pipeline-sample")
+                .execute(Map.of(
+                        "family", "persistence_destination",
+                        "entrypoint", "POST /api/orders/{id}",
+                        "param", "id"));
+
+        assertThat(map(structured(result), "request"))
+                .containsEntry("param", "id")
+                .containsKey("entrypoint")
+                .doesNotContainKey("question");
+    }
+
+    @Test
     void answersConsumerContextWithoutInventingMissingBinding() {
         ToolResult result = tool("javaee-sample")
                 .execute(Map.of(
@@ -122,6 +136,16 @@ class AnswerArchitectureQuestionToolTest {
                 .isEqualTo(list(answer(typedStructured), "components").stream()
                         .map(node -> node.get("id"))
                         .toList());
+    }
+
+    @Test
+    void rewordedNaturalQuestionKeepsSameSemanticRequestAsTypedQuestion() {
+        Map<String, Object> typed = structured(tool("spring-pipeline-sample")
+                .execute(Map.of("family", "impact", "component", "OrderRepository")));
+        Map<String, Object> natural = structured(tool("spring-pipeline-sample")
+                .execute(Map.of("question", "What may break if OrderRepository is replaced?")));
+
+        assertThat(map(natural, "request")).isEqualTo(map(typed, "request"));
     }
 
     @Test
