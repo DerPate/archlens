@@ -361,6 +361,13 @@ in the graph.
 
 ### M5.3 — Kafka, JMS, and event-flow questions
 
+**Status:** implemented. `messaging_flow` composes entirely from the already-complete Kafka/JMS
+extraction (`EntrypointNode`/`InterfaceNode`/`DataFlowSinkNode` broker/channel/topic fields,
+`OutboundSinkSite`/`MessagingTopicResolver` for non-entrypoint producers) — zero new extraction
+work. Reports producer-typed entrypoints separately from non-entrypoint `producerSinks`, and
+falls back from `topic` to `channelName` for frameworks (Spring `@KafkaListener`) that only
+populate the logical channel.
+
 Add a `messaging_flow` intent covering producer and consumer entrypoints, broker, logical channel,
 resolved topic, configuration property, payload type, workflow links, downstream sinks, and
 cross-application continuation. Treat logical channel and broker topic as separate fields. Dynamic
@@ -368,6 +375,19 @@ topic expressions, pattern subscriptions, missing producers, and capped receiver
 visible as unresolved or ambiguous evidence.
 
 ### M5.4 — Integrations, schedulers, state, and configuration
+
+**Status:** implemented. `external_integration_context` covers forward (base URL resolved via
+the new `ConfigProperty`/`CONFIGURED_BY` projection, callers, replacement impact) and reverse
+(client component back to callers). `scheduled_workflow` adds `triggerKind`/`triggerExpression`
+capture to `SCHEDULER` entrypoints (Spring `@Scheduled` cron/fixedRate/fixedDelay, Quarkus
+`@Scheduled` cron/every) alongside the call-flow/state/sink tracing that already ran identically
+to REST entrypoints. `state_lifecycle` and `relationship` needed no new extraction — both
+compose entirely from existing `WRITES_STATE`/`READS_STATE`/`STATE_HANDOFF` edges and generic
+`GraphQuery` traversals respectively. `configuration_context` is backed by the new
+`ConfigPropertyResolver` (mirrors `MessagingConfigResolver`'s file-reading/secret-avoidance
+pattern via a shared `PropertyFileReader`), scoped to base
+`application.properties`/`.yaml`/`.yml` per module — no deployment-profile override merging in
+this slice.
 
 Add reusable intents for:
 
@@ -382,6 +402,15 @@ Add reusable intents for:
   contract.
 
 ### M5.5 — Planner fallback and release gate
+
+**Status:** implemented. All 11 intents dispatch through `QuestionPlanner`'s deterministic
+keyword table with subject-candidate extraction (`METHOD /path` > quoted > `field <name>` >
+qualified name > capitalized word); `needs-clarification`/`unsupported` stop before any
+`GraphQuery` call. `RelationshipAnswerer` caps generic traversals via `QuestionSupport`'s
+default limit/depth and groups low-signal nodes by label. Contract, planner, and MCP schema
+tests cover all 11 families; `scripts/test-phoenix-m5-final.py` is the final Phoenix acceptance
+report (all six M5.3/M5.4 intents resolved real data with no fixtures needing to be skipped).
+All 24 pre-M5.3 benchmark questions (19 M4 + 5 M5.0–M5.2) remain passing with zero regressions.
 
 - Route recognized natural-language questions to a typed intent without bypassing `GraphQuery`.
 - Prefer deterministic phrase/selector rules; make every interpretation visible and testable.

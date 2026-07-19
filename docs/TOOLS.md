@@ -781,7 +781,9 @@ Useful graph properties include:
   access is treated as local implementation detail; cross-component `STATE_HANDOFF`
   evidence carries the workflow bridge signal.
 - Entrypoint nodes: `entrypointType`, `protocol`, `httpMethod`, `path`,
-  `channelName`, `broker`, `topic`, `parameters`, and `componentId`.
+  `channelName`, `broker`, `topic`, `triggerKind` (`CRON`/`FIXED_RATE`/`FIXED_DELAY`/`EVERY`,
+  `SCHEDULER` entrypoints only), `triggerExpression` (the raw declared value), `parameters`,
+  and `componentId`.
 - Interface nodes: `interfaceType`, `path`, `module`, `technology`. Messaging interfaces
   additionally expose `broker` (incl. `IN_MEMORY`) and `topic`, so separate inbound
   and outbound channels remain queryable even when no pipeline link connects them.
@@ -795,6 +797,11 @@ Useful graph properties include:
   `query_architecture_graph`, but public graph exports omit them from
   `snapshot.nodes` because they are synthetic grouping hints.
 - ExternalSystem nodes: `externalSystemKind`, `technology`.
+- ConfigProperty nodes (label `ConfigProperty`): non-secret configuration properties read from
+  `application.properties`/`.yaml`/`.yml`. Properties: `key`, `value` (absent when the key looks
+  secret-like — `password`, `username`, `credential`, `secret`, `token`, `apikey`, `api-key`,
+  `private-key` are never projected, key or value), `resolved` (`false` for an unexpanded
+  `${...}` placeholder), `appId`, `sourceFile`.
 - PersistenceUnit nodes (label `PersistenceUnit`): `appId`, `provider`, `transactionType`,
   `jtaDataSource`, `nonJtaDataSource`, `managedClasses`, `mappingFiles`,
   `unresolvedPlaceholders`, and normalized descriptor evidence. Standard
@@ -874,6 +881,8 @@ Edge labels:
 - `MANAGES_ENTITY` — PersistenceUnit → Component (`ENTITY`) for explicitly listed managed classes.
 - `CONNECTS_TO` — DataSource → ExternalSystem (`DATABASE`) only when a safe non-secret endpoint
   can be derived.
+- `CONFIGURED_BY` — ExternalSystem → ConfigProperty, when a REST client's `configKey` resolves
+  to a discovered base-URL property.
 - `PERFORMS_PERSISTENCE_OPERATION` — Component → PersistenceOperation
 - `OPERATES_ON_ENTITY` — PersistenceOperation → entity Component
 - `HAS_TRANSACTION_BOUNDARY` — Component → TransactionBoundary
@@ -1017,8 +1026,9 @@ always takes precedence when both are given.
 
 Arguments:
 
-- `family`: `persistence_destination`, `consumer_context`, `impact`, `transaction_context`, or
-  `endpoint_context`.
+- `family`: `persistence_destination`, `consumer_context`, `impact`, `transaction_context`,
+  `endpoint_context`, `messaging_flow`, `state_lifecycle`, `scheduled_workflow`,
+  `external_integration_context`, `configuration_context`, or `relationship`.
 - `question`: natural-language question. When `family` is omitted, a deterministic keyword-based
   planner infers the intent and subject; unrecognized wording returns `status: "unsupported"`
   rather than a fabricated answer, and wording that ties between two intents returns
@@ -1028,6 +1038,8 @@ Arguments:
 - `query`: persistence operation/entity or component query.
 - `param`: tracked entrypoint parameter for persistence questions.
 - `method`: optional method filter for component transaction questions.
+- `field`: shared-state field name for `state_lifecycle` questions.
+- `target`: second subject for `relationship` path questions.
 - `maxDepth`: impact/reverse-endpoint traversal depth, default `4`.
 
 All families return the common structured envelope:
@@ -1069,7 +1081,22 @@ contracts are:
   `outboundCalls` for a given entrypoint (missing security/response-schema facts are always
   reported in `unresolved`, since ArchLens doesn't model them); reverse mode returns
   `affectedEntrypoints` (REST/SSE/WebSocket/gRPC entrypoints that transitively reach the given
-  component) and `otherEntrypoints` (non-REST-typed callers, reported but not hidden).
+  component) and `otherEntrypoints` (non-REST-typed callers, reported but not hidden);
+- messaging flow: `channel`, `broker`, `topic`, `producers` (producer-typed entrypoints),
+  `producerSinks` (non-entrypoint producer sites, e.g. a bare `KafkaTemplate.send` call),
+  `consumers`, and `downstreamSinks`;
+- state lifecycle: `writers`, `readers`, and `handoffs` for a shared-state field, resolved
+  directly from `WRITES_STATE`/`READS_STATE`/`STATE_HANDOFF` edges;
+- scheduled workflow: `triggerEvidence` (`kind` + raw `expression`, when the scheduler
+  annotation declared one), `runtimeCalls`, `stateReads`, `stateWrites`, and
+  `messagingAndExternalSinks`;
+- external integration context: `configuredDestination` (the resolved base-URL `ConfigProperty`,
+  when known), `dataSentReceived` (currently always unmodeled), `callers`, and
+  `replacementImpact`;
+- configuration context: `declarations` (matching `ConfigProperty` nodes, secrets never
+  projected) and `usages` (nodes connected via `CONFIGURED_BY`);
+- relationship: a generic `neighborhood` (grouped by label) and, when a second `target` subject
+  is given, `paths` between the two — for questions that don't need a specialized contract.
 
 Examples:
 
@@ -1087,6 +1114,14 @@ Examples:
 
 ```json
 { "question": "Which endpoints call OrderRepository?" }
+```
+
+```json
+{ "question": "Who publishes the orders.created topic?" }
+```
+
+```json
+{ "family": "configuration_context", "query": "quarkus.rest-client.billing.url" }
 ```
 
 ## `export_architecture_docs`
