@@ -61,6 +61,7 @@ public class McpServer {
     private final ExportGraphDataTool exportGraphDataTool;
     private final ExportGraphViewerTool exportGraphViewerTool;
     private final QueryArchitectureGraphTool graphTool;
+    private final AnswerArchitectureQuestionTool architectureQuestionTool;
     private final DetectUseCasesTool detectUseCasesTool;
     private final TraceDataFlowTool traceDataFlowTool;
     private final RenderUseCaseTimelineTool useCaseTimelineTool;
@@ -89,8 +90,11 @@ public class McpServer {
     }
 
     McpServer(StructuredOutputMode structuredOutputMode) {
+        this(structuredOutputMode, new ModelCache());
+    }
+
+    McpServer(StructuredOutputMode structuredOutputMode, ModelCache cache) {
         this.structuredOutputMode = structuredOutputMode;
-        ModelCache cache = new ModelCache();
         ArchitectureExtractor extractor = new ArchitectureExtractor();
 
         this.indexTool = new IndexWorkspaceTool(extractor, cache);
@@ -109,6 +113,7 @@ public class McpServer {
         this.exportGraphDataTool = new ExportGraphDataTool(cache);
         this.exportGraphViewerTool = new ExportGraphViewerTool(cache);
         this.graphTool = new QueryArchitectureGraphTool(cache);
+        this.architectureQuestionTool = new AnswerArchitectureQuestionTool(cache);
         this.detectUseCasesTool = new DetectUseCasesTool(cache);
         this.traceDataFlowTool = new TraceDataFlowTool(cache);
         this.useCaseTimelineTool = new RenderUseCaseTimelineTool(cache);
@@ -334,7 +339,7 @@ public class McpServer {
                         .opt(
                                 "label",
                                 TYPE_STRING,
-                                "Node label for find_nodes: Application | Component | Entrypoint | Interface | Container | Deployment | RuntimeFlow | DataFlowPath | DataFlowSink | PipelineChain")
+                                "Node label for find_nodes: Application | Component | Entrypoint | Interface | Container | Deployment | ExternalSystem | PersistenceUnit | DataSource | PersistenceOperation | TransactionBoundary | RuntimeFlow | RuntimeFlowStep | DataFlowPath | DataFlowSink | PipelineChain")
                         .opt("query", TYPE_STRING, "Free-text node search")
                         .opt(
                                 "filters",
@@ -391,6 +396,45 @@ public class McpServer {
                                 TYPE_STRING,
                                 "Shorthand filter: true | false — only runtime-relevant edges")
                         .opt("isCondensable", TYPE_STRING, "Shorthand filter: true | false — only condensable edges")));
+
+        specs.add(toolSpec(
+                "answer_architecture_question",
+                "Answer Architecture Question",
+                "Answer a stable maintenance-question family directly from graph evidence, retaining unresolved and ambiguous facts. "
+                        + "Accepts either a typed 'family' selector or a natural-language 'question'.",
+                schema().opt(
+                                "family",
+                                TYPE_STRING,
+                                "persistence_destination | consumer_context | impact | transaction_context | endpoint_context")
+                        .opt(
+                                "question",
+                                TYPE_STRING,
+                                "Natural-language question. Used to infer 'family' and subject when 'family' is omitted; "
+                                        + "an explicit 'family' always takes precedence.")
+                        .opt("entrypoint", TYPE_STRING, "Entrypoint ID, name, or METHOD /path")
+                        .opt("component", TYPE_STRING, "Component simple name or qualified ID")
+                        .opt("query", TYPE_STRING, "Persistence operation/entity or component query")
+                        .opt("param", TYPE_STRING, "Tracked entrypoint parameter for persistence questions")
+                        .opt("method", TYPE_STRING, "Method name for component transaction questions")
+                        .opt(MAX_DEPTH, TYPE_INTEGER, "Maximum impact/reverse-endpoint traversal depth (default 4)"),
+                schema().opt("family", TYPE_STRING, "Resolved question family, or 'unsupported'/'needs-clarification'")
+                        .opt(
+                                "status",
+                                TYPE_STRING,
+                                "resolved | partial | ambiguous | needs-clarification | unsupported")
+                        .opt(
+                                "interpretation",
+                                "object",
+                                "Natural-language interpretation: intent, confidence, subjectCandidates, rawQuestion")
+                        .opt("queryPlan", "array", "Ordered graph operations performed to produce this answer")
+                        .opt("subject", "object", "Resolved subject with normalized evidence")
+                        .opt("answer", "object", "Family-specific stable answer contract")
+                        .opt("evidenceChain", "array", "Nodes and edges supporting this answer's claims")
+                        .opt("unresolved", "array", "Explicit unresolved facts")
+                        .opt("ambiguous", "array", "Explicit ambiguous evidence")
+                        .opt("clarifications", "array", "Present only when status is needs-clarification")
+                        .opt("suggestedQuestions", "array", "Useful follow-up questions for this subject"),
+                architectureQuestionTool::execute));
 
         specs.add(collectionToolSpec(
                 "trace_data_flow",
@@ -589,6 +633,27 @@ public class McpServer {
                         2. Call `render_pipeline` with `entrypointName: "{filter}"`, `channel: "{filter}"`, `maxDepth: 8`, and `maxChains: 5`.
                         3. If no chains match, call `query_architecture_graph` with `action: "find_edges"`, `label: "WORKFLOW_LINK"`, and filters such as `kind: "STATE_HANDOFF"` or `kind: "MESSAGING"` where useful.
                         4. Summarize each pipeline segment, bridge kind, channel/store name, and downstream consumer.
+                        """),
+                promptSpec(
+                        "answer_maintenance_question",
+                        "Answer one of ArchLens' stable maintenance-question families with explicit uncertainty.",
+                        List.of(
+                                arg(
+                                        "family",
+                                        "persistence_destination, consumer_context, impact, or transaction_context.",
+                                        true),
+                                arg(
+                                        "subject",
+                                        "Entrypoint, component, method, parameter, or entity to investigate.",
+                                        true)),
+                        """
+                        Answer the `{family}` question for `{subject}`.
+
+                        Use this workflow:
+                        1. Call `answer_architecture_question` with `family: "{family}"` and the matching `entrypoint`, `component`, `method`, `param`, or `query` selector — or omit `family` and pass a natural-language `question` instead; an explicit `family` always wins if both are given.
+                        2. Treat `status=partial` or `status=ambiguous` as part of the answer, not as a failed query.
+                        3. Report the returned evidence chain, unresolved facts, and ambiguity without inventing missing runtime configuration.
+                        4. Use `query_architecture_graph` only for an optional deeper drill-down.
                         """));
     }
 
@@ -799,7 +864,8 @@ public class McpServer {
                         "id", Map.of("type", "string"),
                         "name", Map.of("type", "string"),
                         "label", Map.of("type", "string"),
-                        "properties", Map.of("type", "object")));
+                        "properties", Map.of("type", "object"),
+                        "evidence", evidenceSchema()));
     }
 
     /** Reusable item shape for tools returning {@code GraphQuery.GraphEdge}s. */
@@ -812,7 +878,23 @@ public class McpServer {
                         "fromId", Map.of("type", "string"),
                         "toId", Map.of("type", "string"),
                         "label", Map.of("type", "string"),
-                        "properties", Map.of("type", "object")));
+                        "properties", Map.of("type", "object"),
+                        "evidence", evidenceSchema()));
+    }
+
+    private static Map<String, Object> evidenceSchema() {
+        return Map.of(
+                "type",
+                "object",
+                "properties",
+                Map.of(
+                        "derivedFrom", Map.of("type", "string"),
+                        "sourceFile", Map.of("type", "string"),
+                        "sourceLine", Map.of("type", "integer"),
+                        "confidence", Map.of("type", "number"),
+                        "confidenceBand", Map.of("type", "string"),
+                        "ambiguous", Map.of("type", "boolean"),
+                        "evidence", Map.of("type", "string")));
     }
 
     private static final class SchemaBuilder {

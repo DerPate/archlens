@@ -2,17 +2,23 @@ package dev.dominikbreu.archlens.mcp;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.dominikbreu.archlens.cache.ModelCache;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Covers the McpServer tool/prompt specification wiring and the template helper without starting the
  * blocking stdio transport.
  */
 class McpServerTest {
+
+    @TempDir
+    Path tempDir;
 
     @Test
     void serverVersion_matchesProjectVersion() {
@@ -41,6 +47,7 @@ class McpServerTest {
                         "list_apps",
                         "find_entrypoints",
                         "query_architecture_graph",
+                        "answer_architecture_question",
                         "export_graph_data",
                         "export_graph_viewer");
     }
@@ -58,6 +65,22 @@ class McpServerTest {
     }
 
     @Test
+    void answerArchitectureQuestionSchema_exposesQuestionInputAndInterpretationOutput() {
+        McpSchema.Tool tool = tool(new McpServer(), "answer_architecture_question");
+
+        assertThat(tool.inputSchema()).extractingByKey("properties").isInstanceOfSatisfying(Map.class, props -> {
+            assertThat(props).containsKey("question");
+            assertThat(((Map<?, ?>) props.get("family")).get("description").toString())
+                    .contains("endpoint_context");
+        });
+        assertThat(tool.outputSchema()).extractingByKey("properties").isInstanceOfSatisfying(Map.class, props -> {
+            assertThat(props)
+                    .containsKeys(
+                            "interpretation", "queryPlan", "evidenceChain", "clarifications", "suggestedQuestions");
+        });
+    }
+
+    @Test
     void draftMode_keepsCollectionSchemasAsTopLevelArrays() {
         McpSchema.Tool entrypoints = tool(new McpServer(StructuredOutputMode.DRAFT), "find_entrypoints");
 
@@ -71,12 +94,13 @@ class McpServerTest {
         assertThat(prompts)
                 .isNotEmpty()
                 .allSatisfy(p -> assertThat(p.prompt().name()).isNotBlank());
+        assertThat(prompts).extracting(prompt -> prompt.prompt().name()).contains("answer_maintenance_question");
     }
 
     @Test
     void stableCollectionHandler_returnsSchemaValidError_forUnindexedWorkspace() {
         McpServerFeatures.SyncToolSpecification entrypoints =
-                specification(new McpServer(StructuredOutputMode.STABLE), "find_entrypoints");
+                specification(emptyServer(StructuredOutputMode.STABLE), "find_entrypoints");
 
         var result = entrypoints.callHandler().apply(null, new McpSchema.CallToolRequest("find_entrypoints", Map.of()));
 
@@ -88,7 +112,7 @@ class McpServerTest {
     @Test
     void draftCollectionHandler_returnsSchemaValidError_forUnindexedWorkspace() {
         McpServerFeatures.SyncToolSpecification entrypoints =
-                specification(new McpServer(StructuredOutputMode.DRAFT), "find_entrypoints");
+                specification(emptyServer(StructuredOutputMode.DRAFT), "find_entrypoints");
 
         var result = entrypoints.callHandler().apply(null, new McpSchema.CallToolRequest("find_entrypoints", Map.of()));
 
@@ -99,7 +123,7 @@ class McpServerTest {
 
     @Test
     void stableGraphSchema_andHandler_useActionSpecificObjectWrappers() {
-        McpServer server = new McpServer(StructuredOutputMode.STABLE);
+        McpServer server = emptyServer(StructuredOutputMode.STABLE);
         McpSchema.Tool graphTool = tool(server, "query_architecture_graph");
 
         assertThat(graphTool.outputSchema()).containsEntry("type", "object");
@@ -115,7 +139,7 @@ class McpServerTest {
 
     @Test
     void draftGraphSchema_andHandler_preserveCollectionArrays() {
-        McpServer server = new McpServer(StructuredOutputMode.DRAFT);
+        McpServer server = emptyServer(StructuredOutputMode.DRAFT);
         McpSchema.Tool graphTool = tool(server, "query_architecture_graph");
 
         assertThat(graphTool.outputSchema()).containsKey("oneOf").doesNotContainKey("type");
@@ -143,6 +167,10 @@ class McpServerTest {
 
     private static McpSchema.Tool tool(McpServer server, String name) {
         return specification(server, name).tool();
+    }
+
+    private McpServer emptyServer(StructuredOutputMode mode) {
+        return new McpServer(mode, new ModelCache(tempDir.resolve(mode.name()).toString()));
     }
 
     private static McpServerFeatures.SyncToolSpecification specification(McpServer server, String name) {
