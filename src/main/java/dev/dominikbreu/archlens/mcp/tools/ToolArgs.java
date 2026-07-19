@@ -6,30 +6,45 @@ import java.util.List;
 import java.util.Map;
 
 /** Static helpers for extracting typed values from SDK tool argument maps. */
-final class ToolArgs {
+public final class ToolArgs {
+    private static final List<String> EVIDENCE_FIELDS =
+            List.of("derivedFrom", "sourceFile", "sourceLine", "confidence", "confidenceBand", "ambiguous", "evidence");
+
     private ToolArgs() {}
 
     /** Projects a graph node into the shared {id, name, label, properties} structured-output shape. */
-    static Map<String, Object> nodeAsMap(GraphQuery.GraphNode node) {
+    public static Map<String, Object> nodeAsMap(GraphQuery.GraphNode node) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("id", node.id().serialize());
         map.put("name", node.name());
         map.put("label", node.label());
         map.put("properties", node.properties());
+        Map<String, Object> evidence = evidenceAsMap(node.properties());
+        if (!evidence.isEmpty()) map.put("evidence", evidence);
         return map;
     }
 
     /** Projects a graph edge into the shared {fromId, toId, label, properties} structured-output shape. */
-    static Map<String, Object> edgeAsMap(GraphQuery.GraphEdge edge) {
+    public static Map<String, Object> edgeAsMap(GraphQuery.GraphEdge edge) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("fromId", edge.fromId().serialize());
         map.put("toId", edge.toId().serialize());
         map.put("label", edge.label());
         map.put("properties", edge.properties());
+        Map<String, Object> evidence = evidenceAsMap(edge.properties());
+        if (!evidence.isEmpty()) map.put("evidence", evidence);
         return map;
     }
 
-    static String getString(Map<String, Object> args, String key) {
+    public static Map<String, Object> evidenceAsMap(Map<String, Object> properties) {
+        Map<String, Object> evidence = new LinkedHashMap<>();
+        for (String field : EVIDENCE_FIELDS) {
+            if (properties.containsKey(field)) evidence.put(field, properties.get(field));
+        }
+        return evidence;
+    }
+
+    public static String getString(Map<String, Object> args, String key) {
         if (args == null) return null;
         Object v = args.get(key);
         if (v == null) {
@@ -39,7 +54,7 @@ final class ToolArgs {
         }
     }
 
-    static String getString(Map<String, Object> args, String key, String def) {
+    public static String getString(Map<String, Object> args, String key, String def) {
         String v = getString(args, key);
         if (v != null) {
             return v;
@@ -48,7 +63,7 @@ final class ToolArgs {
         }
     }
 
-    static int getInt(Map<String, Object> args, String key, int def) {
+    public static int getInt(Map<String, Object> args, String key, int def) {
         if (args == null) return def;
         Object v = args.get(key);
         if (v == null) return def;
@@ -60,7 +75,7 @@ final class ToolArgs {
         }
     }
 
-    static boolean getBool(Map<String, Object> args, String key, boolean def) {
+    public static boolean getBool(Map<String, Object> args, String key, boolean def) {
         if (args == null) return def;
         Object v = args.get(key);
         if (v == null) return def;
@@ -69,7 +84,7 @@ final class ToolArgs {
     }
 
     @SuppressWarnings("unchecked")
-    static List<String> getStringList(Map<String, Object> args, String key) {
+    public static List<String> getStringList(Map<String, Object> args, String key) {
         if (args == null) return List.of();
         Object v = args.get(key);
         if (!(v instanceof List<?> list)) return List.of();
@@ -77,7 +92,7 @@ final class ToolArgs {
     }
 
     @SuppressWarnings("unchecked")
-    static Map<String, Object> getMap(Map<String, Object> args, String key) {
+    public static Map<String, Object> getMap(Map<String, Object> args, String key) {
         if (args == null) return null;
         Object v = args.get(key);
         if (v instanceof Map<?, ?>) {
