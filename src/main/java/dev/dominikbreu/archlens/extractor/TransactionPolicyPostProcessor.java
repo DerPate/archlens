@@ -10,6 +10,7 @@ final class TransactionPolicyPostProcessor {
     void apply(ArchitectureModel model) {
         for (TransactionPolicy policy : model.transactionPolicies) {
             if (!"spring".equals(policy.framework) && !"spring-xml".equals(policy.framework)) continue;
+            if (policy.limitations.contains("spring-self-invocation-may-bypass-proxy")) continue;
             boolean selfInvocation = model.callEdges.stream()
                     .anyMatch(edge -> Objects.equals(edge.fromComponentId, policy.componentId)
                             && Objects.equals(edge.toComponentId, policy.componentId)
