@@ -13,6 +13,8 @@ public class ExternalSystem {
     public String kind;
     /** Technology label (kafka, mqtt, microprofile-rest-client, ...). */
     public String technology;
+    /** Raw REST client {@code configKey} used to resolve this system's base-URL config property, when known. */
+    public String baseUrlConfigKey;
     /** Source evidence for configured external systems, when available. */
     public SourceInfo source;
 

@@ -23,6 +23,8 @@ public class InterfaceEntry {
     public String technology;
     /** Logical name of the external counterpart (REST configKey, messaging broker label). */
     public String externalServiceName;
+    /** Raw REST client {@code configKey} attribute value, when explicitly declared (unlike {@link #externalServiceName}, never a baseUri/simple-name fallback). */
+    public String configKey;
     /** Resolved broker for messaging interfaces. */
     public MessagingBroker broker;
     /** Resolved broker-side destination (Kafka topic, AMQP address, RabbitMQ queue) for messaging interfaces. */

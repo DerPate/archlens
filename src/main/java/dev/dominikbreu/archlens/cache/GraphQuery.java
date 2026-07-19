@@ -1546,6 +1546,16 @@ public class GraphQuery {
             case "ExternalSystem" ->
                 new ExternalSystemNode(
                         nodeId, name, vStr(vertex, "externalSystemKind"), vStr(vertex, TECHNOLOGY), vSource(vertex));
+            case "ConfigProperty" ->
+                new ConfigPropertyNode(
+                        nodeId,
+                        name,
+                        vStr(vertex, "key"),
+                        vStr(vertex, "value"),
+                        vBool(vertex, "resolved"),
+                        AppId.of(vStr(vertex, "appId")),
+                        vStr(vertex, "sourceFile"),
+                        vSource(vertex));
             case "PersistenceUnit" ->
                 new PersistenceUnitNode(
                         nodeId,
@@ -1894,6 +1904,7 @@ public class GraphQuery {
                     ContainerNode,
                     DeploymentNode,
                     ExternalSystemNode,
+                    ConfigPropertyNode,
                     PersistenceUnitNode,
                     DataSourceNode,
                     PersistenceOperationNode,
@@ -2336,6 +2347,56 @@ public class GraphQuery {
                     || GraphNode.q(query, name)
                     || GraphNode.q(query, kind)
                     || GraphNode.q(query, technology);
+        }
+    }
+
+    /**
+     * Graph node for a non-secret configuration property (vertex label {@code ConfigProperty}).
+     *
+     * @param id the node id
+     * @param name the property key (used as both name and {@code key})
+     * @param key the dotted property key
+     * @param value the resolved value, or {@code null} when unresolved
+     * @param resolved {@code false} when the value is an unexpanded placeholder
+     * @param appId the owning application/module id
+     * @param sourceFile the resource file the property was read from
+     * @param source source evidence
+     */
+    public record ConfigPropertyNode(
+            GraphNodeId id,
+            String name,
+            String key,
+            String value,
+            boolean resolved,
+            AppId appId,
+            String sourceFile,
+            SourceInfo source)
+            implements GraphNode {
+        @Override
+        public String label() {
+            return "ConfigProperty";
+        }
+
+        @Override
+        public Map<String, Object> properties() {
+            Map<String, Object> properties = GraphNode.propsOf(
+                    "key",
+                    key,
+                    "value",
+                    value,
+                    "resolved",
+                    resolved,
+                    "appId",
+                    appId != null ? appId.serialize() : null,
+                    "sourceFile",
+                    sourceFile);
+            putEvidenceProperties(properties, source);
+            return properties;
+        }
+
+        @Override
+        public boolean matches(String query) {
+            return GraphNode.q(query, id.serialize()) || GraphNode.q(query, key) || GraphNode.q(query, value);
         }
     }
 

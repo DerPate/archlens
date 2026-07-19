@@ -59,6 +59,9 @@ public class ExternalSystemInferrer {
                 s.technology = "microprofile-rest-client";
                 return s;
             });
+            if (system.baseUrlConfigKey == null && !StringUtils.isBlank(iface.configKey)) {
+                system.baseUrlConfigKey = iface.configKey;
+            }
             addDependency(model, existingDeps, iface.componentId.serialize(), system.id, "rest-client");
         }
     }
