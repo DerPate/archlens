@@ -120,4 +120,28 @@ class QuestionPlannerTest {
                         .intent())
                 .isEqualTo("relationship");
     }
+
+    @Test
+    void doesNotMatchConsumerContextInsideAnUnrelatedCompoundIdentifier() {
+        Interpretation result = planner.interpret("What does OrderConsumerMetricsCollector track?");
+        assertThat(result.intent()).isNotEqualTo("consumer_context");
+    }
+
+    @Test
+    void doesNotMatchMessagingFlowInsideAnUnrelatedCompoundIdentifier() {
+        Interpretation result = planner.interpret("What does OrderPublisherRegistry do?");
+        assertThat(result.intent()).isNotEqualTo("messaging_flow");
+    }
+
+    @Test
+    void doesNotMatchStateLifecycleInsideAnUnrelatedCompoundIdentifier() {
+        Interpretation result = planner.interpret("What does CustomerFieldValidator check?");
+        assertThat(result.intent()).isNotEqualTo("state_lifecycle");
+    }
+
+    @Test
+    void doesNotMatchExternalIntegrationInsideAnUnrelatedCompoundIdentifier() {
+        Interpretation result = planner.interpret("What does PaymentClientFactory build?");
+        assertThat(result.intent()).isNotEqualTo("external_integration_context");
+    }
 }

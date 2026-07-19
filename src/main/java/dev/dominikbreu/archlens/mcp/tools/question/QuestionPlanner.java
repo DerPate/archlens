@@ -42,37 +42,37 @@ public final class QuestionPlanner {
         table.put(
                 "persistence_destination",
                 List.of(
-                        Trigger.regex("persist(ed|ence)?", 3),
-                        Trigger.regex("stored|saved?", 2),
+                        Trigger.regex("\\bpersist(ed|ence)?\\b", 3),
+                        Trigger.regex("\\b(stored|saved?)\\b", 2),
                         Trigger.regex("\\b(database|entity|repository)\\b", 2),
                         Trigger.regex("field.*flow|flow.*field", 2)));
         table.put(
                 "consumer_context",
                 List.of(
-                        Trigger.regex("consum(e|er|es|ed)", 3),
-                        Trigger.regex("listen(s|er)?", 2),
-                        Trigger.literal("subscribe", 2),
-                        Trigger.regex("channel|topic|queue", 2),
-                        Trigger.literal("publishes", 2)));
+                        Trigger.regex("\\bconsum(e|er|es|ed)\\b", 3),
+                        Trigger.regex("\\blisten(s|er)?\\b", 2),
+                        Trigger.regex("\\bsubscribe\\b", 2),
+                        Trigger.regex("\\b(channel|topic|queue)\\b", 2),
+                        Trigger.regex("\\bpublishes\\b", 2)));
         table.put(
                 "impact",
                 List.of(
-                        Trigger.regex("breaks?", 3),
-                        Trigger.literal("impact", 3),
-                        Trigger.regex("replace[ds]?", 2),
-                        Trigger.regex("affects?", 2),
+                        Trigger.regex("\\bbreaks?\\b", 3),
+                        Trigger.regex("\\bimpact\\b", 3),
+                        Trigger.regex("\\breplace[ds]?\\b", 2),
+                        Trigger.regex("\\baffects?\\b", 2),
                         Trigger.literal("what may", 1)));
         table.put(
                 "transaction_context",
                 List.of(
-                        Trigger.regex("transaction(al)?", 3),
-                        Trigger.regex("rollback|commit", 2),
-                        Trigger.literal("propagation", 2),
+                        Trigger.regex("\\btransaction(al)?\\b", 3),
+                        Trigger.regex("\\b(rollback|commit)\\b", 2),
+                        Trigger.regex("\\bpropagation\\b", 2),
                         Trigger.literal("shares the transaction", 2)));
         table.put(
                 "endpoint_context",
                 List.of(
-                        Trigger.regex("endpoints?", 2),
+                        Trigger.regex("\\bendpoints?\\b", 2),
                         Trigger.regex("\\b(get|post|put|patch|delete)\\b", 3),
                         Trigger.regex("/\\S+", 3),
                         Trigger.literal("calls service", 2),
@@ -80,38 +80,38 @@ public final class QuestionPlanner {
         table.put(
                 "messaging_flow",
                 List.of(
-                        Trigger.regex("publish(es)?", 3),
+                        Trigger.regex("\\bpublish(es)?\\b", 3),
                         Trigger.regex("\\btopic\\b|\\bchannel\\b|\\bqueue\\b|\\bbroker\\b", 2),
-                        Trigger.literal("downstream", 1)));
+                        Trigger.regex("\\bdownstream\\b", 1)));
         table.put(
                 "scheduled_workflow",
                 List.of(
-                        Trigger.regex("\\bjob\\b|schedule[dr]?", 3),
-                        Trigger.literal("cron", 3),
-                        Trigger.regex("triggers?", 2),
+                        Trigger.regex("\\bjob\\b|\\bschedule[dr]?\\b", 3),
+                        Trigger.regex("\\bcron\\b", 3),
+                        Trigger.regex("\\btriggers?\\b", 2),
                         Trigger.regex("fixed rate|fixed delay", 2)));
         table.put(
                 "state_lifecycle",
                 List.of(
-                        Trigger.literal("field", 2),
-                        Trigger.literal("written", 2),
+                        Trigger.regex("\\bfield\\b", 2),
+                        Trigger.regex("\\bwritten\\b", 2),
                         Trigger.regex("read and|read.*writ", 2)));
         table.put(
                 "configuration_context",
                 List.of(
-                        Trigger.regex("config(uration)?", 3),
+                        Trigger.regex("\\bconfig(uration)?\\b", 3),
                         Trigger.literal("base url", 2),
-                        Trigger.regex("propert(y|ies)", 2),
-                        Trigger.literal("placeholder", 1)));
+                        Trigger.regex("\\bpropert(y|ies)\\b", 2),
+                        Trigger.regex("\\bplaceholder\\b", 1)));
         table.put(
                 "external_integration_context",
                 List.of(
-                        Trigger.literal("integration", 3),
-                        Trigger.literal("client", 2),
-                        Trigger.literal("external", 2)));
+                        Trigger.regex("\\bintegration\\b", 3),
+                        Trigger.regex("\\bclient\\b", 2),
+                        Trigger.regex("\\bexternal\\b", 2)));
         table.put(
                 "relationship",
-                List.of(Trigger.literal("relationship", 3), Trigger.regex("how.*related|connected to", 2)));
+                List.of(Trigger.regex("\\brelationship\\b", 3), Trigger.regex("how.*related|connected to", 2)));
         return Map.copyOf(table);
     }
 
