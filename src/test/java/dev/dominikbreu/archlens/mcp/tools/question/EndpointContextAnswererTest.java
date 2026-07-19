@@ -33,6 +33,33 @@ class EndpointContextAnswererTest {
         assertThat(strings(structured, "unresolved")).contains("security-not-modeled", "response-schema-not-modeled");
     }
 
+    @Test
+    void reverseModeFindsRestEndpointReachingRepository() throws Exception {
+        Answer result = EndpointContextAnswerer.answer(
+                graph("spring-pipeline-sample"),
+                Map.of("component", "OrderRepository", "maxDepth", 4),
+                new QueryPlanRecorder());
+
+        Map<String, Object> structured = result.structured("endpoint_context", null, null);
+        Map<String, Object> answer = answer(structured);
+        assertThat(answer).containsEntry("mode", "reverse");
+        assertThat(list(answer, "affectedEntrypoints"))
+                .anySatisfy(entrypoint ->
+                        assertThat(nested(entrypoint, "properties", "path")).isEqualTo("/api/orders/{id}"));
+        assertThat(list(structured, "evidenceChain")).isNotEmpty();
+    }
+
+    @Test
+    void reverseModeReportsUnresolvedWhenNoEntrypointReachesSubject() throws Exception {
+        Answer result = EndpointContextAnswerer.answer(
+                graph("spring-pipeline-sample"),
+                Map.of("component", "OrderEntity", "maxDepth", 1),
+                new QueryPlanRecorder());
+
+        Map<String, Object> structured = result.structured("endpoint_context", null, null);
+        assertThat(strings(structured, "unresolved")).isNotEmpty();
+    }
+
     static dev.dominikbreu.archlens.cache.GraphQuery graph(String fixture) throws java.io.IOException {
         ArchitectureModel model = new ArchitectureExtractor()
                 .extract(List.of(Path.of("src/test/resources/testprojects", fixture)
