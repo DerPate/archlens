@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 
-const proofItems = ["Java 21", "Spoon", "MCP stdio", "TinkerGraph", "Mermaid", "LikeC4"];
+const proofItems = ["Java 25", "Spoon", "MCP stdio", "TinkerGraph", "Mermaid", "LikeC4"];
 
 const capabilities = [
   {
@@ -25,8 +25,16 @@ const capabilities = [
     text: "Query neighborhoods, paths, dependencies, and impact slices from a TinkerGraph-backed architecture model through typed MCP tools.",
   },
   {
+    title: "Maintenance answers",
+    text: "Ask for persistence destinations, consumer context, grouped impact, or transaction context with unresolved and ambiguous evidence kept visible.",
+  },
+  {
     title: "Visual exports",
     text: "Export Mermaid diagrams, LikeC4 text, Markdown architecture docs, graph JSON, and a self-contained HTML graph viewer.",
+  },
+  {
+    title: "Standalone dashboard",
+    text: "Launch the jar in an interactive terminal to browse every tool and run architecture queries from the built-in REPL.",
   },
 ];
 
@@ -58,8 +66,8 @@ const questions = [
           and gives agents and engineers practical tools for tracing entrypoints, runtime paths, data movement, and impact.
         </p>
         <div class="hero-actions">
-          <a href="https://github.com/derPate/spoon-mcp-server" class="btn btn-primary" target="_blank" rel="noopener noreferrer">View on GitHub</a>
-          <a href="https://github.com/derPate/spoon-mcp-server/blob/main/docs/INSTALL.md" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">Read install guide</a>
+          <a href="https://github.com/DerPate/archlens" class="btn btn-primary" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+          <a href="https://github.com/DerPate/archlens/blob/main/docs/INSTALL.md" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">Read install guide</a>
         </div>
       </div>
 
@@ -74,6 +82,7 @@ list_apps
 find_entrypoints
 trace_data_flow
 query_architecture_graph
+answer_architecture_question
 export_graph_viewer</code></pre>
         </div>
         <div class="graph-card" aria-label="Architecture graph preview">
@@ -156,6 +165,31 @@ export_graph_viewer</code></pre>
     </div>
   </section>
 
+  <section id="dashboard" class="section dashboard-section">
+    <div class="container split-layout">
+      <div>
+        <span class="section-kicker">Standalone dashboard</span>
+        <h2 class="section-title">Explore ArchLens without wiring an MCP client.</h2>
+        <p class="section-copy">
+          Run the packaged jar directly in an interactive terminal to open the built-in dashboard and REPL. Browse the same
+          tool registry exposed over MCP, execute queries, and inspect results and captured graph traversals in one place.
+        </p>
+      </div>
+      <div class="terminal-card dashboard-card" aria-label="Standalone dashboard example">
+        <div class="terminal-top">
+          <span></span><span></span><span></span>
+          <strong>ArchLens dashboard</strong>
+        </div>
+        <pre><code>$ java -jar target/archlens.jar
+
+ArchLens — standalone dashboard
+archlens&gt; index_workspace paths=["/path/to/project"]
+archlens&gt; list_apps
+archlens&gt; answer_architecture_question question="Where is order data stored?"</code></pre>
+      </div>
+    </div>
+  </section>
+
   <section id="install" class="section install-section">
     <div class="container install-grid">
       <div>
@@ -164,12 +198,13 @@ export_graph_viewer</code></pre>
         <p class="section-copy">
           ArchLens runs as a stdio Model Context Protocol server. The usual first pass is to index a workspace,
           list applications, find entrypoints and components, then render or query focused architecture views.
+          Java 25 is required for ArchLens itself, not for the Java system being analyzed.
         </p>
       </div>
       <div class="code-stack">
         <pre><code>mvn test
 mvn package
-java -jar target/spoon-mcp-server.jar</code></pre>
+java -jar target/archlens.jar</code></pre>
         <pre><code>index_workspace -> list_apps -> find_entrypoints
 find_components -> render_architecture_view</code></pre>
         <pre><code>call_flow
@@ -193,8 +228,8 @@ export_graph_viewer</code></pre>
             <span></span><span></span><span></span>
             <strong>build</strong>
           </div>
-          <pre><code>git clone https://github.com/derPate/spoon-mcp-server.git
-cd spoon-mcp-server
+          <pre><code>git clone https://github.com/DerPate/archlens.git
+cd archlens
 mvn clean package</code></pre>
         </div>
         <div class="terminal-card quickstart-card">
@@ -202,7 +237,7 @@ mvn clean package</code></pre>
             <span></span><span></span><span></span>
             <strong>smoke test</strong>
           </div>
-          <pre><code>java -jar target/spoon-mcp-server.jar \
+          <pre><code>java -jar target/archlens.jar \
   &lt; examples/jsonrpc/initialize.json</code></pre>
         </div>
         <div class="terminal-card quickstart-card">
@@ -210,8 +245,8 @@ mvn clean package</code></pre>
             <span></span><span></span><span></span>
             <strong>wire client</strong>
           </div>
-          <pre><code>claude mcp add spoon -- java -jar \
-  /path/to/spoon-mcp-server.jar</code></pre>
+          <pre><code>claude mcp add archlens -- java -jar \
+  /path/to/archlens.jar</code></pre>
         </div>
       </div>
     </div>
@@ -221,28 +256,25 @@ mvn clean package</code></pre>
     <div class="container">
       <div class="section-heading">
         <span class="section-kicker">Tools</span>
-        <h2 class="section-title">22 typed tools. One indexed graph.</h2>
+        <h2 class="section-title">23 typed tools. One indexed graph.</h2>
       </div>
 
-      <div class="phase-strip">
-        <div class="phase-strip-grid container">
-          <span class="phase-strip-label phase-strip-label--index">Index</span>
-          <span class="phase-strip-label phase-strip-label--query">Query</span>
-          <span class="phase-strip-label phase-strip-label--render">Render</span>
-          <span class="phase-strip-label phase-strip-label--export">Export</span>
-        </div>
-      </div>
-
-      <div class="tool-grid">
-        <!-- Index -->
+      <div class="tool-groups">
+        <section class="tool-group tool-group--index" aria-labelledby="tool-group-index">
+          <h3 id="tool-group-index" class="tool-group-heading">Index</h3>
+          <div class="tool-group-list">
         <article class="tool-card tool-card--index tool-card--promoted">
           <span class="tool-card-phase">Index</span>
           <span class="tool-card-name">index_workspace</span>
           <p class="tool-card-desc">Analyze Java project roots and build the architecture graph through six extraction passes.</p>
           <a href="/tools/index-workspace" class="tool-card-link">Deep dive →</a>
         </article>
+          </div>
+        </section>
 
-        <!-- Query -->
+        <section class="tool-group tool-group--query" aria-labelledby="tool-group-query">
+          <h3 id="tool-group-query" class="tool-group-heading">Query</h3>
+          <div class="tool-group-list">
         <article class="tool-card tool-card--query">
           <span class="tool-card-phase">Query</span>
           <span class="tool-card-name">list_apps</span>
@@ -295,12 +327,23 @@ mvn clean package</code></pre>
 
         <article class="tool-card tool-card--query tool-card--promoted">
           <span class="tool-card-phase">Query</span>
+          <span class="tool-card-name">answer_architecture_question</span>
+          <p class="tool-card-desc">Return stable persistence, consumer, impact, and transaction answers with explicit uncertainty.</p>
+          <a href="/tools/answer-architecture-question" class="tool-card-link">Deep dive →</a>
+        </article>
+
+        <article class="tool-card tool-card--query tool-card--promoted">
+          <span class="tool-card-phase">Query</span>
           <span class="tool-card-name">render_pipeline</span>
           <p class="tool-card-desc">Stitch multiple data-flow paths into one end-to-end Mermaid pipeline diagram across entrypoint boundaries.</p>
           <a href="/tools/render-pipeline" class="tool-card-link">Deep dive →</a>
         </article>
+          </div>
+        </section>
 
-        <!-- Render -->
+        <section class="tool-group tool-group--render" aria-labelledby="tool-group-render">
+          <h3 id="tool-group-render" class="tool-group-heading">Render</h3>
+          <div class="tool-group-list">
         <article class="tool-card tool-card--render">
           <span class="tool-card-phase">Render</span>
           <span class="tool-card-name">render_mermaid_flowchart</span>
@@ -342,8 +385,12 @@ mvn clean package</code></pre>
           <span class="tool-card-name">render_architecture_view</span>
           <p class="tool-card-desc">Render a projection-first component view ranked by workflow relevance, business relevance, and bridge score.</p>
         </article>
+          </div>
+        </section>
 
-        <!-- Export -->
+        <section class="tool-group tool-group--export" aria-labelledby="tool-group-export">
+          <h3 id="tool-group-export" class="tool-group-heading">Export</h3>
+          <div class="tool-group-list">
         <article class="tool-card tool-card--export">
           <span class="tool-card-phase">Export</span>
           <span class="tool-card-name">export_architecture_docs</span>
@@ -373,6 +420,8 @@ mvn clean package</code></pre>
           <span class="tool-card-name">export_likec4_model</span>
           <p class="tool-card-desc">Export a LikeC4-compatible workspace projection from the indexed graph.</p>
         </article>
+          </div>
+        </section>
       </div>
 
       <!-- API teaser -->

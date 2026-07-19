@@ -2,7 +2,7 @@
 
 > MCP architecture analysis for real Java systems — indexes workspaces with Spoon, projects facts into a queryable architecture graph, and exposes typed MCP tools for tracing entrypoints, runtime paths, data flow, and change impact.
 
-Java 21, Spoon, MCP stdio, TinkerGraph, Mermaid, LikeC4
+Java 25, Spoon, MCP stdio, TinkerGraph, Mermaid, LikeC4
 
 ## Docs
 

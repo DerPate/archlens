@@ -24,6 +24,10 @@ It is built for engineers and code agents working in real Java codebases: Spring
 - **Data-flow tracing**: parameter flow to persistence, messaging, HTTP outbound calls, event bus, file/object storage, and shared-state stores.
 - **Pipeline stitching**: cross-entrypoint workflows through messaging, event bus, shared fields, and persistence handoffs.
 - **Architecture graph**: queryable TinkerGraph-backed model with typed nodes, edges, properties, neighborhoods, paths, and impact slices.
+- **Question-oriented answers**: stable persistence-destination, consumer-context, impact, and
+  transaction-context contracts with explicit unresolved and ambiguous evidence.
+- **Persistence topology**: JPA persistence units, JNDI/Spring datasources, and project-local
+  WildFly descriptors connected to sanitized database endpoints with source evidence.
 - **Visual exports**: Mermaid diagrams, LikeC4 text, Markdown architecture docs, graph JSON, and a self-contained HTML graph viewer.
 
 ## Why ArchLens
@@ -66,6 +70,7 @@ call_flow                  # How does this endpoint execute?
 trace_data_flow            # Where does this parameter or message go?
 render_pipeline            # What async workflow continues after this step?
 query_architecture_graph   # What depends on this node, and what is impacted?
+answer_architecture_question # Give a complete evidence-bearing maintenance answer.
 export_graph_viewer        # Open a visual graph for review and debugging.
 ```
 
@@ -140,6 +145,10 @@ Messaging entrypoints carry `channelName`, `broker` (`KAFKA`, `MQTT`, `AMQP`, `R
 - Maven 3.9 or newer
 - An MCP-capable client for interactive use, **or** run the jar directly in a terminal for the standalone REPL dashboard
 
+Java 25 is the runtime requirement for ArchLens itself, not for the workspace being
+analyzed. ArchLens parses source with Spoon in no-classpath mode, so the target system does
+not need to build or run on Java 25.
+
 ## Build
 
 ```sh
@@ -182,6 +191,7 @@ This serialized form is what every tool emits and expects as input, including th
 - `docs/STRUCTURED_OUTPUT.md`: why `structuredContent` saves tokens, and what agent
   instructions need to say to actually use it.
 - `docs/ARCHITECTURE.md`: package responsibilities and data flow.
+- `docs/ROADMAP.md`: benchmark, evidence, persistence configuration, and transaction-analysis milestones.
 - `skills/spoon-understand/`: portable agent workflow pack.
 - `AGENTS.md`: repository guide for coding agents.
 - `examples/jsonrpc/`: example JSON-RPC requests.
@@ -194,6 +204,16 @@ Run the test suite before opening a pull request:
 ```sh
 mvn test
 ```
+
+Run the deterministic architecture-question benchmark against the packaged MCP server:
+
+```sh
+mvn package
+python3 scripts/run-benchmark.py
+```
+
+The benchmark checks structured architecture facts and evidence rather than LLM prose. See
+`benchmarks/README.md` for scenario and report details.
 
 Useful maintenance commands:
 

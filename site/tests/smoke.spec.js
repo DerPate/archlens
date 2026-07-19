@@ -9,9 +9,23 @@ test("desktop page shows core ArchLens sections", async ({ page }) => {
   await expect(page.getByText("MCP architecture analysis built on Spoon.")).toBeVisible();
   await expect(page.getByText("Entrypoint discovery")).toBeVisible();
   await expect(page.getByText("From Java source to a queryable architecture graph.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Explore ArchLens without wiring an MCP client." })).toBeVisible();
   await expect(page.getByText("Build the server, then let your MCP client ask better questions.")).toBeVisible();
   await expect(page.locator("link[rel=\"icon\"][media=\"(prefers-color-scheme: light)\"]")).toHaveAttribute("href", "/favicon-light.svg");
   await expect(page.locator("link[rel=\"icon\"][media=\"(prefers-color-scheme: dark)\"]")).toHaveAttribute("href", "/favicon-dark.svg");
+});
+
+test("tools are grouped into ordered phase sections", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/");
+
+  const groups = page.locator(".tool-group");
+  await expect(groups).toHaveCount(4);
+  await expect(groups.locator(".tool-group-heading")).toHaveText(["Index", "Query", "Render", "Export"]);
+  await expect(groups.nth(0).locator(".tool-card-phase")).toHaveText(["Index"]);
+  await expect(groups.nth(1).locator(".tool-card-phase")).toHaveText(Array(10).fill("Query"));
+  await expect(groups.nth(2).locator(".tool-card-phase")).toHaveText(Array(7).fill("Render"));
+  await expect(groups.nth(3).locator(".tool-card-phase")).toHaveText(Array(5).fill("Export"));
 });
 
 test("mobile page keeps navigation and primary CTA visible", async ({ page }) => {
