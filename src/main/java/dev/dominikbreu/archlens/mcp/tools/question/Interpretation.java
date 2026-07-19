@@ -20,6 +20,12 @@ public record Interpretation(
         Map<String, String> filters,
         String rawQuestion) {
 
+    /** Defensively copies the subject candidates and filters. */
+    public Interpretation {
+        subjectCandidates = List.copyOf(subjectCandidates);
+        filters = Map.copyOf(filters);
+    }
+
     /**
      * A candidate subject reference extracted from question text, or a candidate intent when
      * {@link Interpretation#intent()} is {@code needs-clarification}.
