@@ -45,6 +45,7 @@ public class ArchitectureExtractor {
     private final BuildMetadataService buildMetadataService = new BuildMetadataService();
     private final SourceFactIndexBuilder sourceFactIndexBuilder = new SourceFactIndexBuilder();
     private final PersistenceTopologyExtractor persistenceTopologyExtractor = new PersistenceTopologyExtractor();
+    private final ConfigPropertyResolver configPropertyResolver = new ConfigPropertyResolver();
     private final TransactionPolicyExtractor transactionPolicyExtractor = new TransactionPolicyExtractor();
 
     /** Creates an extractor with the default scanner and extraction passes. */
@@ -86,6 +87,7 @@ public class ArchitectureExtractor {
             int sitesBefore = model.outboundSinkSites.size();
             dispatchExtractors(types, model, work.app().id, work.module(), tech);
             persistenceTopologyExtractor.extract(work.module(), types, model, work.app().id);
+            configPropertyResolver.resolve(work.module().root(), work.app().id, model);
 
             Map<String, MessagingConfigResolver.ChannelConfig> resolved =
                     messagingConfigResolver.resolve(work.module().root());

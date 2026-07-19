@@ -7,6 +7,7 @@ import dev.dominikbreu.archlens.model.ArchitectureModel;
 import dev.dominikbreu.archlens.model.CallEdge;
 import dev.dominikbreu.archlens.model.Component;
 import dev.dominikbreu.archlens.model.ComponentType;
+import dev.dominikbreu.archlens.model.ConfigProperty;
 import dev.dominikbreu.archlens.model.DataFlowBranch;
 import dev.dominikbreu.archlens.model.DataFlowBranchArm;
 import dev.dominikbreu.archlens.model.DataFlowEdge;
@@ -600,6 +601,55 @@ class ArchitectureGraphTest {
                     assertThat(edge.fromId().serialize()).isEqualTo("OrderService");
                     assertThat(edge.toId().serialize()).isEqualTo("ext:messaging:kafka");
                 });
+    }
+
+    @Test
+    void configPropertyNodeIsProjectedWithKeyValueAndResolvedFlag() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        ConfigProperty property = new ConfigProperty();
+        property.id = "config:test-app:billing.client.base-url";
+        property.key = "billing.client.base-url";
+        property.value = "https://billing.internal/api";
+        property.resolved = true;
+        property.appId = AppId.of("test-app");
+        property.sourceFile = "application.yml";
+        model.configProperties.add(property);
+
+        GraphQuery graph = buildGraph(model);
+
+        List<GraphQuery.GraphNode> nodes = graph.findNodes("ConfigProperty", null, Map.of(), 10);
+        assertThat(nodes).hasSize(1);
+        assertThat(nodes.getFirst().properties())
+                .containsEntry("key", "billing.client.base-url")
+                .containsEntry("resolved", true);
+    }
+
+    @Test
+    void configuredByEdgeLinksExternalSystemToItsBaseUrlConfigProperty() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        ExternalSystem billing = new ExternalSystem();
+        billing.id = "ext:rest:billing";
+        billing.name = "billing";
+        billing.kind = "REST_API";
+        billing.technology = "microprofile-rest-client";
+        billing.baseUrlConfigKey = "billing";
+        model.externalSystems.add(billing);
+
+        ConfigProperty property = new ConfigProperty();
+        property.id = "config:test-app:quarkus.rest-client.billing.url";
+        property.key = "quarkus.rest-client.billing.url";
+        property.value = "https://billing.internal/api";
+        property.resolved = true;
+        property.appId = AppId.of("test-app");
+        property.sourceFile = "application.yml";
+        model.configProperties.add(property);
+
+        GraphQuery graph = buildGraph(model);
+
+        assertThat(graph.findEdges("CONFIGURED_BY", Map.of(), 10)).anySatisfy(edge -> {
+            assertThat(edge.fromId().serialize()).isEqualTo("ext:rest:billing");
+            assertThat(edge.toId().serialize()).isEqualTo("config:test-app:quarkus.rest-client.billing.url");
+        });
     }
 
     @Test

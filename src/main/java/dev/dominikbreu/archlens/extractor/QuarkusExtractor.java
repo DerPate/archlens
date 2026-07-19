@@ -393,9 +393,13 @@ public class QuarkusExtractor {
         if (component.type != ComponentType.HTTP_CLIENT) return;
         String clientBasePath = normalizePath(classBasePath);
         String serviceName = restClientServiceName(type);
+        String rawConfigKey = getAnnotationAttributeValue(type, REST_CLIENT_ANNOTATIONS, "configKey");
         InterfaceEntry clientIface =
                 addInterface(type, component, "rest_client", component.name, clientBasePath, model);
-        if (clientIface != null) clientIface.externalServiceName = serviceName;
+        if (clientIface != null) {
+            clientIface.externalServiceName = serviceName;
+            clientIface.configKey = rawConfigKey.isEmpty() ? null : rawConfigKey;
+        }
         for (CtMethod<?> method : type.getMethods()) {
             String httpMethod = getHttpMethod(method);
             if (httpMethod == null) continue;

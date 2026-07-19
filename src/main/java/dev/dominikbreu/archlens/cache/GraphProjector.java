@@ -7,6 +7,7 @@ import dev.dominikbreu.archlens.model.AppEntry;
 import dev.dominikbreu.archlens.model.ArchitectureModel;
 import dev.dominikbreu.archlens.model.CallEdge;
 import dev.dominikbreu.archlens.model.Component;
+import dev.dominikbreu.archlens.model.ConfigProperty;
 import dev.dominikbreu.archlens.model.Container;
 import dev.dominikbreu.archlens.model.DataFlowBranch;
 import dev.dominikbreu.archlens.model.DataFlowBranchArm;
@@ -101,6 +102,7 @@ class GraphProjector {
         sourceModel.persistenceOperations.forEach(this::addPersistenceOperation);
         sourceModel.transactionPolicies.forEach(this::addTransactionBoundary);
         sourceModel.externalSystems.forEach(this::addExternalSystem);
+        sourceModel.configProperties.forEach(this::addConfigProperty);
         sourceModel.runtimeFlows.forEach(this::addRuntimeFlow);
 
         sourceModel.applications.forEach(app -> app.componentIds.forEach(componentId -> addEdge(
@@ -128,6 +130,7 @@ class GraphProjector {
         sourceModel.deployments.forEach(deployment -> deployment.appIds.forEach(
                 appId -> addEdge(deployment.id, appId.serialize(), "DEPLOYS", Map.of(SOURCE, "deployment.appIds"))));
         addPersistenceTopologyEdges(sourceModel);
+        addConfigurationEdges(sourceModel);
         addMethodPolicyEdges(sourceModel);
         sourceModel.dependencies.forEach(dependency -> addEdge(
                 dependency.fromId.serialize(),
@@ -228,6 +231,33 @@ class GraphProjector {
         setLower(vertex, "externalSystemKind", externalSystem.kind);
         set(vertex, TECHNOLOGY, externalSystem.technology);
         setSource(vertex, externalSystem.source);
+    }
+
+    private void addConfigProperty(ConfigProperty property) {
+        Vertex vertex = addVertex(property.id, "ConfigProperty", property.key);
+        set(vertex, "kind", "configProperty");
+        set(vertex, "key", property.key);
+        set(vertex, "value", property.value);
+        set(vertex, "resolved", property.resolved);
+        set(vertex, "appId", property.appId != null ? property.appId.serialize() : null);
+        set(vertex, "sourceFile", property.sourceFile);
+        setSource(vertex, property.source);
+    }
+
+    private void addConfigurationEdges(ArchitectureModel sourceModel) {
+        for (ExternalSystem externalSystem : sourceModel.externalSystems) {
+            if (StringUtils.isBlank(externalSystem.baseUrlConfigKey)) continue;
+            ConfigProperty property = sourceModel.configProperties.stream()
+                    .filter(p -> p.key != null && p.key.contains(externalSystem.baseUrlConfigKey))
+                    .findFirst()
+                    .orElse(null);
+            if (property == null) continue;
+            addEdge(
+                    externalSystem.id,
+                    property.id,
+                    "CONFIGURED_BY",
+                    EvidenceNormalizer.fromSource(externalSystem.source));
+        }
     }
 
     private void addPersistenceUnit(PersistenceUnitInfo unit) {
@@ -1057,7 +1087,8 @@ class GraphProjector {
                                 "GOVERNS_OPERATION",
                                 "PERFORMS_PERSISTENCE_OPERATION",
                                 "OPERATES_ON_ENTITY",
-                                "CONNECTS_TO")
+                                "CONNECTS_TO",
+                                "CONFIGURED_BY")
                         .where(org.apache.tinkerpop.gremlin.process.traversal.P.without("seen"))
                         .aggregate("seen"))
                 .cap("seen")

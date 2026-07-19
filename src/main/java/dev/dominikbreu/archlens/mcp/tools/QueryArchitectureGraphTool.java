@@ -203,6 +203,8 @@ public class QueryArchitectureGraphTool {
             case GraphQuery.ContainerNode cn ->
                 appendFields(sb, "technology", cn.technology(), "derivedFrom", cn.derivedFrom(), "appId", cn.appId());
             case GraphQuery.ExternalSystemNode es -> appendFields(sb, "kind", es.kind(), "technology", es.technology());
+            case GraphQuery.ConfigPropertyNode cp ->
+                appendFields(sb, "key", cp.key(), "value", cp.value(), "resolved", cp.resolved());
             case GraphQuery.PersistenceUnitNode pu ->
                 appendFields(
                         sb,
