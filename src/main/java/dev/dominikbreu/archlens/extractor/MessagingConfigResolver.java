@@ -61,7 +61,10 @@ public class MessagingConfigResolver {
      */
     public Map<String, ChannelConfig> resolve(File moduleRoot) {
         File resources = new File(moduleRoot, "src/main/resources");
-        Map<String, String> flat = PropertyFileReader.readAll(resources);
+        return resolve(PropertyFileReader.readAll(resources));
+    }
+
+    Map<String, ChannelConfig> resolve(Map<String, PropertyFileReader.PropertyEntry> flat) {
         Map<String, MessagingBroker> brokers = new LinkedHashMap<>();
         Map<String, String> topics = new LinkedHashMap<>();
         collect(flat, brokers, topics);
@@ -77,17 +80,21 @@ public class MessagingConfigResolver {
         return result;
     }
 
-    private void collect(Map<String, String> flat, Map<String, MessagingBroker> brokers, Map<String, String> topics) {
-        for (Map.Entry<String, String> entry : flat.entrySet()) {
+    private void collect(
+            Map<String, PropertyFileReader.PropertyEntry> flat,
+            Map<String, MessagingBroker> brokers,
+            Map<String, String> topics) {
+        for (Map.Entry<String, PropertyFileReader.PropertyEntry> entry : flat.entrySet()) {
+            String value = entry.getValue().value();
             Matcher cm = CONNECTOR_KEY.matcher(entry.getKey());
             if (cm.matches()) {
-                brokers.put(cm.group(2), mapBroker(entry.getValue()));
+                brokers.put(cm.group(2), mapBroker(value));
                 continue;
             }
             Matcher dm = DESTINATION_KEY.matcher(entry.getKey());
             if (dm.matches()) {
                 // First value wins — incoming/outgoing rarely conflict for the same channel name.
-                topics.putIfAbsent(dm.group(2), entry.getValue());
+                topics.putIfAbsent(dm.group(2), value);
             }
         }
     }

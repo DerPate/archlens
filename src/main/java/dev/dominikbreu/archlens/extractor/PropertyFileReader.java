@@ -19,14 +19,23 @@ final class PropertyFileReader {
     private PropertyFileReader() {}
 
     /**
+     * A resolved property value together with the resource file it was read from.
+     *
+     * @param value the resolved string value
+     * @param sourceFile the resource file name the value was read from
+     */
+    record PropertyEntry(String value, String sourceFile) {}
+
+    /**
      * Reads and flattens every {@code application.*} resource file under {@code resourcesDir},
-     * merging keys across files (first file wins on conflict).
+     * merging keys across files (last file wins on conflict, in {@code application.properties} ->
+     * {@code application.yaml} -> {@code application.yml} order).
      *
      * @param resourcesDir the module's {@code src/main/resources} directory
-     * @return flattened dotted-key to string-value map; empty when the directory is absent
+     * @return flattened dotted-key to value+provenance map; empty when the directory is absent
      */
-    static Map<String, String> readAll(File resourcesDir) {
-        Map<String, String> merged = new LinkedHashMap<>();
+    static Map<String, PropertyEntry> readAll(File resourcesDir) {
+        Map<String, PropertyEntry> merged = new LinkedHashMap<>();
         if (!resourcesDir.isDirectory()) return merged;
         for (String name : RESOURCE_FILES) {
             File file = new File(resourcesDir, name);
@@ -34,7 +43,7 @@ final class PropertyFileReader {
             try {
                 Map<String, String> flat = name.endsWith(".properties") ? readProperties(file) : readYaml(file);
                 for (Map.Entry<String, String> entry : flat.entrySet()) {
-                    merged.putIfAbsent(entry.getKey(), entry.getValue());
+                    merged.put(entry.getKey(), new PropertyEntry(entry.getValue(), name));
                 }
             } catch (IOException _) {
             }
@@ -66,6 +75,7 @@ final class PropertyFileReader {
         Map<String, Object> flat = new LinkedHashMap<>();
         flatten("", (Map<String, Object>) map, flat);
         for (Map.Entry<String, Object> entry : flat.entrySet()) {
+            if (entry.getValue() == null) continue;
             out.put(entry.getKey(), String.valueOf(entry.getValue()));
         }
         return out;

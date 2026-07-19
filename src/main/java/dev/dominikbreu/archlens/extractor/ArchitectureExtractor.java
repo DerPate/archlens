@@ -87,10 +87,12 @@ public class ArchitectureExtractor {
             int sitesBefore = model.outboundSinkSites.size();
             dispatchExtractors(types, model, work.app().id, work.module(), tech);
             persistenceTopologyExtractor.extract(work.module(), types, model, work.app().id);
-            configPropertyResolver.resolve(work.module().root(), work.app().id, model);
+            File resources = new File(work.module().root(), "src/main/resources");
+            Map<String, PropertyFileReader.PropertyEntry> flatProperties = PropertyFileReader.readAll(resources);
+            configPropertyResolver.resolve(flatProperties, work.app().id, model);
 
             Map<String, MessagingConfigResolver.ChannelConfig> resolved =
-                    messagingConfigResolver.resolve(work.module().root());
+                    messagingConfigResolver.resolve(flatProperties);
             applyMessagingBrokers(model, work.app().id, resolved);
             new MessagingTopicResolver(15).resolve(model, ctModel, sitesBefore);
         }
