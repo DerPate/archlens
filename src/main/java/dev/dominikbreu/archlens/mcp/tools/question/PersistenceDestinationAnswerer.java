@@ -10,7 +10,6 @@ import dev.dominikbreu.archlens.cache.GraphQuery.GraphNode;
 import dev.dominikbreu.archlens.cache.GraphQuery.PersistenceOperationNode;
 import dev.dominikbreu.archlens.cache.GraphQuery.PersistenceUnitNode;
 import dev.dominikbreu.archlens.mcp.tools.ToolArgs;
-import dev.dominikbreu.archlens.model.ids.EntrypointId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -54,10 +53,7 @@ public final class PersistenceDestinationAnswerer {
 
         if (entrypoint != null) {
             origins.add(QuestionSupport.nodeMap(entrypoint));
-            for (DataFlowPathNode path : graph.allDataFlowPaths()) {
-                if (!Objects.equals(
-                        path.entrypointId(),
-                        EntrypointId.deserialize(entrypoint.id().serialize()))) continue;
+            for (DataFlowPathNode path : graph.pathsForEntrypoint(entrypoint.id())) {
                 if (param != null && !param.equals(path.trackedParam())) continue;
                 graph.pathDataFlowSteps(path.id()).forEach(step -> transformations.add(QuestionSupport.nodeMap(step)));
                 for (DataFlowSinkNode sink : graph.pathSinks(path.id())) {

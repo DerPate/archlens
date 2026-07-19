@@ -70,8 +70,7 @@ public final class ScheduledWorkflowAnswerer {
                         () -> result.unresolved.add("runtime-flow-not-resolved"));
 
         List<Map<String, Object>> messagingAndExternalSinks = new ArrayList<>();
-        for (var path : graph.allDataFlowPaths()) {
-            if (!path.entrypointId().serialize().equals(entrypoint.id().serialize())) continue;
+        for (var path : graph.pathsForEntrypoint(entrypoint.id())) {
             for (DataFlowSinkNode sink : graph.pathSinks(path.id())) {
                 if (sink.sinkKind() != null
                         && !"persistence".equals(sink.sinkKind().value())) {

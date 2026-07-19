@@ -990,6 +990,29 @@ class ArchitectureGraphTest {
                 .containsEntry("method", "write");
     }
 
+    @Test
+    void pathsForEntrypointReturnsOnlyPathsOriginatingFromThatEntrypoint() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        EntrypointId orderCreate = EntrypointId.deserialize("OrderController#create");
+        DataFlowPath matching = new DataFlowPath();
+        matching.entrypointId = orderCreate;
+        matching.id = DataFlowPathId.of(orderCreate, "id");
+        model.dataFlowPaths.add(matching);
+
+        EntrypointId other = EntrypointId.deserialize("OtherController#other");
+        DataFlowPath unrelated = new DataFlowPath();
+        unrelated.entrypointId = other;
+        unrelated.id = DataFlowPathId.of(other, "id");
+        model.dataFlowPaths.add(unrelated);
+
+        GraphQuery graph = buildGraph(model);
+
+        List<GraphQuery.DataFlowPathNode> paths = graph.pathsForEntrypoint(GraphNodeId.of(orderCreate.serialize()));
+
+        assertThat(paths).hasSize(1);
+        assertThat(paths.getFirst().id().serialize()).isEqualTo(matching.id.serialize());
+    }
+
     private Entrypoint entrypoint(String id, EntrypointType type) {
         Entrypoint e = new Entrypoint();
         e.name = id.substring(id.indexOf(':') + 1);

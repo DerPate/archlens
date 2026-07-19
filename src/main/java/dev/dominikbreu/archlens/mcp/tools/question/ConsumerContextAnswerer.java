@@ -6,11 +6,9 @@ import dev.dominikbreu.archlens.cache.GraphQuery.EntrypointNode;
 import dev.dominikbreu.archlens.cache.GraphQuery.GraphEdge;
 import dev.dominikbreu.archlens.cache.GraphQuery.GraphNode;
 import dev.dominikbreu.archlens.cache.GraphQuery.RuntimeFlowNode;
-import dev.dominikbreu.archlens.model.ids.EntrypointId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /** Answers the {@code consumer_context} intent: inbound binding, upstream producers, and downstream dependencies. */
 public final class ConsumerContextAnswerer {
@@ -45,10 +43,7 @@ public final class ConsumerContextAnswerer {
         }
         List<Map<String, Object>> upstream = new ArrayList<>();
         List<Map<String, Object>> downstream = new ArrayList<>();
-        for (DataFlowPathNode path : graph.allDataFlowPaths()) {
-            if (!Objects.equals(
-                    path.entrypointId(),
-                    EntrypointId.deserialize(entrypoint.id().serialize()))) continue;
+        for (DataFlowPathNode path : graph.pathsForEntrypoint(entrypoint.id())) {
             for (GraphEdge edge : graph.neighborhood(path.id(), "in", QuestionSupport.DEFAULT_LIMIT)) {
                 if (!"WORKFLOW_LINK".equals(edge.label()) && !"LINKS_TO".equals(edge.label())) continue;
                 GraphNode sourcePath = graph.node(edge.fromId());

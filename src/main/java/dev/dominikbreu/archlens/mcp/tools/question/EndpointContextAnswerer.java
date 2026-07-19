@@ -96,8 +96,7 @@ public final class EndpointContextAnswerer {
 
         List<Map<String, Object>> dataFlowSinks = new ArrayList<>();
         List<Map<String, Object>> outboundCalls = new ArrayList<>();
-        for (DataFlowPathNode path : graph.allDataFlowPaths()) {
-            if (!path.entrypointId().serialize().equals(entrypoint.id().serialize())) continue;
+        for (DataFlowPathNode path : graph.pathsForEntrypoint(entrypoint.id())) {
             for (DataFlowSinkNode sink : graph.pathSinks(path.id())) {
                 Map<String, Object> sinkMap = QuestionSupport.nodeMap(sink);
                 if (sink.sinkKind() != null

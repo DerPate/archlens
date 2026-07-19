@@ -578,6 +578,19 @@ public class GraphQuery {
     }
 
     /**
+     * Returns data-flow paths originating from the given entrypoint.
+     *
+     * @param entrypointNodeId the entrypoint's graph node id
+     * @return data-flow paths whose entrypointId matches, in traversal order
+     */
+    public List<DataFlowPathNode> pathsForEntrypoint(GraphNodeId entrypointNodeId) {
+        EntrypointId entrypointId = EntrypointId.deserialize(entrypointNodeId.serialize());
+        return allDataFlowPaths().stream()
+                .filter(path -> Objects.equals(path.entrypointId(), entrypointId))
+                .toList();
+    }
+
+    /**
      * Returns sinks reachable from a DataFlowPath vertex.
      *
      * @param pathId the data flow path ID
