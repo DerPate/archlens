@@ -44,7 +44,7 @@ public final class QuestionPlanner {
                 List.of(
                         Trigger.regex("persist(ed|ence)?", 3),
                         Trigger.regex("stored|saved?", 2),
-                        Trigger.regex("database|entity|repository", 2),
+                        Trigger.regex("\\b(database|entity|repository)\\b", 2),
                         Trigger.regex("field.*flow|flow.*field", 2)));
         table.put(
                 "consumer_context",
@@ -75,7 +75,8 @@ public final class QuestionPlanner {
                         Trigger.regex("endpoints?", 2),
                         Trigger.regex("\\b(get|post|put|patch|delete)\\b", 3),
                         Trigger.regex("/\\S+", 3),
-                        Trigger.literal("calls service", 2)));
+                        Trigger.literal("calls service", 2),
+                        Trigger.regex("\\bcalls?\\b", 1)));
         return Map.copyOf(table);
     }
 

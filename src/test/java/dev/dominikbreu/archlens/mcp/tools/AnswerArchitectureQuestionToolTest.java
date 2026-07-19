@@ -154,6 +154,33 @@ class AnswerArchitectureQuestionToolTest {
         assertThat(structured).containsEntry("family", "transaction_context");
     }
 
+    @Test
+    void naturalLanguageEndpointQuestionMatchesTypedEndpointContextCall() {
+        ToolResult typed = tool("spring-pipeline-sample")
+                .execute(Map.of("family", "endpoint_context", "entrypoint", "POST /api/orders/{id}"));
+        ToolResult natural =
+                tool("spring-pipeline-sample").execute(Map.of("question", "What happens on POST /api/orders/{id}?"));
+
+        Map<String, Object> typedStructured = structured(typed);
+        Map<String, Object> naturalStructured = structured(natural);
+        assertThat(naturalStructured).containsEntry("family", "endpoint_context");
+        assertThat(nested(naturalStructured, "interpretation", "intent")).isEqualTo("endpoint_context");
+        assertThat(map(answer(naturalStructured), "owningComponent"))
+                .isEqualTo(map(answer(typedStructured), "owningComponent"));
+    }
+
+    @Test
+    void naturalLanguageReverseEndpointQuestionFindsCallingEntrypoint() {
+        ToolResult result =
+                tool("spring-pipeline-sample").execute(Map.of("question", "Which endpoints call OrderRepository?"));
+
+        Map<String, Object> structured = structured(result);
+        assertThat(nested(structured, "interpretation", "intent")).isEqualTo("endpoint_context");
+        assertThat(list(answer(structured), "affectedEntrypoints"))
+                .anySatisfy(entrypoint ->
+                        assertThat(nested(entrypoint, "properties", "path")).isEqualTo("/api/orders/{id}"));
+    }
+
     private static AnswerArchitectureQuestionTool tool(String fixture) {
         return tool(extract(fixture));
     }
