@@ -11,6 +11,9 @@ public final class OkfEntryValidator {
     private static final Pattern LOG_ENTRY =
             Pattern.compile("\\A- \\*\\*(Creation|Refresh)\\*\\*: [^\\r\\n]*\\[[^]]+]\\([^)]+\\)[^\\r\\n]*\\z");
 
+    /** Creates a validator for generated OKF snippets. */
+    public OkfEntryValidator() {}
+
     /**
      * Validates a rendered generated concept for the expected semantic key.
      *

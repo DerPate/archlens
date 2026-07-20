@@ -116,7 +116,12 @@ public final class OkfBundleWriter {
      * @param logPath bundle log path
      * @param warnings non-fatal warnings
      */
-    public record WriteOutcome(String status, Path conceptPath, Path indexPath, Path logPath, List<String> warnings) {}
+    public record WriteOutcome(String status, Path conceptPath, Path indexPath, Path logPath, List<String> warnings) {
+        /** Defensively copies warning entries. */
+        public WriteOutcome {
+            warnings = List.copyOf(warnings);
+        }
+    }
 
     private ExistingConcept existingConcept(Path conceptPath) throws IOException {
         if (!Files.exists(conceptPath)) {
@@ -229,9 +234,10 @@ public final class OkfBundleWriter {
             for (Map.Entry<Path, byte[]> entry : finalContent.entrySet()) {
                 Path target = entry.getKey();
                 snapshots.put(target, snapshot(target));
-                Files.createDirectories(target.getParent());
-                Path temp = Files.createTempFile(
-                        target.getParent(), target.getFileName().toString(), ".tmp");
+                Path parent = requireParent(target);
+                Path fileName = requireFileName(target);
+                Files.createDirectories(parent);
+                Path temp = Files.createTempFile(parent, fileName.toString(), ".tmp");
                 temps.add(temp);
                 Files.write(temp, entry.getValue());
                 staged.put(target, temp);
@@ -262,8 +268,8 @@ public final class OkfBundleWriter {
             try {
                 Optional<byte[]> content = snapshots.get(target);
                 if (content.isPresent()) {
-                    Path temp = Files.createTempFile(
-                            target.getParent(), target.getFileName().toString(), ".restore");
+                    Path fileName = requireFileName(target);
+                    Path temp = Files.createTempFile(requireParent(target), fileName.toString(), ".restore");
                     temps.add(temp);
                     Files.write(temp, content.get());
                     promote(temp, target);
@@ -289,6 +295,22 @@ public final class OkfBundleWriter {
         } catch (AtomicMoveNotSupportedException unsupported) {
             Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
         }
+    }
+
+    private static Path requireParent(Path path) {
+        Path parent = path.getParent();
+        if (parent == null) {
+            throw new IllegalArgumentException("Path must have a parent: " + path);
+        }
+        return parent;
+    }
+
+    private static Path requireFileName(Path path) {
+        Path fileName = path.getFileName();
+        if (fileName == null) {
+            throw new IllegalArgumentException("Path must have a file name: " + path);
+        }
+        return fileName;
     }
 
     private static String read(Path path) throws IOException {

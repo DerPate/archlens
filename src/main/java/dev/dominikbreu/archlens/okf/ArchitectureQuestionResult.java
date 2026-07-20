@@ -1,8 +1,10 @@
 package dev.dominikbreu.archlens.okf;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -34,6 +36,22 @@ public record ArchitectureQuestionResult(
         List<String> ambiguous,
         List<Map<String, Object>> clarifications,
         List<String> suggestedQuestions) {
+
+    /** Validates non-null fields and defensively copies collection fields. */
+    public ArchitectureQuestionResult {
+        Objects.requireNonNull(family, "family");
+        Objects.requireNonNull(status, "status");
+        request = copyMap(request, "request");
+        interpretation = copyMap(interpretation, "interpretation");
+        queryPlan = copyMapList(queryPlan, "queryPlan");
+        subject = copyMap(subject, "subject");
+        answer = copyMap(answer, "answer");
+        evidenceChain = copyMapList(evidenceChain, "evidenceChain");
+        unresolved = List.copyOf(Objects.requireNonNull(unresolved, "unresolved"));
+        ambiguous = List.copyOf(Objects.requireNonNull(ambiguous, "ambiguous"));
+        clarifications = copyMapList(clarifications, "clarifications");
+        suggestedQuestions = List.copyOf(Objects.requireNonNull(suggestedQuestions, "suggestedQuestions"));
+    }
 
     /** Question families that represent known, compilable investigation types. */
     public static final Set<String> FAMILIES = Set.of(
@@ -87,6 +105,76 @@ public record ArchitectureQuestionResult(
         return !"unsupported".equals(status) && !"needs-clarification".equals(status);
     }
 
+    /**
+     * Returns a defensive copy of the normalized request scope.
+     *
+     * @return normalized request map
+     */
+    @Override
+    public Map<String, Object> request() {
+        return copyMap(request, "request");
+    }
+
+    /**
+     * Returns a defensive copy of interpretation metadata.
+     *
+     * @return interpretation metadata map
+     */
+    @Override
+    public Map<String, Object> interpretation() {
+        return copyMap(interpretation, "interpretation");
+    }
+
+    /**
+     * Returns defensive copies of query-plan entries.
+     *
+     * @return query-plan entries
+     */
+    @Override
+    public List<Map<String, Object>> queryPlan() {
+        return copyMapList(queryPlan, "queryPlan");
+    }
+
+    /**
+     * Returns a defensive copy of primary subject metadata.
+     *
+     * @return subject metadata map
+     */
+    @Override
+    public Map<String, Object> subject() {
+        return copyMap(subject, "subject");
+    }
+
+    /**
+     * Returns a defensive copy of the answer payload.
+     *
+     * @return answer payload map
+     */
+    @Override
+    public Map<String, Object> answer() {
+        return copyMap(answer, "answer");
+    }
+
+    /**
+     * Returns defensive copies of evidence-chain entries.
+     *
+     * @return evidence-chain entries
+     */
+    @Override
+    public List<Map<String, Object>> evidenceChain() {
+        return copyMapList(evidenceChain, "evidenceChain");
+    }
+
+    /**
+     * Returns defensive copies of clarification entries.
+     *
+     * @return clarification entries
+     */
+    @Override
+    public List<Map<String, Object>> clarifications() {
+        return copyMapList(clarifications, "clarifications");
+    }
+
     private static String requiredString(Map<String, Object> input, String key) {
         Object value = value(input, key);
         if (value instanceof String string) {
@@ -100,14 +188,14 @@ public record ArchitectureQuestionResult(
         if (!(value instanceof Map<?, ?> map)) {
             throw invalid(key);
         }
-        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        Map<String, Object> result = new LinkedHashMap<>();
         for (Map.Entry<?, ?> entry : map.entrySet()) {
             if (!(entry.getKey() instanceof String stringKey)) {
                 throw invalid(key);
             }
             result.put(stringKey, entry.getValue());
         }
-        return Map.copyOf(result);
+        return copyMap(result, key);
     }
 
     private static List<Map<String, Object>> mapList(Map<String, Object> input, String key) {
@@ -120,14 +208,26 @@ public record ArchitectureQuestionResult(
             if (!(element instanceof Map<?, ?> map)) {
                 throw invalid(key);
             }
-            Map<String, Object> copied = new java.util.LinkedHashMap<>();
+            Map<String, Object> copied = new LinkedHashMap<>();
             for (Map.Entry<?, ?> entry : map.entrySet()) {
                 if (!(entry.getKey() instanceof String stringKey)) {
                     throw invalid(key);
                 }
                 copied.put(stringKey, entry.getValue());
             }
-            result.add(Map.copyOf(copied));
+            result.add(copyMap(copied, key));
+        }
+        return List.copyOf(result);
+    }
+
+    private static Map<String, Object> copyMap(Map<String, Object> value, String name) {
+        return Map.copyOf(Objects.requireNonNull(value, name));
+    }
+
+    private static List<Map<String, Object>> copyMapList(List<Map<String, Object>> value, String name) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map<String, Object> element : Objects.requireNonNull(value, name)) {
+            result.add(copyMap(element, name));
         }
         return List.copyOf(result);
     }
