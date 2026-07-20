@@ -1,8 +1,109 @@
 # Changelog
 
-All notable changes to this project will be appended by JReleaser.
+All notable changes to this project are documented in this file.
 
-<!-- JRELEASER_CHANGELOG_APPEND - Do not remove or modify this section -->
+## [archlens-1.4.2]
+
+## Changelog
+
+### Features
+- expose architecture question OKF compiler
+- safely create and refresh OKF bundles
+- render and validate question OKF concepts
+- confine OKF output paths to indexed projects
+- validate and identify OKF investigations
+- add canonical architecture question requests
+- expose the 6 new intents in the MCP tool schema
+- wire messaging/state/scheduled/integration/config/relationship intents into the dispatcher and planner
+- add relationship intent
+- add configuration_context intent
+- add external_integration_context intent
+- add scheduled_workflow intent
+- add state_lifecycle intent
+- add messaging_flow intent
+- capture scheduler trigger metadata (cron/fixedRate/fixedDelay/every)
+- project ConfigProperty nodes and CONFIGURED_BY edges
+- add ConfigPropertyResolver and shared PropertyFileReader
+- implement M0-M4 evidence contract, persistence/transaction extraction, and benchmark harness
+- expose question input and endpoint_context in MCP tool schema
+- add endpoint_context intent, forward mode
+- route natural-language question input through QuestionPlanner
+- add deterministic keyword-scoring question planner
+- trace Kafka sends from non-entrypoint producers
+- wire MessagingTopicResolver into ArchitectureExtractor pass1Scan
+- MessagingTopicResolver driver — expand unresolved OutboundSinkSites to one site per literal
+- StringExpressionResolver MESSAGE_OBJECT — scan setHeader(KafkaHeaders.TOPIC, ...) in callers
+- StringExpressionResolver METHOD_CALL — walk interface implementations
+- StringExpressionResolver PARAM_REF — walk callers to find passed literals
+- StringExpressionResolver base cases — literal, static field, local var
+- classify Kafka topic arg kind in SpringExtractor instead of toString()
+- add TopicArgKind enum and OutboundSinkSite.withTopic() clone helper
+- add stable and draft structured output modes
+- add structuredContent to tool responses (MCP SDK 2.0)
+- add human-readable title to all tool registrations
+
+### Fixes
+- preserve null values in question OKF compilation
+- defensively copy Interpretation's list/map fields
+- scope persistence_destination's PersistenceOperation loop to component/query
+- guard against duplicate self-invocation limitation notes
+- match ejb-jar.xml ejb-name against declared @Stateless/@Singleton name
+- match CONFIGURED_BY against exact REST-client config-key conventions
+- add word boundaries to QuestionPlanner's single-token triggers
+- unify secret-key filtering into one shared 8-marker list
+- restore config-file precedence, fix YAML null handling, read once
+- keep dead wrapper-overload sink sites unresolved instead of falling back to cross-overload caller walk
+- resolve Kafka wrapper topics per caller call site instead of unioning across callers
+- suppress duplicate DataFlowSink records from call-graph diamond revisits
+- raise findEdges limit cap from 100 to 50,000 to match findNodes
+- add limitation comments and remove redundant import (final review feedback)
+- set topicPropertyKey in CtLocalVariable literal branch of classifyTopicArg
+- validate graph structured output by action
+
+### Documentation
+- document architecture question OKF compilation
+- tighten OKF compiler design details
+- design architecture question OKF compiler
+- document messaging/state/scheduler/integration/config/relationship intents
+- M0-M4 website and installation documentation updates
+- document question input and endpoint_context contract
+- record findEdges limit cap fix under Unreleased
+- refresh CONTRIBUTING.md and add 'document as you go' convention
+- comprehensive Javadoc across public API + housekeeping
+- explain graph structured output shapes
+- design graph query structured output fix
+- design MCP draft structured output compatibility
+
+### Maintenance
+- release 1.4.2
+- update SpotBugs and harden OKF records
+- consolidate 5 duplicated data-flow-path-by-entrypoint lookups
+- add final M5 Phoenix acceptance script covering all six new intents
+- add benchmark scenarios for M5.3-M5.5's six new intents
+- add Phoenix acceptance script for endpoint_context
+- add M5.0 endpoint_context benchmark scenario
+- verify NL/typed equivalence for endpoint_context, forward and reverse
+- cover endpoint_context reverse mode
+- cover QueryPlanRecorder ordering and immutability
+- extract answer_architecture_question intents into mcp/tools/question package
+- exclude EI_EXPOSE_REP for OutboundSinkIndex.all (List.copyOf, immutable)
+- exclude PA_PUBLIC_PRIMITIVE_ATTRIBUTE for OutboundSinkSite
+- apply spotless formatting to topic-resolution changes
+- add cross-project workflow-link probe script
+- bump the routine-dependencies group across 1 directory with 8 updates
+- add reproducer for METHOD_CALL implementation walk
+- add reproducer for PARAM_REF caller walk (resolvesParamRefByWalkingCallers)
+- assert all OutboundSinkSite fields are cloned by withTopic()
+- add kafka-topic-resolver-sample test project covering all 3 unresolved-topic patterns
+- reproduce graph structured output validation
+- bump version to 1.4.1
+
+
+## Contributors
+We'd like to thank the following people for their contributions:
+Dominik Breu, GitHub, dependabot[bot]
+
+
 ## [Unreleased]
 
 ### Fixes
