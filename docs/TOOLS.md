@@ -1048,6 +1048,7 @@ All families return the common structured envelope:
 {
   "family": "impact",
   "status": "resolved",
+  "request": {},
   "interpretation": {},
   "queryPlan": [],
   "subject": {},
@@ -1122,6 +1123,63 @@ Examples:
 
 ```json
 { "family": "configuration_context", "query": "quarkus.rest-client.billing.url" }
+```
+
+## `compile_architecture_question_to_okf`
+
+Create or refresh one project-local OKF investigation concept from a reviewed architecture-question
+answer. This is deliberately an explicit second call: first call
+`answer_architecture_question`, review its `structuredContent`, then pass that exact structured
+result as `result` to this tool. Do not compile automatically as part of answering the question.
+
+Arguments:
+
+- `result`: required object; the exact `structuredContent` returned by
+  `answer_architecture_question`, including its normalized `request` object.
+- `projectPath`: optional indexed project root. It is inferred when exactly one project root was
+  indexed; it is required when multiple roots were indexed and must exactly match one of them.
+- `bundlePath`: optional project-relative output directory; default `docs/agent-wiki`.
+- `templatePath`: optional project-relative custom template. It must be an existing regular file
+  contained in the selected project; absolute paths, traversal outside the project, and symlinks
+  escaping the project are rejected. When omitted, the compiler uses its built-in template.
+- `allowOverwrite`: optional boolean, default `false`. It authorizes refreshing an existing
+  ArchLens-generated concept only after a prior `overwrite-required` response.
+
+`resolved`, `partial`, and `ambiguous` answers are accepted. `partial` and `ambiguous` remain
+durable knowledge and preserve their warnings. `unsupported` and `needs-clarification` are not
+compilable.
+
+The compiler derives a stable semantic key from the normalized `family` and `request`, independent
+of presentation wording. The generated concept lives below
+`investigations/<family>/<subject>-<12-hex-suffix>.md`, where the 12-hex suffix is the leading
+portion of that semantic key.
+
+The structured result has `status` `created`, `updated`, or `overwrite-required`, plus
+`conceptPath`, `indexPath`, `logPath`, `semanticKey`, `family`, `answerStatus`, and `warnings`.
+`overwrite-required` makes no write: review the target, obtain explicit authorization, and retry
+with `allowOverwrite: true`. Existing non-generated concepts, or generated concepts with a
+different semantic key, are never overwritten.
+
+Example — pass the prior tool's reviewed `structuredContent` verbatim as `result`:
+
+```json
+{
+  "result": {
+    "family": "impact",
+    "status": "partial",
+    "request": { "component": "OrderRepository", "maxDepth": 4 },
+    "interpretation": {},
+    "queryPlan": [],
+    "subject": {},
+    "answer": {},
+    "evidenceChain": [],
+    "unresolved": ["Runtime deployment metadata is unavailable"],
+    "ambiguous": [],
+    "clarifications": [],
+    "suggestedQuestions": []
+  },
+  "projectPath": "/workspace/orders"
+}
 ```
 
 ## `export_architecture_docs`
