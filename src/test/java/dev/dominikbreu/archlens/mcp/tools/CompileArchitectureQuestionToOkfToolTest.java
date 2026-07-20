@@ -68,6 +68,34 @@ class CompileArchitectureQuestionToOkfToolTest {
                 .isTrue();
     }
 
+    @Test
+    void compilesSupportedPartialResultWithNullAnswerFields() throws Exception {
+        TestContext context = compiledContext();
+        Map<String, Object> partialMessaging = new java.util.LinkedHashMap<>(context.result());
+        Map<String, Object> request = new java.util.LinkedHashMap<>();
+        request.put("topic", "orders.created");
+        Map<String, Object> answer = new java.util.LinkedHashMap<>();
+        answer.put("channel", null);
+        answer.put("broker", null);
+        answer.put("topic", null);
+        answer.put("producers", List.of());
+        answer.put("consumers", List.of());
+        partialMessaging.put("family", "messaging_flow");
+        partialMessaging.put("status", "partial");
+        partialMessaging.put("request", request);
+        partialMessaging.put("answer", answer);
+
+        ToolResult compiled = context.tool()
+                .execute(Map.of(
+                        "result",
+                        partialMessaging,
+                        "projectPath",
+                        context.project().toString()));
+
+        assertThat(compiled.error()).isFalse();
+        assertThat((Map<String, Object>) compiled.structured()).containsEntry("status", "created");
+    }
+
     private TestContext compiledContext() throws Exception {
         Path project = copyFixture("spring-pipeline-sample", tempDir.resolve("project"));
         ArchitectureModel model = new ArchitectureExtractor().extract(List.of(project.toString()));
