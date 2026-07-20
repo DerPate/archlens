@@ -161,7 +161,9 @@ public final class OkfBundleWriter {
         List<String> lines = new ArrayList<>(normalized.lines().toList());
         String marker = entry.lines().findFirst().orElseThrow();
         for (int index = 0; index < lines.size(); index++) {
-            if (lines.get(index).equals(marker) && index + 1 < lines.size() && lines.get(index + 1).startsWith("- ")) {
+            if (lines.get(index).equals(marker)
+                    && index + 1 < lines.size()
+                    && lines.get(index + 1).startsWith("- ")) {
                 lines.set(index + 1, entry.lines().skip(1).findFirst().orElseThrow());
                 return String.join("\n", lines) + "\n";
             }

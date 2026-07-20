@@ -103,7 +103,8 @@ class OkfBundleWriterTest {
         assertThat(tempDir.resolve("index.md"))
                 .content()
                 .contains("<!-- archlens:" + KEY + " -->\nHuman note that must stay.")
-                .contains("- [Impact investigation](investigations/impact/orders-" + KEY.substring(0, 12) + ".md) - Compiled evidence.");
+                .contains("- [Impact investigation](investigations/impact/orders-" + KEY.substring(0, 12)
+                        + ".md) - Compiled evidence.");
     }
 
     @Test
