@@ -11,6 +11,15 @@ Generated from the indexed architecture model by the MCP tool `export_architectu
 - Dependencies: 100
 - Runtime flows: 1
 
+## Architecture Question OKF Compilation
+
+`dev.dominikbreu.archlens.okf` is a graph-independent compilation layer for turning a
+caller-reviewed `answer_architecture_question` structured result into a project-local OKF
+investigation. It does not retain or query the extraction model. The MCP adapter obtains indexed
+project roots through its graph lookup, then supplies those roots and the caller-provided result
+to the compiler for contained-path resolution, deterministic semantic identity, rendering, and
+safe bundle writes.
+
 ## Source Overview
 
 ```mermaid
