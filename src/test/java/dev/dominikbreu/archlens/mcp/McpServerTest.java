@@ -48,6 +48,7 @@ class McpServerTest {
                         "find_entrypoints",
                         "query_architecture_graph",
                         "answer_architecture_question",
+                        "compile_architecture_question_to_okf",
                         "export_graph_data",
                         "export_graph_viewer");
     }
@@ -77,8 +78,24 @@ class McpServerTest {
         assertThat(tool.outputSchema()).extractingByKey("properties").isInstanceOfSatisfying(Map.class, props -> {
             assertThat(props)
                     .containsKeys(
-                            "interpretation", "queryPlan", "evidenceChain", "clarifications", "suggestedQuestions");
+                            "request",
+                            "interpretation",
+                            "queryPlan",
+                            "evidenceChain",
+                            "clarifications",
+                            "suggestedQuestions");
         });
+    }
+
+    @Test
+    void compileQuestionToOkfSchema_requiresReviewedResultAndExposesWriteOutcome() {
+        McpSchema.Tool tool = tool(new McpServer(), "compile_architecture_question_to_okf");
+
+        assertThat(tool.inputSchema()).extractingByKey("required").isEqualTo(List.of("result"));
+        assertThat((Map<String, Object>) tool.inputSchema().get("properties"))
+                .containsKeys("result", "projectPath", "bundlePath", "templatePath", "allowOverwrite");
+        assertThat(properties(tool))
+                .containsKeys("status", "conceptPath", "indexPath", "logPath", "semanticKey", "warnings");
     }
 
     @Test
@@ -95,7 +112,9 @@ class McpServerTest {
         assertThat(prompts)
                 .isNotEmpty()
                 .allSatisfy(p -> assertThat(p.prompt().name()).isNotBlank());
-        assertThat(prompts).extracting(prompt -> prompt.prompt().name()).contains("answer_maintenance_question");
+        assertThat(prompts)
+                .extracting(prompt -> prompt.prompt().name())
+                .contains("answer_maintenance_question", "compile_architecture_question_knowledge");
     }
 
     @Test

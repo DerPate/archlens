@@ -85,7 +85,7 @@ public class AnswerArchitectureQuestionTool {
                         + "endpoint_context, messaging_flow, state_lifecycle, scheduled_workflow, "
                         + "external_integration_context, configuration_context, or relationship.");
             }
-            Map<String, Object> structured = answer.structured(family, interpretation, recorder);
+            Map<String, Object> structured = answer.structured(family, interpretation, recorder, effectiveArgs);
             return new ToolResult(format(family, structured), structured);
         } catch (Exception error) {
             return ToolResult.error("Error answering architecture question: " + error.getMessage());
@@ -138,6 +138,7 @@ public class AnswerArchitectureQuestionTool {
         Map<String, Object> structured = new LinkedHashMap<>();
         structured.put("family", status);
         structured.put("status", status);
+        structured.put("request", Map.of());
         structured.put("interpretation", interpretationEnvelope(interpretation));
         structured.put("queryPlan", List.of());
         structured.put("subject", Map.of());
