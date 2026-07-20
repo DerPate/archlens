@@ -36,25 +36,20 @@ class OkfEntryValidatorTest {
     void rejectsAdditionalIndexLinesAndMalformedFrontmatterClose() {
         OkfEntryValidator validator = new OkfEntryValidator();
 
-        assertThatThrownBy(() -> validator.validateIndexEntry(
-                        "<!-- archlens:abc123 -->\n"
-                                + "- [Title](investigations/impact/title-abc123.md) - Description\n"
-                                + "extra"))
+        assertThatThrownBy(() -> validator.validateIndexEntry("<!-- archlens:abc123 -->\n"
+                        + "- [Title](investigations/impact/title-abc123.md) - Description\n"
+                        + "extra"))
                 .hasMessageContaining("index entry");
-        assertThatThrownBy(() -> validator.validateIndexEntry(
-                        "<!-- archlens:abc123 -->\n"
-                                + "- [Title](investigations/impact/title-abc123.md) - Description\n\n"))
+        assertThatThrownBy(() -> validator.validateIndexEntry("<!-- archlens:abc123 -->\n"
+                        + "- [Title](investigations/impact/title-abc123.md) - Description\n\n"))
                 .hasMessageContaining("index entry");
-        assertThatThrownBy(() -> validator.validateConcept(
-                        """
+        assertThatThrownBy(() -> validator.validateConcept("""
                         ---
                         type: Architecture Investigation
                         archlens_generated: true
                         archlens_semantic_key: abc123
                         ---corrupted
                         # Question
-                        """,
-                        "abc123"))
-                .hasMessageContaining("frontmatter");
+                        """, "abc123")).hasMessageContaining("frontmatter");
     }
 }
