@@ -1,6 +1,7 @@
 package dev.dominikbreu.archlens.okf;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -221,7 +222,7 @@ public record ArchitectureQuestionResult(
     }
 
     private static Map<String, Object> copyMap(Map<String, Object> value, String name) {
-        return Map.copyOf(Objects.requireNonNull(value, name));
+        return Collections.unmodifiableMap(new LinkedHashMap<>(Objects.requireNonNull(value, name)));
     }
 
     private static List<Map<String, Object>> copyMapList(List<Map<String, Object>> value, String name) {
