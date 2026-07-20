@@ -20,33 +20,24 @@ public final class ProjectPathResolver {
      * @throws IOException if a supplied path cannot be resolved on the file system
      */
     public ResolvedPaths resolve(
-            Collection<String> indexedRootValues,
-            String requestedProject,
-            String bundleValue,
-            String templateValue)
+            Collection<String> indexedRootValues, String requestedProject, String bundleValue, String templateValue)
             throws IOException {
-        List<Path> roots =
-                indexedRootValues.stream()
-                        .map(Path::of)
-                        .map(ProjectPathResolver::realDirectory)
-                        .distinct()
-                        .toList();
+        List<Path> roots = indexedRootValues.stream()
+                .map(Path::of)
+                .map(ProjectPathResolver::realDirectory)
+                .distinct()
+                .toList();
         if (roots.isEmpty()) {
             throw new IllegalArgumentException("Indexed graph has no project roots");
         }
 
         Path project = selectProject(roots, requestedProject);
-        Path bundle =
-                contained(
-                        project,
-                        bundleValue == null
-                                ? Path.of("docs", "agent-wiki")
-                                : relative(bundleValue, "bundlePath"),
-                        false);
+        Path bundle = contained(
+                project,
+                bundleValue == null ? Path.of("docs", "agent-wiki") : relative(bundleValue, "bundlePath"),
+                false);
         Path template =
-                templateValue == null
-                        ? null
-                        : contained(project, relative(templateValue, "templatePath"), true);
+                templateValue == null ? null : contained(project, relative(templateValue, "templatePath"), true);
         return new ResolvedPaths(project, bundle, template);
     }
 

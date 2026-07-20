@@ -18,9 +18,12 @@ class ArchitectureQuestionResultTest {
 
     @Test
     void rejectsOnlyTerminalNonKnowledgeStatusesAsNonCompilable() {
-        assertThat(ArchitectureQuestionResult.from(result("ambiguous")).compilable()).isTrue();
-        assertThat(ArchitectureQuestionResult.from(result("unsupported")).compilable()).isFalse();
-        assertThat(ArchitectureQuestionResult.from(result("needs-clarification")).compilable())
+        assertThat(ArchitectureQuestionResult.from(result("ambiguous")).compilable())
+                .isTrue();
+        assertThat(ArchitectureQuestionResult.from(result("unsupported")).compilable())
+                .isFalse();
+        assertThat(ArchitectureQuestionResult.from(result("needs-clarification"))
+                        .compilable())
                 .isFalse();
     }
 

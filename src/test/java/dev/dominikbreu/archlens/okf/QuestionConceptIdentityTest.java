@@ -9,27 +9,23 @@ import org.junit.jupiter.api.Test;
 class QuestionConceptIdentityTest {
     @Test
     void identityIgnoresMapOrderAndRawQuestionWording() {
-        ArchitectureQuestionResult first = resultWithRequest(new java.util.LinkedHashMap<>(Map.of(
-                "component", "com.example.OrderRepository", "maxDepth", 4)));
+        ArchitectureQuestionResult first = resultWithRequest(
+                new java.util.LinkedHashMap<>(Map.of("component", "com.example.OrderRepository", "maxDepth", 4)));
         java.util.LinkedHashMap<String, Object> reversed = new java.util.LinkedHashMap<>();
         reversed.put("maxDepth", 4);
         reversed.put("component", "com.example.OrderRepository");
         ArchitectureQuestionResult second = resultWithRequest(reversed);
 
-        assertThat(new QuestionConceptIdentity().derive(first))
-                .isEqualTo(new QuestionConceptIdentity().derive(second));
+        assertThat(new QuestionConceptIdentity().derive(first)).isEqualTo(new QuestionConceptIdentity().derive(second));
     }
 
     @Test
     void identityChangesWhenSemanticScopeChanges() {
         QuestionConceptIdentity identity = new QuestionConceptIdentity();
-        assertThat(identity
-                        .derive(resultWithRequest(
-                                Map.of("component", "com.example.OrderRepository", "maxDepth", 4)))
+        assertThat(identity.derive(resultWithRequest(Map.of("component", "com.example.OrderRepository", "maxDepth", 4)))
                         .semanticKey())
-                .isNotEqualTo(identity
-                        .derive(resultWithRequest(
-                                Map.of("component", "com.example.OrderRepository", "maxDepth", 5)))
+                .isNotEqualTo(identity.derive(
+                                resultWithRequest(Map.of("component", "com.example.OrderRepository", "maxDepth", 5)))
                         .semanticKey());
     }
 

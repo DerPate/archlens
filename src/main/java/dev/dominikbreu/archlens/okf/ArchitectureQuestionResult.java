@@ -59,7 +59,8 @@ public record ArchitectureQuestionResult(
     public static ArchitectureQuestionResult from(Map<String, Object> input) {
         String family = requiredString(input, "family");
         String status = requiredString(input, "status");
-        if (!FAMILIES.contains(family) && !Set.of("unsupported", "needs-clarification").contains(status)) {
+        if (!FAMILIES.contains(family)
+                && !Set.of("unsupported", "needs-clarification").contains(status)) {
             throw new IllegalArgumentException("Unknown question family: " + family);
         }
         return new ArchitectureQuestionResult(

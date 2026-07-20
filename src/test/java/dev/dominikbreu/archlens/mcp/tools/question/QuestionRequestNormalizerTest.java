@@ -15,8 +15,8 @@ class QuestionRequestNormalizerTest {
                 Map.of("id", "com.example.OrderResource#create", "label", "Entrypoint"),
                 List.of());
 
-        assertThat(request).containsExactly(
-                Map.entry("entrypoint", "com.example.OrderResource#create"), Map.entry("param", "id"));
+        assertThat(request)
+                .containsExactly(Map.entry("entrypoint", "com.example.OrderResource#create"), Map.entry("param", "id"));
     }
 
     @Test
@@ -27,10 +27,11 @@ class QuestionRequestNormalizerTest {
                 Map.of("id", "com.example.Orders", "label", "Component"),
                 List.of(Map.of("op", "paths", "from", "com.example.Orders", "to", "com.example.Billing")));
 
-        assertThat(request).containsExactly(
-                Map.entry("component", "com.example.Orders"),
-                Map.entry("target", "com.example.Billing"),
-                Map.entry("maxDepth", 3));
+        assertThat(request)
+                .containsExactly(
+                        Map.entry("component", "com.example.Orders"),
+                        Map.entry("target", "com.example.Billing"),
+                        Map.entry("maxDepth", 3));
     }
 
     @Test
