@@ -31,7 +31,6 @@
         <slf4j.version>2.0.18</slf4j.version>
         <otel.version>1.64.0</otel.version>
         <tinkerpop.version>3.8.1</tinkerpop.version>
-        <jreleaser.version>1.25.0</jreleaser.version>
         <jline.version>4.3.1</jline.version>
     </properties>
 
@@ -321,15 +320,6 @@
                         <format>JSON</format>
                         <format>XML</format>
                     </formats>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.jreleaser</groupId>
-                <artifactId>jreleaser-maven-plugin</artifactId>
-                <version>${jreleaser.version}</version>
-                <inherited>false</inherited>
-                <configuration>
-                    <configFile>jreleaser.yml</configFile>
                 </configuration>
             </plugin>
         </plugins>

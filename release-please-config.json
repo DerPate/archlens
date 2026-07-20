@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "maven",
+      "package-name": "archlens",
+      "skip-snapshot": true,
+      "component": "archlens",
+      "include-component-in-tag": true,
+      "include-v-in-tag": false,
+      "tag-separator": "-",
+      "changelog-path": "CHANGELOG.md"
+    }
+  }
+}
