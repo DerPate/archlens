@@ -278,6 +278,9 @@ Prompts are workflow templates for clients and agents; they do not replace tools
   missing runtime configuration must never be invented. Pass a natural-language `question`
   instead of a typed `family` to route through a deterministic keyword-based planner — no
   embedded LLM is used, so unrecognized wording returns `unsupported` rather than a guess.
+- Durable knowledge is always explicit: first call `answer_architecture_question`, review its structured result, then pass that exact result to `compile_architecture_question_to_okf`.
+- Never compile `unsupported` or `needs-clarification`; preserve `partial` and `ambiguous` warnings.
+- An existing concept requires a separate retry with `allowOverwrite=true`; never assume overwrite authorization.
 - Non-secret configuration properties (`application.properties`/`.yaml`/`.yml`) are projected as
   `ConfigProperty` nodes, linked from `ExternalSystem` via `CONFIGURED_BY` when a REST client's
   `configKey` resolves. Secret-like keys (`password`, `username`, `credential`, `secret`,

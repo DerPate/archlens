@@ -2,6 +2,7 @@ package dev.dominikbreu.archlens.mcp.tools.question;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * The deterministic interpretation {@link QuestionPlanner} produces for a natural-language
@@ -19,6 +20,14 @@ public record Interpretation(
         List<SubjectCandidate> subjectCandidates,
         Map<String, String> filters,
         String rawQuestion) {
+
+    /** Validates non-null fields and defensively copies collection fields. */
+    public Interpretation {
+        Objects.requireNonNull(intent, "intent");
+        subjectCandidates = List.copyOf(Objects.requireNonNull(subjectCandidates, "subjectCandidates"));
+        filters = Map.copyOf(Objects.requireNonNull(filters, "filters"));
+        Objects.requireNonNull(rawQuestion, "rawQuestion");
+    }
 
     /**
      * A candidate subject reference extracted from question text, or a candidate intent when

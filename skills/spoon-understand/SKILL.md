@@ -95,6 +95,10 @@ Use exports when the user wants a durable artifact, visual review, or external-t
 - `export_architecture_docs`: generate Markdown architecture docs with Mermaid diagrams.
 - `export_graph_architecture_poc`: generate graph-centric docs with labels, properties, high-signal components, and query examples.
 - `export_likec4_model`: create LikeC4 text for architecture tooling.
+- `compile_architecture_question_to_okf`: create a project-local OKF investigation from a reviewed
+  `answer_architecture_question` structured result. First answer, then review `structuredContent`,
+  then pass that exact result in the explicit second call. Do not compile automatically. Do not
+  retry `overwrite-required` with `allowOverwrite=true` without the user's explicit permission.
 
 Do not commit generated exports unless the user asks. Avoid committing `target/`, `.archlens-cache/`, or `dependency-reduced-pom.xml`.
 

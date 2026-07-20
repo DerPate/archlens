@@ -34,7 +34,7 @@ public final class Answer {
     }
 
     /**
-     * Builds the stable structured result envelope for this answer.
+     * Builds the stable structured result envelope without additional effective selectors.
      *
      * @param family the resolved question family
      * @param interpretation the natural-language interpretation that led here, or {@code null}
@@ -43,13 +43,33 @@ public final class Answer {
      * @return the structured result map
      */
     public Map<String, Object> structured(String family, Interpretation interpretation, QueryPlanRecorder recorder) {
+        return structured(family, interpretation, recorder, Map.of());
+    }
+
+    /**
+     * Builds the stable structured result envelope for this answer.
+     *
+     * @param family the resolved question family
+     * @param interpretation the natural-language interpretation that led here, or {@code null}
+     *     when a typed {@code family} selector was used directly (without a {@code question})
+     * @param recorder the graph operations performed while producing this answer, or {@code null}
+     * @param effectiveArgs selectors used by the answerer
+     * @return the structured result map
+     */
+    public Map<String, Object> structured(
+            String family,
+            Interpretation interpretation,
+            QueryPlanRecorder recorder,
+            Map<String, Object> effectiveArgs) {
+        List<Map<String, Object>> queryPlan = recorder == null ? List.of() : recorder.operations();
         Map<String, Object> structured = new LinkedHashMap<>();
         structured.put("family", family);
         structured.put("status", !ambiguous.isEmpty() ? "ambiguous" : !unresolved.isEmpty() ? "partial" : "resolved");
+        structured.put("request", QuestionRequestNormalizer.normalize(family, effectiveArgs, subject, queryPlan));
         structured.put(
                 "interpretation",
                 interpretation == null ? Map.of() : QuestionPlanner.interpretationMap(interpretation));
-        structured.put("queryPlan", recorder == null ? List.of() : recorder.operations());
+        structured.put("queryPlan", queryPlan);
         structured.put("subject", subject);
         structured.put("answer", answer);
         structured.put("evidenceChain", List.copyOf(evidenceChain));

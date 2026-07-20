@@ -4,7 +4,7 @@
 
     <groupId>dev.dominikbreu.archlens</groupId>
     <artifactId>archlens</artifactId>
-    <version>1.4.1</version>
+    <version>1.4.2</version>
     <packaging>jar</packaging>
 
     <licenses>
@@ -293,7 +293,7 @@
             <plugin>
                 <groupId>com.github.spotbugs</groupId>
                 <artifactId>spotbugs-maven-plugin</artifactId>
-                <version>4.10.2.0</version>
+                <version>4.10.3.0</version>
                 <configuration>
                     <effort>Max</effort>
                     <threshold>Medium</threshold>
