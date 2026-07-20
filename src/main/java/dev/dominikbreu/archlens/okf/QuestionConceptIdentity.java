@@ -23,8 +23,7 @@ public final class QuestionConceptIdentity {
         String key = sha256(canonical);
         String familySlug = slug(result.family());
         String subjectSlug = subjectSlug(result.request());
-        Path relative = Path.of(
-                "investigations", familySlug, subjectSlug + "-" + key.substring(0, 12) + ".md");
+        Path relative = Path.of("investigations", familySlug, subjectSlug + "-" + key.substring(0, 12) + ".md");
         return new ConceptIdentity(key, familySlug, subjectSlug, relative);
     }
 
@@ -65,7 +64,8 @@ public final class QuestionConceptIdentity {
         if (value == null) {
             return "null";
         }
-        throw new IllegalArgumentException("Unsupported question result value: " + value.getClass().getName());
+        throw new IllegalArgumentException(
+                "Unsupported question result value: " + value.getClass().getName());
     }
 
     private static String quote(String value) {
@@ -78,8 +78,8 @@ public final class QuestionConceptIdentity {
 
     private static String sha256(String canonical) {
         try {
-            return HexFormat.of().formatHex(
-                    MessageDigest.getInstance("SHA-256").digest(canonical.getBytes(StandardCharsets.UTF_8)));
+            return HexFormat.of()
+                    .formatHex(MessageDigest.getInstance("SHA-256").digest(canonical.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 is not available", exception);
         }

@@ -10,7 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class ProjectPathResolverTest {
-    @TempDir Path tempDir;
+    @TempDir
+    Path tempDir;
 
     @Test
     void infersSingleRootAndDefaultsBundle() throws Exception {
@@ -29,10 +30,8 @@ class ProjectPathResolverTest {
         Path one = Files.createDirectory(tempDir.resolve("one"));
         Path two = Files.createDirectory(tempDir.resolve("two"));
 
-        assertThatThrownBy(
-                        () ->
-                                new ProjectPathResolver()
-                                        .resolve(List.of(one.toString(), two.toString()), null, null, null))
+        assertThatThrownBy(() ->
+                        new ProjectPathResolver().resolve(List.of(one.toString(), two.toString()), null, null, null))
                 .hasMessageContaining("projectPath is required");
     }
 
@@ -41,21 +40,13 @@ class ProjectPathResolverTest {
         Path project = Files.createDirectory(tempDir.resolve("project"));
         ProjectPathResolver resolver = new ProjectPathResolver();
 
-        assertThatThrownBy(
-                        () ->
-                                resolver.resolve(
-                                        List.of(project.toString()),
-                                        project.toString(),
-                                        tempDir.resolve("outside").toString(),
-                                        null))
+        assertThatThrownBy(() -> resolver.resolve(
+                        List.of(project.toString()),
+                        project.toString(),
+                        tempDir.resolve("outside").toString(),
+                        null))
                 .hasMessageContaining("bundlePath must be project-relative");
-        assertThatThrownBy(
-                        () ->
-                                resolver.resolve(
-                                        List.of(project.toString()),
-                                        project.toString(),
-                                        "../outside",
-                                        null))
+        assertThatThrownBy(() -> resolver.resolve(List.of(project.toString()), project.toString(), "../outside", null))
                 .hasMessageContaining("outside indexed project");
     }
 
@@ -65,14 +56,8 @@ class ProjectPathResolverTest {
         Path outside = Files.createDirectory(tempDir.resolve("outside"));
         Files.createSymbolicLink(project.resolve("linked"), outside);
 
-        assertThatThrownBy(
-                        () ->
-                                new ProjectPathResolver()
-                                        .resolve(
-                                                List.of(project.toString()),
-                                                project.toString(),
-                                                "linked/wiki",
-                                                null))
+        assertThatThrownBy(() -> new ProjectPathResolver()
+                        .resolve(List.of(project.toString()), project.toString(), "linked/wiki", null))
                 .hasMessageContaining("symlink");
     }
 }

@@ -140,8 +140,8 @@ class AnswerArchitectureQuestionToolTest {
 
     @Test
     void rewordedNaturalQuestionKeepsSameSemanticRequestAsTypedQuestion() {
-        Map<String, Object> typed = structured(tool("spring-pipeline-sample")
-                .execute(Map.of("family", "impact", "component", "OrderRepository")));
+        Map<String, Object> typed = structured(
+                tool("spring-pipeline-sample").execute(Map.of("family", "impact", "component", "OrderRepository")));
         Map<String, Object> natural = structured(tool("spring-pipeline-sample")
                 .execute(Map.of("question", "What may break if OrderRepository is replaced?")));
 
