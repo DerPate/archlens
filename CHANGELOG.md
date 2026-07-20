@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.5.0](https://github.com/DerPate/archlens/compare/archlens-1.4.2...archlens-1.5.0) (2026-07-20)
+
+
+### Features
+
+* add canonical architecture question requests ([a7a4ab2](https://github.com/DerPate/archlens/commit/a7a4ab22b2b0ed4a657788626c8b942984a73053))
+* confine OKF output paths to indexed projects ([57ba336](https://github.com/DerPate/archlens/commit/57ba33694303cab821de9cfa1b63b42c23627548))
+* expose architecture question OKF compiler ([d05522d](https://github.com/DerPate/archlens/commit/d05522d608efa3cf6da07b608f30f181feb243f0))
+* render and validate question OKF concepts ([377b1d7](https://github.com/DerPate/archlens/commit/377b1d7c3aa021dff6f5e69b2a2ced306fd2e7fb))
+* safely create and refresh OKF bundles ([b929691](https://github.com/DerPate/archlens/commit/b92969113ff460ad14f1ec7aefbd2fe74784f4af))
+* validate and identify OKF investigations ([2dd9a57](https://github.com/DerPate/archlens/commit/2dd9a57a90b6b0792bb5da4c6f1d18371dd282d9))
+
+
+### Bug Fixes
+
+* preserve null values in question OKF compilation ([951a4ac](https://github.com/DerPate/archlens/commit/951a4ac2133eb60907e6526acfaf18c7fe55a93c))
+
+
+### Documentation
+
+* document architecture question OKF compilation ([38fab2c](https://github.com/DerPate/archlens/commit/38fab2cadf06a9a9945f84bba62dbe15871dab22))
+
 ## [archlens-1.4.2]
 
 ## Changelog
@@ -694,4 +716,3 @@ Dominik Breu
 - Document new sink kinds, entrypoint families, and edge metadata in `docs/TOOLS.md` and `llms.txt`.
 - Add OWASP `dependency-check` plugin and refresh release-pipeline notes.
 - Resolve issue #4.
-
