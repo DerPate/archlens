@@ -25,6 +25,9 @@ public final class QuestionPlanner {
     /** Minimum top score, even inside the tie band, that still skips clarification. */
     static final double CONFIDENT_FLOOR = 0.6;
 
+    /** Creates a deterministic question planner. */
+    public QuestionPlanner() {}
+
     private record Trigger(Pattern pattern, double weight) {
         static Trigger regex(String regex, double weight) {
             return new Trigger(Pattern.compile(regex), weight);
@@ -136,7 +139,8 @@ public final class QuestionPlanner {
      *     intents are within {@link #TIE_BAND} of each other below {@link #CONFIDENT_FLOOR}
      */
     public Interpretation interpret(String question) {
-        String normalized = question == null ? "" : question.toLowerCase(Locale.ROOT);
+        String rawQuestion = question == null ? "" : question;
+        String normalized = rawQuestion.toLowerCase(Locale.ROOT);
         List<Map.Entry<String, Double>> ranked = TRIGGERS.entrySet().stream()
                 .map(entry -> Map.entry(entry.getKey(), score(entry.getValue(), normalized)))
                 .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
@@ -145,7 +149,7 @@ public final class QuestionPlanner {
         double second = ranked.size() > 1 ? ranked.get(1).getValue() : 0.0;
 
         if (top < UNSUPPORTED_FLOOR) {
-            return new Interpretation("unsupported", top, List.of(), Map.of(), question);
+            return new Interpretation("unsupported", top, List.of(), Map.of(), rawQuestion);
         }
         if (top - second < TIE_BAND && top < CONFIDENT_FLOOR) {
             List<Interpretation.SubjectCandidate> tied = ranked.stream()
@@ -153,10 +157,10 @@ public final class QuestionPlanner {
                     .limit(3)
                     .map(entry -> new Interpretation.SubjectCandidate("intent", entry.getKey(), entry.getValue()))
                     .toList();
-            return new Interpretation("needs-clarification", top, tied, Map.of(), question);
+            return new Interpretation("needs-clarification", top, tied, Map.of(), rawQuestion);
         }
         String intent = ranked.get(0).getKey();
-        return new Interpretation(intent, top, extractSubjects(question), Map.of(), question);
+        return new Interpretation(intent, top, extractSubjects(rawQuestion), Map.of(), rawQuestion);
     }
 
     private static double score(List<Trigger> triggers, String normalizedQuestion) {
