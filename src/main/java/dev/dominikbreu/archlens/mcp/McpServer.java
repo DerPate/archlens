@@ -62,6 +62,7 @@ public class McpServer {
     private final ExportGraphViewerTool exportGraphViewerTool;
     private final QueryArchitectureGraphTool graphTool;
     private final AnswerArchitectureQuestionTool architectureQuestionTool;
+    private final CompileArchitectureQuestionToOkfTool compileQuestionToOkfTool;
     private final DetectUseCasesTool detectUseCasesTool;
     private final TraceDataFlowTool traceDataFlowTool;
     private final RenderUseCaseTimelineTool useCaseTimelineTool;
@@ -72,6 +73,7 @@ public class McpServer {
 
     private static final String TYPE_STRING = "string";
     private static final String TYPE_INTEGER = "integer";
+    private static final String TYPE_BOOLEAN = "boolean";
     private static final String APP_ID = "appId";
     private static final String APP_ID_DESCRIPTION = "Filter by app ID (partial match)";
     private static final String ENTRYPOINT_ID = "entrypointId";
@@ -114,6 +116,7 @@ public class McpServer {
         this.exportGraphViewerTool = new ExportGraphViewerTool(cache);
         this.graphTool = new QueryArchitectureGraphTool(cache);
         this.architectureQuestionTool = new AnswerArchitectureQuestionTool(cache);
+        this.compileQuestionToOkfTool = new CompileArchitectureQuestionToOkfTool(cache);
         this.detectUseCasesTool = new DetectUseCasesTool(cache);
         this.traceDataFlowTool = new TraceDataFlowTool(cache);
         this.useCaseTimelineTool = new RenderUseCaseTimelineTool(cache);
@@ -426,6 +429,7 @@ public class McpServer {
                                 "status",
                                 TYPE_STRING,
                                 "resolved | partial | ambiguous | needs-clarification | unsupported")
+                        .opt("request", "object", "Canonical semantic selectors used for durable concept identity")
                         .opt(
                                 "interpretation",
                                 "object",
@@ -439,6 +443,31 @@ public class McpServer {
                         .opt("clarifications", "array", "Present only when status is needs-clarification")
                         .opt("suggestedQuestions", "array", "Useful follow-up questions for this subject"),
                 architectureQuestionTool::execute));
+
+        specs.add(toolSpec(
+                "compile_architecture_question_to_okf",
+                "Compile Architecture Question to OKF",
+                "Explicitly compile a reviewed answer_architecture_question structured result into one project-local OKF investigation concept.",
+                schema().req("result", "object", "Exact structuredContent returned by answer_architecture_question")
+                        .opt(
+                                "projectPath",
+                                TYPE_STRING,
+                                "Indexed project root; required when multiple roots are indexed")
+                        .opt("bundlePath", TYPE_STRING, "Project-relative OKF bundle path (default docs/agent-wiki)")
+                        .opt("templatePath", TYPE_STRING, "Optional project-relative custom Markdown template")
+                        .opt(
+                                "allowOverwrite",
+                                TYPE_BOOLEAN,
+                                "Replace an existing ArchLens-generated concept (default false)"),
+                schema().opt("status", TYPE_STRING, "created | updated | overwrite-required")
+                        .opt("conceptPath", TYPE_STRING, "Written or resolved concept path")
+                        .opt("indexPath", TYPE_STRING, "Bundle index path")
+                        .opt("logPath", TYPE_STRING, "Bundle log path")
+                        .opt("semanticKey", TYPE_STRING, "Full SHA-256 semantic key")
+                        .opt("family", TYPE_STRING, "Question family")
+                        .opt("answerStatus", TYPE_STRING, "resolved | partial | ambiguous")
+                        .opt("warnings", "array", "Overwrite and uncertainty warnings"),
+                compileQuestionToOkfTool::execute));
 
         specs.add(collectionToolSpec(
                 "trace_data_flow",
@@ -658,6 +687,22 @@ public class McpServer {
                         2. Treat `status=partial` or `status=ambiguous` as part of the answer, not as a failed query.
                         3. Report the returned evidence chain, unresolved facts, and ambiguity without inventing missing runtime configuration.
                         4. Use `query_architecture_graph` only for an optional deeper drill-down.
+                        """),
+                promptSpec(
+                        "compile_architecture_question_knowledge",
+                        "Build durable architecture knowledge from a reviewed architecture question.",
+                        List.of(
+                                arg("question", "Natural-language architecture question to answer and compile.", true),
+                                arg("projectPath", "Indexed project root for the OKF bundle.", true),
+                                arg("bundlePath", "Project-relative OKF bundle path.", false)),
+                        """
+                        Build durable architecture knowledge for `{question}` in `{projectPath}`.
+
+                        1. Call `answer_architecture_question` with `question: "{question}"`.
+                        2. Review its structuredContent. Do not compile status `unsupported` or `needs-clarification`.
+                        3. Treat `partial` and `ambiguous` as compilable knowledge and preserve their warnings.
+                        4. Only after review, call `compile_architecture_question_to_okf` with the exact structuredContent as `result`, `projectPath: "{projectPath}"`, and `bundlePath: "{bundlePath}"` (default `docs/agent-wiki`).
+                        5. If the compiler returns `overwrite-required`, report the target and ask for explicit authorization before retrying with `allowOverwrite: true`.
                         """));
     }
 
@@ -909,6 +954,12 @@ public class McpServer {
 
         SchemaBuilder opt(String name, String type, String description) {
             props.put(name, Map.of("type", type, "description", description));
+            return this;
+        }
+
+        SchemaBuilder req(String name, String type, String description) {
+            props.put(name, Map.of("type", type, "description", description));
+            required.add(name);
             return this;
         }
 
