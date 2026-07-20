@@ -53,16 +53,12 @@ class QuestionOkfRendererTest {
                 Map.of("component", "com.example.Orders", "method", "line one\nline two", "maxDepth", 4));
 
         String markdown = new QuestionOkfRenderer()
-                .render(
-                        result,
-                        new QuestionConceptIdentity().derive(result),
-                        Path.of("/project"),
-                        null,
-                        Instant.EPOCH)
+                .render(result, new QuestionConceptIdentity().derive(result), Path.of("/project"), null, Instant.EPOCH)
                 .markdown();
 
         assertThat(markdown)
-                .contains("# Question\nInvestigate impact for component=com.example.Orders, maxDepth=4, method=line one line two.")
+                .contains(
+                        "# Question\nInvestigate impact for component=com.example.Orders, maxDepth=4, method=line one line two.")
                 .doesNotContain("line one\nline two");
     }
 
