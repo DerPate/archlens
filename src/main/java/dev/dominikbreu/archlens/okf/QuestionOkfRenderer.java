@@ -75,6 +75,9 @@ public final class QuestionOkfRenderer {
             Map.entry("configuration_context", List.of("declarations", "usages")),
             Map.entry("relationship", List.of("neighborhood", "paths")));
 
+    /** Creates a renderer for architecture-question OKF concepts. */
+    public QuestionOkfRenderer() {}
+
     /**
      * Renders a single self-contained investigation concept.
      *

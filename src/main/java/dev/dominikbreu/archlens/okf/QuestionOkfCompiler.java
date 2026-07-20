@@ -88,7 +88,13 @@ public final class QuestionOkfCompiler {
             String projectPath,
             String bundlePath,
             String templatePath,
-            boolean allowOverwrite) {}
+            boolean allowOverwrite) {
+        /** Defensively copies mutable request fields. */
+        public CompileRequest {
+            result = Map.copyOf(result);
+            indexedRoots = List.copyOf(indexedRoots);
+        }
+    }
 
     /**
      * Outcome of compiling a question result to an OKF investigation.
@@ -111,6 +117,11 @@ public final class QuestionOkfCompiler {
             String family,
             String answerStatus,
             List<String> warnings) {
+        /** Defensively copies warning entries. */
+        public CompileOutcome {
+            warnings = List.copyOf(warnings);
+        }
+
         /**
          * Converts this outcome to MCP structured content.
          *

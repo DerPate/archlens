@@ -9,6 +9,9 @@ import java.util.List;
 
 /** Resolves OKF output paths while confining them to an indexed project root. */
 public final class ProjectPathResolver {
+    /** Creates a resolver for project-local OKF output paths. */
+    public ProjectPathResolver() {}
+
     /**
      * Resolves the indexed project and its project-local output paths.
      *
@@ -113,6 +116,9 @@ public final class ProjectPathResolver {
         Path current = path;
         while (!Files.exists(current, LinkOption.NOFOLLOW_LINKS)) {
             current = current.getParent();
+            if (current == null) {
+                throw new IllegalArgumentException("Path has no existing parent: " + path);
+            }
         }
         return current;
     }

@@ -12,6 +12,9 @@ import java.util.TreeMap;
 
 /** Derives stable, human-readable identities for compiled architecture investigations. */
 public final class QuestionConceptIdentity {
+    /** Creates an identity derivation service. */
+    public QuestionConceptIdentity() {}
+
     /**
      * Derives an identity from a result's normalized family and request, excluding presentation wording.
      *
