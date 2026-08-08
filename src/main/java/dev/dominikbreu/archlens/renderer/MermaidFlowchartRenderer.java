@@ -29,8 +29,21 @@ public class MermaidFlowchartRenderer {
     private static final String NODE_CLOSE_PAREN = ")\"]\n";
     private static final String NODE_CLOSE = "\"]\n";
 
-    /** Creates a new flowchart renderer. */
-    public MermaidFlowchartRenderer() {}
+    private final MermaidDialect dialect;
+
+    /** Creates a renderer emitting universal Mermaid syntax. */
+    public MermaidFlowchartRenderer() {
+        this(MermaidDialect.UNIVERSAL);
+    }
+
+    /**
+     * Creates a renderer for the given dialect.
+     *
+     * @param dialect output dialect; C4 affects system and container levels only
+     */
+    public MermaidFlowchartRenderer(MermaidDialect dialect) {
+        this.dialect = dialect;
+    }
 
     /**
      * Renders a Mermaid architecture flowchart.
@@ -50,8 +63,10 @@ public class MermaidFlowchartRenderer {
                 .toList();
 
         return switch (lvl) {
-            case "system" -> renderSystemLevel(apps, graph);
-            case "container" -> renderContainerLevel(apps, graph);
+            case "system" ->
+                dialect == MermaidDialect.C4 ? renderSystemC4(apps, graph) : renderSystemLevel(apps, graph);
+            case "container" ->
+                dialect == MermaidDialect.C4 ? renderContainerC4(apps, graph) : renderContainerLevel(apps, graph);
             case "module" -> renderModuleLevel(apps, graph);
             default -> renderComponentLevel(apps, graph);
         };
@@ -363,6 +378,138 @@ public class MermaidFlowchartRenderer {
                 + (comp.type() != null ? comp.type().name().toLowerCase(Locale.ROOT) : "component") + "»";
         sb.append(MermaidStyle.node(indent, nid(cid.value()), label, role));
         tracker.tag(nid(cid.value()), role);
+    }
+
+    // ── C4 system level ────────────────────────────────────────────────────────
+
+    private String renderSystemC4(List<GraphQuery.ApplicationNode> apps, GraphQuery graph) {
+        StringBuilder sb = new StringBuilder("C4Context\n    title System Context\n");
+        for (GraphQuery.ApplicationNode app : apps) {
+            sb.append("    System(")
+                    .append(nid(app.id().value()))
+                    .append(", \"")
+                    .append(escape(app.name()))
+                    .append("\", \"")
+                    .append(escape(app.technology() + " / " + app.packagingType()))
+                    .append("\")\n");
+        }
+
+        Set<String> visibleApps = apps.stream().map(a -> a.id().value()).collect(Collectors.toSet());
+        Map<String, String> compToApp = buildCompToAppMap(apps, graph);
+        Set<String> referencedExternals = new LinkedHashSet<>();
+        Set<String> drawnEdges = new LinkedHashSet<>();
+        StringBuilder rels = new StringBuilder();
+
+        for (GraphQuery.GraphEdge dep : graph.dependencyEdges()) {
+            if (!graph.isExternalSystem(dep.toId())) continue;
+            String fromApp = compToApp.get(dep.fromId().value());
+            if (fromApp == null || !visibleApps.contains(fromApp)) continue;
+            referencedExternals.add(dep.toId().value());
+            String kind = dep.properties().get("kind") instanceof String s ? s : "";
+            String key = fromApp + "->" + dep.toId().value() + ":" + kind;
+            if (drawnEdges.add(key)) {
+                rels.append("    Rel(")
+                        .append(nid(fromApp))
+                        .append(", ")
+                        .append(nid(dep.toId().value()))
+                        .append(", \"")
+                        .append(escape(kind))
+                        .append("\")\n");
+            }
+        }
+
+        for (GraphQuery.ExternalSystemNode ext : graph.allExternalSystemNodes()) {
+            if (!referencedExternals.contains(ext.id().value())) continue;
+            String macro =
+                    switch (MermaidStyle.roleForExternalKind(ext.kind())) {
+                        case MESSAGING -> "SystemQueue_Ext";
+                        case STORE -> "SystemDb_Ext";
+                        default -> "System_Ext";
+                    };
+            String kindLabel = ext.kind() != null ? ext.kind().toUpperCase(Locale.ROOT) : "";
+            sb.append("    ")
+                    .append(macro)
+                    .append("(")
+                    .append(nid(ext.id().value()))
+                    .append(", \"")
+                    .append(escape(ext.name()))
+                    .append("\", \"")
+                    .append(escape(kindLabel))
+                    .append("\")\n");
+        }
+        sb.append(rels);
+        return sb.toString();
+    }
+
+    // ── C4 container level ─────────────────────────────────────────────────────
+
+    private String renderContainerC4(List<GraphQuery.ApplicationNode> apps, GraphQuery graph) {
+        StringBuilder sb = new StringBuilder("C4Container\n    title Container Diagram\n");
+        Map<String, String> compToContainer = buildCompToContainerMap(apps, graph);
+        Map<String, Long> epByContainer = graph.entrypointCountPerContainer();
+        Set<String> visibleContainers = new LinkedHashSet<>();
+
+        for (GraphQuery.ApplicationNode app : apps) {
+            sb.append("    System_Boundary(")
+                    .append(nid(app.id().value()))
+                    .append(", \"")
+                    .append(escape(app.name()))
+                    .append("\") {\n");
+            for (GraphQuery.ContainerNode container :
+                    graph.containersForApp(AppId.of(app.id().value()))) {
+                visibleContainers.add(container.id().value());
+                int compCount = graph.componentIdsInContainer(container.id()).size();
+                long epCount = epByContainer.getOrDefault(container.id().value(), 0L);
+                String desc = compCount + " component" + (compCount != 1 ? "s" : "")
+                        + (epCount > 0 ? " / " + epCount + " EP" : "");
+                sb.append("        Container(")
+                        .append(nid(container.id().value()))
+                        .append(", \"")
+                        .append(escape(container.name()))
+                        .append("\", \"")
+                        .append(escape(app.technology()))
+                        .append("\", \"")
+                        .append(escape(desc))
+                        .append("\")\n");
+            }
+            sb.append("    }\n");
+        }
+
+        Set<String> referencedExternals = new LinkedHashSet<>();
+        Map<String, Set<String>> edgeKinds =
+                aggregateContainerEdges(graph, compToContainer, visibleContainers, referencedExternals);
+
+        for (GraphQuery.ExternalSystemNode ext : graph.allExternalSystemNodes()) {
+            if (!referencedExternals.contains(ext.id().value())) continue;
+            String macro =
+                    switch (MermaidStyle.roleForExternalKind(ext.kind())) {
+                        case MESSAGING -> "ContainerQueue_Ext";
+                        case STORE -> "ContainerDb_Ext";
+                        default -> "System_Ext";
+                    };
+            String kindLabel = ext.kind() != null ? ext.kind().toUpperCase(Locale.ROOT) : "";
+            sb.append("    ")
+                    .append(macro)
+                    .append("(")
+                    .append(nid(ext.id().value()))
+                    .append(", \"")
+                    .append(escape(ext.name()))
+                    .append("\", \"")
+                    .append(escape(kindLabel))
+                    .append("\")\n");
+        }
+
+        for (Map.Entry<String, Set<String>> entry : edgeKinds.entrySet()) {
+            String[] parts = entry.getKey().split("\0", 2);
+            sb.append("    Rel(")
+                    .append(nid(parts[0]))
+                    .append(", ")
+                    .append(nid(parts[1]))
+                    .append(", \"")
+                    .append(escape(String.join(", ", entry.getValue())))
+                    .append("\")\n");
+        }
+        return sb.toString();
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

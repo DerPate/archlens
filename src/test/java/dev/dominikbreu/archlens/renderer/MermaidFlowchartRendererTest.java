@@ -301,6 +301,60 @@ class MermaidFlowchartRendererTest {
         assertThat(withNull).isEqualTo(withComp);
     }
 
+    // ── C4 dialect ────────────────────────────────────────────────────────────
+
+    @Test
+    void c4SystemLevelEmitsC4Context() {
+        MermaidFlowchartRenderer c4 = new MermaidFlowchartRenderer(MermaidDialect.C4);
+        String out = c4.render(GraphQuery.from(model), null, "system");
+        assertThat(out).startsWith("C4Context");
+        assertThat(out).contains("System(app_orders, \"orders\", \"quarkus / jar\")");
+    }
+
+    @Test
+    void c4SystemLevelRendersBrokerAsQueueExt() {
+        ExternalSystem kafka = new ExternalSystem();
+        kafka.id = "ext:messaging:kafka";
+        kafka.name = "Kafka";
+        kafka.kind = "MESSAGE_BROKER";
+        kafka.technology = "kafka";
+        model.externalSystems.add(kafka);
+        Dependency d = dep("Service", "ext:messaging:kafka");
+        d.kind = "messaging";
+        model.dependencies.add(d);
+        MermaidFlowchartRenderer c4 = new MermaidFlowchartRenderer(MermaidDialect.C4);
+        String out = c4.render(GraphQuery.from(model), null, "system");
+        assertThat(out).contains("SystemQueue_Ext(ext_messaging_kafka, \"Kafka\", \"MESSAGE_BROKER\")");
+        assertThat(out).contains("Rel(app_orders, ext_messaging_kafka, \"messaging\")");
+    }
+
+    @Test
+    void c4ContainerLevelEmitsBoundaryAndContainers() {
+        MermaidFlowchartRenderer c4 = new MermaidFlowchartRenderer(MermaidDialect.C4);
+        String out = c4.render(GraphQuery.from(model), null, "container");
+        assertThat(out).startsWith("C4Container");
+        assertThat(out).contains("System_Boundary(app_orders, \"orders\") {");
+        assertThat(out).contains("Container(");
+        assertThat(out).contains("Rel(");
+    }
+
+    @Test
+    void c4DialectDoesNotChangeComponentAndModuleLevels() {
+        MermaidFlowchartRenderer c4 = new MermaidFlowchartRenderer(MermaidDialect.C4);
+        assertThat(c4.render(GraphQuery.from(model), null, "component"))
+                .isEqualTo(renderer.render(GraphQuery.from(model), null, "component"));
+        ArchitectureModel m = modelWithWarAndModules();
+        assertThat(c4.render(GraphQuery.from(m), null, "module"))
+                .isEqualTo(renderer.render(GraphQuery.from(m), null, "module"));
+    }
+
+    @Test
+    void defaultConstructorUsesUniversalDialect() {
+        String out = new MermaidFlowchartRenderer().render(GraphQuery.from(model), null, "system");
+        assertThat(out).doesNotContain("C4Context");
+        assertThat(out).contains("flowchart TD");
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private ArchitectureModel modelWithWarAndModules() {
