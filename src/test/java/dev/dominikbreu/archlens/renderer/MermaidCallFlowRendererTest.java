@@ -91,6 +91,32 @@ class MermaidCallFlowRendererTest {
     }
 
     @Test
+    void duplicateComponentPairEdgesRenderInDeterministicLabelOrder() {
+        ArchitectureModel m = model(2);
+        RuntimeFlow f = new RuntimeFlow();
+        f.id = "flow:test";
+        f.entrypointId = EntrypointId.deserialize("test");
+        for (int i = 0; i < 2; i++) {
+            RuntimeFlowStep s = new RuntimeFlowStep();
+            s.order = i;
+            s.componentId = ComponentId.of("Comp" + i);
+            s.componentName = "Comp" + i;
+            s.componentType = i == 0 ? "REST_RESOURCE" : "SERVICE";
+            s.via = "call";
+            f.steps.add(s);
+        }
+        f.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of("Comp0"), ComponentId.of("Comp1"), "zeta"));
+        f.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of("Comp0"), ComponentId.of("Comp1"), "alpha"));
+        var r = buildGraph(m, f);
+        String out = renderer.render(r.flowNode(), r.graph());
+        int alphaIdx = out.indexOf("Comp0->>+Comp1: alpha");
+        int zetaIdx = out.indexOf("Comp0->>Comp1: zeta");
+        assertThat(alphaIdx).isPositive();
+        assertThat(zetaIdx).isPositive();
+        assertThat(alphaIdx).isLessThan(zetaIdx);
+    }
+
+    @Test
     void branchingFlowRendersBothBranches() {
         ArchitectureModel m = model(3);
         RuntimeFlow f = new RuntimeFlow();
