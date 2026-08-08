@@ -46,7 +46,9 @@ class MermaidFlowchartRendererTest {
 
     @Test
     void outputStartsWithFlowchartDirective() {
-        assertThat(renderer.render(GraphQuery.from(model), null, "component")).startsWith("flowchart TD");
+        String out = renderer.render(GraphQuery.from(model), null, "component");
+        assertThat(out).startsWith("%%{init:");
+        assertThat(out).contains("flowchart TD");
     }
 
     // ── system level ─────────────────────────────────────────────────────────
@@ -118,6 +120,21 @@ class MermaidFlowchartRendererTest {
     }
 
     @Test
+    void systemLevelTagsExternalBrokerAsMessaging() {
+        ExternalSystem kafka = new ExternalSystem();
+        kafka.id = "ext:messaging:kafka";
+        kafka.name = "Kafka";
+        kafka.kind = "MESSAGE_BROKER";
+        kafka.technology = "kafka";
+        model.externalSystems.add(kafka);
+        Dependency d = dep("Service", "ext:messaging:kafka");
+        d.kind = "messaging";
+        model.dependencies.add(d);
+        String out = renderer.render(GraphQuery.from(model), null, "system");
+        assertThat(out).contains("class ext_messaging_kafka messaging");
+    }
+
+    @Test
     void systemLevelRespectsAppFilter() {
         AppEntry other = new AppEntry();
         other.id = AppId.of("app:other");
@@ -154,6 +171,13 @@ class MermaidFlowchartRendererTest {
         assertThat(out).contains("service");
         assertThat(out).contains("repository");
         assertThat(out).contains("domain");
+    }
+
+    @Test
+    void containerLevelTagsContainersWithContainerRole() {
+        String out = renderer.render(GraphQuery.from(model), null, "container");
+        assertThat(out).contains("classDef container");
+        assertThat(out).contains("subgraph legend");
     }
 
     // ── component level ──────────────────────────────────────────────────────
@@ -194,6 +218,41 @@ class MermaidFlowchartRendererTest {
     }
 
     @Test
+    void componentLevelEmitsThemeHeaderClassDefsAndLegend() {
+        String out = renderer.render(GraphQuery.from(model), null, "component");
+        assertThat(out).startsWith("%%{init:");
+        assertThat(out).contains("classDef entrypoint");
+        assertThat(out).contains("classDef service");
+        assertThat(out).contains("classDef repository");
+        assertThat(out).contains("classDef entity");
+        assertThat(out).contains("subgraph legend");
+    }
+
+    @Test
+    void componentLevelTagsNodesWithRoleClasses() {
+        String out = renderer.render(GraphQuery.from(model), null, "component");
+        assertThat(out).contains("class Resource entrypoint");
+        assertThat(out).contains("class Service service");
+        assertThat(out).contains("class Repository repository");
+    }
+
+    @Test
+    void componentLabelsCarryStereotypes() {
+        String out = renderer.render(GraphQuery.from(model), null, "component");
+        assertThat(out).contains("Service\\n«service»");
+    }
+
+    @Test
+    void asyncDependencyKindRendersDashedEdge() {
+        Dependency d = dep("Service", "Repository");
+        d.kind = "messaging";
+        model.dependencies.clear();
+        model.dependencies.add(d);
+        String out = renderer.render(GraphQuery.from(model), null, "component");
+        assertThat(out).contains(" -.->|messaging|");
+    }
+
+    @Test
     void appIdFilterOnlyShowsMatchingApp() {
         // Add second app that should be excluded
         AppEntry other = new AppEntry();
@@ -231,7 +290,8 @@ class MermaidFlowchartRendererTest {
     void moduleLevelStandaloneJarRenderedAsBox() {
         ArchitectureModel m = modelWithWarAndModules();
         String out = renderer.render(GraphQuery.from(m), null, "module");
-        assertThat(out).startsWith("flowchart TD");
+        assertThat(out).startsWith("%%{init:");
+        assertThat(out).contains("flowchart TD");
     }
 
     @Test
