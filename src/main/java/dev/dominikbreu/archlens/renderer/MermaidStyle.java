@@ -8,8 +8,8 @@ import java.util.Set;
 
 /**
  * Shared Mermaid visual vocabulary: theme header, semantic role palette and shapes,
- * legend rendering, and node-id sanitizing. All Mermaid renderers delegate their
- * visual decisions here so diagrams share one coherent look.
+ * and node-id sanitizing. All Mermaid renderers delegate their visual decisions here
+ * so diagrams share one coherent look.
  */
 final class MermaidStyle {
 
@@ -121,27 +121,6 @@ final class MermaidStyle {
     }
 
     /**
-     * Renders a compact legend subgraph listing each used role as a shaped node.
-     *
-     * @param used roles present in the diagram
-     * @return legend subgraph plus class assignments, empty string when no roles
-     */
-    static String legend(Collection<Role> used) {
-        if (used.isEmpty()) return "";
-        EnumSet<Role> ordered = EnumSet.noneOf(Role.class);
-        ordered.addAll(used);
-        StringBuilder sb = new StringBuilder("    subgraph legend[\"Legend\"]\n");
-        StringBuilder assigns = new StringBuilder();
-        for (Role role : ordered) {
-            String id = "legend_" + role.css;
-            sb.append(node("        ", id, role.css, role));
-            assigns.append(assign(id, role));
-        }
-        sb.append("    end\n").append(assigns);
-        return sb.toString();
-    }
-
-    /**
      * Sanitizes an arbitrary id into a Mermaid-safe identifier.
      *
      * @param id raw id (may be null)
@@ -219,11 +198,11 @@ final class MermaidStyle {
         /**
          * Styling footer to append after all nodes and edges.
          *
-         * @return classDefs, class assignments, and legend; empty when nothing tagged
+         * @return classDefs and class assignments; empty when nothing tagged
          */
         String footer() {
             if (used.isEmpty()) return "";
-            return classDefs(used) + assigns + legend(used);
+            return classDefs(used) + assigns;
         }
     }
 }

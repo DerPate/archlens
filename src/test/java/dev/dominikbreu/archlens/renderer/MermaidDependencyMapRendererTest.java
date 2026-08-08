@@ -41,7 +41,7 @@ class MermaidDependencyMapRendererTest {
     }
 
     @Test
-    void emitsRoleClassDefsAndLegendInsteadOfHardcodedPalette() {
+    void emitsRoleClassDefsInsteadOfHardcodedPalette() {
         ArchitectureModel model = new ArchitectureModel("test");
         Component server = component("server", "McpServer", "dev.dominikbreu.archlens.mcp.McpServer");
         Component tool =
@@ -54,7 +54,7 @@ class MermaidDependencyMapRendererTest {
         assertThat(out).doesNotContain("classDef core");
         assertThat(out).doesNotContain("classDef boundary");
         assertThat(out).doesNotContain("classDef data");
-        assertThat(out).contains("subgraph legend");
+        assertThat(out).doesNotContain("subgraph legend");
     }
 
     @Test

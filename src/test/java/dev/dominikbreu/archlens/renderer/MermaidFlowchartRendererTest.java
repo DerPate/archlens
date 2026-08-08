@@ -177,7 +177,7 @@ class MermaidFlowchartRendererTest {
     void containerLevelTagsContainersWithContainerRole() {
         String out = renderer.render(GraphQuery.from(model), null, "container");
         assertThat(out).contains("classDef container");
-        assertThat(out).contains("subgraph legend");
+        assertThat(out).doesNotContain("subgraph legend");
     }
 
     // ── component level ──────────────────────────────────────────────────────
@@ -218,14 +218,14 @@ class MermaidFlowchartRendererTest {
     }
 
     @Test
-    void componentLevelEmitsThemeHeaderClassDefsAndLegend() {
+    void componentLevelEmitsThemeHeaderAndClassDefs() {
         String out = renderer.render(GraphQuery.from(model), null, "component");
         assertThat(out).startsWith("%%{init:");
         assertThat(out).contains("classDef entrypoint");
         assertThat(out).contains("classDef service");
         assertThat(out).contains("classDef repository");
         assertThat(out).contains("classDef entity");
-        assertThat(out).contains("subgraph legend");
+        assertThat(out).doesNotContain("subgraph legend");
     }
 
     @Test

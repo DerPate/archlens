@@ -38,7 +38,7 @@ class ArchitectureViewMermaidRendererTest {
     }
 
     @Test
-    void emitsClassDefsAndLegendForUsedRoles() {
+    void emitsClassDefsForUsedRoles() {
         ArchitectureViewProjection projection = new ArchitectureViewProjection(
                 ArchitectureViewKind.COMPONENT,
                 "Demo Component View",
@@ -55,7 +55,7 @@ class ArchitectureViewMermaidRendererTest {
         String mermaid = new ArchitectureViewMermaidRenderer().render(projection);
 
         assertTrue(mermaid.contains("classDef service"));
-        assertTrue(mermaid.contains("subgraph legend"));
+        assertFalse(mermaid.contains("subgraph legend"));
     }
 
     @Test
