@@ -253,7 +253,9 @@ Prompts are workflow templates for clients and agents; they do not replace tools
   `CONNECTS_TO` edges. Unmatched JNDI bindings stay `unresolved=true`. Database endpoints never
   include credentials, URL user-info, query parameters, or credential-store expressions.
 - Method-local EntityManager calls are `PersistenceOperation` nodes linked to their component,
-  entity, and persistence unit. Effective Spring, Jakarta/Javax, Quarkus, and EJB policies are
+  entity, and persistence unit; when entrypoint parameters reach them they also appear as
+  `DataFlowSink` persistence sinks with `persistenceUnitName` and invocation evidence preserved.
+  Effective Spring, Jakarta/Javax, Quarkus, and EJB policies are
   `TransactionBoundary` nodes; EJB container-managed methods default to `REQUIRED`, method
   declarations override type declarations, and `TransactionManagement(BEAN)` becomes
   `PROGRAMMATIC`. Resolved Spring XML advice and EJB `ejb-jar.xml` overrides are method-scoped;
