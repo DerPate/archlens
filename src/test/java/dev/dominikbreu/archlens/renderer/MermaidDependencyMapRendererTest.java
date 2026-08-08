@@ -58,6 +58,22 @@ class MermaidDependencyMapRendererTest {
     }
 
     @Test
+    void breaksDominantTypeTiesByEnumOrder() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        Component repository =
+                component("repo", "WidgetRepository", "dev.dominikbreu.archlens.widget.WidgetRepository");
+        repository.type = ComponentType.REPOSITORY;
+        Component entity = component("entity", "WidgetEntity", "dev.dominikbreu.archlens.widget.WidgetEntity");
+        entity.type = ComponentType.ENTITY;
+        model.components.addAll(List.of(repository, entity));
+
+        String out = renderer.render(GraphQuery.from(model));
+
+        assertThat(out).contains("class dep_widget repository");
+        assertThat(out).doesNotContain("class dep_widget entity");
+    }
+
+    @Test
     void countsInternalDependenciesWithoutDrawingSelfEdges() {
         ArchitectureModel model = new ArchitectureModel("test");
         Component extractor = component(
