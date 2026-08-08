@@ -130,8 +130,9 @@ are the stable consumer boundary.
 Status: initial end-to-end implementation complete. ArchLens now parses the planned descriptor
 and source/config families, projects the proposed topology with evidence, preserves unresolved
 bindings, and verifies an EJB → persistence unit → JNDI datasource → sanitized database endpoint
-path in the benchmark. Directly attaching every `EntityManager` invocation sink to the topology
-remains a follow-up refinement for field-level persistence answers.
+path in the benchmark. Direct `EntityManager` invocations reached from entrypoint parameters now
+also become persistence data-flow sinks with operation, entity, persistence-unit, and invocation
+evidence.
 
 Deliver this milestone in three slices so each adds a useful answer.
 

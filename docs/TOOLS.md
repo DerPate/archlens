@@ -489,9 +489,10 @@ or `com.azure.storage.*` (→ `object-storage`) are detected even when the calle
 not a project component, via {@code outbound_sink_sites} captured during call-graph
 extraction. Sinks land on the entrypoint method's data-flow path at depth 0.
 
-Structured sink results include destination metadata (`entityType`, `repositoryOperation`,
-`channel`, `broker`, `topic`) when known and the normalized `evidence` object when source evidence
-is available. Human-readable sink lines show the confidence band alongside the source location.
+Structured sink results include destination metadata (`entityType`, `persistenceUnitName`,
+`repositoryOperation`, `channel`, `broker`, `topic`) when known and the normalized `evidence`
+object when source evidence is available. Human-readable sink lines show the confidence band
+alongside the source location.
 
 **New entrypoint families:** `EVENT_BUS_CONSUMER` (Vert.x `eventBus.consumer(addr, handler)`),
 `WEBSOCKET_ENDPOINT` (`@ServerEndpoint` + `@OnMessage`), `SSE_ENDPOINT` (REST methods
@@ -815,8 +816,8 @@ Useful graph properties include:
   declaration remains a queryable `unresolved=true` datasource instead of gaining a fabricated
   database target.
 - PersistenceOperation nodes (label `PersistenceOperation`): method-local `EntityManager`
-  operations with `componentId`, `methodName`, `methodSignature`, `operation`, `entityType`, and
-  `persistenceUnitName` plus invocation evidence.
+  operations with `componentId`, `methodName`, `methodSignature`, `operation`, `entityType`,
+  `argumentName`, and `persistenceUnitName` plus invocation evidence.
 - TransactionBoundary nodes (label `TransactionBoundary`): effective Spring, Jakarta/Javax,
   Quarkus, or EJB method policies. Properties include `framework`, normalized `policy`,
   `nativePolicy`, `readOnly`, `isolation`, `rollbackRules`, `declarationLevel`, `defaulted`,
@@ -828,7 +829,7 @@ Useful graph properties include:
   `pathId`, `componentId`, `method` (callee method name for outbound sinks, e.g.
   `writeString`; call site method for non-outbound sinks), `fieldName`,
   `fieldOwnerComponentId`, `channel`, `broker`, `topic`, `topicPropertyKey`,
-  `payloadType`, `entityType`, `repositoryOperation`, `linkEvidence`, and
+  `payloadType`, `entityType`, `persistenceUnitName`, `repositoryOperation`, `linkEvidence`, and
   `calleeQualifiedName` (fully-qualified declaring type of the outbound callee, e.g.
   `java.nio.file.Files`; absent for non-outbound kinds).
 - DataFlowNode nodes (label `DataFlowNode`): branch-aware topology vertices inside a

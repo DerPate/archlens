@@ -4,7 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.model.ArchitectureModel;
+import dev.dominikbreu.archlens.model.DataFlowPath;
+import dev.dominikbreu.archlens.model.DataFlowSink;
+import dev.dominikbreu.archlens.model.ids.GraphNodeId;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -61,6 +65,56 @@ class TransactionPolicyExtractorTest {
                         assertThat(step.transactionPolicy).isEqualTo("REQUIRES_NEW");
                         assertThat(step.transactionTransition).isIn("begin", "suspend-and-begin");
                     }
+                });
+    }
+
+    @Test
+    void connectsRestParameterToDirectEntityManagerPersistenceSink() {
+        ArchitectureModel model = extract("javaee-sample");
+        String createEntrypointId = model.entrypoints.stream()
+                .filter(entrypoint -> "POST".equals(entrypoint.httpMethod) && "/customers".equals(entrypoint.path))
+                .findFirst()
+                .orElseThrow()
+                .id
+                .serialize();
+
+        List<DataFlowPath> customerPaths = model.dataFlowPaths.stream()
+                .filter(path -> createEntrypointId.equals(path.entrypointId.serialize()))
+                .filter(path -> "customer".equals(path.trackedParam))
+                .toList();
+        assertThat(customerPaths)
+                .as("POST /customers customer parameter should be retained once it reaches EntityManager.persist")
+                .hasSize(1);
+        DataFlowPath customerPath = new ArrayList<>(customerPaths).getFirst();
+
+        assertThat(customerPath.steps).anySatisfy(step -> {
+            assertThat(step.componentId.serialize()).isEqualTo("com.example.ejb.CustomerEjb");
+            assertThat(step.method).isEqualTo("save");
+            assertThat(step.localName).isEqualTo("customer");
+        });
+        assertThat(customerPath.sinks)
+                .filteredOn(sink -> sink.kind == DataFlowSink.Kind.PERSISTENCE)
+                .singleElement()
+                .satisfies(sink -> {
+                    assertThat(sink.componentId.serialize()).isEqualTo("com.example.ejb.CustomerEjb");
+                    assertThat(sink.method).isEqualTo("persist");
+                    assertThat(sink.repositoryOperation).isEqualTo("persist");
+                    assertThat(sink.entityType).isEqualTo("com.example.model.Customer");
+                    assertThat(sink.persistenceUnitName).isEqualTo("customer-unit");
+                    assertThat(sink.linkEvidence).isEqualTo("entity-manager-invocation");
+                    assertThat(sink.source.derivedFrom).isEqualTo("entity-manager-invocation");
+                });
+
+        GraphQuery graph = GraphQuery.from(model);
+        assertThat(graph.pathSinks(GraphNodeId.of(customerPath.id.serialize())).stream()
+                        .filter(sink -> sink.sinkKind() == DataFlowSink.Kind.PERSISTENCE))
+                .singleElement()
+                .satisfies(sink -> {
+                    assertThat(sink.componentId().serialize()).isEqualTo("com.example.ejb.CustomerEjb");
+                    assertThat(sink.repositoryOperation()).isEqualTo("persist");
+                    assertThat(sink.entityType()).isEqualTo("com.example.model.Customer");
+                    assertThat(sink.persistenceUnitName()).isEqualTo("customer-unit");
+                    assertThat(sink.properties()).containsEntry("derivedFrom", "entity-manager-invocation");
                 });
     }
 
