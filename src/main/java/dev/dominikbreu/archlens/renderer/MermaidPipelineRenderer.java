@@ -21,8 +21,8 @@ import java.util.stream.Collectors;
  *
  * <p>Each segment becomes a vertical sequence of step nodes shaped by the component's
  * architectural role. Between segments, a boundary node is emitted whose shape and
- * style reflect the linking sink kind (STORE = cylinder, MESSAGING/EVENT_BUS = rounded
- * rectangle / circle).
+ * style reflect the linking sink kind via {@link MermaidStyle} roles: STORE/PERSISTENCE
+ * render as a cylinder, MESSAGING as a stadium shape, and EVENT_BUS as a double circle.
  */
 public class MermaidPipelineRenderer {
 
