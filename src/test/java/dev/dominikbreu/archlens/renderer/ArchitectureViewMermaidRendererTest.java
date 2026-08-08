@@ -57,4 +57,20 @@ class ArchitectureViewMermaidRendererTest {
         assertTrue(mermaid.contains("classDef service"));
         assertTrue(mermaid.contains("subgraph legend"));
     }
+
+    @Test
+    void rendersEmptyBracketsInsteadOfNullForMissingKind() {
+        ArchitectureViewProjection projection = new ArchitectureViewProjection(
+                ArchitectureViewKind.COMPONENT,
+                "Demo Component View",
+                "app:demo",
+                List.of(new ArchitectureViewProjection.Node("Consumer", "Consumer", null, Map.of())),
+                List.of(),
+                List.of());
+
+        String mermaid = new ArchitectureViewMermaidRenderer().render(projection);
+
+        assertTrue(mermaid.contains("[]"));
+        assertFalse(mermaid.contains("[null]"));
+    }
 }

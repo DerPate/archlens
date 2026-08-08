@@ -29,7 +29,8 @@ public final class ArchitectureViewMermaidRenderer {
             String id = "n" + index++;
             ids.put(node.id(), id);
             MermaidStyle.Role role = roleForKind(node.kind());
-            sb.append(MermaidStyle.node("        ", id, node.title() + "\n[" + node.kind() + "]", role));
+            String kindLabel = node.kind() == null ? "" : node.kind();
+            sb.append(MermaidStyle.node("        ", id, node.title() + "\n[" + kindLabel + "]", role));
             tracker.tag(id, role);
         }
 

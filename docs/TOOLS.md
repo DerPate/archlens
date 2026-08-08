@@ -633,7 +633,7 @@ entrypoint is reached from the previous segment via either:
 - an `EVENT_BUS` sink — boundary rendered as a circle
 
 Per-segment call steps are shaped by the component's architectural role
-(rectangle for SERVICE, cylinder for REPOSITORY, parallelogram for HTTP_CLIENT,
+(rounded rectangle for SERVICE, cylinder for REPOSITORY, parallelogram for HTTP_CLIENT,
 stadium for SCHEDULER / MESSAGING_CONSUMER, etc.).
 
 Arguments:
