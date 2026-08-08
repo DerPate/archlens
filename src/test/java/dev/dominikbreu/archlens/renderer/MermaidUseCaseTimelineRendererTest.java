@@ -16,7 +16,9 @@ class MermaidUseCaseTimelineRendererTest {
     @Test
     void outputStartsWithGanttDirective() {
         var r = build("ep1", 3);
-        assertThat(renderer.render(r.flows(), r.graph(), 5)).startsWith("gantt");
+        String out = renderer.render(r.flows(), r.graph(), 5);
+        assertThat(out).startsWith("%%{init:");
+        assertThat(out).contains("gantt\n");
     }
 
     @Test

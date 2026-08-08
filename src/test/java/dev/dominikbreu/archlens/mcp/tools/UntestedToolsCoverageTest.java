@@ -79,7 +79,10 @@ class UntestedToolsCoverageTest {
 
     @Test
     void renderSourceOverview_runs() {
-        assertOk(new RenderSourceOverviewTool(cache).execute(Map.of()).text());
+        String result = new RenderSourceOverviewTool(cache).execute(Map.of()).text();
+        assertOk(result);
+        assertThat(result).startsWith("%%{init:");
+        assertThat(result).contains("subgraph legend");
     }
 
     @Test

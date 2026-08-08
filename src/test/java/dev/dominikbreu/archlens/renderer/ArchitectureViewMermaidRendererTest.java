@@ -28,11 +28,33 @@ class ArchitectureViewMermaidRendererTest {
 
         String mermaid = new ArchitectureViewMermaidRenderer().render(projection);
 
+        assertTrue(mermaid.startsWith("%%{init:"));
         assertTrue(mermaid.contains("flowchart LR"));
         assertTrue(mermaid.contains("Demo Component View"));
         assertTrue(mermaid.contains("Consumer"));
         assertTrue(mermaid.contains("Scheduler"));
         assertTrue(mermaid.contains("shared state handoff"));
         assertFalse(mermaid.contains("External User"));
+    }
+
+    @Test
+    void emitsClassDefsAndLegendForUsedRoles() {
+        ArchitectureViewProjection projection = new ArchitectureViewProjection(
+                ArchitectureViewKind.COMPONENT,
+                "Demo Component View",
+                "app:demo",
+                List.of(
+                        new ArchitectureViewProjection.Node(
+                                "Consumer", "Consumer", "service", Map.of("componentType", "SERVICE")),
+                        new ArchitectureViewProjection.Node(
+                                "Scheduler", "Scheduler", "scheduler", Map.of("componentType", "SCHEDULER"))),
+                List.of(new ArchitectureViewProjection.Edge(
+                        "Consumer", "Scheduler", "STATE_HANDOFF", "shared state handoff")),
+                List.of());
+
+        String mermaid = new ArchitectureViewMermaidRenderer().render(projection);
+
+        assertTrue(mermaid.contains("classDef service"));
+        assertTrue(mermaid.contains("subgraph legend"));
     }
 }
