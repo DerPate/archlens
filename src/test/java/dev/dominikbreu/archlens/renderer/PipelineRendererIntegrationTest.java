@@ -61,11 +61,12 @@ class PipelineRendererIntegrationTest {
 
         // 5. Rendered Mermaid contains the boundary shapes and edges
         String mermaid = new MermaidPipelineRenderer().render(chain, GraphQuery.from(model));
-        assertThat(mermaid).startsWith("flowchart TD");
+        assertThat(mermaid).startsWith("%%{init:");
+        assertThat(mermaid).contains("flowchart TD");
         // STORE boundary uses cylinder: [("Cache.records")]
         assertThat(mermaid).containsPattern("\\[\\(\"Cache\\.records\"\\)]");
-        // MESSAGING boundary uses rounded rectangle: ("internal")
-        assertThat(mermaid).contains("(\"internal\")");
+        // MESSAGING boundary uses stadium shape: (["internal"])
+        assertThat(mermaid).contains("([\"internal\"])");
         // At least one directed edge with --> arrow
         assertThat(mermaid).contains("-->");
     }
