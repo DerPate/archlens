@@ -2,6 +2,33 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.0.0](https://github.com/DerPate/archlens/compare/archlens-1.5.0...archlens-2.0.0) (2026-08-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* **renderer:** drop legend subgraph from diagrams
+
+### Features
+
+* attach direct EntityManager invocation sinks to persistence data flows ([6674744](https://github.com/DerPate/archlens/commit/6674744bb769d8218766ed3e93eaea4b5a3a82bb))
+* **mcp:** ARCHLENS_MCP_EXPERIMENTAL_C4 opt-in and renderer docs ([cc92bf2](https://github.com/DerPate/archlens/commit/cc92bf2702a2c6aef91497c705529dc13f303677))
+* **renderer:** add shared MermaidStyle theme, role palette, and legend ([06d6c6b](https://github.com/DerPate/archlens/commit/06d6c6b00f7d1df493b3fe78214f591b092a6ebf))
+* **renderer:** drop legend subgraph from diagrams ([d00012b](https://github.com/DerPate/archlens/commit/d00012bcea5106ee23213cdde2be3f8a962e1f9c))
+* **renderer:** opt-in C4 dialect for system and container levels ([3302de0](https://github.com/DerPate/archlens/commit/3302de0f86ab21ea5cbf25986bb3699ab32e3e4a))
+* **renderer:** pipeline diagrams use shared role palette ([40d92de](https://github.com/DerPate/archlens/commit/40d92de03db6c2af28b7a514c0c1584d7dbefe7f))
+* **renderer:** render call flows as sequence diagrams ([cdba8c8](https://github.com/DerPate/archlens/commit/cdba8c887926bf8fa9581dc4fea85503f7dbb438))
+* **renderer:** shared role styling for dependency map and slice diagrams ([de9226d](https://github.com/DerPate/archlens/commit/de9226d10652e0952bcbd15cbc5c7338a4db774d))
+* **renderer:** shared styling for source overview, architecture view, timeline ([88e957b](https://github.com/DerPate/archlens/commit/88e957b5e52688ee740270db6cc26c6c9437e488))
+* **renderer:** themed roles, dashed async edges, and legends in flowchart levels ([a374092](https://github.com/DerPate/archlens/commit/a374092439260482f9a254c8a228a82801653558))
+
+
+### Bug Fixes
+
+* **renderer:** deterministic call-edge order for duplicate component pairs ([49e3499](https://github.com/DerPate/archlens/commit/49e34993074d8c18160977af636d30118c15921d))
+* **renderer:** guard null kind in architecture view label; correct pipeline shape doc ([5c1baa2](https://github.com/DerPate/archlens/commit/5c1baa2d1c305ef5195e72ed671463567e8f1d87))
+* **renderer:** un-hollow pipeline dedup assertion, refresh shape javadoc ([438cb95](https://github.com/DerPate/archlens/commit/438cb9581f763c1efa3f49da982f13a4d0b19704))
+
 ## [1.5.0](https://github.com/DerPate/archlens/compare/archlens-1.4.2...archlens-1.5.0) (2026-07-20)
 
 
