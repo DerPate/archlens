@@ -3,6 +3,7 @@ package dev.dominikbreu.archlens.mcp;
 import dev.dominikbreu.archlens.cache.ModelCache;
 import dev.dominikbreu.archlens.extractor.ArchitectureExtractor;
 import dev.dominikbreu.archlens.mcp.tools.*;
+import dev.dominikbreu.archlens.renderer.MermaidDialect;
 import io.modelcontextprotocol.json.McpJsonDefaults;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
@@ -105,7 +106,10 @@ public class McpServer {
         this.componentsTool = new FindComponentsTool(cache);
         this.dependenciesTool = new GetComponentDependenciesTool(cache);
         this.containersTool = new InferContainersTool(cache);
-        this.flowchartTool = new RenderMermaidFlowchartTool(cache);
+        MermaidDialect mermaidDialect = Boolean.parseBoolean(System.getenv("ARCHLENS_MCP_EXPERIMENTAL_C4"))
+                ? MermaidDialect.C4
+                : MermaidDialect.UNIVERSAL;
+        this.flowchartTool = new RenderMermaidFlowchartTool(cache, mermaidDialect);
         this.callFlowTool = new CallFlowTool(cache);
         this.sourceOverviewTool = new RenderSourceOverviewTool(cache);
         this.dependencyMapTool = new RenderDependencyMapTool(cache);

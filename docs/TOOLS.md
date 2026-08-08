@@ -235,11 +235,16 @@ Example — system-level diagram:
 { "level": "system" }
 ```
 
+Setting `ARCHLENS_MCP_EXPERIMENTAL_C4=true` when starting the server switches the `system`
+and `container` levels to Mermaid's experimental `C4Context`/`C4Container` diagram types.
+`module` and `component` levels are unaffected. C4 output renders on GitHub and Mermaid
+Live but not in every IDE preview — hence opt-in.
+
 ---
 
 ## `call_flow`
 
-Return the runtime call flow for an entry point: ordered steps and a Mermaid `flowchart TD`.
+Return the runtime call flow for an entry point: ordered steps and a Mermaid `sequenceDiagram`.
 
 When an effective transaction policy is known, each structured step additionally exposes
 `method`, `transactionPolicy`, `transactionTransition`, `transactionScopeId`,
@@ -261,18 +266,16 @@ DFS over actual method-call edges from the entrypoint method — each step’s `
 shows the real called-method name or HTTP method+path. Without call-graph data it falls
 back to BFS over injection-dependency edges.
 
-Component shapes reflect architectural role:
-
-| Shape | Mermaid syntax | Used for |
-| --- | --- | --- |
-| Rectangle | `[Name]` | SERVICE, REST_RESOURCE, EJB, default |
-| Cylinder | `[(Name)]` | REPOSITORY — persistence store |
-| Parallelogram | `[/Name/]` | HTTP_CLIENT — external call |
-| Stadium | `([Name])` | SCHEDULER, MESSAGE_DRIVEN_BEAN — async trigger |
-| Circle | `((Name))` | CDI_EVENT_CONSUMER / CDI_EVENT_PRODUCER |
+Each participant is declared as `Name«stereotype»`, where `stereotype` is the component's
+lowercased architectural role (e.g. `rest_resource`, `service`, `repository`). Participants
+are ordered by first appearance in the flow, and grouped into per-application `box`
+sections when the flow spans more than one application. Synchronous calls use `->>`;
+calls into a messaging or event-bus target use the async `-->>` arrow. Diagrams are
+`autonumber`ed and each participant is activated (`+`) on first call and deactivated at
+the end of the diagram, so the sequence's nesting mirrors the actual call depth.
 
 Edge labels carry the actual called method name from the call graph. The first edge from
-Client shows the HTTP method+path or channel name. No return arrows — execution path only.
+Client shows the HTTP method+path or channel name.
 
 Arguments:
 
@@ -295,15 +298,19 @@ Example — disambiguate by HTTP verb:
 Sample output:
 
 ```
-flowchart TD
-    Client([Client])
-    OrderResource[OrderResource]
-    OrderService[OrderService]
-    OrderRepository[(OrderRepository)]
-
-    Client -->|POST /orders| OrderResource
-    OrderResource -->|create| OrderService
-    OrderService -->|save| OrderRepository
+%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#f5f5f5", "primaryBorderColor": "#9e9e9e", "primaryTextColor": "#212121", "lineColor": "#607d8b", "clusterBkg": "#fafafa", "clusterBorder": "#b0bec5"}}}%%
+sequenceDiagram
+    autonumber
+    actor Client
+    participant OrderResource as OrderResource«rest_resource»
+    participant OrderService as OrderService«service»
+    participant OrderRepository as OrderRepository«repository»
+    Client->>+OrderResource: POST /orders
+    OrderResource->>+OrderService: create
+    OrderService->>+OrderRepository: save
+    deactivate OrderRepository
+    deactivate OrderService
+    deactivate OrderResource
 ```
 
 ---
@@ -664,9 +671,11 @@ Spring pipeline stitching supports these handoff kinds:
 When no chains render, use the diagnostic counts to decide whether config resolution,
 producer extraction, or repository handoff metadata is missing.
 
-Example output sketch (single chain, two segments):
+Example output sketch (single chain, two segments). Like all `render_*` diagram tools,
+the output is preceded by a shared `%%{init: ...}%%` theme directive as its first line:
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#f5f5f5", "primaryBorderColor": "#9e9e9e", "primaryTextColor": "#212121", "lineColor": "#607d8b", "clusterBkg": "#fafafa", "clusterBorder": "#b0bec5"}}}%%
 flowchart TD
     S0_0(["RecordIngestor.consume"])
     S0_1["RecordIngestor.consume"]

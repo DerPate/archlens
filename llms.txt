@@ -23,6 +23,8 @@ The server is designed for consumption by LLM agents and MCP-capable clients
   tool arguments; reserve `content[0].text` for presentation. Stable mode uses named object
   wrappers for collection results. `ARCHLENS_MCP_EXPERIMENTAL_DRAFT=true` enables draft
   top-level arrays; inspect `tools/list` rather than assuming either root shape.
+  `ARCHLENS_MCP_EXPERIMENTAL_C4=true` switches system/container flowcharts to experimental
+  Mermaid C4 output.
 - Cache: `.archlens-cache/` in the working directory (GraphSON format)
 - License: see `LICENSE`
 
