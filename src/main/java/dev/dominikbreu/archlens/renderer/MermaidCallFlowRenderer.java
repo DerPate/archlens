@@ -68,10 +68,15 @@ public class MermaidCallFlowRenderer {
         // GraphQuery.flowCallEdges does not guarantee traversal order matches step order
         // (TinkerGraph iterates edges by internal storage, not insertion order), so sort
         // deterministically by the caller's, then callee's, position in the ordered step list.
+        // Two edges can share the same (from, to) pair with different labels (RuntimeFlowInferrer
+        // dedups only on `via`; inferFromDependencies has no dedup at all), so break remaining ties
+        // on the edge label: edges tying on all three keys render identical lines, so any residual
+        // ordering among them cannot change the rendered document.
         callEdges.sort(Comparator.<GraphQuery.GraphEdge>comparingInt(edge -> stepOrder.getOrDefault(
                         String.valueOf(edge.properties().get("fromComponentId")), Integer.MAX_VALUE))
                 .thenComparingInt(edge -> stepOrder.getOrDefault(
-                        String.valueOf(edge.properties().get("toComponentId")), Integer.MAX_VALUE)));
+                        String.valueOf(edge.properties().get("toComponentId")), Integer.MAX_VALUE))
+                .thenComparing(edge -> String.valueOf(edge.properties().getOrDefault("label", "call"))));
 
         for (GraphQuery.GraphEdge edge : callEdges) {
             String fromCompId = String.valueOf(edge.properties().get("fromComponentId"));
