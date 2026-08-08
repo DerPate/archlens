@@ -32,11 +32,29 @@ class MermaidDependencyMapRendererTest {
 
         String out = renderer.render(GraphQuery.from(model));
 
-        assertThat(out).startsWith("flowchart LR");
+        assertThat(out).startsWith("%%{init:");
+        assertThat(out).contains("flowchart LR");
         assertThat(out).contains("mcp.tools\\n1 components");
         assertThat(out).contains("extractor\\n1 components");
         assertThat(out).contains("dep_mcp -->|1 dep / field-reference=1| dep_mcp_tools");
         assertThat(out).contains("dep_mcp_tools -->|1 dep / field-reference=1| dep_extractor");
+    }
+
+    @Test
+    void emitsRoleClassDefsAndLegendInsteadOfHardcodedPalette() {
+        ArchitectureModel model = new ArchitectureModel("test");
+        Component server = component("server", "McpServer", "dev.dominikbreu.archlens.mcp.McpServer");
+        Component tool =
+                component("tool", "IndexWorkspaceTool", "dev.dominikbreu.archlens.mcp.tools.IndexWorkspaceTool");
+        model.components.addAll(List.of(server, tool));
+        model.dependencies.add(dependency(server.id, tool.id, "field-reference"));
+
+        String out = renderer.render(GraphQuery.from(model));
+
+        assertThat(out).doesNotContain("classDef core");
+        assertThat(out).doesNotContain("classDef boundary");
+        assertThat(out).doesNotContain("classDef data");
+        assertThat(out).contains("subgraph legend");
     }
 
     @Test
