@@ -906,6 +906,7 @@ public class GraphQuery {
         sink.topicPropertyKey = vStr(sinkV, "topicPropertyKey");
         sink.payloadType = vStr(sinkV, "payloadType");
         sink.entityType = vStr(sinkV, "entityType");
+        sink.persistenceUnitName = vStr(sinkV, "persistenceUnitName");
         sink.repositoryOperation = vStr(sinkV, "repositoryOperation");
         sink.linkEvidence = vStr(sinkV, "linkEvidence");
         sink.calleeQualifiedName = vStr(sinkV, "calleeQualifiedName");
@@ -1609,6 +1610,7 @@ public class GraphQuery {
                         vStr(vertex, "methodSignature"),
                         vStr(vertex, "operation"),
                         vStr(vertex, "entityType"),
+                        vStr(vertex, "argumentName"),
                         vStr(vertex, "persistenceUnitName"),
                         vSource(vertex));
             case "TransactionBoundary" ->
@@ -1676,6 +1678,7 @@ public class GraphQuery {
                         vStr(vertex, "topicPropertyKey"),
                         vStr(vertex, "payloadType"),
                         vStr(vertex, "entityType"),
+                        vStr(vertex, "persistenceUnitName"),
                         vStr(vertex, "repositoryOperation"),
                         vStr(vertex, "linkEvidence"),
                         vStr(vertex, "calleeQualifiedName"),
@@ -2565,7 +2568,21 @@ public class GraphQuery {
         }
     }
 
-    /** Typed graph node for one method-local EntityManager operation. */
+    /**
+     * Typed graph node for one method-local EntityManager operation.
+     *
+     * @param id the node id
+     * @param name the display name
+     * @param appId the owning app/module id
+     * @param componentId the component containing the invocation
+     * @param methodName the enclosing method name
+     * @param methodSignature the enclosing method signature
+     * @param operation the EntityManager operation
+     * @param entityType the entity type operated on, or {@code null}
+     * @param argumentName the argument consumed by the operation, or {@code null}
+     * @param persistenceUnitName the resolved persistence unit, or {@code null}
+     * @param source the source location
+     */
     public record PersistenceOperationNode(
             GraphNodeId id,
             String name,
@@ -2575,6 +2592,7 @@ public class GraphQuery {
             String methodSignature,
             String operation,
             String entityType,
+            String argumentName,
             String persistenceUnitName,
             SourceInfo source)
             implements GraphNode {
@@ -2598,6 +2616,8 @@ public class GraphQuery {
                     operation,
                     "entityType",
                     entityType,
+                    "argumentName",
+                    argumentName,
                     "persistenceUnitName",
                     persistenceUnitName);
             putEvidenceProperties(p, source);
@@ -2610,6 +2630,7 @@ public class GraphQuery {
                     || GraphNode.q(query, methodName)
                     || GraphNode.q(query, operation)
                     || GraphNode.q(query, entityType)
+                    || GraphNode.q(query, argumentName)
                     || GraphNode.q(query, persistenceUnitName);
         }
     }
@@ -2854,6 +2875,7 @@ public class GraphQuery {
      * @param topicPropertyKey the config property key the topic was resolved from, or {@code null}
      * @param payloadType the message/payload type, or {@code null}
      * @param entityType the persisted entity type, or {@code null}
+     * @param persistenceUnitName the targeted persistence unit, or {@code null}
      * @param repositoryOperation the repository operation, or {@code null}
      * @param linkEvidence evidence for a downstream workflow link, or {@code null}
      * @param calleeQualifiedName the qualified name of the called sink API, or {@code null}
@@ -2874,6 +2896,7 @@ public class GraphQuery {
             String topicPropertyKey,
             String payloadType,
             String entityType,
+            String persistenceUnitName,
             String repositoryOperation,
             String linkEvidence,
             String calleeQualifiedName,
@@ -2911,6 +2934,8 @@ public class GraphQuery {
                     payloadType,
                     "entityType",
                     entityType,
+                    "persistenceUnitName",
+                    persistenceUnitName,
                     "repositoryOperation",
                     repositoryOperation,
                     "linkEvidence",
@@ -2927,7 +2952,8 @@ public class GraphQuery {
                     || GraphNode.q(query, name)
                     || (sinkKind != null && GraphNode.q(query, sinkKind.value()))
                     || GraphNode.q(query, method)
-                    || GraphNode.q(query, channel);
+                    || GraphNode.q(query, channel)
+                    || GraphNode.q(query, persistenceUnitName);
         }
     }
 
