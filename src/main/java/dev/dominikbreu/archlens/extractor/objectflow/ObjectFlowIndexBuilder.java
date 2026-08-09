@@ -474,6 +474,13 @@ public class ObjectFlowIndexBuilder {
             String outerMethodName,
             ObjectFlowIndex typeIndex) {
         if (targetInvocation.getType() != null) {
+            // A generic container's own API — Optional.get, Stream.filter, List.size — runs on the
+            // container, not on its element, so unwrapping to the element type here attributes the
+            // call to a type that never declares it (PayrollService -> Payroll: stream). Collection
+            // state accessors are exempt: they are how shared-field ownership is detected.
+            if (isContainerApiCall(targetInvocation.getType(), outerMethodName)) {
+                return List.of();
+            }
             List<ReceiverTarget> declaredTargets =
                     typeIndex.expandDeclaredType(elementOrDeclaredType(targetInvocation.getType()), outerMethodName);
             if (!declaredTargets.isEmpty()) {
@@ -505,6 +512,17 @@ public class ObjectFlowIndexBuilder {
                 .findFirst()
                 .map(type -> targetFor(type.getQualifiedName(), outerMethodName, fallbackEvidence))
                 .orElse(List.of());
+    }
+
+    /**
+     * True when {@code outerMethodName} is invoked on a parameterized container rather than on the
+     * element the container holds. Only parameterized receivers qualify, so a project type that
+     * happens to declare {@code filter} or {@code map} keeps its edge.
+     */
+    private static boolean isContainerApiCall(CtTypeReference<?> receiverType, String outerMethodName) {
+        return !receiverType.getActualTypeArguments().isEmpty()
+                && GENERIC_JAVA_API_METHODS.contains(outerMethodName)
+                && !COLLECTION_STATE_ACCESS_METHODS.contains(outerMethodName);
     }
 
     private static String elementOrDeclaredType(CtTypeReference<?> type) {

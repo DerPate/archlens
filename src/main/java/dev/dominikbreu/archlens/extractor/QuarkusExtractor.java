@@ -137,7 +137,7 @@ public class QuarkusExtractor {
 
     private ComponentClassification classifyComponent(CtType<?> type) {
         List<String> stereotypes = new ArrayList<>();
-        if (hasAnnotation(type, ENTITY_ANNOTATIONS)) {
+        if (PersistenceEntityTypes.isEntity(type)) {
             stereotypes.add("entity");
             return new ComponentClassification(ComponentType.ENTITY, "jpa", stereotypes);
         }
