@@ -207,10 +207,3 @@ named objects (`entrypoints`, `components`, `dependencies`, `containers`, `paths
 `useCases`). Starting the server with `ARCHLENS_MCP_EXPERIMENTAL_DRAFT=true` opts into draft
 top-level arrays. Always follow the shape declared by `tools/list`; negotiated older clients
 may not expose structured output.
-
-<!-- lean-ctx -->
-## lean-ctx
-
-Prefer lean-ctx MCP tools over native equivalents for token savings.
-Full rules: @LEAN-CTX.md
-<!-- /lean-ctx -->

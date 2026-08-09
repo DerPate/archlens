@@ -4,67 +4,79 @@ import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.cache.GraphQuery.EntrypointNode;
 import dev.dominikbreu.archlens.cache.GraphQuery.RuntimeFlowNode;
 import dev.dominikbreu.archlens.cache.GraphQuery.RuntimeFlowStepNode;
+import dev.dominikbreu.archlens.model.ComponentType;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Renders a Mermaid {@code flowchart TD} from a runtime flow in the architecture graph.
+ * Renders a runtime flow as a Mermaid {@code sequenceDiagram}: autonumbered messages from an
+ * initiating {@code Client} actor through stereotyped participants, grouped per application when
+ * the flow spans several apps. Synchronous calls use {@code ->>}, async/messaging {@code -->>}.
  */
 public class MermaidCallFlowRenderer {
 
-    /** Creates a call-flow renderer with default shape rules. */
+    private record Participant(String pid, String display, String stereotype, String appName) {}
+
+    /** Creates a call-flow renderer. */
     public MermaidCallFlowRenderer() {}
 
     /**
-     * Renders a Mermaid flowchart for the given runtime flow.
+     * Renders a Mermaid sequence diagram for the given runtime flow.
      *
      * @param flow  runtime flow node from the graph
      * @param graph graph query for step and component lookups
-     * @return Mermaid flowchart text
+     * @return Mermaid sequence diagram text
      */
     public String render(RuntimeFlowNode flow, GraphQuery graph) {
-        if (flow == null) return "flowchart TD\n    note[no flow steps found]\n";
-
+        if (flow == null) return emptyDiagram();
         List<RuntimeFlowStepNode> steps = graph.flowSteps(flow.id());
-        if (steps.isEmpty()) return "flowchart TD\n    note[no flow steps found]\n";
+        if (steps.isEmpty()) return emptyDiagram();
 
         EntrypointNode ep = flow.entrypointId() != null
                 ? (graph.entrypoint(flow.entrypointId()) instanceof EntrypointNode en ? en : null)
                 : null;
 
         Map<String, String> pidMap = buildPidMap(steps);
-        List<GraphQuery.GraphEdge> callEdges = graph.flowCallEdges(flow.id());
+        Map<String, Participant> participants = buildParticipants(steps, pidMap, graph);
+        Map<String, Integer> stepOrder = buildStepOrderIndex(steps);
 
-        StringBuilder sb = new StringBuilder("flowchart TD\n");
-        sb.append("    Client([Client])\n");
+        StringBuilder sb = new StringBuilder(MermaidStyle.header());
+        sb.append("sequenceDiagram\n    autonumber\n    actor Client\n");
+        appendParticipants(sb, participants.values());
 
-        for (RuntimeFlowStepNode step : steps) {
-            String compKey = step.componentId() != null ? step.componentId().serialize() : step.name();
-            String pid = pidMap.get(compKey);
-            String compType = step.componentType();
-            GraphQuery.GraphNode compNode = step.componentId() != null ? graph.component(step.componentId()) : null;
-            if (compNode instanceof GraphQuery.ComponentNode cn && cn.type() != null) {
-                compType = cn.type().name().toLowerCase();
-            }
-            sb.append("    ")
-                    .append(pid)
-                    .append(nodeShape(step.name(), compType))
-                    .append("\n");
-        }
-        sb.append("\n");
+        Set<String> activated = new LinkedHashSet<>();
+        RuntimeFlowStepNode first = steps.getFirst();
+        String firstPid = pidMap.get(compKey(first));
+        sb.append("    Client->>+")
+                .append(firstPid)
+                .append(": ")
+                .append(escape(entrypointLabel(ep)))
+                .append("\n");
+        activated.add(firstPid);
 
-        if (!steps.isEmpty()) {
-            RuntimeFlowStepNode first = steps.getFirst();
-            String firstKey = first.componentId() != null ? first.componentId().serialize() : first.name();
-            sb.append("    Client -->|")
-                    .append(escape(entrypointLabel(ep)))
-                    .append("| ")
-                    .append(pidMap.get(firstKey))
-                    .append("\n");
-        }
+        List<GraphQuery.GraphEdge> callEdges = new ArrayList<>(graph.flowCallEdges(flow.id()));
+        // GraphQuery.flowCallEdges does not guarantee traversal order matches step order
+        // (TinkerGraph iterates edges by internal storage, not insertion order), so sort
+        // deterministically by the caller's, then callee's, position in the ordered step list.
+        // Two edges can share the same (from, to) pair with different labels (RuntimeFlowInferrer
+        // dedups only on `via`; inferFromDependencies has no dedup at all), so break remaining ties
+        // on the edge label: edges tying on all three keys render identical lines, so any residual
+        // ordering among them cannot change the rendered document.
+        callEdges.sort(Comparator.<GraphQuery.GraphEdge>comparingInt(edge -> stepOrder.getOrDefault(
+                        String.valueOf(edge.properties().get("fromComponentId")), Integer.MAX_VALUE))
+                .thenComparingInt(edge -> stepOrder.getOrDefault(
+                        String.valueOf(edge.properties().get("toComponentId")), Integer.MAX_VALUE))
+                .thenComparing(edge -> String.valueOf(edge.properties().getOrDefault("label", "call"))));
 
         for (GraphQuery.GraphEdge edge : callEdges) {
             String fromCompId = String.valueOf(edge.properties().get("fromComponentId"));
@@ -74,27 +86,98 @@ public class MermaidCallFlowRenderer {
             if (fromPid == null || toPid == null || fromPid.equals(toPid)) continue;
             String label = String.valueOf(edge.properties().getOrDefault("label", "call"));
             if (label.isBlank() || "null".equals(label)) label = "call";
+            Participant target = participants.get(toCompId);
+            String arrow = target != null && isAsyncStereotype(target.stereotype()) ? "-->>" : "->>";
+            String plus = activated.add(toPid) ? "+" : "";
             sb.append("    ")
                     .append(fromPid)
-                    .append(" -->|")
-                    .append(escape(label))
-                    .append("| ")
+                    .append(arrow)
+                    .append(plus)
                     .append(toPid)
+                    .append(": ")
+                    .append(escape(label))
                     .append("\n");
         }
 
+        List<String> order = new ArrayList<>(activated);
+        for (int i = order.size() - 1; i >= 0; i--) {
+            sb.append("    deactivate ").append(order.get(i)).append("\n");
+        }
         return sb.toString();
     }
 
-    private String nodeShape(String name, String compType) {
-        if (compType == null) return "[" + name + "]";
-        return switch (compType.toLowerCase()) {
-            case "repository" -> "[(" + name + ")]";
-            case "http_client" -> "[/" + name + "/]";
-            case "message_driven_bean", "scheduler" -> "([" + name + "])";
-            case "cdi_event_consumer", "cdi_event_producer" -> "((" + name + "))";
-            default -> "[" + name + "]";
-        };
+    private static String emptyDiagram() {
+        return MermaidStyle.header() + "sequenceDiagram\n    actor Client\n    Note over Client: no flow steps found\n";
+    }
+
+    private Map<String, Participant> buildParticipants(
+            List<RuntimeFlowStepNode> steps, Map<String, String> pidMap, GraphQuery graph) {
+        Map<String, String> appNamesById = new LinkedHashMap<>();
+        for (GraphQuery.ApplicationNode app : graph.allApplicationNodes()) {
+            appNamesById.put(app.id().value(), app.name());
+        }
+        Map<String, Participant> result = new LinkedHashMap<>();
+        for (RuntimeFlowStepNode step : steps) {
+            String key = compKey(step);
+            if (result.containsKey(key)) continue;
+            String stereotype = resolveStereotype(step, graph);
+            String appName = resolveAppName(step, graph, appNamesById);
+            result.put(key, new Participant(pidMap.get(key), step.name(), stereotype, appName));
+        }
+        return result;
+    }
+
+    private String resolveStereotype(RuntimeFlowStepNode step, GraphQuery graph) {
+        String compType = step.componentType();
+        GraphQuery.GraphNode compNode = step.componentId() != null ? graph.component(step.componentId()) : null;
+        if (compNode instanceof GraphQuery.ComponentNode cn && cn.type() != null) {
+            compType = cn.type().name();
+        }
+        return compType == null ? "component" : compType.toLowerCase(Locale.ROOT);
+    }
+
+    private String resolveAppName(RuntimeFlowStepNode step, GraphQuery graph, Map<String, String> appNamesById) {
+        if (step.componentId() == null) return null;
+        GraphQuery.GraphNode compNode = graph.component(step.componentId());
+        if (compNode instanceof GraphQuery.ComponentNode cn && cn.module() != null) {
+            return appNamesById.get(cn.module().serialize());
+        }
+        return null;
+    }
+
+    private void appendParticipants(StringBuilder sb, Collection<Participant> parts) {
+        Map<String, List<Participant>> byApp = new LinkedHashMap<>();
+        for (Participant p : parts) {
+            byApp.computeIfAbsent(p.appName(), k -> new ArrayList<>()).add(p);
+        }
+        long apps = byApp.keySet().stream().filter(Objects::nonNull).count();
+        boolean useBoxes = apps > 1;
+        for (Map.Entry<String, List<Participant>> e : byApp.entrySet()) {
+            boolean box = useBoxes && e.getKey() != null;
+            if (box) sb.append("    box ").append(escape(e.getKey())).append("\n");
+            for (Participant p : e.getValue()) {
+                sb.append(box ? "        " : "    ")
+                        .append("participant ")
+                        .append(p.pid())
+                        .append(" as ")
+                        .append(escape(p.display()))
+                        .append("«")
+                        .append(p.stereotype())
+                        .append("»\n");
+            }
+            if (box) sb.append("    end\n");
+        }
+    }
+
+    private boolean isAsyncStereotype(String stereotype) {
+        ComponentType type;
+        try {
+            type = ComponentType.valueOf(stereotype.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+        MermaidStyle.Role role = MermaidStyle.roleFor(type);
+        return role == MermaidStyle.Role.MESSAGING || role == MermaidStyle.Role.EVENT;
     }
 
     private String entrypointLabel(EntrypointNode ep) {
@@ -105,20 +188,32 @@ public class MermaidCallFlowRenderer {
         return "invoke";
     }
 
+    private static String compKey(RuntimeFlowStepNode step) {
+        return step.componentId() != null ? step.componentId().serialize() : step.name();
+    }
+
+    private static Map<String, Integer> buildStepOrderIndex(List<RuntimeFlowStepNode> steps) {
+        Map<String, Integer> index = new HashMap<>();
+        for (int i = 0; i < steps.size(); i++) {
+            index.putIfAbsent(compKey(steps.get(i)), i);
+        }
+        return index;
+    }
+
     private Map<String, String> buildPidMap(List<RuntimeFlowStepNode> steps) {
         Map<String, Long> freq =
                 steps.stream().collect(Collectors.groupingBy(s -> sanitize(s.name()), Collectors.counting()));
         Map<String, Integer> counter = new HashMap<>();
         Map<String, String> result = new LinkedHashMap<>();
         for (RuntimeFlowStepNode step : steps) {
-            String compKey = step.componentId() != null ? step.componentId().serialize() : step.name();
-            if (result.containsKey(compKey)) continue;
+            String key = compKey(step);
+            if (result.containsKey(key)) continue;
             String base = sanitize(step.name());
             if (freq.getOrDefault(base, 1L) == 1) {
-                result.put(compKey, base);
+                result.put(key, base);
             } else {
                 int idx = counter.merge(base, 1, Integer::sum);
-                result.put(compKey, base + "_" + idx);
+                result.put(key, base + "_" + idx);
             }
         }
         return result;
