@@ -83,7 +83,7 @@ public class JavaEEExtractor {
         } else if (hasAnn(type, JAX_RS_PATH)) {
             compType = ComponentType.REST_RESOURCE;
             stereos.add("jax-rs");
-        } else if (hasAnn(type, ENTITY_ANNOTATIONS)) {
+        } else if (PersistenceEntityTypes.isEntity(type)) {
             compType = ComponentType.ENTITY;
             tech = "jpa";
             stereos.add("entity");
