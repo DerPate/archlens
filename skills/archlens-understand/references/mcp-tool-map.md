@@ -25,8 +25,9 @@ packaged server (24 tools).
 - `detect_use_cases(configFile?, module?, maxDepth?)`: Named use cases from entrypoints and call
   chains — one per entrypoint, so expect a large list on real workspaces.
 - `render_use_case_timeline(entrypointId?, entrypointName?, maxUseCases?, maxDepth?)`: Compare
-  execution depth across use cases as a Mermaid `gantt`. See [Reading the
-  diagrams](#reading-the-diagrams) before rendering unfiltered.
+  execution depth across use cases as a Mermaid `flowchart` — one chain per use case, each in
+  its own subgraph. See [Reading the diagrams](#reading-the-diagrams) before rendering
+  unfiltered.
 - `trace_data_flow(entrypointId?, entrypointName?, param?, sinkKind?)`: Track entrypoint
   parameters to sinks: `persistence`, `messaging`, `http-outbound`, `event-bus`, `store`,
   `file-outbound`, `object-storage`, or `unknown`. Also reports branch conditions guarding each
@@ -83,8 +84,10 @@ These properties are easy to misread; state them when presenting a diagram to a 
 - **Container-API calls are not attributed to the element type.** `list.stream()` on a
   `List<Order>` produces no `Order.stream` edge, because `Stream`/`Optional`/`Collection` methods
   run on the container. A missing `sorted`/`filter`/`map` step is by design, not a gap.
-- **The gantt x-axis compares depth, not time.** Each section restarts at step 0; a task spans
-  `[step, step + 1]`. Comparing across sections is only meaningful for depth.
+- **Timeline chains show order, not duration.** Each use case is one left-to-right chain;
+  depth reads as chain length. Nothing here encodes elapsed time. (This view was a `gantt` until
+  2026-08-16 — a duration primitive whose one-slot bars were too narrow to hold a component
+  label.)
 - **Branch conditions are capped at 255 characters** at extraction time. A condition ending in
   `...` is truncated in the model itself and cannot be recovered from the graph — read the source
   at the reported line if the tail matters, and say so when quoting it.

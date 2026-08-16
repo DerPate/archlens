@@ -129,26 +129,43 @@ Read this as "who calls whom", not as a trace.
 
 ```mermaid
 %%{init: {"theme": "base", "themeVariables": {"primaryColor": "#f5f5f5", "primaryBorderColor": "#9e9e9e", "primaryTextColor": "#212121", "lineColor": "#607d8b", "clusterBkg": "#fafafa", "clusterBorder": "#b0bec5"}}}%%
-gantt
-    title Use Case Execution Order
-    dateFormat  X
-    axisFormat  step %s
-    tickInterval 1second
-
-    section main
-    Main.main_method                    :active, 0, 1
-    McpServer.buildToolSpecifications   :1, 2
-    ToolResult.text                     :2, 3
-    QueryArchitectureGraphTool.execute  :3, 4
-    ModelCache.graph                    :4, 5
-    GraphStore.isEmpty                  :5, 6
-    GraphQuery.summary                  :6, 7
-    GraphNodeId.containsKey             :7, 8
-    ... (1 more steps) :crit, 8, 9
+flowchart LR
+    subgraph uc0["main"]
+        direction LR
+        uc0s0["Main.main_method"]
+        uc0s1("McpServer.buildToolSpecifications")
+        uc0s0 --> uc0s1
+        uc0s2["ToolResult.text"]
+        uc0s1 --> uc0s2
+        uc0s3("QueryArchitectureGraphTool.execute")
+        uc0s2 --> uc0s3
+        uc0s4("ModelCache.graph")
+        uc0s3 --> uc0s4
+        uc0s5["GraphStore.isEmpty"]
+        uc0s4 --> uc0s5
+        uc0s6["GraphQuery.summary"]
+        uc0s5 --> uc0s6
+        uc0s7[("GraphNodeId.containsKey")]
+        uc0s6 --> uc0s7
+        uc0more["1 more step"]
+        uc0s7 --> uc0more
+    end
+    classDef service fill:#b2dfdb,stroke:#00796b,color:#00352f
+    classDef entity fill:#dcedc8,stroke:#558b2f,color:#243c10
+    classDef component fill:#f5f5f5,stroke:#9e9e9e,color:#212121
+    class uc0s0 component
+    class uc0s1 service
+    class uc0s2 component
+    class uc0s3 service
+    class uc0s4 service
+    class uc0s5 component
+    class uc0s6 component
+    class uc0s7 entity
 ```
 
-Each task spans `[step, step + 1]`; the axis compares call depth, not time. With one entrypoint
-there is one section, so this view is more useful on an application with many entry points.
+Depth reads as chain length; nothing here encodes elapsed time. With one entrypoint there is one
+chain, so this view earns its keep on an application with many entry points, where the subgraphs
+sit side by side for comparison.
 
 ## Server Dispatch Surface
 

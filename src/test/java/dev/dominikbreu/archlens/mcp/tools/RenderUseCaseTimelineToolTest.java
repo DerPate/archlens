@@ -30,7 +30,7 @@ class RenderUseCaseTimelineToolTest {
         assertThat(structured).containsEntry("useCasesMatched", 8).containsEntry("useCasesShown", 5);
         assertThat(String.valueOf(structured.get("truncationHint"))).contains("5 deepest of 8");
         // ep7 is the deepest and ep0 the shallowest, so ep0 must be the one dropped.
-        assertThat(result.text()).contains("section ep7").doesNotContain("section ep0");
+        assertThat(result.text()).contains("[\"ep7\"]").doesNotContain("[\"ep0\"]");
     }
 
     @Test
