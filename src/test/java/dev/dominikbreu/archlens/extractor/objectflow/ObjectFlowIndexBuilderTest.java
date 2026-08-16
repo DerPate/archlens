@@ -175,6 +175,47 @@ class ObjectFlowIndexBuilderTest extends ExtractorTestBase {
     }
 
     @Test
+    void doesNotAttributeContainerApiCallsToTheElementType() {
+        Launcher launcher = new Launcher();
+        launcher.getEnvironment().setNoClasspath(true);
+        launcher.getEnvironment().setComplianceLevel(21);
+        launcher.getEnvironment().setShouldCompile(false);
+        launcher.addInputResource(new VirtualFile("""
+                package example;
+                import java.util.List;
+                class Payroll { String getValidFrom() { return null; } }
+                class PayrollService {
+                    void addOrUpdate(List<Payroll> payrolls) {
+                        payrolls.stream();
+                        payrolls.size();
+                        payrolls.get(0).getValidFrom();
+                    }
+                }
+                """, "ContainerFixture.java"));
+        launcher.buildModel();
+
+        ArchitectureModel architecture = new ArchitectureModel("test");
+        architecture.components.add(component("example.Payroll"));
+        architecture.components.add(component("example.PayrollService"));
+        ObjectFlowIndex containerIndex = new ObjectFlowIndexBuilder().build(launcher.getModel(), architecture);
+
+        // stream()/size() run on the List, which does not forward them to Payroll.
+        assertThat(resolvedMethodsOn(launcher, containerIndex, "example.Payroll"))
+                .doesNotContain("stream", "size")
+                // …but reaching through the container to a real method still resolves.
+                .contains("getValidFrom");
+    }
+
+    private static List<String> resolvedMethodsOn(
+            Launcher launcher, ObjectFlowIndex resolvedIndex, String componentId) {
+        return launcher.getModel().getElements(new TypeFilter<>(CtInvocation.class)).stream()
+                .flatMap(invocation -> resolvedIndex.resolveReceiver(invocation).stream())
+                .filter(target -> componentId.equals(target.componentId()))
+                .map(ReceiverTarget::methodName)
+                .toList();
+    }
+
+    @Test
     void expandsConcreteTypeThroughFullSupertypeClosure() {
         Launcher launcher = new Launcher();
         launcher.getEnvironment().setNoClasspath(true);

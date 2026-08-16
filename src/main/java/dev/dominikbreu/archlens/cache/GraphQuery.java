@@ -267,6 +267,41 @@ public class GraphQuery {
     }
 
     /**
+     * Returns the qualified names of types that cross an application boundary — the payload or
+     * entity of a sink that persists, publishes, uploads, or sends the value out of the process.
+     *
+     * <p>An entity named here is the thing being moved across the boundary, so it carries
+     * architectural meaning. An entity absent from this set is only ever read or transformed
+     * in-process, with a DTO or mapper carrying the information onward.
+     *
+     * @return qualified type names observed at boundary sinks, never null
+     */
+    public Set<String> boundaryCrossingTypes() {
+        lock.lock();
+        try {
+            Set<String> result = new LinkedHashSet<>();
+            for (GraphNode node : findNodes("DataFlowSink", null, Map.of(), 0)) {
+                if (!(node instanceof DataFlowSinkNode sink) || !isBoundarySink(sink.sinkKind())) continue;
+                if (sink.entityType() != null) result.add(sink.entityType());
+                if (sink.payloadType() != null) result.add(sink.payloadType());
+            }
+            return result;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /** STORE stays out: a shared in-memory field is in-process state, not a boundary. */
+    private static boolean isBoundarySink(DataFlowSink.Kind kind) {
+        return kind == DataFlowSink.Kind.PERSISTENCE
+                || kind == DataFlowSink.Kind.MESSAGING
+                || kind == DataFlowSink.Kind.EVENT_BUS
+                || kind == DataFlowSink.Kind.HTTP_OUTBOUND
+                || kind == DataFlowSink.Kind.OBJECT_STORAGE
+                || kind == DataFlowSink.Kind.FILE_OUTBOUND;
+    }
+
+    /**
      * Returns all container nodes as a typed list.
      *
      * @return list of container nodes

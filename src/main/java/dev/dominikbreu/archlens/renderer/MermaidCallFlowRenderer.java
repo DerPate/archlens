@@ -39,7 +39,7 @@ public class MermaidCallFlowRenderer {
      */
     public String render(RuntimeFlowNode flow, GraphQuery graph) {
         if (flow == null) return emptyDiagram();
-        List<RuntimeFlowStepNode> steps = graph.flowSteps(flow.id());
+        List<RuntimeFlowStepNode> steps = visibleSteps(graph.flowSteps(flow.id()), graph);
         if (steps.isEmpty()) return emptyDiagram();
 
         EntrypointNode ep = flow.entrypointId() != null
@@ -104,6 +104,36 @@ public class MermaidCallFlowRenderer {
             sb.append("    deactivate ").append(order.get(i)).append("\n");
         }
         return sb.toString();
+    }
+
+    /**
+     * Drops entity participants that never leave the process. An entity is kept when it crosses a
+     * boundary — persisted, published to a channel, or sent outbound — because there it is the
+     * payload being moved and belongs in the story. An entity that is only read or mapped in
+     * memory is an intermediate value: the DTO or mapper downstream carries the information on,
+     * and every accessor call on it is noise. Non-entity participants are untouched, and the
+     * underlying graph keeps every step either way.
+     */
+    private List<RuntimeFlowStepNode> visibleSteps(List<RuntimeFlowStepNode> steps, GraphQuery graph) {
+        Set<String> boundaryTypes = null;
+        List<RuntimeFlowStepNode> result = new ArrayList<>(steps.size());
+        for (RuntimeFlowStepNode step : steps) {
+            if (!isEntityStep(step, graph)) {
+                result.add(step);
+                continue;
+            }
+            if (boundaryTypes == null) boundaryTypes = graph.boundaryCrossingTypes();
+            if (step.componentId() != null
+                    && boundaryTypes.contains(step.componentId().serialize())) {
+                result.add(step);
+            }
+        }
+        // A flow made entirely of in-process entities still has to render something.
+        return result.isEmpty() ? steps : result;
+    }
+
+    private boolean isEntityStep(RuntimeFlowStepNode step, GraphQuery graph) {
+        return ComponentType.ENTITY.name().equalsIgnoreCase(resolveStereotype(step, graph));
     }
 
     private static String emptyDiagram() {
