@@ -62,8 +62,8 @@ try:
         "limit": 50
     })
 
-    open("/tmp/spoon-workflow-pipeline.mmd", "w").write(str(pipeline))
-    open("/tmp/spoon-workflow-links.txt", "w").write(str(workflow_links))
+    open("/tmp/archlens-workflow-pipeline.mmd", "w").write(str(pipeline))
+    open("/tmp/archlens-workflow-links.txt", "w").write(str(workflow_links))
 
     bad_markers = ["onShutdown", "onShutDown", "onStop", "predestroy"]
     for marker in bad_markers:

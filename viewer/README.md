@@ -1,4 +1,4 @@
-# Spoon Graph Viewer
+# ArchLens Graph Viewer
 
 Standalone Svelte/Sigma viewer for raw architecture graph JSON exported by the
 MCP server.
