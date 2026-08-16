@@ -330,8 +330,13 @@ Arguments:
 - `entrypointName` string, optional. Filter by entrypoint name or HTTP path (partial match).
   Prefix with an HTTP verb to disambiguate same-path endpoints: `"GET /account"` selects the
   GET handler, `"POST /account"` selects the POST handler.
-- `maxUseCases` integer, optional. Maximum sections to render. Default `10`.
+- `maxUseCases` integer, optional. Maximum sections to render, deepest first. Default `5` when
+  no filter is given, `25` when `entrypointId` or `entrypointName` narrows the set.
 - `maxDepth` integer, optional. Maximum call-chain steps per section. Default `5`.
+
+When more use cases match than fit, the deepest are kept and the result reports
+`useCasesMatched`, `useCasesShown`, and a `truncationHint`. Filter to one entry point for a
+chart that is readable rather than a sample of the workspace.
 
 Example — all use cases:
 
@@ -352,17 +357,20 @@ gantt
     title Use Case Execution Order
     dateFormat  X
     axisFormat  step %s
-
-    section POST Create Order
-    OrderResource.createOrder :active, 0, 1
-    OrderService.create       :       1, 1
-    OrderRepository.save      :       2, 1
+    tickInterval 1second
 
     section GET /orders/{id}
-    OrderResource.getOrder    :active, 0, 1
-    OrderService.find         :       1, 1
-    OrderRepository.findById  :       2, 1
+    OrderResource.GET /orders/{id}      :active, 0, 1
+    OrderService.find                   :1, 2
+    OrderRepository.findById            :2, 3
+
+    section forward
+    OrderForwarder.scheduler            :active, 0, 1
+    OrderBuffer.peek                    :1, 2
 ```
+
+Each task spans `[step, step + 1]`: with `dateFormat X` Mermaid reads the pair as start and
+end, not start and duration, so consecutive steps must abut rather than all ending at `1`.
 
 ---
 
