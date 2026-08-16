@@ -579,7 +579,7 @@ public class PersistenceTopologyExtractor {
     }
 
     private static SourceInfo source(CtElement element, String derivedFrom, double confidence) {
-        if (element.getPosition().isValidPosition()) {
+        if (element.getPosition().isValidPosition() && element.getPosition().getFile() != null) {
             return new SourceInfo(
                     element.getPosition().getFile().getAbsolutePath(),
                     element.getPosition().getLine(),

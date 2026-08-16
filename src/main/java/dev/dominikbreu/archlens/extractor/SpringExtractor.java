@@ -601,7 +601,7 @@ public class SpringExtractor {
      */
     protected String getFile(CtElement element) {
         var position = element.getPosition();
-        if (position.isValidPosition()) {
+        if (position.isValidPosition() && position.getFile() != null) {
             return position.getFile().getAbsolutePath();
         } else {
             return "unknown";
