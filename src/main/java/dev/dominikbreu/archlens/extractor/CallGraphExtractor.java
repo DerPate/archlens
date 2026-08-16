@@ -408,7 +408,7 @@ public class CallGraphExtractor {
         fa.id = FieldAccessId.of(FIELD_PREFIX + owner.id.serialize() + "#" + method + "@" + fieldName + ":"
                 + kind.name().toLowerCase());
         String file;
-        if (pos != null && pos.isValidPosition()) {
+        if (pos != null && pos.isValidPosition() && pos.getFile() != null) {
             file = pos.getFile().getAbsolutePath();
         } else {
             file = UNKNOWN;
@@ -1087,7 +1087,9 @@ public class CallGraphExtractor {
     }
 
     private static String sourceFileOf(spoon.reflect.cu.SourcePosition pos) {
-        return pos != null && pos.isValidPosition() ? pos.getFile().getAbsolutePath() : UNKNOWN;
+        return pos != null && pos.isValidPosition() && pos.getFile() != null
+                ? pos.getFile().getAbsolutePath()
+                : UNKNOWN;
     }
 
     private static int sourceLineOf(spoon.reflect.cu.SourcePosition pos) {
@@ -1187,7 +1189,7 @@ public class CallGraphExtractor {
                     + toComp.id.serialize() + "#" + calleeMethod.getSimpleName() + ":" + fieldName + ":read:xcomp");
             var pos = inv.getPosition();
             String file;
-            if (pos != null && pos.isValidPosition()) {
+            if (pos != null && pos.isValidPosition() && pos.getFile() != null) {
                 file = pos.getFile().getAbsolutePath();
             } else {
                 file = UNKNOWN;
@@ -1351,7 +1353,7 @@ public class CallGraphExtractor {
     private SourceInfo buildSource(CtInvocation<?> inv) {
         var pos = inv.getPosition();
         String file;
-        if (pos.isValidPosition()) {
+        if (pos.isValidPosition() && pos.getFile() != null) {
             file = pos.getFile().getAbsolutePath();
         } else {
             file = UNKNOWN;
