@@ -503,7 +503,7 @@ public class McpServer {
         specs.add(toolSpec(
                 "render_use_case_timeline",
                 "Render Use Case Timeline",
-                "Render a Mermaid gantt chart showing sequential execution steps across use cases. Each use case is a section; each component hop is a task bar positioned by call depth. Useful for comparing execution depth and component involvement across entry points. Filter to one entry point for a readable chart: unfiltered, it renders only the deepest few use cases and reports the rest via useCasesMatched.",
+                "Render a Mermaid flowchart of use-case execution: one left-to-right chain per use case, each in its own subgraph, each component hop a node shaped by its role. Execution depth reads as chain length. Useful for comparing depth and component involvement across entry points. Filter to one entry point for a readable chart: unfiltered, it renders only the deepest few use cases and reports the rest via useCasesMatched.",
                 schema().opt(ENTRYPOINT_ID, TYPE_STRING, "Filter to a single use case by entrypoint ID")
                         .opt(
                                 ENTRYPOINT_NAME,

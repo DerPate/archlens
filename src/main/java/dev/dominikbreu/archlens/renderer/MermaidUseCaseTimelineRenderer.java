@@ -1,11 +1,20 @@
 package dev.dominikbreu.archlens.renderer;
 
 import dev.dominikbreu.archlens.cache.GraphQuery;
+import dev.dominikbreu.archlens.model.ComponentType;
 import java.util.List;
+import java.util.Locale;
 import org.apache.commons.lang3.StringUtils;
 
 /**
- * Renders a Mermaid {@code gantt} chart from a list of runtime flows.
+ * Renders use-case execution as a Mermaid {@code flowchart}: one left-to-right chain per use
+ * case, each chain wrapped in a subgraph named after its entrypoint.
+ *
+ * <p>This was a {@code gantt} until 2026-08-16. Gantt is a duration primitive, and the data here
+ * is ordinal — step 0, 1, 2 — so every bar was one slot wide, which on a chart of N steps is
+ * {@code 1/N} of the width. Labels of 15-35 characters could not fit inside a bar that narrow, so
+ * Mermaid pushed them outside and the trailing ones clipped off the canvas. Flowchart nodes size
+ * themselves to their text, so the label always fits and depth reads as chain length instead.
  */
 public class MermaidUseCaseTimelineRenderer {
 
@@ -13,64 +22,92 @@ public class MermaidUseCaseTimelineRenderer {
     public MermaidUseCaseTimelineRenderer() {}
 
     /**
-     * Renders a Mermaid Gantt-style timeline of use-case execution.
+     * Renders a Mermaid flowchart of use-case execution order.
      *
-     * @param flows the runtime flows to place on the timeline
+     * @param flows the runtime flows to render, one chain each
      * @param graph the graph the flows belong to
-     * @param maxDepth how deep to expand each flow
+     * @param maxDepth how many steps to show per flow before summarizing the rest
      * @return the Mermaid diagram source
      */
     public String render(List<GraphQuery.RuntimeFlowNode> flows, GraphQuery graph, int maxDepth) {
         if (flows.isEmpty()) {
-            return MermaidStyle.header() + "gantt\n    title Use Case Execution Order\n    note[no use cases found]\n";
+            return MermaidStyle.header() + "flowchart LR\n    none[\"no use cases found\"]\n";
         }
 
-        StringBuilder sb = new StringBuilder();
-        sb.append(MermaidStyle.header());
-        sb.append("gantt\n");
-        sb.append("    title Use Case Execution Order\n");
-        sb.append("    dateFormat  X\n");
-        sb.append("    axisFormat  step %s\n");
-        // dateFormat X reads the numbers as epoch seconds, so a flow spans only a handful of
-        // seconds and the axis would otherwise place sub-second ticks that all format to the same
-        // step number ("step 0" repeated across the width). Pin ticks to whole steps.
-        sb.append("    tickInterval 1second\n");
+        StringBuilder sb = new StringBuilder(MermaidStyle.header());
+        sb.append("flowchart LR\n");
+        MermaidStyle.Tracker tracker = new MermaidStyle.Tracker();
 
+        int flowIndex = 0;
         for (GraphQuery.RuntimeFlowNode flow : flows) {
             GraphQuery.GraphNode epNode = flow.entrypointId() != null ? graph.entrypoint(flow.entrypointId()) : null;
             GraphQuery.EntrypointNode ep = epNode instanceof GraphQuery.EntrypointNode en ? en : null;
-            String sectionTitle = sectionLabel(ep, flow);
-            sb.append("\n    section ").append(sanitizeSection(sectionTitle)).append("\n");
+            String prefix = "uc" + flowIndex;
+
+            sb.append("    subgraph ")
+                    .append(prefix)
+                    .append("[\"")
+                    .append(Mermaid.escapeLabel(sectionLabel(ep, flow)))
+                    .append("\"]\n");
+            sb.append("        direction LR\n");
 
             List<GraphQuery.RuntimeFlowStepNode> steps = graph.flowSteps(flow.id());
             int limit = Math.min(steps.size(), maxDepth);
+            String previousId = null;
             for (int i = 0; i < limit; i++) {
                 GraphQuery.RuntimeFlowStepNode step = steps.get(i);
-                String taskLabel = taskLabel(step, graph);
-                String style = i == 0 ? "active, " : "";
-                // Mermaid reads the two numbers as start and end, not start and duration, so a
-                // step at index i must span [i, i+1]. Emitting ", 1" gave step 1 zero width and
-                // steps 2+ a negative one, which is why every section rendered as a single bar.
-                sb.append("    ")
-                        .append(pad(taskLabel, 36))
-                        .append(":")
-                        .append(style)
-                        .append(i)
-                        .append(", ")
-                        .append(i + 1)
-                        .append("\n");
+                String nodeId = prefix + "s" + i;
+                MermaidStyle.Role role = roleFor(step, graph);
+                sb.append(MermaidStyle.node("        ", nodeId, taskLabel(step, graph), role));
+                tracker.tag(nodeId, role);
+                if (previousId != null) {
+                    sb.append("        ")
+                            .append(previousId)
+                            .append(" --> ")
+                            .append(nodeId)
+                            .append("\n");
+                }
+                previousId = nodeId;
             }
             if (steps.size() > limit) {
-                sb.append("    ... (")
-                        .append(steps.size() - limit)
-                        .append(" more steps) :crit, ")
-                        .append(limit)
-                        .append(", ")
-                        .append(limit + 1)
-                        .append("\n");
+                String moreId = prefix + "more";
+                int remaining = steps.size() - limit;
+                sb.append("        ")
+                        .append(moreId)
+                        .append("[\"")
+                        .append(remaining)
+                        .append(remaining == 1 ? " more step\"]\n" : " more steps\"]\n");
+                if (previousId != null) {
+                    sb.append("        ")
+                            .append(previousId)
+                            .append(" --> ")
+                            .append(moreId)
+                            .append("\n");
+                }
+            }
+            sb.append("    end\n");
+            flowIndex++;
+        }
+
+        sb.append(tracker.footer());
+        return sb.toString();
+    }
+
+    private MermaidStyle.Role roleFor(GraphQuery.RuntimeFlowStepNode step, GraphQuery graph) {
+        ComponentType type = null;
+        if (step.componentId() != null
+                && graph.component(step.componentId()) instanceof GraphQuery.ComponentNode cn
+                && cn.type() != null) {
+            type = cn.type();
+        }
+        if (type == null && step.componentType() != null) {
+            try {
+                type = ComponentType.valueOf(step.componentType().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException _) {
+                type = null;
             }
         }
-        return sb.toString();
+        return type == null ? MermaidStyle.Role.COMPONENT : MermaidStyle.roleFor(type);
     }
 
     private String sectionLabel(GraphQuery.EntrypointNode ep, GraphQuery.RuntimeFlowNode flow) {
@@ -93,15 +130,5 @@ public class MermaidUseCaseTimelineRenderer {
         }
         String via = StringUtils.isNotBlank(step.via()) ? step.via() : "call";
         return compName + "." + via;
-    }
-
-    private String sanitizeSection(String s) {
-        if (s == null) return "unknown";
-        return s.replace(":", " -");
-    }
-
-    private String pad(String s, int width) {
-        if (s.length() >= width) return s;
-        return s + " ".repeat(width - s.length());
     }
 }
