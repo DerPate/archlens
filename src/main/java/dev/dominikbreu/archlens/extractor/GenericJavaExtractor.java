@@ -22,6 +22,63 @@ import spoon.reflect.declaration.ModifierKind;
  */
 public class GenericJavaExtractor {
 
+    /**
+     * Type-name suffixes that denote a component which <em>does</em> something, as opposed to one
+     * that holds data. Annotation-free code offers no declaration of intent, so the name is the
+     * only signal available; every entry here is a widely used Java role suffix rather than a
+     * convention private to one codebase.
+     *
+     * <p>Kept deliberately behavioural. A suffix naming a value — {@code Result}, {@code View},
+     * {@code Context}, {@code Evidence} — is left unclassified on purpose: calling those
+     * {@code ENTITY} would hide them from workflow diagrams via the boundary-crossing filter, and
+     * they are not domain objects in the sense that type means.
+     */
+    private static final Set<String> SERVICE_SUFFIXES = Set.of(
+            "service",
+            "server",
+            "tool",
+            "cache",
+            "renderer",
+            "extractor",
+            "scanner",
+            "merger",
+            "resolver",
+            "builder",
+            "factory",
+            "provider",
+            "manager",
+            "handler",
+            "listener",
+            "validator",
+            "mapper",
+            "converter",
+            "adapter",
+            "registry",
+            "detector",
+            "inferrer",
+            "analyzer",
+            "parser",
+            "projector",
+            "normalizer",
+            "classifier",
+            "linker",
+            "tracer",
+            "processor",
+            "dispatcher",
+            "router",
+            "executor",
+            "collector",
+            "generator",
+            "planner",
+            "recorder",
+            "scorer",
+            "answerer",
+            "condenser",
+            "promoter",
+            "publisher",
+            "subscriber",
+            "interceptor");
+
     /** Creates a fallback extractor using conservative Java naming heuristics. */
     public GenericJavaExtractor() {}
 
@@ -113,15 +170,7 @@ public class GenericJavaExtractor {
         if (simpleName.endsWith("client") || simpleName.endsWith("proxy")) {
             return ComponentType.HTTP_CLIENT;
         }
-        if (simpleName.endsWith("renderer")) {
-            return ComponentType.SERVICE;
-        }
-        if (simpleName.endsWith("tool")
-                || simpleName.endsWith("extractor")
-                || simpleName.endsWith("merger")
-                || simpleName.endsWith("scanner")
-                || simpleName.endsWith("cache")
-                || simpleName.endsWith("server")) {
+        if (SERVICE_SUFFIXES.stream().anyMatch(simpleName::endsWith)) {
             return ComponentType.SERVICE;
         }
         if (qualifiedName.contains(".util.") || simpleName.endsWith("utils")) {
@@ -146,7 +195,9 @@ public class GenericJavaExtractor {
 
     private String getFile(CtElement element) {
         var position = element.getPosition();
-        if (position.isValidPosition()) {
+        // isValidPosition() can be true while getFile() is null — Spoon reports a line but no
+        // file for sources it did not read from disk (in-memory input, generated types).
+        if (position.isValidPosition() && position.getFile() != null) {
             return position.getFile().getAbsolutePath();
         } else {
             return "unknown";
