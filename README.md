@@ -78,7 +78,7 @@ For step-by-step client setup, see [docs/INSTALL.md](docs/INSTALL.md).
 
 ## Workflow Pack
 
-This repository includes a portable agent workflow under [skills/spoon-understand](skills/spoon-understand). It describes how to use the MCP tools as a coherent "understand this Java system" workflow, with small adapters for OpenAI/Codex, Claude, and Copilot.
+This repository includes a portable agent workflow under [skills/archlens-understand](skills/archlens-understand). It describes how to use the MCP tools as a coherent "understand this Java system" workflow, with small adapters for OpenAI/Codex, Claude, and Copilot.
 
 The workflow pack is optional. The MCP server and tools work directly from any MCP-capable client.
 
@@ -192,7 +192,7 @@ This serialized form is what every tool emits and expects as input, including th
   instructions need to say to actually use it.
 - `docs/ARCHITECTURE.md`: package responsibilities and data flow.
 - `docs/ROADMAP.md`: benchmark, evidence, persistence configuration, and transaction-analysis milestones.
-- `skills/spoon-understand/`: portable agent workflow pack.
+- `skills/archlens-understand/`: portable agent workflow pack.
 - `AGENTS.md`: repository guide for coding agents.
 - `examples/jsonrpc/`: example JSON-RPC requests.
 - `llms.txt`: compact index for LLM and agent ingestion.

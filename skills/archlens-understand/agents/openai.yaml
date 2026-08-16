@@ -1,7 +1,7 @@
 interface:
-  display_name: "Spoon Understand"
+  display_name: "ArchLens Understand"
   short_description: "Understand Java architecture with ArchLens"
-  default_prompt: "Use $spoon-understand to analyze this Java workspace and explain the architecture."
+  default_prompt: "Use $archlens-understand to analyze this Java workspace and explain the architecture."
 
 dependencies:
   tools:

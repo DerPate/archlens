@@ -12,7 +12,7 @@ Copilot should use this as an MCP workflow recipe:
 
 Suggested user prompts:
 
-- "Use the spoon-understand workflow to explain this Java project."
+- "Use the archlens-understand workflow to explain this Java project."
 - "Trace this REST endpoint with ArchLens."
 - "Find graph impact for this component."
 - "Export a graph viewer for this workspace."
