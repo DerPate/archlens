@@ -31,6 +31,10 @@ public class MermaidUseCaseTimelineRenderer {
         sb.append("    title Use Case Execution Order\n");
         sb.append("    dateFormat  X\n");
         sb.append("    axisFormat  step %s\n");
+        // dateFormat X reads the numbers as epoch seconds, so a flow spans only a handful of
+        // seconds and the axis would otherwise place sub-second ticks that all format to the same
+        // step number ("step 0" repeated across the width). Pin ticks to whole steps.
+        sb.append("    tickInterval 1second\n");
 
         for (GraphQuery.RuntimeFlowNode flow : flows) {
             GraphQuery.GraphNode epNode = flow.entrypointId() != null ? graph.entrypoint(flow.entrypointId()) : null;
@@ -44,19 +48,26 @@ public class MermaidUseCaseTimelineRenderer {
                 GraphQuery.RuntimeFlowStepNode step = steps.get(i);
                 String taskLabel = taskLabel(step, graph);
                 String style = i == 0 ? "active, " : "";
+                // Mermaid reads the two numbers as start and end, not start and duration, so a
+                // step at index i must span [i, i+1]. Emitting ", 1" gave step 1 zero width and
+                // steps 2+ a negative one, which is why every section rendered as a single bar.
                 sb.append("    ")
                         .append(pad(taskLabel, 36))
                         .append(":")
                         .append(style)
                         .append(i)
-                        .append(", 1\n");
+                        .append(", ")
+                        .append(i + 1)
+                        .append("\n");
             }
             if (steps.size() > limit) {
                 sb.append("    ... (")
                         .append(steps.size() - limit)
                         .append(" more steps) :crit, ")
                         .append(limit)
-                        .append(", 1\n");
+                        .append(", ")
+                        .append(limit + 1)
+                        .append("\n");
             }
         }
         return sb.toString();
