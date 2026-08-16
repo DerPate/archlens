@@ -553,8 +553,10 @@ public class McpServer {
                         Map.of(
                                 "id", Map.of("type", "string"),
                                 "name", Map.of("type", "string"),
-                                "type", Map.of("type", "string"),
-                                "channelOrPath", Map.of("type", "string"),
+                                // Both are null for entrypoints the tool emits as null: a scheduler
+                                // or main method has neither an HTTP path nor a channel.
+                                "type", Map.of("type", List.of("string", "null")),
+                                "channelOrPath", Map.of("type", List.of("string", "null")),
                                 "components", Map.of("type", "string"),
                                 "methodChain", Map.of("type", "array"))),
                 detectUseCasesTool::execute));

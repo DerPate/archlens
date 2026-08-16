@@ -88,6 +88,21 @@ class McpServerTest {
     }
 
     @Test
+    void detectUseCasesSchema_allowsNullForFieldsTheToolEmitsAsNull() {
+        // DetectUseCasesTool puts a plain null for type and channelOrPath when the entrypoint has
+        // neither an HTTP path nor a channel (schedulers, main methods, entity-event listeners).
+        // Declaring them as bare "string" made the whole tool fail output validation on any
+        // workspace containing one such entrypoint.
+        McpSchema.Tool tool = tool(new McpServer(), "detect_use_cases");
+
+        Map<?, ?> useCases = (Map<?, ?>) properties(tool).get("useCases");
+        Map<?, ?> itemProperties = (Map<?, ?>) ((Map<?, ?>) useCases.get("items")).get("properties");
+        assertThat(((Map<?, ?>) itemProperties.get("channelOrPath")).get("type"))
+                .isEqualTo(List.of("string", "null"));
+        assertThat(((Map<?, ?>) itemProperties.get("type")).get("type")).isEqualTo(List.of("string", "null"));
+    }
+
+    @Test
     void compileQuestionToOkfSchema_requiresReviewedResultAndExposesWriteOutcome() {
         McpSchema.Tool tool = tool(new McpServer(), "compile_architecture_question_to_okf");
 
