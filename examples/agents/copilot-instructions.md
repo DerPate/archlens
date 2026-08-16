@@ -1,6 +1,6 @@
 # GitHub Copilot Instructions
 
-This Java project can be analyzed with Spoon MCP Server. Use it for architecture and
+This Java project can be analyzed with ArchLens. Use it for architecture and
 workflow questions instead of guessing from filenames alone.
 
 ## Local Project Facts
@@ -9,7 +9,7 @@ workflow questions instead of guessing from filenames alone.
 - Build command: TODO
 - Test command: TODO
 - Important modules/source roots: TODO
-- Generated or ignored output: `target/`, `.spoon-mcp-cache/`, generated sources, reports
+- Generated or ignored output: `target/`, `.archlens-cache/`, generated sources, reports
 
 ## Architecture Analysis
 
@@ -36,7 +36,7 @@ Do not rank components by fan-in alone. A timestamp formatter, mapper, parser, l
 config class, DTO, or generic utility may have many callers without being a workflow
 pivot.
 
-Prefer Spoon MCP graph properties:
+Prefer ArchLens graph properties:
 
 - `workflowRelevant`
 - `businessRelevant`
@@ -74,5 +74,5 @@ For ordinary Java projects, prefer source-derived `CALLS` edges with
 
 - Prefer focused changes with tests for extractor, graph, renderer, and MCP tool behavior.
 - Update tool docs when changing tool output or graph labels.
-- Do not commit generated output from `target/` or `.spoon-mcp-cache/`.
+- Do not commit generated output from `target/` or `.archlens-cache/`.
 - Explain which claims are confirmed by MCP output and which are educated guesses.

@@ -7,7 +7,7 @@ test('loads exported graph data and renders the graph canvas', async ({ page }) 
   });
 
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Spoon Graph Viewer' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'ArchLens Graph Viewer' })).toBeVisible();
   await expect(page.getByText(/visible nodes, .* visible edges/)).toBeVisible();
   await expect(page.getByText(/Layout: fcose/)).toBeVisible();
 

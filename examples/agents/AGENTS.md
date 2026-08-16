@@ -1,6 +1,6 @@
 # Agent Guide
 
-Use this file as a starter `AGENTS.md` for Java projects that are analyzed with Spoon MCP
+Use this file as a starter `AGENTS.md` for Java projects that are analyzed with ArchLens
 Server. Customize the project facts before using it.
 
 ## Project Facts
@@ -11,13 +11,13 @@ Server. Customize the project facts before using it.
 - Package command: TODO
 - Source roots: TODO
 - Test roots: TODO
-- Generated output to ignore: `target/`, `.spoon-mcp-cache/`, generated sources, reports
+- Generated output to ignore: `target/`, `.archlens-cache/`, generated sources, reports
 
-## Use Spoon MCP For Architecture Work
+## Use ArchLens For Architecture Work
 
 When the task asks about architecture, component roles, entrypoints, dependencies,
 runtime flow, call flow, data flow, messaging, schedulers, repositories, external
-systems, containers, deployment hints, or change impact, use Spoon MCP Server.
+systems, containers, deployment hints, or change impact, use ArchLens.
 
 Start by indexing the workspace:
 

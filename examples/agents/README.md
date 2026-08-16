@@ -4,7 +4,7 @@ These files are starter instructions for common AI coding tools. Copy the one th
 matches your tool into the target Java repository, then adjust the project-specific
 sections.
 
-The templates assume Spoon MCP Server is already configured in the AI tool as an MCP
+The templates assume ArchLens is already configured in the AI tool as an MCP
 server, usually named `spoon`.
 
 ## Files
@@ -34,4 +34,4 @@ The templates guide agents to:
 - prefer `WORKFLOW_LINK`, `STATE_HANDOFF`, and `PipelineChain` evidence over raw fan-in;
 - downrank utilities, formatters, mappers, loggers, config classes, DTO-ish types, and
   unknown components unless they bridge real workflows;
-- report uncertainty when Spoon MCP evidence is incomplete.
+- report uncertainty when ArchLens evidence is incomplete.
