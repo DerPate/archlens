@@ -54,7 +54,10 @@ Use when the user names an endpoint, consumer, scheduler, channel, or business a
 1. Use `find_entrypoints` to resolve candidates. For HTTP paths with multiple verbs, use `"METHOD /path"` style filters in downstream tools.
 2. Call `call_flow` for the execution path.
 3. Call `trace_data_flow` for the entrypoint or parameter when data movement matters.
-4. Call `render_use_case_timeline` when comparing multiple use cases or depth.
+4. Call `render_use_case_timeline` when comparing multiple use cases or depth. Always pass
+   `entrypointId` or `entrypointName` — unfiltered it renders a deepest-first sample of the whole
+   workspace, which compares nothing a reader cares about. Report `useCasesShown` against
+   `useCasesMatched` whenever sections were dropped.
 5. Report the exact entrypoint id, call chain, sinks, handoffs, and any fallback or ambiguity warnings from tool output.
 
 ### Component Investigation
@@ -112,5 +115,16 @@ Call out limitations plainly:
 - Ambiguous receiver evidence should be treated as review material, not a strong claim.
 - A missing pipeline can mean unresolved config/destinations, not necessarily no workflow.
 - Generic utility/DTO/config classes may appear in graph results; prefer high-signal workflow filters for first-pass summaries.
+- A `call_flow` chain that stops early is an unresolved step, not proof that nothing follows. Say
+  "not resolved" rather than implying the component does no I/O.
+
+Diagrams carry conventions a reader will otherwise guess wrong — sequence-diagram order is not
+temporal, entities appear only where they cross a boundary, and container-API calls
+(`stream`/`filter`/`get`) are deliberately not attributed to the element type. State the relevant
+one when you present a diagram; `references/mcp-tool-map.md` has the full list.
+
+Never present a quoted condition, label, or identifier as graph-derived when it came from reading
+source, and never complete a value the graph truncated without saying so. Mixing the two is how a
+generated document ends up containing a string that exists in neither.
 
 When comparing to generic code-understanding tools, emphasize the lane: this server is Java/Spoon-specific and source-derived, with framework-aware entrypoints, dependencies, runtime flow, data-flow sinks, workflow links, and architecture exports.
