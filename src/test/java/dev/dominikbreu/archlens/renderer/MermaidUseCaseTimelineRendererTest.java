@@ -79,10 +79,38 @@ class MermaidUseCaseTimelineRendererTest {
     void stepCountRespectMaxDepth() {
         var r = build("ep1", 6);
         String out = renderer.render(r.flows(), r.graph(), 3);
-        long taskLines = out.lines()
-                .filter(l -> l.contains(":active,") || (l.contains(":") && l.contains(", 1")))
-                .count();
-        assertThat(taskLines).isEqualTo(4); // 3 steps + 1 overflow
+        assertThat(taskLines(out)).hasSize(4); // 3 steps + 1 overflow
+    }
+
+    @Test
+    void eachStepSpansOneWholeSlotStartingWhereThePreviousEnded() {
+        // dateFormat X makes mermaid read the pair as (start, end), not (start, duration).
+        // Emitting ", 1" for every task gave step 1 a zero-width bar and steps 2+ a negative one,
+        // so a section rendered as a single bar no matter how many steps it had.
+        var r = build("ep1", 4);
+        String out = renderer.render(r.flows(), r.graph(), 5);
+
+        List<String> spans = taskLines(out).stream()
+                .map(line -> line.substring(line.lastIndexOf(':') + 1)
+                        .replace("active,", "")
+                        .trim())
+                .toList();
+
+        assertThat(spans).containsExactly("0, 1", "1, 2", "2, 3", "3, 4");
+    }
+
+    @Test
+    void axisTicksArePinnedToWholeSteps() {
+        // Without this the axis emits sub-second ticks that all format to the same step number.
+        var r = build("ep1", 3);
+        assertThat(renderer.render(r.flows(), r.graph(), 5)).contains("tickInterval 1second");
+    }
+
+    /** Gantt task lines: {@code <label> :[tag, ]<start>, <end>}. */
+    private static List<String> taskLines(String diagram) {
+        return diagram.lines()
+                .filter(l -> l.matches("^\\s+\\S.*:(active, |crit, )?\\d+, \\d+\\s*$"))
+                .toList();
     }
 
     @Test

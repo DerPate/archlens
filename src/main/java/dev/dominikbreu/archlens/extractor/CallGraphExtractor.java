@@ -844,10 +844,14 @@ public class CallGraphExtractor {
         return null;
     }
 
+    /** Upper bound on stored branch-condition text; truncation here is lossy for every consumer. */
+    private static final int MAX_CONDITION_LENGTH = 255;
+
     private static String conditionLabel(CtExpression<?> condition) {
         if (condition == null) return "?";
         String text = condition.toString();
-        return text.length() > 55 ? text.substring(0, 52) + "..." : text;
+        if (text.length() <= MAX_CONDITION_LENGTH) return text;
+        return text.substring(0, MAX_CONDITION_LENGTH - 3) + "...";
     }
 
     private BranchContext switchBranchContext(CtCase<?> ctCase) {
