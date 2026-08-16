@@ -76,9 +76,8 @@ site/public/api/
 doxygen-*.tar.gz
 *.bak
 
-# Claude Code local config and skills cache
+# Claude Code local config (skills there are a symlink to the canonical skills/)
 .claude/
-skills/
 
 # Temporary files
 tmp/

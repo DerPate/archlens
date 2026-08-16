@@ -5,8 +5,11 @@ description: Understand Java workspaces with ArchLens. Use when an agent needs t
 
 # Spoon Understand
 
-> Canonical source. Claude Code loads the mirrored copy at `.claude/skills/spoon-understand/`
-> — edit here, then re-sync that copy (e.g. `cp -r skills/spoon-understand/* .claude/skills/spoon-understand/`).
+> Canonical and only source. `.claude/skills/spoon-understand` and
+> `.agents/skills/spoon-understand` are symlinks to this directory, so edits here take effect
+> everywhere with no copying. If a symlink is missing (a Windows checkout, or a fresh clone
+> without symlink support), recreate it with
+> `ln -s ../../skills/spoon-understand .claude/skills/spoon-understand`.
 
 Use this skill to turn a Java workspace into an architecture tour using ArchLens tools. Keep the workflow host-neutral: Claude, Codex, Copilot, or another MCP-capable agent should all call the same MCP tool names and adapt only the presentation format.
 
