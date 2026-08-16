@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Self-test for the spoon-understand skill.
+"""Self-test for the archlens-understand skill.
 
-Walks every workflow documented in skills/spoon-understand/SKILL.md and
+Walks every workflow documented in skills/archlens-understand/SKILL.md and
 references/mcp-tool-map.md against a real fixture project, using the exact
 tool names and argument names the skill tells an agent to use. Reports
 PASS/FAIL per step instead of asserting exact content, since fixture data
 can change.
 
-Usage: python3 scripts/self-test-spoon-understand.py [workspace_path]
+Usage: python3 scripts/self-test-archlens-understand.py [workspace_path]
 """
 
 import json
@@ -86,7 +86,7 @@ call(
     {
         "protocolVersion": "2025-11-25",
         "capabilities": {},
-        "clientInfo": {"name": "spoon-understand-self-test", "version": "1"},
+        "clientInfo": {"name": "archlens-understand-self-test", "version": "1"},
     },
 )
 notify("notifications/initialized")
@@ -172,7 +172,7 @@ proc.terminate()
 CACHE_ROOT.cleanup()
 
 # --- Report ---
-print(f"Self-test of spoon-understand against {WORKSPACE}\n")
+print(f"Self-test of archlens-understand against {WORKSPACE}\n")
 passed = 0
 for label, ok, detail in results:
     status = "PASS" if ok else "FAIL"

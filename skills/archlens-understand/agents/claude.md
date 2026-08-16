@@ -12,9 +12,9 @@ Claude should treat ArchLens as the execution surface:
 
 Suggested user prompts:
 
-- "Use spoon-understand to map this Java workspace."
-- "Use spoon-understand to trace `POST /orders` through runtime and data flow."
-- "Use spoon-understand to find async pipelines and workflow handoffs."
-- "Use spoon-understand to explain what changes if `OrderRepository` changes."
+- "Use archlens-understand to map this Java workspace."
+- "Use archlens-understand to trace `POST /orders` through runtime and data flow."
+- "Use archlens-understand to find async pipelines and workflow handoffs."
+- "Use archlens-understand to explain what changes if `OrderRepository` changes."
 
 If Claude project instructions already include `AGENTS.md`, keep those repository rules authoritative.
