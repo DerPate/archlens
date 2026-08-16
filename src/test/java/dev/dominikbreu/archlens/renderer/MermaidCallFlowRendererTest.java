@@ -245,6 +245,66 @@ class MermaidCallFlowRendererTest {
         assertThat(out).contains("participant Service_2");
     }
 
+    @Test
+    void keepsEntityThatCrossesABoundaryAndDropsTheOneThatStaysInProcess() {
+        // Persisted is written to the DB, so it is the payload being moved and belongs in the
+        // diagram. Scratch is only read and mapped in memory — a DTO carries the information on.
+        ArchitectureModel m = entityFlowModel();
+        var r = buildGraph(m, entityFlow());
+
+        String out = renderer.render(r.flowNode(), r.graph());
+
+        assertThat(out).contains("participant Persisted");
+        assertThat(out).doesNotContain("participant Scratch");
+        assertThat(out).contains("participant Svc");
+    }
+
+    private ArchitectureModel entityFlowModel() {
+        ArchitectureModel m = new ArchitectureModel("test");
+        m.components.add(component("Svc", ComponentType.SERVICE));
+        m.components.add(component("Persisted", ComponentType.ENTITY));
+        m.components.add(component("Scratch", ComponentType.ENTITY));
+
+        DataFlowPath path = new DataFlowPath();
+        path.id =
+                dev.dominikbreu.archlens.model.ids.DataFlowPathId.of(EntrypointId.deserialize("Svc#handle"), "payload");
+        DataFlowSink sink = new DataFlowSink(DataFlowSink.Kind.PERSISTENCE, ComponentId.of("Svc"), "Svc", "save", null);
+        sink.entityType = "Persisted";
+        path.sinks.add(sink);
+        m.dataFlowPaths.add(path);
+        return m;
+    }
+
+    private RuntimeFlow entityFlow() {
+        RuntimeFlow f = new RuntimeFlow();
+        f.id = "flow:entity";
+        f.entrypointId = EntrypointId.deserialize("Svc#handle");
+        String[] names = {"Svc", "Persisted", "Scratch"};
+        String[] types = {"SERVICE", "ENTITY", "ENTITY"};
+        for (int i = 0; i < names.length; i++) {
+            RuntimeFlowStep s = new RuntimeFlowStep();
+            s.order = i;
+            s.componentId = ComponentId.of(names[i]);
+            s.componentName = names[i];
+            s.componentType = types[i];
+            s.via = "call";
+            f.steps.add(s);
+            if (i > 0) {
+                f.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of("Svc"), ComponentId.of(names[i]), "use"));
+            }
+        }
+        return f;
+    }
+
+    private Component component(String name, ComponentType type) {
+        Component c = new Component();
+        c.id = ComponentId.of(name);
+        c.name = name;
+        c.qualifiedName = name;
+        c.type = type;
+        return c;
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     record GraphResult(GraphQuery.RuntimeFlowNode flowNode, GraphQuery graph) {}

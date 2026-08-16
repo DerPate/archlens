@@ -331,7 +331,7 @@ public class ObjectFlowIndexBuilder {
         CtVariable<?> variable = variable(target);
         if (variable != null && variable.getType() != null) {
             return ReceiverResolution.of(
-                    typeIndex.expandDeclaredType(elementOrDeclaredType(variable.getType()), methodName),
+                    typeIndex.expandDeclaredType(receiverTypeForCall(variable.getType(), methodName), methodName),
                     ReceiverResolutionPath.DECLARED_VARIABLE);
         }
         if (target instanceof CtVariableRead<?> variableRead
@@ -339,7 +339,7 @@ public class ObjectFlowIndexBuilder {
                 && variableRead.getVariable().getType() != null) {
             return ReceiverResolution.of(
                     typeIndex.expandDeclaredType(
-                            elementOrDeclaredType(variableRead.getVariable().getType()), methodName),
+                            receiverTypeForCall(variableRead.getVariable().getType(), methodName), methodName),
                     ReceiverResolutionPath.DECLARED_VARIABLE);
         }
         return ReceiverResolution.unresolved();
@@ -360,7 +360,7 @@ public class ObjectFlowIndexBuilder {
             return targetFor(allocatedType, methodName, ObjectFlowEvidence.CONSTRUCTOR_ASSIGNMENT);
         }
         if (field.getType() != null) {
-            return typeIndex.expandDeclaredType(elementOrDeclaredType(field.getType()), methodName);
+            return typeIndex.expandDeclaredType(receiverTypeForCall(field.getType(), methodName), methodName);
         }
         return List.of();
     }
@@ -389,7 +389,7 @@ public class ObjectFlowIndexBuilder {
             }
         }
         if (field.getType() != null) {
-            return typeIndex.expandDeclaredType(elementOrDeclaredType(field.getType()), methodName);
+            return typeIndex.expandDeclaredType(receiverTypeForCall(field.getType(), methodName), methodName);
         }
         return List.of();
     }
@@ -429,6 +429,11 @@ public class ObjectFlowIndexBuilder {
             "forEach",
             // java.util.Collection / List / Iterator
             "size",
+            "indexOf",
+            "lastIndexOf",
+            "subList",
+            "toArray",
+            "containsAll",
             "iterator",
             "listIterator",
             "first",
@@ -475,14 +480,12 @@ public class ObjectFlowIndexBuilder {
             ObjectFlowIndex typeIndex) {
         if (targetInvocation.getType() != null) {
             // A generic container's own API — Optional.get, Stream.filter, List.size — runs on the
-            // container, not on its element, so unwrapping to the element type here attributes the
-            // call to a type that never declares it (PayrollService -> Payroll: stream). Collection
-            // state accessors are exempt: they are how shared-field ownership is detected.
-            if (isContainerApiCall(targetInvocation.getType(), outerMethodName)) {
-                return List.of();
-            }
-            List<ReceiverTarget> declaredTargets =
-                    typeIndex.expandDeclaredType(elementOrDeclaredType(targetInvocation.getType()), outerMethodName);
+            // container, not on its element, so unwrapping to the element type would attribute the
+            // call to a type that never declares it (PayrollService -> Payroll: stream).
+            // receiverTypeForCall yields nothing in that case, which leaves the collection-state
+            // fallthrough below intact for shared-field-owner detection.
+            List<ReceiverTarget> declaredTargets = typeIndex.expandDeclaredType(
+                    receiverTypeForCall(targetInvocation.getType(), outerMethodName), outerMethodName);
             if (!declaredTargets.isEmpty()) {
                 return declaredTargets.stream()
                         .map(target -> new ReceiverTarget(
@@ -519,10 +522,33 @@ public class ObjectFlowIndexBuilder {
      * element the container holds. Only parameterized receivers qualify, so a project type that
      * happens to declare {@code filter} or {@code map} keeps its edge.
      */
-    private static boolean isContainerApiCall(CtTypeReference<?> receiverType, String outerMethodName) {
-        return !receiverType.getActualTypeArguments().isEmpty()
-                && GENERIC_JAVA_API_METHODS.contains(outerMethodName)
-                && !COLLECTION_STATE_ACCESS_METHODS.contains(outerMethodName);
+    /**
+     * Resolves the type a call actually dispatches on. A parameterized receiver is unwrapped to its
+     * element type — which is what makes {@code List<Order>} usable as {@code Order} — except when
+     * the method belongs to the container's own API, where the element never receives the call.
+     *
+     * @return the qualified type name to resolve against, or {@code ""} to resolve nothing
+     */
+    private static String receiverTypeForCall(CtTypeReference<?> receiverType, String methodName) {
+        if (receiverType == null || isContainerApiCall(receiverType, methodName)) {
+            return "";
+        }
+        return elementOrDeclaredType(receiverType);
+    }
+
+    /**
+     * True when {@code methodName} is invoked on a parameterized container rather than on the
+     * element it holds. Only parameterized receivers qualify, so a project type that happens to
+     * declare {@code filter} or {@code map} keeps its edge.
+     *
+     * <p>{@link #COLLECTION_STATE_ACCESS_METHODS} is deliberately not exempted here. That set
+     * exists so {@code resolveAccessorTarget} can fall through to shared-field-owner detection,
+     * which is a different question from which type receives the call: {@code cache.put(k, v)}
+     * identifies {@code cache} as written state, but {@code put} still runs on the Map, never on
+     * the value type.
+     */
+    private static boolean isContainerApiCall(CtTypeReference<?> receiverType, String methodName) {
+        return !receiverType.getActualTypeArguments().isEmpty() && GENERIC_JAVA_API_METHODS.contains(methodName);
     }
 
     private static String elementOrDeclaredType(CtTypeReference<?> type) {
