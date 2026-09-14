@@ -2,11 +2,12 @@ package dev.dominikbreu.archlens.mcp.tools;
 
 import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.cache.ModelCache;
+import dev.dominikbreu.archlens.io.AtomicFileWriter;
 import dev.dominikbreu.archlens.renderer.MermaidDependencyMapRenderer;
 import dev.dominikbreu.archlens.renderer.MermaidDependencySliceRenderer;
 import dev.dominikbreu.archlens.renderer.MermaidFlowchartRenderer;
 import dev.dominikbreu.archlens.renderer.MermaidSourceOverviewRenderer;
-import java.nio.file.Files;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -23,6 +24,7 @@ public class ExportArchitectureDocsTool {
     private static final Path DEFAULT_OUTPUT = Path.of("docs", "GENERATED_ARCHITECTURE.md");
 
     private final ModelCache cache;
+    private final AtomicFileWriter atomicFileWriter = new AtomicFileWriter();
     private final MermaidFlowchartRenderer flowchartRenderer = new MermaidFlowchartRenderer();
     private final MermaidSourceOverviewRenderer sourceOverviewRenderer = new MermaidSourceOverviewRenderer();
     private final MermaidDependencySliceRenderer dependencySliceRenderer = new MermaidDependencySliceRenderer();
@@ -52,9 +54,7 @@ public class ExportArchitectureDocsTool {
             String focus = ToolArgs.getString(args, "focusComponent", "McpServer");
             String markdown = renderMarkdown(graph, focus);
 
-            Path parent = output.getParent();
-            if (parent != null) Files.createDirectories(parent);
-            Files.writeString(output, markdown);
+            atomicFileWriter.write(output, markdown.getBytes(StandardCharsets.UTF_8));
 
             Map<String, Object> structured = new LinkedHashMap<>();
             structured.put("outputPath", output.toAbsolutePath().toString());
