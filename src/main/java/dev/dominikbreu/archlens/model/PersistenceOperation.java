@@ -19,6 +19,8 @@ public class PersistenceOperation {
     public String operation;
     /** Entity type inferred from a class literal or method parameter, when known. */
     public String entityType;
+    /** Method argument consumed by this EntityManager operation, when resolvable. */
+    public String argumentName;
     /** Resolved persistence-unit name, when known. */
     public String persistenceUnitName;
     /** Invocation evidence. */

@@ -122,7 +122,8 @@ public class DataFlowTracer {
         Map<String, Integer> nodeCounters = new LinkedHashMap<>();
         Map<String, String> currentNodeByOriginal = createRootNodes(ep, index, pathsByOriginal, nodeCounters);
 
-        DfsContext ctx = new DfsContext(pathsByOriginal, index, new HashSet<>(), nodeCounters, new HashMap<>());
+        DfsContext ctx = new DfsContext(
+                pathsByOriginal, index, index.persistenceOperations, new HashSet<>(), nodeCounters, new HashMap<>());
         dfs(ctx, ep.componentId, ep.name, currentToOriginal, currentNodeByOriginal, 0, Map.of(), null);
         addCallGraphReachMessagingSinks(ep, index, pathsByOriginal);
 
@@ -422,6 +423,7 @@ public class DataFlowTracer {
     private record DfsContext(
             Map<String, DataFlowPath> pathsByOriginal,
             ModelIndex index,
+            Map<dev.dominikbreu.archlens.model.ids.MethodRef, List<PersistenceOperation>> persistenceOperations,
             Set<dev.dominikbreu.archlens.model.ids.MethodRef> onCurrentPath,
             Map<String, Integer> nodeCounters,
             Map<String, Set<String>> seenSinkKeys) {}
@@ -448,6 +450,7 @@ public class DataFlowTracer {
             String compName = comp != null ? comp.name : compId.serialize();
 
             recordSteps(ctx, compId, method, compName, currentToOriginal);
+            recordPersistenceOperationSinks(ctx, compId, method, compName, currentToOriginal, currentNodeByOriginal);
             recordOutboundSinks(
                     ctx,
                     compId,
@@ -462,6 +465,38 @@ public class DataFlowTracer {
         } finally {
             ctx.onCurrentPath().remove(nodeKey);
         }
+    }
+
+    private void recordPersistenceOperationSinks(
+            DfsContext ctx,
+            dev.dominikbreu.archlens.model.ids.ComponentId compId,
+            String method,
+            String compName,
+            Map<String, String> currentToOriginal,
+            Map<String, String> currentNodeByOriginal) {
+        List<PersistenceOperation> operations = ctx.persistenceOperations()
+                .getOrDefault(new dev.dominikbreu.archlens.model.ids.MethodRef(compId, method), List.of());
+        for (PersistenceOperation operation : operations) {
+            for (Map.Entry<String, String> e : currentToOriginal.entrySet()) {
+                if (!matchesPersistenceArgument(e.getKey(), operation.argumentName)) continue;
+                DataFlowPath path = ctx.pathsByOriginal().get(e.getValue());
+                DataFlowSink sink = new DataFlowSink(
+                        DataFlowSink.Kind.PERSISTENCE, compId, compName, operation.operation, operation.source);
+                sink.entityType = operation.entityType;
+                sink.persistenceUnitName = operation.persistenceUnitName;
+                sink.repositoryOperation = operation.operation;
+                sink.linkEvidence = operation.source != null
+                        ? firstNonBlank(operation.source.derivedFrom, "entity-manager-invocation")
+                        : "entity-manager-invocation";
+                sink.callerComponentId = compId;
+                addSinkOnce(ctx, e.getValue(), path, sink);
+                recordSinkNode(ctx, path, e.getValue(), currentNodeByOriginal.get(e.getValue()), sink, null);
+            }
+        }
+    }
+
+    private boolean matchesPersistenceArgument(String currentName, String argumentName) {
+        return argumentName != null && ("*".equals(currentName) || currentName.equals(argumentName));
     }
 
     private void recordSteps(
@@ -713,6 +748,7 @@ public class DataFlowTracer {
                 String.valueOf(s.topicPropertyKey),
                 String.valueOf(s.payloadType),
                 String.valueOf(s.entityType),
+                String.valueOf(s.persistenceUnitName),
                 String.valueOf(s.repositoryOperation),
                 String.valueOf(s.linkEvidence),
                 String.valueOf(s.calleeQualifiedName),

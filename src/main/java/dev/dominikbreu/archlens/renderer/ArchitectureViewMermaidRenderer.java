@@ -18,21 +18,20 @@ public final class ArchitectureViewMermaidRenderer {
      */
     public String render(ArchitectureViewProjection projection) {
         StringBuilder sb = new StringBuilder();
+        sb.append(MermaidStyle.header());
         sb.append("flowchart LR\n");
         sb.append("    subgraph scope[\"").append(escape(projection.title())).append("\"]\n");
 
+        MermaidStyle.Tracker tracker = new MermaidStyle.Tracker();
         Map<String, String> ids = new LinkedHashMap<>();
         int index = 0;
         for (ArchitectureViewProjection.Node node : projection.nodes()) {
             String id = "n" + index++;
             ids.put(node.id(), id);
-            sb.append("        ")
-                    .append(id)
-                    .append("[\"")
-                    .append(escape(node.title()))
-                    .append("<br/>[")
-                    .append(escape(node.kind()))
-                    .append("]\"]\n");
+            MermaidStyle.Role role = roleForKind(node.kind());
+            String kindLabel = node.kind() == null ? "" : node.kind();
+            sb.append(MermaidStyle.node("        ", id, node.title() + "\n[" + kindLabel + "]", role));
+            tracker.tag(id, role);
         }
 
         sb.append("    end\n\n");
@@ -52,6 +51,8 @@ public final class ArchitectureViewMermaidRenderer {
                     .append("\n");
         }
 
+        sb.append(tracker.footer());
+
         if (!projection.warnings().isEmpty()) {
             sb.append("\n%% Warnings:\n");
             for (String warning : projection.warnings()) {
@@ -62,11 +63,19 @@ public final class ArchitectureViewMermaidRenderer {
         return sb.toString();
     }
 
+    private static MermaidStyle.Role roleForKind(String kind) {
+        if (kind == null) return MermaidStyle.Role.COMPONENT;
+        return switch (kind.toLowerCase(java.util.Locale.ROOT)) {
+            case "service" -> MermaidStyle.Role.SERVICE;
+            case "repository" -> MermaidStyle.Role.REPOSITORY;
+            case "entity" -> MermaidStyle.Role.ENTITY;
+            case "container" -> MermaidStyle.Role.CONTAINER;
+            case "rest_resource", "entrypoint" -> MermaidStyle.Role.ENTRYPOINT;
+            default -> MermaidStyle.Role.COMPONENT;
+        };
+    }
+
     private static String escape(String value) {
-        if (value == null) {
-            return "";
-        } else {
-            return value.replace("\\", "\\\\").replace("\"", "\\\"");
-        }
+        return Mermaid.escapeLabel(value);
     }
 }
