@@ -1,8 +1,10 @@
 package dev.dominikbreu.archlens.renderer;
 
 import dev.dominikbreu.archlens.cache.GraphQuery;
+import dev.dominikbreu.archlens.model.ComponentType;
 import dev.dominikbreu.archlens.model.ids.GraphNodeId;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,11 +37,18 @@ public class MermaidDependencyMapRenderer {
         String commonPrefix = commonPackagePrefix(components);
 
         Map<String, GroupStats> groups = new TreeMap<>();
+        Map<String, Map<ComponentType, Integer>> typeCounts = new TreeMap<>();
         Map<EdgeKey, EdgeStats> edges =
                 new TreeMap<>(Comparator.comparing(EdgeKey::from).thenComparing(EdgeKey::to));
 
         for (GraphQuery.ComponentNode c : components) {
-            groups.computeIfAbsent(groupName(c, commonPrefix), k -> new GroupStats()).components++;
+            String group = groupName(c, commonPrefix);
+            groups.computeIfAbsent(group, k -> new GroupStats()).components++;
+            if (c.type() != null) {
+                typeCounts
+                        .computeIfAbsent(group, k -> new EnumMap<>(ComponentType.class))
+                        .merge(c.type(), 1, Integer::sum);
+            }
         }
 
         for (GraphQuery.GraphEdge dep : graph.dependencyEdges()) {
@@ -60,29 +69,28 @@ public class MermaidDependencyMapRenderer {
             edge.kinds.merge(nullToUnknown(kind), 1, Integer::sum);
         }
 
-        StringBuilder sb = new StringBuilder("flowchart LR\n");
+        StringBuilder sb = new StringBuilder(MermaidStyle.header() + "flowchart LR\n");
+        MermaidStyle.Tracker tracker = new MermaidStyle.Tracker();
         for (Map.Entry<String, GroupStats> entry : groups.entrySet()) {
             String group = entry.getKey();
             GroupStats stats = entry.getValue();
-            sb.append("    ")
-                    .append(nodeId(group))
-                    .append("[\"")
-                    .append(escape(group))
-                    .append("\\n")
-                    .append(stats.components)
-                    .append(" components");
+            String label = group + "\n" + stats.components + " components";
             if (stats.internalDependencies > 0) {
-                sb.append("\\n").append(stats.internalDependencies).append(" internal deps");
+                label += "\n" + stats.internalDependencies + " internal deps";
             }
-            sb.append("\"]\n");
+            MermaidStyle.Role role = MermaidStyle.roleFor(dominantType(typeCounts.get(group)));
+            String id = nodeId(group);
+            sb.append(MermaidStyle.node("    ", id, label, role));
+            tracker.tag(id, role);
         }
 
         for (Map.Entry<EdgeKey, EdgeStats> entry : edges.entrySet()) {
             EdgeKey key = entry.getKey();
             EdgeStats stats = entry.getValue();
+            boolean allAsync = stats.kinds.keySet().stream().allMatch(MermaidStyle::isAsyncKind);
             sb.append("    ")
                     .append(nodeId(key.from()))
-                    .append(" -->|")
+                    .append(allAsync ? " -.->|" : " -->|")
                     .append(stats.count)
                     .append(" ")
                     .append(stats.count == 1 ? "dep" : "deps")
@@ -93,19 +101,29 @@ public class MermaidDependencyMapRenderer {
                     .append("\n");
         }
 
-        sb.append("    classDef core fill:#243746,stroke:#78a6c8,color:#f2f7fb\n");
-        sb.append("    classDef boundary fill:#3c2f4f,stroke:#b99df0,color:#fbf8ff\n");
-        sb.append("    classDef data fill:#2f4235,stroke:#8bcf9f,color:#f5fff7\n");
-        sb.append("    classDef default fill:#30343b,stroke:#9aa4b2,color:#f5f7fa\n");
-        for (String group : groups.keySet()) {
-            sb.append("    class ")
-                    .append(nodeId(group))
-                    .append(" ")
-                    .append(className(group))
-                    .append("\n");
-        }
+        sb.append(tracker.footer());
 
         return sb.toString();
+    }
+
+    /**
+     * Picks the most frequent component type for a group, breaking ties by enum order
+     * (earlier constant wins).
+     *
+     * @param counts per-type counts for the group, may be null or empty
+     * @return the dominant type, or {@code null} when no types were counted
+     */
+    private ComponentType dominantType(Map<ComponentType, Integer> counts) {
+        if (counts == null) return null;
+        ComponentType dominant = null;
+        int max = -1;
+        for (Map.Entry<ComponentType, Integer> entry : counts.entrySet()) {
+            if (entry.getValue() > max) {
+                max = entry.getValue();
+                dominant = entry.getKey();
+            }
+        }
+        return dominant;
     }
 
     private String groupName(GraphQuery.ComponentNode c, String rootPackage) {
@@ -178,17 +196,8 @@ public class MermaidDependencyMapRenderer {
         return prefix;
     }
 
-    private String className(String group) {
-        return switch (group) {
-            case "mcp", "mcp.tools" -> "boundary";
-            case "model", "cache" -> "data";
-            case "extractor", "scanner", "renderer", "merger" -> "core";
-            default -> "default";
-        };
-    }
-
     private String nodeId(String input) {
-        return "dep_" + input.replaceAll("[^A-Za-z0-9_]", "_");
+        return "dep_" + MermaidStyle.nid(input);
     }
 
     private String escape(String input) {

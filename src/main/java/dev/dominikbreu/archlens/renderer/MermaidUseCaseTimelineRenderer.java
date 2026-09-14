@@ -22,10 +22,11 @@ public class MermaidUseCaseTimelineRenderer {
      */
     public String render(List<GraphQuery.RuntimeFlowNode> flows, GraphQuery graph, int maxDepth) {
         if (flows.isEmpty()) {
-            return "gantt\n    title Use Case Execution Order\n    note[no use cases found]\n";
+            return MermaidStyle.header() + "gantt\n    title Use Case Execution Order\n    note[no use cases found]\n";
         }
 
         StringBuilder sb = new StringBuilder();
+        sb.append(MermaidStyle.header());
         sb.append("gantt\n");
         sb.append("    title Use Case Execution Order\n");
         sb.append("    dateFormat  X\n");

@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -30,7 +31,9 @@ public class MermaidDependencySliceRenderer {
      */
     public String render(GraphQuery graph, String ref, int depth) {
         GraphNodeId rootId = graph.resolveComponent(ref).orElse(null);
-        if (rootId == null) return "flowchart LR\n    missing[\"Component not found: " + escape(ref) + "\"]\n";
+        if (rootId == null) {
+            return MermaidStyle.header() + "flowchart LR\n    missing[\"Component not found: " + escape(ref) + "\"]\n";
+        }
 
         List<GraphQuery.ComponentNode> allComponents = graph.allComponentNodes();
         Map<GraphNodeId, GraphQuery.ComponentNode> byId = new LinkedHashMap<>();
@@ -45,9 +48,11 @@ public class MermaidDependencySliceRenderer {
         Set<GraphQuery.GraphEdge> visibleEdges = new LinkedHashSet<>();
         traverseSlice(rootId, outgoing, Math.max(1, depth), visibleNodes, visibleEdges);
 
-        StringBuilder sb = new StringBuilder("flowchart LR\n");
-        appendSliceNodes(sb, visibleNodes, byId);
+        StringBuilder sb = new StringBuilder(MermaidStyle.header() + "flowchart LR\n");
+        MermaidStyle.Tracker tracker = new MermaidStyle.Tracker();
+        appendSliceNodes(sb, visibleNodes, byId, tracker);
         appendSliceEdges(sb, visibleEdges);
+        sb.append(tracker.footer());
         return sb.toString();
     }
 
@@ -83,25 +88,30 @@ public class MermaidDependencySliceRenderer {
     }
 
     private void appendSliceNodes(
-            StringBuilder sb, Set<GraphNodeId> visibleNodes, Map<GraphNodeId, GraphQuery.ComponentNode> byId) {
+            StringBuilder sb,
+            Set<GraphNodeId> visibleNodes,
+            Map<GraphNodeId, GraphQuery.ComponentNode> byId,
+            MermaidStyle.Tracker tracker) {
         for (GraphNodeId id : visibleNodes) {
             GraphQuery.ComponentNode c = byId.get(id);
-            String label =
-                    c != null ? c.name() + "\\n" + (c.type() != null ? c.type().name() : "") : id.value();
-            sb.append("    ")
-                    .append(nodeId(id.value()))
-                    .append("[\"")
-                    .append(escape(label))
-                    .append("\"]\n");
+            MermaidStyle.Role role = c != null ? MermaidStyle.roleFor(c.type()) : MermaidStyle.Role.COMPONENT;
+            String label = c != null
+                    ? c.name() + "\n«" + (c.type() != null ? c.type().name().toLowerCase(Locale.ROOT) : "component")
+                            + "»"
+                    : id.value();
+            String sanitizedId = nodeId(id.value());
+            sb.append(MermaidStyle.node("    ", sanitizedId, label, role));
+            tracker.tag(sanitizedId, role);
         }
     }
 
     private void appendSliceEdges(StringBuilder sb, Set<GraphQuery.GraphEdge> visibleEdges) {
         for (GraphQuery.GraphEdge dep : visibleEdges) {
             String kind = dep.properties().get("kind") instanceof String s ? s : "";
+            String arrow = MermaidStyle.isAsyncKind(kind) ? " -.->|" : " -->|";
             sb.append("    ")
                     .append(nodeId(dep.fromId().value()))
-                    .append(" -->|")
+                    .append(arrow)
                     .append(escape(kind))
                     .append("| ")
                     .append(nodeId(dep.toId().value()))
@@ -110,7 +120,7 @@ public class MermaidDependencySliceRenderer {
     }
 
     private String nodeId(String input) {
-        return input.replaceAll("[^A-Za-z0-9_]", "_");
+        return MermaidStyle.nid(input);
     }
 
     private String escape(String input) {

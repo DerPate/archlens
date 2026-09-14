@@ -61,11 +61,12 @@ class PipelineRendererIntegrationTest {
 
         // 5. Rendered Mermaid contains the boundary shapes and edges
         String mermaid = new MermaidPipelineRenderer().render(chain, GraphQuery.from(model));
-        assertThat(mermaid).startsWith("flowchart TD");
+        assertThat(mermaid).startsWith("%%{init:");
+        assertThat(mermaid).contains("flowchart TD");
         // STORE boundary uses cylinder: [("Cache.records")]
         assertThat(mermaid).containsPattern("\\[\\(\"Cache\\.records\"\\)]");
-        // MESSAGING boundary uses rounded rectangle: ("internal")
-        assertThat(mermaid).contains("(\"internal\")");
+        // MESSAGING boundary uses stadium shape: (["internal"])
+        assertThat(mermaid).contains("([\"internal\"])");
         // At least one directed edge with --> arrow
         assertThat(mermaid).contains("-->");
     }
@@ -264,13 +265,15 @@ class PipelineRendererIntegrationTest {
 
         String mermaid = new MermaidPipelineRenderer().render(chain, GraphQuery.from(model));
 
-        // KafkaMessageSender.sendTombstone must appear at most once as a node
+        // KafkaMessageSender.sendTombstone must appear exactly once as a node declaration
+        // (not as an edge label/reference). Shape-agnostic: node role shapes vary
+        // (brackets, parens, stadium, ...), so match on "not an edge line" instead.
         long sendTombstoneCount = java.util.Arrays.stream(mermaid.split("\n"))
-                .filter(line -> line.contains("sendTombstone") && line.contains("["))
+                .filter(line -> line.contains("sendTombstone") && !line.contains("-->"))
                 .count();
         assertThat(sendTombstoneCount)
                 .as("KafkaMessageSender.sendTombstone must not be duplicated in the pipeline")
-                .isLessThanOrEqualTo(1);
+                .isEqualTo(1);
         // Main flow nodes must still appear
         assertThat(mermaid).contains("processNonNullValue");
         assertThat(mermaid).contains("Repo.save");

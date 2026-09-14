@@ -5,6 +5,7 @@ import dev.dominikbreu.archlens.model.ids.GraphNodeId;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -32,12 +33,14 @@ public class MermaidSourceOverviewRenderer {
                 .collect(Collectors.groupingBy(this::packageName, LinkedHashMap::new, Collectors.toList()));
 
         Map<GraphNodeId, String> componentToPackageNode = new LinkedHashMap<>();
-        StringBuilder sb = new StringBuilder("flowchart TD\n");
+        StringBuilder sb = new StringBuilder(MermaidStyle.header() + "flowchart TD\n");
+        MermaidStyle.Tracker tracker = new MermaidStyle.Tracker();
 
         for (Map.Entry<String, List<GraphQuery.ComponentNode>> entry : byPackage.entrySet()) {
-            appendPackageSubgraph(sb, entry.getKey(), entry.getValue(), maxPerPackage, componentToPackageNode);
+            appendPackageSubgraph(sb, entry.getKey(), entry.getValue(), maxPerPackage, componentToPackageNode, tracker);
         }
         appendPackageEdges(sb, graph, componentToPackageNode);
+        sb.append(tracker.footer());
         return sb.toString();
     }
 
@@ -46,7 +49,8 @@ public class MermaidSourceOverviewRenderer {
             String pkg,
             List<GraphQuery.ComponentNode> components,
             int maxPerPackage,
-            Map<GraphNodeId, String> componentToPackageNode) {
+            Map<GraphNodeId, String> componentToPackageNode,
+            MermaidStyle.Tracker tracker) {
         sb.append("    subgraph ")
                 .append(nodeId("pkg:" + pkg))
                 .append("[\"")
@@ -58,23 +62,20 @@ public class MermaidSourceOverviewRenderer {
             if (rendered >= maxPerPackage) break;
             String compNode = nodeId(c.id().value());
             componentToPackageNode.put(c.id(), compNode);
-            sb.append("        ")
-                    .append(compNode)
-                    .append("[\"")
-                    .append(escape(c.name()))
-                    .append("\\n")
-                    .append(escape(c.type() != null ? c.type().name() : ""))
-                    .append("\"]\n");
+            MermaidStyle.Role role = MermaidStyle.roleFor(c.type());
+            String label = c.name() + "\n«"
+                    + (c.type() != null ? c.type().name().toLowerCase(Locale.ROOT) : "component") + "»";
+            sb.append(MermaidStyle.node("        ", compNode, label, role));
+            tracker.tag(compNode, role);
             rendered++;
         }
 
         int omitted = components.size() - rendered;
         if (omitted > 0) {
-            sb.append("        ")
-                    .append(nodeId("omitted:" + pkg))
-                    .append("[\"... ")
-                    .append(omitted)
-                    .append(" more\"]\n");
+            String omittedId = nodeId("omitted:" + pkg);
+            sb.append(
+                    MermaidStyle.node("        ", omittedId, "... " + omitted + " more", MermaidStyle.Role.COMPONENT));
+            tracker.tag(omittedId, MermaidStyle.Role.COMPONENT);
         }
         sb.append("    end\n");
     }
@@ -99,7 +100,7 @@ public class MermaidSourceOverviewRenderer {
     }
 
     private String nodeId(String input) {
-        return input.replaceAll("[^A-Za-z0-9_]", "_");
+        return MermaidStyle.nid(input);
     }
 
     private String escape(String input) {

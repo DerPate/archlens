@@ -62,6 +62,32 @@ class AnswerArchitectureQuestionToolTest {
     }
 
     @Test
+    void answersDirectEntityManagerPersistenceDestinationForRestParameter() {
+        ToolResult result = tool("javaee-sample")
+                .execute(Map.of(
+                        "family", "persistence_destination",
+                        "entrypoint", "POST /customers",
+                        "param", "customer"));
+
+        Map<String, Object> structured = structured(result);
+        assertThat(structured).containsEntry("status", "resolved");
+        assertThat(list(answer(structured), "operations")).singleElement().satisfies(operation -> {
+            assertThat(nested(operation, "properties", "method")).isEqualTo("persist");
+            assertThat(nested(operation, "properties", "entityType")).isEqualTo("com.example.model.Customer");
+            assertThat(nested(operation, "properties", "persistenceUnitName")).isEqualTo("customer-unit");
+            assertThat(nested(operation, "properties", "linkEvidence")).isEqualTo("entity-manager-invocation");
+        });
+        assertThat(list(answer(structured), "destinations")).singleElement().satisfies(destination -> {
+            assertThat(destination).containsEntry("persistenceUnitName", "customer-unit");
+            assertThat(map(destination, "persistenceUnit")).containsEntry("name", "customer-unit");
+            assertThat(list(destination, "dataSources"))
+                    .singleElement()
+                    .satisfies(dataSource -> assertThat(nested(dataSource, "properties", "jndiName"))
+                            .isEqualTo("java:/jdbc/CustomerDS"));
+        });
+    }
+
+    @Test
     void groupsImpactByArchitectureConcernAndIncludesEvidenceChains() {
         ToolResult result = tool("spring-pipeline-sample")
                 .execute(Map.of("family", "impact", "component", "OrderRepository", "maxDepth", 4));
