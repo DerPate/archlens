@@ -317,12 +317,17 @@ sequenceDiagram
 
 ## `render_use_case_timeline`
 
-Render a Mermaid `gantt` chart showing the sequential execution steps of one or more use
-cases. Each use case becomes a section; each component hop in the call chain becomes a
-task bar positioned by its call depth.
+Render a Mermaid `flowchart` of the sequential execution steps of one or more use cases. Each
+use case becomes a subgraph containing one left-to-right chain; each component hop is a node
+shaped and coloured by its architectural role. Execution depth reads as chain length.
 
 Useful for comparing how deeply different entry points penetrate the stack and which
 components are involved at each step.
+
+> This was a `gantt` chart until 2026-08-16. Gantt is a duration primitive and these steps are
+> ordinal, so each bar was one slot wide — `1/N` of the chart for a flow of N steps — which is
+> far too narrow to hold a component label. Mermaid pushed the labels outside the bars and the
+> trailing ones clipped off the canvas. Flowchart nodes size themselves to their text instead.
 
 Arguments:
 
@@ -330,8 +335,13 @@ Arguments:
 - `entrypointName` string, optional. Filter by entrypoint name or HTTP path (partial match).
   Prefix with an HTTP verb to disambiguate same-path endpoints: `"GET /account"` selects the
   GET handler, `"POST /account"` selects the POST handler.
-- `maxUseCases` integer, optional. Maximum sections to render. Default `10`.
+- `maxUseCases` integer, optional. Maximum sections to render, deepest first. Default `5` when
+  no filter is given, `25` when `entrypointId` or `entrypointName` narrows the set.
 - `maxDepth` integer, optional. Maximum call-chain steps per section. Default `5`.
+
+When more use cases match than fit, the deepest are kept and the result reports
+`useCasesMatched`, `useCasesShown`, and a `truncationHint`. Filter to one entry point for a
+chart that is readable rather than a sample of the workspace.
 
 Example — all use cases:
 
@@ -348,20 +358,30 @@ Example — single use case:
 Sample output:
 
 ```
-gantt
-    title Use Case Execution Order
-    dateFormat  X
-    axisFormat  step %s
-
-    section POST Create Order
-    OrderResource.createOrder :active, 0, 1
-    OrderService.create       :       1, 1
-    OrderRepository.save      :       2, 1
-
-    section GET /orders/{id}
-    OrderResource.getOrder    :active, 0, 1
-    OrderService.find         :       1, 1
-    OrderRepository.findById  :       2, 1
+flowchart LR
+    subgraph uc0["GET /orders/{id}"]
+        direction LR
+        uc0s0(["OrderResource.GET /orders/{id}"])
+        uc0s1("OrderService.find")
+        uc0s0 --> uc0s1
+        uc0s2[("OrderRepository.findById")]
+        uc0s1 --> uc0s2
+    end
+    subgraph uc1["forward"]
+        direction LR
+        uc1s0(["OrderForwarder.scheduler"])
+        uc1s1("OrderBuffer.peek")
+        uc1s0 --> uc1s1
+    end
+    classDef entrypoint fill:#bbdefb,stroke:#1e6bb8,color:#0d2a47
+    classDef service fill:#b2dfdb,stroke:#00796b,color:#00352f
+    classDef repository fill:#c8e6c9,stroke:#2e7d32,color:#12300f
+    classDef scheduler fill:#ffecb3,stroke:#ff8f00,color:#4d2c00
+    class uc0s0 entrypoint
+    class uc0s1 service
+    class uc0s2 repository
+    class uc1s0 scheduler
+    class uc1s1 service
 ```
 
 ---

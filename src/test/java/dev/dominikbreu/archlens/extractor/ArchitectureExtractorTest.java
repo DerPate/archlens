@@ -21,6 +21,23 @@ class ArchitectureExtractorTest extends ExtractorTestBase {
     }
 
     @Test
+    void everyEntrypointGetsItsOwnRuntimeFlow() {
+        // gradle-springboot-sample's OrderController overloads `get` (GET /orders and
+        // GET /orders/{id}), so one serialized entrypoint id is a prefix of another — the shape
+        // that made two entrypoints share a flow. Whether that misresolves depends on the order
+        // Spoon reports the overloads in, so this asserts the model-wide invariant rather than
+        // relying on the ordering: the per-flow assertions elsewhere in this suite are all
+        // anyMatch + contains, which stay green even when flows collapse onto one another.
+        ArchitectureModel model = new ArchitectureExtractor().extract(List.of(projectPath("gradle-springboot-sample")));
+
+        assertThat(model.runtimeFlows).hasSameSizeAs(model.entrypoints);
+        assertThat(model.runtimeFlows).extracting(flow -> flow.id).doesNotHaveDuplicates();
+        assertThat(model.runtimeFlows.stream().map(flow -> flow.entrypointId).toList())
+                .containsExactlyInAnyOrderElementsOf(
+                        model.entrypoints.stream().map(ep -> ep.id).toList());
+    }
+
+    @Test
     void wiresEventBusExtractorIntoMainPipeline() {
         ArchitectureModel model = new ArchitectureExtractor().extract(List.of(projectPath("eventbus-sample")));
 

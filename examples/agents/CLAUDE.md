@@ -1,6 +1,6 @@
 # Claude Project Instructions
 
-Use Spoon MCP Server for Java architecture analysis whenever the question is about
+Use ArchLens for Java architecture analysis whenever the question is about
 entrypoints, component dependencies, runtime flow, data flow, messaging, schedulers,
 repositories, external systems, or impact analysis.
 
@@ -11,13 +11,13 @@ repositories, external systems, or impact analysis.
 - Package command: TODO, for example `mvn package`
 - Main source roots: TODO
 - Test source roots: TODO
-- Generated output to ignore: `target/`, `.spoon-mcp-cache/`, generated sources, build
+- Generated output to ignore: `target/`, `.archlens-cache/`, generated sources, build
   reports
 
-## Spoon MCP Workflow
+## ArchLens Workflow
 
 Before answering architecture questions, call `index_workspace` with the absolute project
-root. After indexing, use the cached model through Spoon MCP tools instead of relying only
+root. After indexing, use the cached model through ArchLens tools instead of relying only
 on text search.
 
 Use these workflows:

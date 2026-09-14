@@ -994,24 +994,26 @@ public class DataFlowTracer {
     }
 
     private String repositoryEntityType(Component target, ModelIndex index) {
-        if (target == null || target.qualifiedName == null) return null;
-        String qn = target.qualifiedName;
-        int repoIndex = qn.lastIndexOf(".repository.");
-        if (repoIndex < 0) return null;
-        String simple = target.name;
-        if (simple == null) return null;
-        String entity = simple;
+        if (target == null || target.name == null) return null;
+        String entity = target.name;
         if (entity.startsWith("I")) entity = entity.substring(1);
         if (entity.endsWith("Repository")) entity = entity.substring(0, entity.length() - "Repository".length());
         if (entity.isBlank()) return null;
-        String basePackage = qn.substring(0, repoIndex);
-        String candidate = basePackage + ".model." + entity;
-        if (index.components.get(dev.dominikbreu.archlens.model.ids.ComponentId.of(candidate)) != null)
-            return candidate;
-        String withEntitySuffix = candidate + "Entity";
-        if (index.components.get(dev.dominikbreu.archlens.model.ids.ComponentId.of(withEntitySuffix)) != null)
-            return withEntitySuffix;
-        return index.entityIndex.resolve(basePackage, entity);
+        String qn = target.qualifiedName;
+        int repoIndex = qn == null ? -1 : qn.lastIndexOf(".repository.");
+        if (repoIndex >= 0) {
+            String basePackage = qn.substring(0, repoIndex);
+            String candidate = basePackage + ".model." + entity;
+            if (index.components.get(dev.dominikbreu.archlens.model.ids.ComponentId.of(candidate)) != null)
+                return candidate;
+            String withEntitySuffix = candidate + "Entity";
+            if (index.components.get(dev.dominikbreu.archlens.model.ids.ComponentId.of(withEntitySuffix)) != null)
+                return withEntitySuffix;
+            String resolved = index.entityIndex.resolve(basePackage, entity);
+            if (resolved != null) return resolved;
+        }
+        // Neither the repository nor the entity has to sit in a conventionally named package.
+        return index.entityIndex.resolveBySimpleName(entity);
     }
 
     private boolean isWriteOperation(String method) {

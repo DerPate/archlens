@@ -23,13 +23,13 @@ public class TracingConfig {
     private TracingConfig() {}
 
     /**
-     * Reads {@code -Dspoon.traces=none|console|otlp} and builds an OpenTelemetry instance.
+     * Reads {@code -Darchlens.traces=none|console|otlp} and builds an OpenTelemetry instance.
      * The caller is responsible for registering it via {@code GlobalOpenTelemetry.set()}.
      * Falls back to noop if configuration fails.
      */
     public static OpenTelemetry configure(String serviceName) {
-        String mode = System.getProperty("spoon.traces", "none");
-        String endpoint = System.getProperty("spoon.otlp.endpoint", "http://localhost:4317");
+        String mode = System.getProperty("archlens.traces", "none");
+        String endpoint = System.getProperty("archlens.otlp.endpoint", "http://localhost:4317");
         try {
             if (!"console".equals(mode) && !"otlp".equals(mode)) {
                 return OpenTelemetry.noop();

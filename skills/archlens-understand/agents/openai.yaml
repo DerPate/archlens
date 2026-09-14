@@ -1,0 +1,13 @@
+interface:
+  display_name: "ArchLens Understand"
+  short_description: "Understand Java architecture with ArchLens"
+  default_prompt: "Use $archlens-understand to analyze this Java workspace and explain the architecture."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "archlens"
+      description: "ArchLens architecture-analysis tools"
+
+policy:
+  allow_implicit_invocation: true

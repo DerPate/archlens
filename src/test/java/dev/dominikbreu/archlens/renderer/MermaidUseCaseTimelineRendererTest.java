@@ -14,19 +14,11 @@ class MermaidUseCaseTimelineRendererTest {
     private final MermaidUseCaseTimelineRenderer renderer = new MermaidUseCaseTimelineRenderer();
 
     @Test
-    void outputStartsWithGanttDirective() {
+    void outputStartsWithFlowchartDirective() {
         var r = build("ep1", 3);
         String out = renderer.render(r.flows(), r.graph(), 5);
         assertThat(out).startsWith("%%{init:");
-        assertThat(out).contains("gantt\n");
-    }
-
-    @Test
-    void containsDateFormatAndAxisFormat() {
-        var r = build("ep1", 3);
-        String out = renderer.render(r.flows(), r.graph(), 5);
-        assertThat(out).contains("dateFormat  X");
-        assertThat(out).contains("axisFormat  step %s");
+        assertThat(out).contains("flowchart LR\n");
     }
 
     @Test
@@ -43,7 +35,7 @@ class MermaidUseCaseTimelineRendererTest {
         GraphQuery graph = GraphQuery.from(m);
         List<GraphQuery.RuntimeFlowNode> allFlows = graph.allRuntimeFlows();
         String out = renderer.render(allFlows, graph, 5);
-        assertThat(out.lines().filter(l -> l.trim().startsWith("section")).count())
+        assertThat(out.lines().filter(l -> l.trim().startsWith("subgraph")).count())
                 .isEqualTo(2);
     }
 
@@ -70,19 +62,53 @@ class MermaidUseCaseTimelineRendererTest {
     }
 
     @Test
-    void firstStepIsMarkedActive() {
-        var r = build("ep1", 3);
-        assertThat(renderer.render(r.flows(), r.graph(), 5)).contains(":active,");
-    }
-
-    @Test
     void stepCountRespectMaxDepth() {
         var r = build("ep1", 6);
         String out = renderer.render(r.flows(), r.graph(), 3);
-        long taskLines = out.lines()
-                .filter(l -> l.contains(":active,") || (l.contains(":") && l.contains(", 1")))
-                .count();
-        assertThat(taskLines).isEqualTo(4); // 3 steps + 1 overflow
+        // 3 step nodes plus one node summarizing the remainder.
+        assertThat(out.lines()
+                        .map(String::trim)
+                        .filter(l -> l.startsWith("uc0s") && !l.contains("-->"))
+                        .count())
+                .isEqualTo(3);
+        assertThat(out).contains("3 more steps");
+    }
+
+    @Test
+    void stepsAreChainedInOrder() {
+        // Depth reads as chain length, so consecutive steps must be linked and the chain must not
+        // fork or skip. This replaced gantt bars, whose width could not hold a component label.
+        var r = build("ep1", 4);
+        String out = renderer.render(r.flows(), r.graph(), 5);
+
+        assertThat(edgeLines(out)).containsExactly("uc0s0 --> uc0s1", "uc0s1 --> uc0s2", "uc0s2 --> uc0s3");
+    }
+
+    @Test
+    void overflowNodeIsChainedAfterTheLastShownStep() {
+        var r = build("ep1", 6);
+        String out = renderer.render(r.flows(), r.graph(), 3);
+
+        assertThat(out).contains("uc0more[\"3 more steps\"]");
+        assertThat(edgeLines(out)).endsWith("uc0s2 --> uc0more");
+    }
+
+    @Test
+    void everyNodeCarriesARoleClass() {
+        var r = build("ep1", 3);
+        String out = renderer.render(r.flows(), r.graph(), 5);
+
+        assertThat(out).contains("classDef ");
+        assertThat(out.lines().filter(l -> l.trim().startsWith("class uc0s")).count())
+                .isEqualTo(3);
+    }
+
+    /** Flowchart edge lines: {@code <id> --> <id>}. */
+    private static List<String> edgeLines(String diagram) {
+        return diagram.lines()
+                .map(String::trim)
+                .filter(l -> l.matches("^\\w+ --> \\w+$"))
+                .toList();
     }
 
     @Test
@@ -105,12 +131,12 @@ class MermaidUseCaseTimelineRendererTest {
     @Test
     void emptyFlowsProducesFallback() {
         String out = renderer.render(List.of(), null, 5);
-        assertThat(out).contains("gantt");
+        assertThat(out).contains("flowchart LR");
         assertThat(out).contains("no use cases");
     }
 
     @Test
-    void colonInSectionLabelIsSanitized() {
+    void colonInEntrypointLabelIsEscapedNotDropped() {
         ArchitectureModel m = new ArchitectureModel("test");
         Entrypoint ep = ep("sched", null, null, null, "Comp0");
         ep.name = "Scheduled: cleanup";
@@ -118,11 +144,11 @@ class MermaidUseCaseTimelineRendererTest {
         m.runtimeFlows.add(flow("sched", 1));
         GraphQuery graph = GraphQuery.from(m);
         String out = renderer.render(graph.allRuntimeFlows(), graph, 5);
-        String sectionLine = out.lines()
-                .filter(l -> l.trim().startsWith("section"))
+        String subgraphLine = out.lines()
+                .filter(l -> l.trim().startsWith("subgraph"))
                 .findFirst()
                 .orElse("");
-        assertThat(sectionLine).doesNotContain("Scheduled:");
+        assertThat(subgraphLine).contains("Scheduled").doesNotContain("\n");
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

@@ -132,7 +132,7 @@ public class ArchitectureExtractor {
         model.containers.addAll(containerInferrer.infer(model.components));
         externalSystemInferrer.infer(model);
         for (Entrypoint entrypoint : model.entrypoints) {
-            RuntimeFlow flow = runtimeFlowInferrer.infer(entrypoint.id.serialize(), 5, model, modelIndex);
+            RuntimeFlow flow = runtimeFlowInferrer.infer(entrypoint, 5, model, modelIndex);
             if (flow != null) {
                 model.runtimeFlows.add(flow);
             }

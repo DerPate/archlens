@@ -258,7 +258,7 @@
 
 <div class="app-shell">
   <aside class="sidebar">
-    <h1>Spoon Graph Viewer</h1>
+    <h1>ArchLens Graph Viewer</h1>
     <p class="meta">{payload ? `${payload.snapshot.metadata.includedNodeCount} nodes, ${payload.snapshot.metadata.includedEdgeCount} edges loaded` : status}</p>
     {#if payload}
       <p class="meta">{status}</p>

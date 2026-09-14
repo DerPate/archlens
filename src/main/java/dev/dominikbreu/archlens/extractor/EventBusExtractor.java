@@ -349,7 +349,7 @@ public class EventBusExtractor {
 
     private String getFile(CtElement el) {
         var pos = el.getPosition();
-        if (pos.isValidPosition()) {
+        if (pos.isValidPosition() && pos.getFile() != null) {
             return pos.getFile().getAbsolutePath();
         } else {
             return "unknown";

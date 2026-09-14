@@ -4,6 +4,8 @@ import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.cache.ModelCache;
 import dev.dominikbreu.archlens.extractor.RuntimeFlowInferrer;
 import dev.dominikbreu.archlens.renderer.MermaidUseCaseTimelineRenderer;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -41,17 +43,54 @@ public class RenderUseCaseTimelineTool {
 
             String epIdFilter = ToolArgs.getString(args, "entrypointId");
             String epNameFilter = ToolArgs.getString(args, "entrypointName");
-            int maxUseCases = ToolArgs.getInt(args, "maxUseCases", 10);
+            // A caller who passed a filter has already narrowed the set and wants to see it whole;
+            // an unfiltered call is asking the whole workspace and only needs a readable sample.
+            boolean filtered = epIdFilter != null || epNameFilter != null;
+            int maxUseCases = ToolArgs.getInt(args, "maxUseCases", filtered ? 25 : 5);
             int maxDepth = ToolArgs.getInt(args, "maxDepth", 5);
 
             flows = filterFlows(flows, epIdFilter, epNameFilter, graph);
             if (flows.isEmpty()) return ToolResult.textOnly("No matching use cases found.");
+
+            int matched = flows.size();
+            flows = rankForComparison(flows, graph);
             if (flows.size() > maxUseCases) flows = flows.subList(0, maxUseCases);
 
-            return new ToolResult(renderer.render(flows, graph, maxDepth), Map.of("diagramType", "mermaid"));
+            Map<String, Object> structured = new LinkedHashMap<>();
+            structured.put("diagramType", "mermaid");
+            structured.put("useCasesMatched", matched);
+            structured.put("useCasesShown", flows.size());
+            if (flows.size() < matched) {
+                structured.put(
+                        "truncationHint",
+                        "Showing the " + flows.size() + " deepest of " + matched
+                                + " matching use cases. Narrow with entrypointName (e.g. 'GET /payroll')"
+                                + " or entrypointId, or raise maxUseCases.");
+            }
+            return new ToolResult(renderer.render(flows, graph, maxDepth), structured);
         } catch (Exception e) {
             return ToolResult.error("Error rendering use case timeline: " + e.getMessage());
         }
+    }
+
+    /**
+     * Orders use cases for comparison: deepest first, then by entrypoint id.
+     *
+     * <p>The chart exists to compare execution depth across entry points, so when more use cases
+     * match than fit, the ones worth comparing are the deep ones. Truncating the graph's iteration
+     * order instead produced an arbitrary grab-bag — on phoenix_backend the unfiltered default
+     * rendered ten unrelated endpoints picked purely by vertex order, which compares nothing and
+     * changes whenever the graph is rebuilt.
+     */
+    private List<GraphQuery.RuntimeFlowNode> rankForComparison(
+            List<GraphQuery.RuntimeFlowNode> flows, GraphQuery graph) {
+        return flows.stream()
+                .sorted(Comparator.comparingInt((GraphQuery.RuntimeFlowNode f) ->
+                                graph.flowSteps(f.id()).size())
+                        .reversed()
+                        .thenComparing(
+                                f -> f.entrypointId() != null ? f.entrypointId().serialize() : ""))
+                .toList();
     }
 
     private List<GraphQuery.RuntimeFlowNode> filterFlows(

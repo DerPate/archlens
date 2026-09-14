@@ -1,12 +1,15 @@
 ---
-name: spoon-understand
+name: archlens-understand
 description: Understand Java workspaces with ArchLens. Use when an agent needs to index a Java project, explain architecture, map applications/modules/components/entrypoints, trace REST or messaging use cases, follow runtime or data flows, find pipelines and workflow handoffs, assess dependency impact, render Mermaid or LikeC4 diagrams, or export graph viewers/docs from the archlens tools.
 ---
 
-# Spoon Understand
+# ArchLens Understand
 
-> Canonical source. Claude Code loads the mirrored copy at `.claude/skills/spoon-understand/`
-> — edit here, then re-sync that copy (e.g. `cp -r skills/spoon-understand/* .claude/skills/spoon-understand/`).
+> Canonical and only source. `.claude/skills/archlens-understand` and
+> `.agents/skills/archlens-understand` are symlinks to this directory, so edits here take effect
+> everywhere with no copying. If a symlink is missing (a Windows checkout, or a fresh clone
+> without symlink support), recreate it with
+> `ln -s ../../skills/archlens-understand .claude/skills/archlens-understand`.
 
 Use this skill to turn a Java workspace into an architecture tour using ArchLens tools. Keep the workflow host-neutral: Claude, Codex, Copilot, or another MCP-capable agent should all call the same MCP tool names and adapt only the presentation format.
 
@@ -54,7 +57,10 @@ Use when the user names an endpoint, consumer, scheduler, channel, or business a
 1. Use `find_entrypoints` to resolve candidates. For HTTP paths with multiple verbs, use `"METHOD /path"` style filters in downstream tools.
 2. Call `call_flow` for the execution path.
 3. Call `trace_data_flow` for the entrypoint or parameter when data movement matters.
-4. Call `render_use_case_timeline` when comparing multiple use cases or depth.
+4. Call `render_use_case_timeline` when comparing multiple use cases or depth. Always pass
+   `entrypointId` or `entrypointName` — unfiltered it renders a deepest-first sample of the whole
+   workspace, which compares nothing a reader cares about. Report `useCasesShown` against
+   `useCasesMatched` whenever sections were dropped.
 5. Report the exact entrypoint id, call chain, sinks, handoffs, and any fallback or ambiguity warnings from tool output.
 
 ### Component Investigation
@@ -112,5 +118,16 @@ Call out limitations plainly:
 - Ambiguous receiver evidence should be treated as review material, not a strong claim.
 - A missing pipeline can mean unresolved config/destinations, not necessarily no workflow.
 - Generic utility/DTO/config classes may appear in graph results; prefer high-signal workflow filters for first-pass summaries.
+- A `call_flow` chain that stops early is an unresolved step, not proof that nothing follows. Say
+  "not resolved" rather than implying the component does no I/O.
+
+Diagrams carry conventions a reader will otherwise guess wrong — sequence-diagram order is not
+temporal, entities appear only where they cross a boundary, and container-API calls
+(`stream`/`filter`/`get`) are deliberately not attributed to the element type. State the relevant
+one when you present a diagram; `references/mcp-tool-map.md` has the full list.
+
+Never present a quoted condition, label, or identifier as graph-derived when it came from reading
+source, and never complete a value the graph truncated without saying so. Mixing the two is how a
+generated document ends up containing a string that exists in neither.
 
 When comparing to generic code-understanding tools, emphasize the lane: this server is Java/Spoon-specific and source-derived, with framework-aware entrypoints, dependencies, runtime flow, data-flow sinks, workflow links, and architecture exports.
