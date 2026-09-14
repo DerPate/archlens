@@ -3,6 +3,9 @@ package dev.dominikbreu.archlens.renderer;
 import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.model.ids.AppId;
 import dev.dominikbreu.archlens.model.ids.GraphNodeId;
+import dev.dominikbreu.archlens.renderer.template.MermaidC4Template;
+import dev.dominikbreu.archlens.renderer.template.MermaidFlowchartTemplate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -20,14 +23,8 @@ import org.apache.commons.lang3.StringUtils;
  */
 public class MermaidFlowchartRenderer {
 
-    private static final String FLOWCHART_HEADER = "flowchart TD\n";
     private static final String TECHNICAL_LIBRARY = "technical_library";
-    private static final String SUBGRAPH_OPEN = "    subgraph ";
-    private static final String SUBGRAPH_CLOSE = "    end\n";
     private static final String INDENT8 = "        ";
-    private static final String EDGE_LABEL_OPEN = " -->|";
-    private static final String NODE_CLOSE_PAREN = ")\"]\n";
-    private static final String NODE_CLOSE = "\"]\n";
 
     private final MermaidDialect dialect;
 
@@ -75,18 +72,20 @@ public class MermaidFlowchartRenderer {
     // ── module level ──────────────────────────────────────────────────────────
 
     private String renderModuleLevel(List<GraphQuery.ApplicationNode> apps, GraphQuery graph) {
-        StringBuilder sb = new StringBuilder(MermaidStyle.header() + FLOWCHART_HEADER);
+        List<MermaidFlowchartTemplate.Statement> statements = new ArrayList<>();
         MermaidStyle.Tracker tracker = new MermaidStyle.Tracker();
         for (GraphQuery.ApplicationNode app : apps) {
-            appendModuleApp(sb, app, graph, tracker);
+            appendModuleApp(statements, app, graph, tracker);
         }
-        appendCrossModuleDeps(sb, apps, graph);
-        sb.append(tracker.footer());
-        return sb.toString();
+        appendCrossModuleDeps(statements, apps, graph);
+        return MermaidTemplates.flowchart("TD", statements, tracker);
     }
 
     private void appendModuleApp(
-            StringBuilder sb, GraphQuery.ApplicationNode app, GraphQuery graph, MermaidStyle.Tracker tracker) {
+            List<MermaidFlowchartTemplate.Statement> statements,
+            GraphQuery.ApplicationNode app,
+            GraphQuery graph,
+            MermaidStyle.Tracker tracker) {
         if ("internal_module".equals(app.role()) || TECHNICAL_LIBRARY.equals(app.role())) return;
 
         List<GraphQuery.ApplicationNode> children =
@@ -96,30 +95,27 @@ public class MermaidFlowchartRenderer {
             String label = app.name() + "\n" + app.packagingType()
                     + (app.technology() != null ? " / " + app.technology() : "");
             String id = nid(app.id().value());
-            sb.append(MermaidStyle.node("    ", id, label, MermaidStyle.Role.CONTAINER));
-            tracker.tag(id, MermaidStyle.Role.CONTAINER);
+            statements.add(MermaidFlowchartTemplate.Statement.node(
+                    tracker.node("    ", id, label, MermaidStyle.Role.CONTAINER)));
         } else {
-            sb.append(SUBGRAPH_OPEN)
-                    .append(nid(app.id().value()))
-                    .append("[\"")
-                    .append(escape(app.name()))
-                    .append(" (")
-                    .append(app.packagingType())
-                    .append(NODE_CLOSE_PAREN);
+            statements.add(MermaidFlowchartTemplate.Statement.subgraph(
+                    "    ", nid(app.id().value()), escape(app.name()) + " (" + app.packagingType() + ")"));
             for (GraphQuery.ApplicationNode child : children) {
                 MermaidStyle.Role role = TECHNICAL_LIBRARY.equals(child.role())
                         ? MermaidStyle.Role.COMPONENT
                         : MermaidStyle.Role.CONTAINER;
                 String label = child.name() + "\n" + child.role();
                 String id = nid(child.id().value());
-                sb.append(MermaidStyle.node(INDENT8, id, label, role));
-                tracker.tag(id, role);
+                statements.add(MermaidFlowchartTemplate.Statement.node(tracker.node(INDENT8, id, label, role)));
             }
-            sb.append(SUBGRAPH_CLOSE);
+            statements.add(MermaidFlowchartTemplate.Statement.end("    "));
         }
     }
 
-    private void appendCrossModuleDeps(StringBuilder sb, List<GraphQuery.ApplicationNode> apps, GraphQuery graph) {
+    private void appendCrossModuleDeps(
+            List<MermaidFlowchartTemplate.Statement> statements,
+            List<GraphQuery.ApplicationNode> apps,
+            GraphQuery graph) {
         Map<String, String> compToApp = buildCompToAppMap(apps, graph);
         Set<String> drawn = new HashSet<>();
         for (GraphQuery.GraphEdge dep : graph.dependencyEdges()) {
@@ -128,11 +124,8 @@ public class MermaidFlowchartRenderer {
             if (fromApp == null || toApp == null || fromApp.equals(toApp)) continue;
             String key = fromApp + "->" + toApp;
             if (drawn.add(key)) {
-                sb.append("    ")
-                        .append(nid(fromApp))
-                        .append(" --> ")
-                        .append(nid(toApp))
-                        .append("\n");
+                statements.add(MermaidFlowchartTemplate.Statement.edge(new MermaidFlowchartTemplate.Edge(
+                        "    ", nid(fromApp), nid(toApp), "", false, false, false, false)));
             }
         }
     }
@@ -140,13 +133,13 @@ public class MermaidFlowchartRenderer {
     // ── system level ──────────────────────────────────────────────────────────
 
     private String renderSystemLevel(List<GraphQuery.ApplicationNode> apps, GraphQuery graph) {
-        StringBuilder sb = new StringBuilder(MermaidStyle.header() + FLOWCHART_HEADER);
+        List<MermaidFlowchartTemplate.Statement> statements = new ArrayList<>();
         MermaidStyle.Tracker tracker = new MermaidStyle.Tracker();
         for (GraphQuery.ApplicationNode app : apps) {
             String label = app.name() + "\n" + app.technology() + " / " + app.packagingType();
             String id = nid(app.id().value());
-            sb.append(MermaidStyle.node("    ", id, label, MermaidStyle.Role.CONTAINER));
-            tracker.tag(id, MermaidStyle.Role.CONTAINER);
+            statements.add(MermaidFlowchartTemplate.Statement.node(
+                    tracker.node("    ", id, label, MermaidStyle.Role.CONTAINER)));
         }
 
         Set<String> visibleApps = apps.stream().map(a -> a.id().value()).collect(Collectors.toSet());
@@ -162,14 +155,15 @@ public class MermaidFlowchartRenderer {
             String kind = dep.properties().get("kind") instanceof String s ? s : "";
             String key = fromApp + "->" + dep.toId().value() + ":" + kind;
             if (drawnEdges.add(key)) {
-                String arrow = MermaidStyle.isAsyncKind(kind) ? " -.->|" : EDGE_LABEL_OPEN;
-                sb.append("    ")
-                        .append(nid(fromApp))
-                        .append(arrow)
-                        .append(escape(kind))
-                        .append("| ")
-                        .append(nid(dep.toId().value()))
-                        .append("\n");
+                statements.add(MermaidFlowchartTemplate.Statement.edge(new MermaidFlowchartTemplate.Edge(
+                        "    ",
+                        nid(fromApp),
+                        nid(dep.toId().value()),
+                        escape(kind),
+                        true,
+                        false,
+                        MermaidStyle.isAsyncKind(kind),
+                        false)));
             }
         }
 
@@ -178,17 +172,16 @@ public class MermaidFlowchartRenderer {
             MermaidStyle.Role role = MermaidStyle.roleForExternalKind(ext.kind());
             String kindLabel = ext.kind() != null ? ext.kind().toUpperCase(Locale.ROOT) : "";
             String id = nid(ext.id().value());
-            sb.append(MermaidStyle.node("    ", id, ext.name() + "\n" + kindLabel, role));
-            tracker.tag(id, role);
+            statements.add(MermaidFlowchartTemplate.Statement.node(
+                    tracker.node("    ", id, ext.name() + "\n" + kindLabel, role)));
         }
-        sb.append(tracker.footer());
-        return sb.toString();
+        return MermaidTemplates.flowchart("TD", statements, tracker);
     }
 
     // ── container level ──────────────────────────────────────────────────────
 
     private String renderContainerLevel(List<GraphQuery.ApplicationNode> apps, GraphQuery graph) {
-        StringBuilder sb = new StringBuilder(MermaidStyle.header() + FLOWCHART_HEADER);
+        List<MermaidFlowchartTemplate.Statement> statements = new ArrayList<>();
         MermaidStyle.Tracker tracker = new MermaidStyle.Tracker();
 
         Map<String, String> compToContainer = buildCompToContainerMap(apps, graph);
@@ -196,32 +189,26 @@ public class MermaidFlowchartRenderer {
 
         Set<String> visibleContainers = new LinkedHashSet<>();
         for (GraphQuery.ApplicationNode app : apps) {
-            appendContainerSubgraph(sb, app, graph, epByContainer, visibleContainers, tracker);
+            appendContainerSubgraph(statements, app, graph, epByContainer, visibleContainers, tracker);
         }
 
         Set<String> referencedExternals = new LinkedHashSet<>();
         Map<String, Set<String>> edgeKinds =
                 aggregateContainerEdges(graph, compToContainer, visibleContainers, referencedExternals);
-        appendExternalNodes(sb, graph, referencedExternals, tracker);
-        appendLabelledEdges(sb, edgeKinds);
-        sb.append(tracker.footer());
-        return sb.toString();
+        appendExternalNodes(statements, graph, referencedExternals, tracker);
+        appendLabelledEdges(statements, edgeKinds);
+        return MermaidTemplates.flowchart("TD", statements, tracker);
     }
 
     private void appendContainerSubgraph(
-            StringBuilder sb,
+            List<MermaidFlowchartTemplate.Statement> statements,
             GraphQuery.ApplicationNode app,
             GraphQuery graph,
             Map<String, Long> epByContainer,
             Set<String> visibleContainers,
             MermaidStyle.Tracker tracker) {
-        sb.append(SUBGRAPH_OPEN)
-                .append(nid(app.id().value()))
-                .append("[\"")
-                .append(escape(app.name()))
-                .append(" (")
-                .append(app.technology())
-                .append(NODE_CLOSE_PAREN);
+        statements.add(MermaidFlowchartTemplate.Statement.subgraph(
+                "    ", nid(app.id().value()), escape(app.name()) + " (" + app.technology() + ")"));
 
         for (GraphQuery.ContainerNode container :
                 graph.containersForApp(AppId.of(app.id().value()))) {
@@ -231,10 +218,10 @@ public class MermaidFlowchartRenderer {
             String label = container.name() + "\n" + compCount + " component" + (compCount != 1 ? "s" : "")
                     + (epCount > 0 ? " / " + epCount + " EP" : "");
             String id = nid(container.id().value());
-            sb.append(MermaidStyle.node(INDENT8, id, label, MermaidStyle.Role.CONTAINER));
-            tracker.tag(id, MermaidStyle.Role.CONTAINER);
+            statements.add(MermaidFlowchartTemplate.Statement.node(
+                    tracker.node(INDENT8, id, label, MermaidStyle.Role.CONTAINER)));
         }
-        sb.append(SUBGRAPH_CLOSE);
+        statements.add(MermaidFlowchartTemplate.Statement.end("    "));
     }
 
     private Map<String, Set<String>> aggregateContainerEdges(
@@ -266,56 +253,51 @@ public class MermaidFlowchartRenderer {
     }
 
     private void appendExternalNodes(
-            StringBuilder sb, GraphQuery graph, Set<String> referencedExternals, MermaidStyle.Tracker tracker) {
+            List<MermaidFlowchartTemplate.Statement> statements,
+            GraphQuery graph,
+            Set<String> referencedExternals,
+            MermaidStyle.Tracker tracker) {
         for (GraphQuery.ExternalSystemNode ext : graph.allExternalSystemNodes()) {
             if (!referencedExternals.contains(ext.id().value())) continue;
             MermaidStyle.Role role = MermaidStyle.roleForExternalKind(ext.kind());
             String kindLabel = ext.kind() != null ? ext.kind().toUpperCase(Locale.ROOT) : "";
             String id = nid(ext.id().value());
-            sb.append(MermaidStyle.node("    ", id, ext.name() + "\n" + kindLabel, role));
-            tracker.tag(id, role);
+            statements.add(MermaidFlowchartTemplate.Statement.node(
+                    tracker.node("    ", id, ext.name() + "\n" + kindLabel, role)));
         }
     }
 
-    private void appendLabelledEdges(StringBuilder sb, Map<String, Set<String>> edgeKinds) {
+    private void appendLabelledEdges(
+            List<MermaidFlowchartTemplate.Statement> statements, Map<String, Set<String>> edgeKinds) {
         for (Map.Entry<String, Set<String>> entry : edgeKinds.entrySet()) {
             String[] parts = entry.getKey().split("\0", 2);
             Set<String> kinds = entry.getValue();
             String kindLabel = String.join(", ", kinds);
             boolean allAsync = kinds.stream().allMatch(MermaidStyle::isAsyncKind);
-            String arrow = allAsync ? " -.->|" : EDGE_LABEL_OPEN;
-            sb.append("    ")
-                    .append(nid(parts[0]))
-                    .append(arrow)
-                    .append(escape(kindLabel))
-                    .append("| ")
-                    .append(nid(parts[1]))
-                    .append("\n");
+            statements.add(MermaidFlowchartTemplate.Statement.edge(new MermaidFlowchartTemplate.Edge(
+                    "    ", nid(parts[0]), nid(parts[1]), escape(kindLabel), true, false, allAsync, false)));
         }
     }
 
     // ── component level ──────────────────────────────────────────────────────
 
     private String renderComponentLevel(List<GraphQuery.ApplicationNode> apps, GraphQuery graph) {
-        StringBuilder sb = new StringBuilder(MermaidStyle.header() + FLOWCHART_HEADER);
+        List<MermaidFlowchartTemplate.Statement> statements = new ArrayList<>();
         MermaidStyle.Tracker tracker = new MermaidStyle.Tracker();
         for (GraphQuery.ApplicationNode app : apps) {
-            appendComponentSubgraph(sb, app, graph, tracker);
+            appendComponentSubgraph(statements, app, graph, tracker);
         }
-        appendComponentEdges(sb, apps, graph);
-        sb.append(tracker.footer());
-        return sb.toString();
+        appendComponentEdges(statements, apps, graph);
+        return MermaidTemplates.flowchart("TD", statements, tracker);
     }
 
     private void appendComponentSubgraph(
-            StringBuilder sb, GraphQuery.ApplicationNode app, GraphQuery graph, MermaidStyle.Tracker tracker) {
-        sb.append(SUBGRAPH_OPEN)
-                .append(nid(app.id().value()))
-                .append("[\"")
-                .append(escape(app.name()))
-                .append(" (")
-                .append(app.technology())
-                .append(NODE_CLOSE_PAREN);
+            List<MermaidFlowchartTemplate.Statement> statements,
+            GraphQuery.ApplicationNode app,
+            GraphQuery graph,
+            MermaidStyle.Tracker tracker) {
+        statements.add(MermaidFlowchartTemplate.Statement.subgraph(
+                "    ", nid(app.id().value()), escape(app.name()) + " (" + app.technology() + ")"));
 
         List<GraphQuery.ContainerNode> appContainers =
                 graph.containersForApp(AppId.of(app.id().value()));
@@ -325,25 +307,25 @@ public class MermaidFlowchartRenderer {
 
         if (appContainers.isEmpty()) {
             for (GraphNodeId cid : graph.componentIdsOwnedBy(app.id())) {
-                renderComponentNode(sb, cid, compById, INDENT8, tracker);
+                renderComponentNode(statements, cid, compById, INDENT8, tracker);
             }
         } else {
             for (GraphQuery.ContainerNode container : appContainers) {
-                sb.append("        subgraph ")
-                        .append(nid(container.id().value()))
-                        .append("[\"")
-                        .append(escape(container.name()))
-                        .append(NODE_CLOSE);
+                statements.add(MermaidFlowchartTemplate.Statement.subgraph(
+                        "        ", nid(container.id().value()), escape(container.name())));
                 for (GraphNodeId cid : graph.componentIdsInContainer(container.id())) {
-                    renderComponentNode(sb, cid, compById, "            ", tracker);
+                    renderComponentNode(statements, cid, compById, "            ", tracker);
                 }
-                sb.append("        end\n");
+                statements.add(MermaidFlowchartTemplate.Statement.end("        "));
             }
         }
-        sb.append(SUBGRAPH_CLOSE);
+        statements.add(MermaidFlowchartTemplate.Statement.end("    "));
     }
 
-    private void appendComponentEdges(StringBuilder sb, List<GraphQuery.ApplicationNode> apps, GraphQuery graph) {
+    private void appendComponentEdges(
+            List<MermaidFlowchartTemplate.Statement> statements,
+            List<GraphQuery.ApplicationNode> apps,
+            GraphQuery graph) {
         Set<String> visibleComps = apps.stream()
                 .flatMap(a -> graph.componentIdsOwnedBy(a.id()).stream())
                 .map(GraphNodeId::value)
@@ -353,20 +335,21 @@ public class MermaidFlowchartRenderer {
             if (visibleComps.contains(dep.fromId().value())
                     && visibleComps.contains(dep.toId().value())) {
                 String kind = dep.properties().get("kind") instanceof String s ? s : "";
-                String arrow = MermaidStyle.isAsyncKind(kind) ? " -.->|" : EDGE_LABEL_OPEN;
-                sb.append("    ")
-                        .append(nid(dep.fromId().value()))
-                        .append(arrow)
-                        .append(escape(kind))
-                        .append("| ")
-                        .append(nid(dep.toId().value()))
-                        .append("\n");
+                statements.add(MermaidFlowchartTemplate.Statement.edge(new MermaidFlowchartTemplate.Edge(
+                        "    ",
+                        nid(dep.fromId().value()),
+                        nid(dep.toId().value()),
+                        escape(kind),
+                        true,
+                        false,
+                        MermaidStyle.isAsyncKind(kind),
+                        false)));
             }
         }
     }
 
     private void renderComponentNode(
-            StringBuilder sb,
+            List<MermaidFlowchartTemplate.Statement> statements,
             GraphNodeId cid,
             Map<GraphNodeId, GraphQuery.ComponentNode> byId,
             String indent,
@@ -376,29 +359,29 @@ public class MermaidFlowchartRenderer {
         MermaidStyle.Role role = MermaidStyle.roleFor(comp.type());
         String label = comp.name() + "\n«"
                 + (comp.type() != null ? comp.type().name().toLowerCase(Locale.ROOT) : "component") + "»";
-        sb.append(MermaidStyle.node(indent, nid(cid.value()), label, role));
-        tracker.tag(nid(cid.value()), role);
+        statements.add(MermaidFlowchartTemplate.Statement.node(tracker.node(indent, nid(cid.value()), label, role)));
     }
 
     // ── C4 system level ────────────────────────────────────────────────────────
 
     private String renderSystemC4(List<GraphQuery.ApplicationNode> apps, GraphQuery graph) {
-        StringBuilder sb = new StringBuilder("C4Context\n    title System Context\n");
+        List<MermaidC4Template.Element> elements = new ArrayList<>();
         for (GraphQuery.ApplicationNode app : apps) {
-            sb.append("    System(")
-                    .append(nid(app.id().value()))
-                    .append(", \"")
-                    .append(escape(app.name()))
-                    .append("\", \"")
-                    .append(escape(app.technology() + " / " + app.packagingType()))
-                    .append("\")\n");
+            elements.add(MermaidC4Template.Element.element(
+                    "System",
+                    nid(app.id().value()),
+                    escape(app.name()),
+                    escape(app.technology() + " / " + app.packagingType()),
+                    "",
+                    false,
+                    "    "));
         }
 
         Set<String> visibleApps = apps.stream().map(a -> a.id().value()).collect(Collectors.toSet());
         Map<String, String> compToApp = buildCompToAppMap(apps, graph);
         Set<String> referencedExternals = new LinkedHashSet<>();
         Set<String> drawnEdges = new LinkedHashSet<>();
-        StringBuilder rels = new StringBuilder();
+        List<MermaidC4Template.Relation> relations = new ArrayList<>();
 
         for (GraphQuery.GraphEdge dep : graph.dependencyEdges()) {
             if (!graph.isExternalSystem(dep.toId())) continue;
@@ -408,13 +391,8 @@ public class MermaidFlowchartRenderer {
             String kind = dep.properties().get("kind") instanceof String s ? s : "";
             String key = fromApp + "->" + dep.toId().value() + ":" + kind;
             if (drawnEdges.add(key)) {
-                rels.append("    Rel(")
-                        .append(nid(fromApp))
-                        .append(", ")
-                        .append(nid(dep.toId().value()))
-                        .append(", \"")
-                        .append(escape(kind))
-                        .append("\")\n");
+                relations.add(new MermaidC4Template.Relation(
+                        nid(fromApp), nid(dep.toId().value()), escape(kind)));
             }
         }
 
@@ -427,34 +405,22 @@ public class MermaidFlowchartRenderer {
                         default -> "System_Ext";
                     };
             String kindLabel = ext.kind() != null ? ext.kind().toUpperCase(Locale.ROOT) : "";
-            sb.append("    ")
-                    .append(macro)
-                    .append("(")
-                    .append(nid(ext.id().value()))
-                    .append(", \"")
-                    .append(escape(ext.name()))
-                    .append("\", \"")
-                    .append(escape(kindLabel))
-                    .append("\")\n");
+            elements.add(MermaidC4Template.Element.element(
+                    macro, nid(ext.id().value()), escape(ext.name()), escape(kindLabel), "", false, "    "));
         }
-        sb.append(rels);
-        return sb.toString();
+        return MermaidTemplates.c4(new MermaidC4Template(true, false, elements, relations));
     }
 
     // ── C4 container level ─────────────────────────────────────────────────────
 
     private String renderContainerC4(List<GraphQuery.ApplicationNode> apps, GraphQuery graph) {
-        StringBuilder sb = new StringBuilder("C4Container\n    title Container Diagram\n");
+        List<MermaidC4Template.Element> elements = new ArrayList<>();
         Map<String, String> compToContainer = buildCompToContainerMap(apps, graph);
         Map<String, Long> epByContainer = graph.entrypointCountPerContainer();
         Set<String> visibleContainers = new LinkedHashSet<>();
 
         for (GraphQuery.ApplicationNode app : apps) {
-            sb.append("    System_Boundary(")
-                    .append(nid(app.id().value()))
-                    .append(", \"")
-                    .append(escape(app.name()))
-                    .append("\") {\n");
+            elements.add(MermaidC4Template.Element.boundary(nid(app.id().value()), escape(app.name())));
             for (GraphQuery.ContainerNode container :
                     graph.containersForApp(AppId.of(app.id().value()))) {
                 visibleContainers.add(container.id().value());
@@ -462,17 +428,16 @@ public class MermaidFlowchartRenderer {
                 long epCount = epByContainer.getOrDefault(container.id().value(), 0L);
                 String desc = compCount + " component" + (compCount != 1 ? "s" : "")
                         + (epCount > 0 ? " / " + epCount + " EP" : "");
-                sb.append("        Container(")
-                        .append(nid(container.id().value()))
-                        .append(", \"")
-                        .append(escape(container.name()))
-                        .append("\", \"")
-                        .append(escape(app.technology()))
-                        .append("\", \"")
-                        .append(escape(desc))
-                        .append("\")\n");
+                elements.add(MermaidC4Template.Element.element(
+                        "Container",
+                        nid(container.id().value()),
+                        escape(container.name()),
+                        escape(app.technology()),
+                        escape(desc),
+                        true,
+                        "        "));
             }
-            sb.append("    }\n");
+            elements.add(MermaidC4Template.Element.closeBoundary());
         }
 
         Set<String> referencedExternals = new LinkedHashSet<>();
@@ -488,28 +453,17 @@ public class MermaidFlowchartRenderer {
                         default -> "System_Ext";
                     };
             String kindLabel = ext.kind() != null ? ext.kind().toUpperCase(Locale.ROOT) : "";
-            sb.append("    ")
-                    .append(macro)
-                    .append("(")
-                    .append(nid(ext.id().value()))
-                    .append(", \"")
-                    .append(escape(ext.name()))
-                    .append("\", \"")
-                    .append(escape(kindLabel))
-                    .append("\")\n");
+            elements.add(MermaidC4Template.Element.element(
+                    macro, nid(ext.id().value()), escape(ext.name()), escape(kindLabel), "", false, "    "));
         }
 
+        List<MermaidC4Template.Relation> relations = new ArrayList<>();
         for (Map.Entry<String, Set<String>> entry : edgeKinds.entrySet()) {
             String[] parts = entry.getKey().split("\0", 2);
-            sb.append("    Rel(")
-                    .append(nid(parts[0]))
-                    .append(", ")
-                    .append(nid(parts[1]))
-                    .append(", \"")
-                    .append(escape(String.join(", ", entry.getValue())))
-                    .append("\")\n");
+            relations.add(new MermaidC4Template.Relation(
+                    nid(parts[0]), nid(parts[1]), escape(String.join(", ", entry.getValue()))));
         }
-        return sb.toString();
+        return MermaidTemplates.c4(new MermaidC4Template(false, true, elements, relations));
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

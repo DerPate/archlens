@@ -1,8 +1,17 @@
 package dev.dominikbreu.archlens.renderer;
 
 import dev.dominikbreu.archlens.model.ComponentType;
+import dev.dominikbreu.archlens.renderer.template.MermaidFlowchartTemplate;
+import dev.dominikbreu.archlens.renderer.template.MermaidHeaderTemplate;
+import dev.dominikbreu.archlens.renderer.template.MermaidHeaderTemplateRenderer;
+import dev.dominikbreu.archlens.renderer.template.MermaidNodeTemplate;
+import dev.dominikbreu.archlens.renderer.template.MermaidNodeTemplateRenderer;
+import dev.dominikbreu.archlens.renderer.template.MermaidStyleTemplate;
+import dev.dominikbreu.archlens.renderer.template.MermaidStyleTemplateRenderer;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
@@ -62,6 +71,18 @@ final class MermaidStyle {
         String css() {
             return css;
         }
+
+        String open() {
+            return open;
+        }
+
+        String close() {
+            return close;
+        }
+
+        String style() {
+            return style;
+        }
     }
 
     private MermaidStyle() {}
@@ -73,10 +94,7 @@ final class MermaidStyle {
      * @return single-line {@code %%{init: ...}%%} directive terminated by a newline
      */
     static String header() {
-        return "%%{init: {\"theme\": \"base\", \"themeVariables\": {"
-                + "\"primaryColor\": \"#f5f5f5\", \"primaryBorderColor\": \"#9e9e9e\", "
-                + "\"primaryTextColor\": \"#212121\", \"lineColor\": \"#607d8b\", "
-                + "\"clusterBkg\": \"#fafafa\", \"clusterBorder\": \"#b0bec5\"}}}%%\n";
+        return MermaidHeaderTemplateRenderer.of().execute(new MermaidHeaderTemplate());
     }
 
     /**
@@ -89,7 +107,8 @@ final class MermaidStyle {
      * @return complete node line terminated by a newline
      */
     static String node(String indent, String id, String label, Role role) {
-        return indent + id + role.open + "\"" + Mermaid.escapeLabel(label) + "\"" + role.close + "\n";
+        return MermaidNodeTemplateRenderer.of()
+                .execute(new MermaidNodeTemplate(indent, id, role.open, Mermaid.escapeLabel(label), role.close));
     }
 
     /**
@@ -102,11 +121,12 @@ final class MermaidStyle {
         if (used.isEmpty()) return "";
         EnumSet<Role> ordered = EnumSet.noneOf(Role.class);
         ordered.addAll(used);
-        StringBuilder sb = new StringBuilder();
-        for (Role r : ordered) {
-            sb.append("    classDef ").append(r.css).append(' ').append(r.style).append('\n');
-        }
-        return sb.toString();
+        return MermaidStyleTemplateRenderer.of()
+                .execute(new MermaidStyleTemplate(
+                        ordered.stream()
+                                .map(r -> new MermaidStyleTemplate.ClassDefinition(r.css, r.style))
+                                .toList(),
+                        List.of()));
     }
 
     /**
@@ -117,7 +137,9 @@ final class MermaidStyle {
      * @return one {@code class} line terminated by a newline
      */
     static String assign(String nodeId, Role role) {
-        return "    class " + nodeId + " " + role.css + "\n";
+        return MermaidStyleTemplateRenderer.of()
+                .execute(new MermaidStyleTemplate(
+                        List.of(), List.of(new MermaidStyleTemplate.ClassAssignment(nodeId, role.css))));
     }
 
     /**
@@ -179,7 +201,7 @@ final class MermaidStyle {
     /** Accumulates role usage and class assignments while a renderer emits nodes. */
     static final class Tracker {
         private final EnumSet<Role> used = EnumSet.noneOf(Role.class);
-        private final StringBuilder assigns = new StringBuilder();
+        private final List<MermaidStyleTemplate.ClassAssignment> assigns = new ArrayList<>();
 
         /** Creates an empty tracker. */
         Tracker() {}
@@ -192,7 +214,22 @@ final class MermaidStyle {
          */
         void tag(String nodeId, Role role) {
             used.add(role);
-            assigns.append(assign(nodeId, role));
+            assigns.add(new MermaidStyleTemplate.ClassAssignment(nodeId, role.css));
+        }
+
+        MermaidFlowchartTemplate.Node node(String indent, String id, String label, Role role) {
+            tag(id, role);
+            return new MermaidFlowchartTemplate.Node(indent, id, role.open, Mermaid.escapeLabel(label), role.close);
+        }
+
+        List<MermaidStyleTemplate.ClassDefinition> definitions() {
+            return used.stream()
+                    .map(r -> new MermaidStyleTemplate.ClassDefinition(r.css, r.style))
+                    .toList();
+        }
+
+        List<MermaidStyleTemplate.ClassAssignment> assignments() {
+            return List.copyOf(assigns);
         }
 
         /**
@@ -202,7 +239,7 @@ final class MermaidStyle {
          */
         String footer() {
             if (used.isEmpty()) return "";
-            return classDefs(used) + assigns;
+            return MermaidStyleTemplateRenderer.of().execute(new MermaidStyleTemplate(definitions(), assignments()));
         }
     }
 }

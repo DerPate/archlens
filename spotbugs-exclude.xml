@@ -94,4 +94,13 @@
         </Or>
     </Match>
 
+    <!--
+        JStachio generates public constructors on renderer singletons so callers can provide
+        custom formatter/escaper functions. Generated sources are not edited in this project.
+    -->
+    <Match>
+        <Bug pattern="SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR"/>
+        <Class name="~dev\.dominikbreu\.archlens\.renderer\.template\..*Renderer"/>
+    </Match>
+
 </FindBugsFilter>

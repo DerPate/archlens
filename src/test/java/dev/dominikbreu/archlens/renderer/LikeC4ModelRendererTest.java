@@ -19,6 +19,46 @@ import org.junit.jupiter.api.Test;
 class LikeC4ModelRendererTest {
 
     @Test
+    void preservesLiteralTemplateSyntaxAndPlainTextInProjection() {
+        ArchitectureViewProjection projection = new ArchitectureViewProjection(
+                ArchitectureViewKind.COMPONENT,
+                "{{title}} <A&B>",
+                "app:demo",
+                List.of(new ArchitectureViewProjection.Node(
+                        "a", "{{name}} <A&B>", "component", Map.of("owner", "{{owner}}"))),
+                List.of(),
+                List.of());
+
+        assertEquals("""
+                specification {
+                  element component
+                }
+
+                model {
+                  a = component '{{name}} <A&B>' {
+                    metadata {
+                      owner '{{owner}}'
+                    }
+                  }
+                }
+
+                views {
+                  view index {
+                    title '{{title}} <A&B>'
+                    include *
+                  }
+                }
+                """, new LikeC4ModelRenderer().render(projection));
+    }
+
+    @Test
+    void preservesEmptyDocumentBlocks() {
+        LikeC4Document document = new LikeC4Document(List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+
+        assertEquals("specification {\n}\n\nmodel {\n}\n\nviews {\n}\n", new LikeC4ModelRenderer().render(document));
+    }
+
+    @Test
     void rendersProjectionAsLikeC4TextWithMetadata() {
         ArchitectureViewProjection projection = new ArchitectureViewProjection(
                 ArchitectureViewKind.COMPONENT,
