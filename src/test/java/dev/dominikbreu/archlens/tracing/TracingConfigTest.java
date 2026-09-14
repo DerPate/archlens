@@ -14,13 +14,13 @@ class TracingConfigTest {
 
     @AfterEach
     void clearProperty() {
-        System.clearProperty("spoon.traces");
-        System.clearProperty("spoon.otlp.endpoint");
+        System.clearProperty("archlens.traces");
+        System.clearProperty("archlens.otlp.endpoint");
     }
 
     @Test
     void noneModeReturnsNoop() {
-        System.setProperty("spoon.traces", "none");
+        System.setProperty("archlens.traces", "none");
         OpenTelemetry otel = TracingConfig.configure("test-service");
 
         Span span = otel.getTracer("test").spanBuilder("my-span").startSpan();
@@ -39,7 +39,7 @@ class TracingConfigTest {
 
     @Test
     void consoleModeProducesValidSpans() {
-        System.setProperty("spoon.traces", "console");
+        System.setProperty("archlens.traces", "console");
 
         PrintStream originalOut = System.out;
         ByteArrayOutputStream captured = new ByteArrayOutputStream();
@@ -63,8 +63,8 @@ class TracingConfigTest {
 
     @Test
     void otlpModeProducesValidSpans() {
-        System.setProperty("spoon.traces", "otlp");
-        System.setProperty("spoon.otlp.endpoint", "http://localhost:4317");
+        System.setProperty("archlens.traces", "otlp");
+        System.setProperty("archlens.otlp.endpoint", "http://localhost:4317");
 
         OpenTelemetry otel = TracingConfig.configure("test-service");
 
@@ -75,7 +75,7 @@ class TracingConfigTest {
 
     @Test
     void unknownModeDefaultsToNoop() {
-        System.setProperty("spoon.traces", "garbage");
+        System.setProperty("archlens.traces", "garbage");
         OpenTelemetry otel = TracingConfig.configure("test-service");
 
         Span span = otel.getTracer("test").spanBuilder("my-span").startSpan();

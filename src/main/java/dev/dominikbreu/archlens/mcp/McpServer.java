@@ -503,15 +503,21 @@ public class McpServer {
         specs.add(toolSpec(
                 "render_use_case_timeline",
                 "Render Use Case Timeline",
-                "Render a Mermaid gantt chart showing sequential execution steps across use cases. Each use case is a section; each component hop is a task bar positioned by call depth. Useful for comparing execution depth and component involvement across entry points.",
+                "Render a Mermaid flowchart of use-case execution: one left-to-right chain per use case, each in its own subgraph, each component hop a node shaped by its role. Execution depth reads as chain length. Useful for comparing depth and component involvement across entry points. Filter to one entry point for a readable chart: unfiltered, it renders only the deepest few use cases and reports the rest via useCasesMatched.",
                 schema().opt(ENTRYPOINT_ID, TYPE_STRING, "Filter to a single use case by entrypoint ID")
                         .opt(
                                 ENTRYPOINT_NAME,
                                 TYPE_STRING,
                                 "Filter by path, name, or 'METHOD /path' (e.g. 'GET /account') for HTTP-method disambiguation")
-                        .opt("maxUseCases", TYPE_INTEGER, "Maximum sections to render (default 10)")
+                        .opt(
+                                "maxUseCases",
+                                TYPE_INTEGER,
+                                "Maximum sections to render, deepest first (default 5 unfiltered, 25 when filtered)")
                         .opt(MAX_DEPTH, TYPE_INTEGER, "Maximum steps per section (default 5)"),
-                diagramOutput(),
+                diagramOutput()
+                        .opt("useCasesMatched", TYPE_INTEGER, "Use cases matching the filter before truncation")
+                        .opt("useCasesShown", TYPE_INTEGER, "Use cases actually rendered as sections")
+                        .opt("truncationHint", TYPE_STRING, "Present only when sections were dropped"),
                 useCaseTimelineTool::execute));
 
         specs.add(toolSpec(
@@ -553,8 +559,10 @@ public class McpServer {
                         Map.of(
                                 "id", Map.of("type", "string"),
                                 "name", Map.of("type", "string"),
-                                "type", Map.of("type", "string"),
-                                "channelOrPath", Map.of("type", "string"),
+                                // Both are null for entrypoints the tool emits as null: a scheduler
+                                // or main method has neither an HTTP path nor a channel.
+                                "type", Map.of("type", List.of("string", "null")),
+                                "channelOrPath", Map.of("type", List.of("string", "null")),
                                 "components", Map.of("type", "string"),
                                 "methodChain", Map.of("type", "array"))),
                 detectUseCasesTool::execute));

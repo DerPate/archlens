@@ -55,13 +55,30 @@ public class RuntimeFlowInferrer {
      * @return inferred runtime flow, or null when the entrypoint is not found
      */
     public RuntimeFlow infer(String entrypointRef, int maxDepth, ArchitectureModel model, ModelIndex index) {
-        Entrypoint ep = findEntrypoint(entrypointRef, model);
-        if (ep == null) return null;
+        return infer(findEntrypoint(entrypointRef, model), maxDepth, model, index);
+    }
+
+    /**
+     * Infers a runtime flow for an already-resolved entrypoint.
+     *
+     * <p>Callers that hold the {@link Entrypoint} must use this overload rather than serializing
+     * the id and letting {@link #findEntrypoint} resolve it again: ref resolution is deliberately
+     * fuzzy, so a round-trip through a string can land on a different entrypoint and give two of
+     * them the same flow id.
+     *
+     * @param entrypoint the entrypoint to trace, or {@code null}
+     * @param maxDepth maximum traversal depth
+     * @param model architecture model to search
+     * @param index pre-built model index for efficient lookups
+     * @return inferred runtime flow, or {@code null} when {@code entrypoint} is null
+     */
+    public RuntimeFlow infer(Entrypoint entrypoint, int maxDepth, ArchitectureModel model, ModelIndex index) {
+        if (entrypoint == null) return null;
 
         if (model.callEdges.isEmpty()) {
-            return inferFromDependencies(ep, maxDepth, index);
+            return inferFromDependencies(entrypoint, maxDepth, index);
         } else {
-            return inferFromCallGraph(ep, maxDepth, index);
+            return inferFromCallGraph(entrypoint, maxDepth, index);
         }
     }
 
@@ -291,27 +308,46 @@ public class RuntimeFlowInferrer {
         String method = extractMethodFromRef(ref);
         String pathRef = extractPathFromRef(ref);
 
+        Entrypoint nameCandidate = null;
+        Entrypoint containsCandidate = null;
+        Entrypoint pathCandidate = null;
         Entrypoint prefixCandidate = null;
         for (Entrypoint ep : model.entrypoints) {
             // Non-path exact matches (id / name) apply only when no HTTP method is specified.
-            if (method == null
-                    && (ep.id.serialize().equals(ref)
-                            || ep.name.equals(ref)
-                            || ep.id.serialize().contains(ref))) {
-                return ep;
+            if (method == null) {
+                // An exact id identifies exactly one entrypoint, so it can return immediately.
+                // Every weaker match is only remembered: the whole list must be scanned before
+                // falling back, because one serialized id can be a prefix of another
+                // ("…#get:GET:/absence" inside "…#get:GET:/absence/{id}"). Returning the first
+                // containment hit gave both entrypoints the same resolution, and therefore the
+                // same runtime-flow id.
+                if (ep.id.serialize().equals(ref)) {
+                    return ep;
+                }
+                if (nameCandidate == null && Objects.equals(ep.name, ref)) {
+                    nameCandidate = ep;
+                }
+                if (containsCandidate == null
+                        && ref != null
+                        && ep.id.serialize().contains(ref)) {
+                    containsCandidate = ep;
+                }
             }
             // When an HTTP method is present, skip endpoints with a different method.
             if (method != null && !method.equalsIgnoreCase(ep.httpMethod)) {
                 continue;
             }
-            // Exact path match — always preferred over any prefix match.
-            if (ep.path != null && ep.path.equalsIgnoreCase(pathRef)) {
-                return ep;
+            if (pathCandidate == null && ep.path != null && ep.path.equalsIgnoreCase(pathRef)) {
+                pathCandidate = ep;
             }
             if (prefixCandidate == null && pathPrefixMatches(ep.path, pathRef)) {
                 prefixCandidate = ep;
             }
         }
+        // Exact matches of any kind outrank the fuzzy ones; a prefix match is the last resort.
+        if (nameCandidate != null) return nameCandidate;
+        if (pathCandidate != null) return pathCandidate;
+        if (containsCandidate != null) return containsCandidate;
         return prefixCandidate;
     }
 }

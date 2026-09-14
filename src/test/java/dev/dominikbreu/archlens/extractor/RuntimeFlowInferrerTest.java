@@ -255,6 +255,65 @@ class RuntimeFlowInferrerTest {
     }
 
     @Test
+    void findEntrypointPrefersExactIdOverAnIdItIsAPrefixOf() {
+        // AbsenceController exposes GET /absence/{id} and GET /absence from two `get` overloads,
+        // so the collection endpoint's id is a prefix of the item endpoint's id. Resolving the
+        // shorter id used to return the /{id} endpoint, giving both the same runtime-flow id.
+        ArchitectureModel m = new ArchitectureModel("test");
+        Component ctrl = comp("AbsenceController", ComponentType.REST_RESOURCE);
+        m.components.add(ctrl);
+        Entrypoint item = ep("AbsenceController#get:GET:/absence/{id}", "get", ctrl.id, "GET", "/absence/{id}");
+        Entrypoint collection = ep("AbsenceController#get:GET:/absence", "get", ctrl.id, "GET", "/absence");
+        m.entrypoints.add(item); // declared first, as in the controller source
+        m.entrypoints.add(collection);
+
+        assertThat(inferrer.findEntrypoint(collection.id.serialize(), m).id).isEqualTo(collection.id);
+        assertThat(inferrer.findEntrypoint(item.id.serialize(), m).id).isEqualTo(item.id);
+    }
+
+    @Test
+    void everyEntrypointGetsItsOwnFlowId() {
+        ArchitectureModel m = new ArchitectureModel("test");
+        Component ctrl = comp("AbsenceController", ComponentType.REST_RESOURCE);
+        m.components.add(ctrl);
+        m.entrypoints.add(ep("AbsenceController#get:GET:/absence/{id}", "get", ctrl.id, "GET", "/absence/{id}"));
+        m.entrypoints.add(ep("AbsenceController#get:GET:/absence", "get", ctrl.id, "GET", "/absence"));
+        ModelIndex index = ModelIndex.build(m);
+
+        List<String> flowIds = m.entrypoints.stream()
+                .map(entrypoint -> inferrer.infer(entrypoint, 5, m, index))
+                .map(flow -> flow.id)
+                .toList();
+
+        assertThat(flowIds).doesNotHaveDuplicates().hasSize(2);
+    }
+
+    @Test
+    void inferByEntrypointDoesNotReResolveTheRef() {
+        // The overload must trace the entrypoint it is handed, even when a fuzzy ref lookup
+        // would have picked a different one.
+        ArchitectureModel m = new ArchitectureModel("test");
+        Component ctrl = comp("AbsenceController", ComponentType.REST_RESOURCE);
+        m.components.add(ctrl);
+        Entrypoint item = ep("AbsenceController#get:GET:/absence/{id}", "get", ctrl.id, "GET", "/absence/{id}");
+        Entrypoint collection = ep("AbsenceController#get:GET:/absence", "get", ctrl.id, "GET", "/absence");
+        m.entrypoints.add(item);
+        m.entrypoints.add(collection);
+
+        RuntimeFlow flow = inferrer.infer(collection, 5, m, ModelIndex.build(m));
+
+        assertThat(flow.entrypointId).isEqualTo(collection.id);
+        assertThat(flow.id).isEqualTo("flow:" + collection.id.serialize());
+    }
+
+    @Test
+    void inferByEntrypointReturnsNullForNullEntrypoint() {
+        ArchitectureModel model = threeLayerModel();
+        assertThat(inferrer.infer((Entrypoint) null, 5, model, ModelIndex.build(model)))
+                .isNull();
+    }
+
+    @Test
     void matchesByExactPath() {
         ArchitectureModel model = threeLayerModel();
         RuntimeFlow flow = inferrer.infer("/orders/{id}", 5, model);

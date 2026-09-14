@@ -191,6 +191,19 @@ There is no selectable cache backend. The server stores the indexed architecture
 
 Older releases exposed `SPOON_MCP_CACHE_BACKEND` / `spoonmcp.cache.backend` while the graph cache was being introduced. Those settings are deprecated and no longer read by the server. If you are upgrading from a JSON-backed cache, run `index_workspace` again to create a fresh GraphSON snapshot.
 
+### Tracing
+
+Indexing emits OpenTelemetry spans for each extraction pass, which is the quickest way to see where a slow index spends its time:
+
+```sh
+java -Darchlens.traces=console -jar target/archlens.jar   # spans to stdout
+java -Darchlens.traces=otlp -Darchlens.otlp.endpoint=http://localhost:4317 -jar target/archlens.jar
+```
+
+`none` (the default) installs a no-op tracer. Console spans are written to stdout alongside the JSON-RPC stream, so use this for local debugging rather than with a live MCP client.
+
+These properties were named `spoon.traces` and `spoon.otlp.endpoint` before the ArchLens rename. The old names are no longer read, and an unrecognised property is silently ignored — if tracing appears to do nothing, check the prefix first.
+
 ## Troubleshooting
 
 - **`UnsupportedClassVersionError`** — the JVM running the jar is older than 25. Check `java -version` and point the client at a Java 25+ binary if needed (e.g. `"command": "/path/to/jdk-25/bin/java"`).

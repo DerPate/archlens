@@ -117,7 +117,7 @@ public class SpringExtractor {
         String technology = "spring";
         List<String> stereotypes = new ArrayList<>();
 
-        if (hasAnnotation(type, ENTITY)) {
+        if (PersistenceEntityTypes.isEntity(type)) {
             componentType = ComponentType.ENTITY;
             technology = "jpa";
             stereotypes.add("entity");
@@ -601,7 +601,7 @@ public class SpringExtractor {
      */
     protected String getFile(CtElement element) {
         var position = element.getPosition();
-        if (position.isValidPosition()) {
+        if (position.isValidPosition() && position.getFile() != null) {
             return position.getFile().getAbsolutePath();
         } else {
             return "unknown";
