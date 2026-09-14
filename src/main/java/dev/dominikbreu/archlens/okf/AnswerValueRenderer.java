@@ -13,30 +13,12 @@ import java.util.stream.Collectors;
 final class AnswerValueRenderer {
     private AnswerValueRenderer() {}
 
+    /** Renders a value as its own block: a section body or a top-level "Subject". */
     static String block(Object value) {
-        if (value instanceof Map<?, ?> map) {
-            return map(map);
-        }
-        if (value instanceof List<?> values) {
-            return list(values);
-        }
-        return inline(value);
+        return render(value, false);
     }
 
-    static String list(List<?> values) {
-        if (values.isEmpty()) {
-            return "None recorded.";
-        }
-        StringBuilder builder = new StringBuilder();
-        for (int index = 0; index < values.size(); index++) {
-            builder.append(index + 1)
-                    .append(". ")
-                    .append(inline(values.get(index)))
-                    .append('\n');
-        }
-        return builder.toString().stripTrailing();
-    }
-
+    /** Renders a flat list of already-Markdown strings, e.g. suggested questions. */
     static String strings(List<String> values) {
         if (values.isEmpty()) {
             return "None recorded.";
@@ -48,10 +30,51 @@ final class AnswerValueRenderer {
         return builder.toString().stripTrailing();
     }
 
-    private static String map(Map<?, ?> values) {
+    /** Renders a numbered list whose items may themselves be structured values. */
+    static String list(List<?> values) {
         if (values.isEmpty()) {
             return "None recorded.";
         }
+        StringBuilder builder = new StringBuilder();
+        for (int index = 0; index < values.size(); index++) {
+            builder.append(index + 1)
+                    .append(". ")
+                    .append(nested(values.get(index)))
+                    .append('\n');
+        }
+        return builder.toString().stripTrailing();
+    }
+
+    // Every value ArchLens renders is one of: an empty Map/List ("None recorded."), a non-empty
+    // Map/List (structured; indented under its parent bullet when nested), null, or a scalar.
+    // block() and nested() are the only two entry points into this dispatch, so the four shapes
+    // are handled in exactly one place rather than once per entry point.
+    private static String render(Object value, boolean nested) {
+        return switch (value) {
+            case Map<?, ?> map when map.isEmpty() -> "None recorded.";
+            case Map<?, ?> map -> wrap(map(map), nested);
+            case List<?> values when values.isEmpty() -> "None recorded.";
+            case List<?> values -> wrap(list(values), nested);
+            case null -> "`null`";
+            default -> scalar(value);
+        };
+    }
+
+    /** Renders a value sitting inside a parent bullet, e.g. after "- **key**: ". */
+    private static String nested(Object value) {
+        return render(value, true);
+    }
+
+    private static String wrap(String rendered, boolean nested) {
+        return nested ? "\n" + indent(rendered) : rendered;
+    }
+
+    private static String scalar(Object value) {
+        String text = String.valueOf(value);
+        return safeInlineCode(text) ? "`" + text + "`" : text;
+    }
+
+    private static String map(Map<?, ?> values) {
         // Graph nodes are represented as maps with an "id" key; render those as one identifiable
         // citation line instead of dumping every property, since that's how evidence should read.
         if (values.get("id") instanceof String id) {
@@ -63,7 +86,7 @@ final class AnswerValueRenderer {
                 .forEach(entry -> builder.append("- **")
                         .append(entry.getKey())
                         .append("**: ")
-                        .append(inline(entry.getValue()))
+                        .append(nested(entry.getValue()))
                         .append('\n'));
         return builder.toString().stripTrailing();
     }
@@ -86,22 +109,8 @@ final class AnswerValueRenderer {
                 .forEach(entry -> builder.append("\n  - **")
                         .append(entry.getKey())
                         .append("**: ")
-                        .append(inline(entry.getValue())));
+                        .append(nested(entry.getValue())));
         return builder.toString();
-    }
-
-    private static String inline(Object value) {
-        if (value instanceof Map<?, ?> nested) {
-            return nested.isEmpty() ? "None recorded." : "\n" + indent(map(nested));
-        }
-        if (value instanceof List<?> nested) {
-            return nested.isEmpty() ? "None recorded." : "\n" + indent(list(nested));
-        }
-        if (value == null) {
-            return "`null`";
-        }
-        String text = String.valueOf(value);
-        return safeInlineCode(text) ? "`" + text + "`" : text;
     }
 
     private static String indent(String value) {
