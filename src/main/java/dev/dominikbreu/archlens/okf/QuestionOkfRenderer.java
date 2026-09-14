@@ -7,11 +7,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.yaml.snakeyaml.DumperOptions;
@@ -128,12 +126,14 @@ public final class QuestionOkfRenderer {
         Map<String, String> blocks = new LinkedHashMap<>();
         blocks.put("frontmatter", frontmatter(result, identity, projectPath, timestamp, title, description));
         blocks.put("question", question(result));
-        blocks.put("subject", section("Subject", renderValue(result.subject())));
+        blocks.put("subject", section("Subject", AnswerValueRenderer.block(result.subject())));
         blocks.put("answer", answer(result));
-        blocks.put("evidence", section("Evidence", renderList(result.evidenceChain())));
+        blocks.put("evidence", section("Evidence", AnswerValueRenderer.list(result.evidenceChain())));
         blocks.put("uncertainty", uncertainty(result));
-        blocks.put("query_plan", section("Query Plan", renderList(result.queryPlan())));
-        blocks.put("suggested_questions", section("Suggested Questions", renderStrings(result.suggestedQuestions())));
+        blocks.put("query_plan", section("Query Plan", AnswerValueRenderer.list(result.queryPlan())));
+        blocks.put(
+                "suggested_questions",
+                section("Suggested Questions", AnswerValueRenderer.strings(result.suggestedQuestions())));
         return blocks;
     }
 
@@ -196,7 +196,8 @@ public final class QuestionOkfRenderer {
                     builder.append('\n');
                 }
                 builder.append("## ").append(humanize(key)).append('\n');
-                builder.append(renderValue(result.answer().get(key))).append('\n');
+                builder.append(AnswerValueRenderer.block(result.answer().get(key)))
+                        .append('\n');
                 emitted = true;
             }
         }
@@ -212,116 +213,19 @@ public final class QuestionOkfRenderer {
         }
         StringBuilder builder = new StringBuilder("# Uncertainty\n");
         if (!result.unresolved().isEmpty()) {
-            builder.append("## Unresolved\n").append(renderStrings(result.unresolved()));
+            builder.append("## Unresolved\n").append(AnswerValueRenderer.strings(result.unresolved()));
         }
         if (!result.ambiguous().isEmpty()) {
             if (!result.unresolved().isEmpty()) {
                 builder.append("\n\n");
             }
-            builder.append("## Ambiguous\n").append(renderStrings(result.ambiguous()));
+            builder.append("## Ambiguous\n").append(AnswerValueRenderer.strings(result.ambiguous()));
         }
         return builder.toString();
     }
 
     private static String section(String title, String body) {
         return "# " + title + "\n" + (body == null || body.isBlank() ? "None recorded." : body.stripTrailing());
-    }
-
-    private static String renderValue(Object value) {
-        if (value instanceof Map<?, ?> map) {
-            return renderMap(map);
-        }
-        if (value instanceof List<?> list) {
-            return renderList(list);
-        }
-        return renderInline(value);
-    }
-
-    private static String renderMap(Map<?, ?> map) {
-        if (map.isEmpty()) {
-            return "None recorded.";
-        }
-        if (map.get("id") instanceof String id) {
-            return renderGraphNode(map, id);
-        }
-        StringBuilder builder = new StringBuilder();
-        map.entrySet().stream()
-                .sorted(Comparator.comparing(entry -> String.valueOf(entry.getKey())))
-                .forEach(entry -> builder.append("- **")
-                        .append(entry.getKey())
-                        .append("**: ")
-                        .append(renderInline(entry.getValue()))
-                        .append('\n'));
-        return builder.toString().stripTrailing();
-    }
-
-    private static String renderGraphNode(Map<?, ?> map, String id) {
-        Object nameValue = map.containsKey("name") ? map.get("name") : id;
-        Object labelValue = map.containsKey("label") ? map.get("label") : "node";
-        String name = String.valueOf(nameValue);
-        String label = String.valueOf(labelValue);
-        StringBuilder builder = new StringBuilder("- `")
-                .append(id)
-                .append("` — ")
-                .append(name)
-                .append(" (")
-                .append(label)
-                .append(")");
-        map.entrySet().stream()
-                .filter(entry -> Set.of("evidence", "properties", "source").contains(String.valueOf(entry.getKey())))
-                .sorted(Comparator.comparing(entry -> String.valueOf(entry.getKey())))
-                .forEach(entry -> builder.append("\n  - **")
-                        .append(entry.getKey())
-                        .append("**: ")
-                        .append(renderInline(entry.getValue())));
-        return builder.toString();
-    }
-
-    private static String renderList(List<?> list) {
-        if (list.isEmpty()) {
-            return "None recorded.";
-        }
-        StringBuilder builder = new StringBuilder();
-        for (int index = 0; index < list.size(); index++) {
-            builder.append(index + 1)
-                    .append(". ")
-                    .append(renderInline(list.get(index)))
-                    .append('\n');
-        }
-        return builder.toString().stripTrailing();
-    }
-
-    private static String renderStrings(List<String> values) {
-        if (values.isEmpty()) {
-            return "None recorded.";
-        }
-        StringBuilder builder = new StringBuilder();
-        for (String value : values) {
-            builder.append("- ").append(value).append('\n');
-        }
-        return builder.toString().stripTrailing();
-    }
-
-    private static String renderInline(Object value) {
-        if (value instanceof Map<?, ?> map) {
-            return map.isEmpty() ? "None recorded." : "\n" + indent(renderMap(map));
-        }
-        if (value instanceof List<?> list) {
-            return list.isEmpty() ? "None recorded." : "\n" + indent(renderList(list));
-        }
-        if (value == null) {
-            return "`null`";
-        }
-        String text = String.valueOf(value);
-        return safeInlineCode(text) ? "`" + text + "`" : text;
-    }
-
-    private static String indent(String value) {
-        return value.lines().map(line -> "  " + line).collect(java.util.stream.Collectors.joining("\n"));
-    }
-
-    private static boolean safeInlineCode(String value) {
-        return !value.isBlank() && !value.contains("`") && !value.contains("\n");
     }
 
     private static String defaultTemplate() {
