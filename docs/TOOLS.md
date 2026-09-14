@@ -235,11 +235,16 @@ Example — system-level diagram:
 { "level": "system" }
 ```
 
+Setting `ARCHLENS_MCP_EXPERIMENTAL_C4=true` when starting the server switches the `system`
+and `container` levels to Mermaid's experimental `C4Context`/`C4Container` diagram types.
+`module` and `component` levels are unaffected. C4 output renders on GitHub and Mermaid
+Live but not in every IDE preview — hence opt-in.
+
 ---
 
 ## `call_flow`
 
-Return the runtime call flow for an entry point: ordered steps and a Mermaid `flowchart TD`.
+Return the runtime call flow for an entry point: ordered steps and a Mermaid `sequenceDiagram`.
 
 When an effective transaction policy is known, each structured step additionally exposes
 `method`, `transactionPolicy`, `transactionTransition`, `transactionScopeId`,
@@ -261,18 +266,16 @@ DFS over actual method-call edges from the entrypoint method — each step’s `
 shows the real called-method name or HTTP method+path. Without call-graph data it falls
 back to BFS over injection-dependency edges.
 
-Component shapes reflect architectural role:
-
-| Shape | Mermaid syntax | Used for |
-| --- | --- | --- |
-| Rectangle | `[Name]` | SERVICE, REST_RESOURCE, EJB, default |
-| Cylinder | `[(Name)]` | REPOSITORY — persistence store |
-| Parallelogram | `[/Name/]` | HTTP_CLIENT — external call |
-| Stadium | `([Name])` | SCHEDULER, MESSAGE_DRIVEN_BEAN — async trigger |
-| Circle | `((Name))` | CDI_EVENT_CONSUMER / CDI_EVENT_PRODUCER |
+Each participant is declared as `Name«stereotype»`, where `stereotype` is the component's
+lowercased architectural role (e.g. `rest_resource`, `service`, `repository`). Participants
+are ordered by first appearance in the flow, and grouped into per-application `box`
+sections when the flow spans more than one application. Synchronous calls use `->>`;
+calls into a messaging or event-bus target use the async `-->>` arrow. Diagrams are
+`autonumber`ed and each participant is activated (`+`) on first call and deactivated at
+the end of the diagram, so the sequence's nesting mirrors the actual call depth.
 
 Edge labels carry the actual called method name from the call graph. The first edge from
-Client shows the HTTP method+path or channel name. No return arrows — execution path only.
+Client shows the HTTP method+path or channel name.
 
 Arguments:
 
@@ -295,15 +298,19 @@ Example — disambiguate by HTTP verb:
 Sample output:
 
 ```
-flowchart TD
-    Client([Client])
-    OrderResource[OrderResource]
-    OrderService[OrderService]
-    OrderRepository[(OrderRepository)]
-
-    Client -->|POST /orders| OrderResource
-    OrderResource -->|create| OrderService
-    OrderService -->|save| OrderRepository
+%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#f5f5f5", "primaryBorderColor": "#9e9e9e", "primaryTextColor": "#212121", "lineColor": "#607d8b", "clusterBkg": "#fafafa", "clusterBorder": "#b0bec5"}}}%%
+sequenceDiagram
+    autonumber
+    actor Client
+    participant OrderResource as OrderResource«rest_resource»
+    participant OrderService as OrderService«service»
+    participant OrderRepository as OrderRepository«repository»
+    Client->>+OrderResource: POST /orders
+    OrderResource->>+OrderService: create
+    OrderService->>+OrderRepository: save
+    deactivate OrderRepository
+    deactivate OrderService
+    deactivate OrderResource
 ```
 
 ---
@@ -489,9 +496,10 @@ or `com.azure.storage.*` (→ `object-storage`) are detected even when the calle
 not a project component, via {@code outbound_sink_sites} captured during call-graph
 extraction. Sinks land on the entrypoint method's data-flow path at depth 0.
 
-Structured sink results include destination metadata (`entityType`, `repositoryOperation`,
-`channel`, `broker`, `topic`) when known and the normalized `evidence` object when source evidence
-is available. Human-readable sink lines show the confidence band alongside the source location.
+Structured sink results include destination metadata (`entityType`, `persistenceUnitName`,
+`repositoryOperation`, `channel`, `broker`, `topic`) when known and the normalized `evidence`
+object when source evidence is available. Human-readable sink lines show the confidence band
+alongside the source location.
 
 **New entrypoint families:** `EVENT_BUS_CONSUMER` (Vert.x `eventBus.consumer(addr, handler)`),
 `WEBSOCKET_ENDPOINT` (`@ServerEndpoint` + `@OnMessage`), `SSE_ENDPOINT` (REST methods
@@ -625,7 +633,7 @@ entrypoint is reached from the previous segment via either:
 - an `EVENT_BUS` sink — boundary rendered as a circle
 
 Per-segment call steps are shaped by the component's architectural role
-(rectangle for SERVICE, cylinder for REPOSITORY, parallelogram for HTTP_CLIENT,
+(rounded rectangle for SERVICE, cylinder for REPOSITORY, parallelogram for HTTP_CLIENT,
 stadium for SCHEDULER / MESSAGING_CONSUMER, etc.).
 
 Arguments:
@@ -663,9 +671,11 @@ Spring pipeline stitching supports these handoff kinds:
 When no chains render, use the diagnostic counts to decide whether config resolution,
 producer extraction, or repository handoff metadata is missing.
 
-Example output sketch (single chain, two segments):
+Example output sketch (single chain, two segments). Like all `render_*` diagram tools,
+the output is preceded by a shared `%%{init: ...}%%` theme directive as its first line:
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#f5f5f5", "primaryBorderColor": "#9e9e9e", "primaryTextColor": "#212121", "lineColor": "#607d8b", "clusterBkg": "#fafafa", "clusterBorder": "#b0bec5"}}}%%
 flowchart TD
     S0_0(["RecordIngestor.consume"])
     S0_1["RecordIngestor.consume"]
@@ -815,8 +825,8 @@ Useful graph properties include:
   declaration remains a queryable `unresolved=true` datasource instead of gaining a fabricated
   database target.
 - PersistenceOperation nodes (label `PersistenceOperation`): method-local `EntityManager`
-  operations with `componentId`, `methodName`, `methodSignature`, `operation`, `entityType`, and
-  `persistenceUnitName` plus invocation evidence.
+  operations with `componentId`, `methodName`, `methodSignature`, `operation`, `entityType`,
+  `argumentName`, and `persistenceUnitName` plus invocation evidence.
 - TransactionBoundary nodes (label `TransactionBoundary`): effective Spring, Jakarta/Javax,
   Quarkus, or EJB method policies. Properties include `framework`, normalized `policy`,
   `nativePolicy`, `readOnly`, `isolation`, `rollbackRules`, `declarationLevel`, `defaulted`,
@@ -828,7 +838,7 @@ Useful graph properties include:
   `pathId`, `componentId`, `method` (callee method name for outbound sinks, e.g.
   `writeString`; call site method for non-outbound sinks), `fieldName`,
   `fieldOwnerComponentId`, `channel`, `broker`, `topic`, `topicPropertyKey`,
-  `payloadType`, `entityType`, `repositoryOperation`, `linkEvidence`, and
+  `payloadType`, `entityType`, `persistenceUnitName`, `repositoryOperation`, `linkEvidence`, and
   `calleeQualifiedName` (fully-qualified declaring type of the outbound callee, e.g.
   `java.nio.file.Files`; absent for non-outbound kinds).
 - DataFlowNode nodes (label `DataFlowNode`): branch-aware topology vertices inside a

@@ -79,6 +79,7 @@ public class TransactionPolicyExtractor {
             operation.methodSignature = method.signature();
             operation.operation = invocation.executableName();
             operation.entityType = inferEntityType(invocation, method);
+            operation.argumentName = consumedArgumentName(invocation);
             operation.persistenceUnitName = persistenceUnitName(model, appId, component.id);
             operation.source = source(invocation.location(), "entity-manager-invocation", 1.0);
             model.persistenceOperations.add(operation);
@@ -288,6 +289,16 @@ public class TransactionPolicyExtractor {
         return parameter >= 0 && parameter < method.parameterTypes().size()
                 ? method.parameterTypes().get(parameter)
                 : null;
+    }
+
+    private static String consumedArgumentName(SourceInvocation invocation) {
+        if (invocation.argumentExpressions().isEmpty()) return null;
+        if (Set.of("find", "getReference").contains(invocation.executableName())
+                && invocation.argumentExpressions().size() > 1) {
+            return invocation.argumentExpressions().get(1);
+        }
+        String first = invocation.argumentExpressions().getFirst();
+        return first.endsWith(".class") ? null : first;
     }
 
     private static String persistenceUnitName(ArchitectureModel model, AppId appId, ComponentId componentId) {

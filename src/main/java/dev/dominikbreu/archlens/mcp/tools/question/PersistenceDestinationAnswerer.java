@@ -95,23 +95,23 @@ public final class PersistenceDestinationAnswerer {
             GraphQuery graph, String entityType, GraphNode operation, Answer result) {
         Map<String, Object> destination = new LinkedHashMap<>();
         destination.put("entityType", entityType);
-        List<PersistenceUnitNode> units =
+        String persistenceUnitName = persistenceUnitName(operation);
+        if (persistenceUnitName != null) destination.put("persistenceUnitName", persistenceUnitName);
+        List<PersistenceUnitNode> allUnits =
                 graph.findNodes("PersistenceUnit", null, Map.of(), QuestionSupport.DEFAULT_LIMIT).stream()
                         .filter(PersistenceUnitNode.class::isInstance)
                         .map(PersistenceUnitNode.class::cast)
-                        .filter(unit ->
-                                entityType != null && unit.managedClasses().contains(entityType))
                         .toList();
+        List<PersistenceUnitNode> units = allUnits.stream()
+                .filter(unit -> persistenceUnitName != null
+                        ? persistenceUnitName.equals(unit.name())
+                        : entityType != null && unit.managedClasses().contains(entityType))
+                .toList();
         if (units.isEmpty()) {
-            List<PersistenceUnitNode> all =
-                    graph.findNodes("PersistenceUnit", null, Map.of(), QuestionSupport.DEFAULT_LIMIT).stream()
-                            .filter(PersistenceUnitNode.class::isInstance)
-                            .map(PersistenceUnitNode.class::cast)
-                            .toList();
-            if (all.size() == 1) {
-                units = all;
-                result.ambiguous.add(
-                        "single-persistence-unit-fallback:" + all.getFirst().name());
+            if (allUnits.size() == 1) {
+                units = allUnits;
+                result.ambiguous.add("single-persistence-unit-fallback:"
+                        + allUnits.getFirst().name());
             }
         }
         if (units.size() != 1) {
@@ -155,5 +155,12 @@ public final class PersistenceDestinationAnswerer {
         }
         destination.put("evidenceChain", chain);
         return destination;
+    }
+
+    private static String persistenceUnitName(GraphNode operation) {
+        if (operation instanceof DataFlowSinkNode sink) return sink.persistenceUnitName();
+        if (operation instanceof PersistenceOperationNode persistenceOperation)
+            return persistenceOperation.persistenceUnitName();
+        return null;
     }
 }

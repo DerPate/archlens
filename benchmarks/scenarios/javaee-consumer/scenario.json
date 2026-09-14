@@ -108,6 +108,41 @@
       ]
     },
     {
+      "id": "customer-post-direct-entity-manager-destination",
+      "question": "Where does POST /customers persist the customer parameter through direct EntityManager usage?",
+      "tool": "answer_architecture_question",
+      "arguments": {
+        "family": "persistence_destination",
+        "entrypoint": "POST /customers",
+        "param": "customer"
+      },
+      "assertions": [
+        {"path": "status", "equals": "resolved"},
+        {
+          "path": "answer.operations",
+          "where": {
+            "label": "DataFlowSink",
+            "properties.componentId": "com.example.ejb.CustomerEjb",
+            "properties.method": "persist",
+            "properties.entityType": "com.example.model.Customer",
+            "properties.persistenceUnitName": "customer-unit",
+            "properties.repositoryOperation": "persist",
+            "properties.linkEvidence": "entity-manager-invocation"
+          },
+          "minCount": 1,
+          "requiredFields": ["properties.sourceFile", "evidence.derivedFrom"]
+        },
+        {
+          "path": "answer.destinations",
+          "where": {
+            "persistenceUnitName": "customer-unit",
+            "persistenceUnit.name": "customer-unit"
+          },
+          "minCount": 1
+        }
+      ]
+    },
+    {
       "id": "customer-save-transaction",
       "question": "Which transaction policy governs CustomerEjb.save and its EntityManager.persist operation?",
       "tool": "query_architecture_graph",

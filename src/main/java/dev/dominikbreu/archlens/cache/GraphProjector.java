@@ -312,6 +312,7 @@ class GraphProjector {
         set(vertex, "methodSignature", operation.methodSignature);
         set(vertex, "operation", operation.operation);
         set(vertex, "entityType", operation.entityType);
+        set(vertex, "argumentName", operation.argumentName);
         set(vertex, "persistenceUnitName", operation.persistenceUnitName);
         setSource(vertex, operation.source);
     }
@@ -716,6 +717,7 @@ class GraphProjector {
         set(sinkVertex, "topicPropertyKey", sink.topicPropertyKey);
         set(sinkVertex, "payloadType", sink.payloadType);
         set(sinkVertex, "entityType", sink.entityType);
+        set(sinkVertex, "persistenceUnitName", sink.persistenceUnitName);
         set(sinkVertex, "repositoryOperation", sink.repositoryOperation);
         set(sinkVertex, "linkEvidence", sink.linkEvidence);
         set(sinkVertex, "calleeQualifiedName", sink.calleeQualifiedName);
