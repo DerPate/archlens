@@ -2,7 +2,8 @@ package dev.dominikbreu.archlens.mcp.tools;
 
 import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.cache.ModelCache;
-import java.nio.file.Files;
+import dev.dominikbreu.archlens.io.AtomicFileWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -15,6 +16,7 @@ public class ExportGraphDataTool {
     private static final int DEFAULT_LIMIT = 5000;
 
     private final ModelCache cache;
+    private final AtomicFileWriter atomicFileWriter = new AtomicFileWriter();
 
     /**
      * Creates the tool with the shared model cache.
@@ -41,9 +43,7 @@ public class ExportGraphDataTool {
             GraphQuery.GraphSnapshot snapshot = graph.snapshot(limit);
             String json = GraphExportJson.write(snapshot, Instant.now());
 
-            Path parent = output.getParent();
-            if (parent != null) Files.createDirectories(parent);
-            Files.writeString(output, json);
+            atomicFileWriter.write(output, json.getBytes(StandardCharsets.UTF_8));
 
             Map<String, Object> structured = new LinkedHashMap<>();
             structured.put("outputPath", output.toAbsolutePath().toString());

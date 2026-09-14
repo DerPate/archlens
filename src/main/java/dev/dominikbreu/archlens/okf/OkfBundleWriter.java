@@ -1,37 +1,24 @@
 package dev.dominikbreu.archlens.okf;
 
+import dev.dominikbreu.archlens.io.AtomicFileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.yaml.snakeyaml.Yaml;
 
 /** Safely creates and refreshes OKF investigation bundle files. */
 public final class OkfBundleWriter {
-    private final FilePromoter promoter;
+    private final AtomicFileWriter atomicFileWriter = new AtomicFileWriter();
     private final OkfEntryValidator validator = new OkfEntryValidator();
 
-    /** Creates a writer that promotes staged files with atomic moves when supported. */
-    public OkfBundleWriter() {
-        this(OkfBundleWriter::promote);
-    }
-
-    /**
-     * Creates a writer with an injectable file promoter.
-     *
-     * @param promoter file promotion strategy
-     */
-    OkfBundleWriter(FilePromoter promoter) {
-        this.promoter = promoter;
-    }
+    /** Creates a writer that atomically promotes staged bundle files. */
+    public OkfBundleWriter() {}
 
     /**
      * Writes or refreshes a generated OKF investigation bundle entry.
@@ -80,7 +67,7 @@ public final class OkfBundleWriter {
                 indexPath, bytes(ensureOkfVersion(updateIndex(read(indexPath), request.familySlug(), indexEntry))));
         finalContent.put(logPath, bytes(updateLog(read(logPath), request.logDate(), logEntry)));
 
-        promoteStaged(finalContent);
+        atomicFileWriter.writeAll(finalContent);
         return new WriteOutcome(status, conceptPath, indexPath, logPath, List.of());
     }
 
@@ -230,94 +217,6 @@ public final class OkfBundleWriter {
         return String.join("\n", lines) + "\n";
     }
 
-    private void promoteStaged(Map<Path, byte[]> finalContent) throws IOException {
-        Map<Path, Optional<byte[]>> snapshots = new LinkedHashMap<>();
-        Map<Path, Path> staged = new LinkedHashMap<>();
-        List<Path> promoted = new ArrayList<>();
-        List<Path> temps = new ArrayList<>();
-        try {
-            for (Map.Entry<Path, byte[]> entry : finalContent.entrySet()) {
-                Path target = entry.getKey();
-                snapshots.put(target, snapshot(target));
-                Path parent = requireParent(target);
-                Path fileName = requireFileName(target);
-                Files.createDirectories(parent);
-                Path temp = Files.createTempFile(parent, fileName.toString(), ".tmp");
-                temps.add(temp);
-                Files.write(temp, entry.getValue());
-                staged.put(target, temp);
-            }
-            for (Map.Entry<Path, Path> entry : staged.entrySet()) {
-                promoter.move(entry.getValue(), entry.getKey());
-                promoted.add(entry.getKey());
-            }
-        } catch (IOException promotionFailure) {
-            restore(promoted, snapshots, temps, promotionFailure);
-        } finally {
-            for (Path temp : temps) {
-                Files.deleteIfExists(temp);
-            }
-        }
-    }
-
-    private static Optional<byte[]> snapshot(Path path) throws IOException {
-        return Files.exists(path) ? Optional.of(Files.readAllBytes(path)) : Optional.empty();
-    }
-
-    private static void restore(
-            List<Path> promoted, Map<Path, Optional<byte[]>> snapshots, List<Path> temps, IOException cause)
-            throws IOException {
-        List<Path> unrestored = new ArrayList<>();
-        for (int index = promoted.size() - 1; index >= 0; index--) {
-            Path target = promoted.get(index);
-            try {
-                Optional<byte[]> content = snapshots.get(target);
-                if (content.isPresent()) {
-                    Path fileName = requireFileName(target);
-                    Path temp = Files.createTempFile(requireParent(target), fileName.toString(), ".restore");
-                    temps.add(temp);
-                    Files.write(temp, content.get());
-                    promote(temp, target);
-                } else {
-                    Files.deleteIfExists(target);
-                }
-            } catch (IOException restoreFailure) {
-                unrestored.add(target);
-                cause.addSuppressed(restoreFailure);
-            }
-        }
-        if (!unrestored.isEmpty()) {
-            IOException failure = new IOException(
-                    "Promotion failed and restoration failed for " + unrestored + ": " + cause.getMessage(), cause);
-            throw failure;
-        }
-        throw cause;
-    }
-
-    private static void promote(Path source, Path target) throws IOException {
-        try {
-            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        } catch (AtomicMoveNotSupportedException unsupported) {
-            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
-        }
-    }
-
-    private static Path requireParent(Path path) {
-        Path parent = path.getParent();
-        if (parent == null) {
-            throw new IllegalArgumentException("Path must have a parent: " + path);
-        }
-        return parent;
-    }
-
-    private static Path requireFileName(Path path) {
-        Path fileName = path.getFileName();
-        if (fileName == null) {
-            throw new IllegalArgumentException("Path must have a file name: " + path);
-        }
-        return fileName;
-    }
-
     private static String read(Path path) throws IOException {
         return Files.exists(path) ? Files.readString(path) : "";
     }
@@ -340,9 +239,4 @@ public final class OkfBundleWriter {
     }
 
     private record ExistingConcept(boolean exists, boolean generated, String semanticKey) {}
-}
-
-@FunctionalInterface
-interface FilePromoter {
-    void move(Path source, Path target) throws IOException;
 }

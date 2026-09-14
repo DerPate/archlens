@@ -2,7 +2,8 @@ package dev.dominikbreu.archlens.mcp.tools;
 
 import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.cache.ModelCache;
-import java.nio.file.Files;
+import dev.dominikbreu.archlens.io.AtomicFileWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -29,6 +30,7 @@ public class ExportGraphArchitecturePocTool {
     private static final Path DEFAULT_OUTPUT = Path.of("docs", "SOURCE_ARCHITECTURE_POC.md");
 
     private final ModelCache cache;
+    private final AtomicFileWriter atomicFileWriter = new AtomicFileWriter();
 
     /**
      * Creates the tool with the shared model cache.
@@ -56,11 +58,7 @@ public class ExportGraphArchitecturePocTool {
             String focus = ToolArgs.getString(args, "focusComponent", "McpServer");
             String markdown = renderMarkdown(graph, focus);
 
-            Path parent = output.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
-            }
-            Files.writeString(output, markdown);
+            atomicFileWriter.write(output, markdown.getBytes(StandardCharsets.UTF_8));
 
             Map<String, Object> structured = new LinkedHashMap<>();
             structured.put("outputPath", output.toAbsolutePath().toString());

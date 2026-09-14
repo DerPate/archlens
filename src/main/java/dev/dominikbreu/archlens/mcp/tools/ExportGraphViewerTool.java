@@ -2,8 +2,9 @@ package dev.dominikbreu.archlens.mcp.tools;
 
 import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.cache.ModelCache;
+import dev.dominikbreu.archlens.io.AtomicFileWriter;
 import dev.dominikbreu.archlens.renderer.GraphViewerHtmlRenderer;
-import java.nio.file.Files;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -16,6 +17,7 @@ public class ExportGraphViewerTool {
     private static final int DEFAULT_LIMIT = 5000;
 
     private final ModelCache cache;
+    private final AtomicFileWriter atomicFileWriter = new AtomicFileWriter();
     private final GraphViewerHtmlRenderer renderer = new GraphViewerHtmlRenderer();
 
     /**
@@ -43,9 +45,7 @@ public class ExportGraphViewerTool {
             GraphQuery.GraphSnapshot snapshot = graph.snapshot(limit);
             String html = renderer.render(GraphExportJson.write(snapshot, Instant.now()));
 
-            Path parent = output.getParent();
-            if (parent != null) Files.createDirectories(parent);
-            Files.writeString(output, html);
+            atomicFileWriter.write(output, html.getBytes(StandardCharsets.UTF_8));
 
             Map<String, Object> structured = new LinkedHashMap<>();
             structured.put("outputPath", output.toAbsolutePath().toString());

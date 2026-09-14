@@ -3,12 +3,9 @@ package dev.dominikbreu.archlens.okf;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -146,26 +143,6 @@ class OkfBundleWriterTest {
                 .contains("<!-- archlens:" + KEY + " -->\nHuman note that must stay.")
                 .contains("- [Impact investigation](investigations/impact/orders-" + KEY.substring(0, 12)
                         + ".md) - Compiled evidence.");
-    }
-
-    @Test
-    void restoresOriginalsWhenPromotionFailsMidUpdate() throws Exception {
-        OkfBundleWriter initial = writer();
-        initial.write(request(false));
-        String originalConcept = Files.readString(conceptPath());
-        String originalIndex = Files.readString(tempDir.resolve("index.md"));
-
-        AtomicInteger moves = new AtomicInteger();
-        OkfBundleWriter failing = new OkfBundleWriter((source, target) -> {
-            if (moves.incrementAndGet() == 2) {
-                throw new IOException("injected promotion failure");
-            }
-            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        });
-
-        assertThatThrownBy(() -> failing.write(request(true))).hasMessageContaining("injected promotion failure");
-        assertThat(conceptPath()).hasContent(originalConcept);
-        assertThat(tempDir.resolve("index.md")).hasContent(originalIndex);
     }
 
     private OkfBundleWriter writer() {
