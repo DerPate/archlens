@@ -43,6 +43,42 @@ class OkfBundleWriterTest {
     }
 
     @Test
+    void freshIndexDeclaresOkfVersion() throws Exception {
+        OkfBundleWriter.WriteOutcome outcome = writer().write(request(false));
+
+        assertThat(outcome.indexPath())
+                .content()
+                .startsWith("---\nokf_version: \"0.2\"\n---\n\n# Architecture Investigations");
+    }
+
+    @Test
+    void backfillsOkfVersionOnExistingIndexWithoutFrontmatter() throws Exception {
+        Files.writeString(
+                tempDir.resolve("index.md"),
+                "# Architecture Investigations\n\n## Impact\n\n<!-- archlens:unrelated -->\n- [Other](other.md) - Keep this.\n");
+
+        writer().write(request(false));
+
+        assertThat(tempDir.resolve("index.md"))
+                .content()
+                .startsWith("---\nokf_version: \"0.2\"\n---\n\n# Architecture Investigations")
+                .contains("<!-- archlens:unrelated -->\n- [Other](other.md) - Keep this.");
+    }
+
+    @Test
+    void leavesExistingOkfVersionFrontmatterUntouched() throws Exception {
+        Files.writeString(
+                tempDir.resolve("index.md"),
+                "---\nokf_version: \"0.2\"\ncustom: kept\n---\n\n# Architecture Investigations\n");
+
+        writer().write(request(false));
+
+        assertThat(tempDir.resolve("index.md"))
+                .content()
+                .startsWith("---\nokf_version: \"0.2\"\ncustom: kept\n---\n\n# Architecture Investigations");
+    }
+
+    @Test
     void existingGeneratedConceptRequiresExplicitOverwrite() throws Exception {
         writer().write(request(false));
 

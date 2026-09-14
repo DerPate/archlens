@@ -76,7 +76,8 @@ public final class OkfBundleWriter {
 
         Map<Path, byte[]> finalContent = new LinkedHashMap<>();
         finalContent.put(conceptPath, bytes(request.conceptMarkdown()));
-        finalContent.put(indexPath, bytes(updateIndex(read(indexPath), request.familySlug(), indexEntry)));
+        finalContent.put(
+                indexPath, bytes(ensureOkfVersion(updateIndex(read(indexPath), request.familySlug(), indexEntry))));
         finalContent.put(logPath, bytes(updateLog(read(logPath), request.logDate(), logEntry)));
 
         promoteStaged(finalContent);
@@ -198,6 +199,10 @@ public final class OkfBundleWriter {
             lines.add(insert, "");
         }
         return String.join("\n", lines) + "\n";
+    }
+
+    private static String ensureOkfVersion(String content) {
+        return content.startsWith("---\n") ? content : "---\nokf_version: \"0.2\"\n---\n\n" + content;
     }
 
     private static String updateLog(String existing, LocalDate date, String entry) {
