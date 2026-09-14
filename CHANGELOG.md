@@ -2,6 +2,61 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.0.0](https://github.com/DerPate/archlens/compare/archlens-1.5.0...archlens-2.0.0) (2026-09-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **renderer:** render_use_case_timeline now returns a Mermaid flowchart, not a gantt chart.
+* **tracing:** -Dspoon.traces and -Dspoon.otlp.endpoint are no longer read; use -Darchlens.traces and -Darchlens.otlp.endpoint.
+* **skill:** the skill is now invoked as archlens-understand; any saved prompt or config referencing spoon-understand must be updated.
+* **renderer:** drop legend subgraph from diagrams
+
+### Features
+
+* attach direct EntityManager invocation sinks to persistence data flows ([6674744](https://github.com/DerPate/archlens/commit/6674744bb769d8218766ed3e93eaea4b5a3a82bb))
+* **extractor:** widen plain-Java service-name classification ([8d8f931](https://github.com/DerPate/archlens/commit/8d8f931194d2a0212e5e466d117fb83ec4e24a95))
+* **mcp:** ARCHLENS_MCP_EXPERIMENTAL_C4 opt-in and renderer docs ([cc92bf2](https://github.com/DerPate/archlens/commit/cc92bf2702a2c6aef91497c705529dc13f303677))
+* **renderer:** add shared MermaidStyle theme, role palette, and legend ([06d6c6b](https://github.com/DerPate/archlens/commit/06d6c6b00f7d1df493b3fe78214f591b092a6ebf))
+* **renderer:** drop legend subgraph from diagrams ([d00012b](https://github.com/DerPate/archlens/commit/d00012bcea5106ee23213cdde2be3f8a962e1f9c))
+* **renderer:** opt-in C4 dialect for system and container levels ([3302de0](https://github.com/DerPate/archlens/commit/3302de0f86ab21ea5cbf25986bb3699ab32e3e4a))
+* **renderer:** pipeline diagrams use shared role palette ([40d92de](https://github.com/DerPate/archlens/commit/40d92de03db6c2af28b7a514c0c1584d7dbefe7f))
+* **renderer:** render call flows as sequence diagrams ([cdba8c8](https://github.com/DerPate/archlens/commit/cdba8c887926bf8fa9581dc4fea85503f7dbb438))
+* **renderer:** render the use-case timeline as a flowchart chain ([a7587a0](https://github.com/DerPate/archlens/commit/a7587a0b39fac5356d1dd0e7ec7ee81de51c7b53))
+* **renderer:** shared role styling for dependency map and slice diagrams ([de9226d](https://github.com/DerPate/archlens/commit/de9226d10652e0952bcbd15cbc5c7338a4db774d))
+* **renderer:** shared styling for source overview, architecture view, timeline ([88e957b](https://github.com/DerPate/archlens/commit/88e957b5e52688ee740270db6cc26c6c9437e488))
+* **renderer:** show entities only where they cross a boundary ([e2d0b49](https://github.com/DerPate/archlens/commit/e2d0b49db0fbabd149ea4d7ce4ab95c205d43e6f))
+* **renderer:** themed roles, dashed async edges, and legends in flowchart levels ([a374092](https://github.com/DerPate/archlens/commit/a374092439260482f9a254c8a228a82801653558))
+
+
+### Bug Fixes
+
+* **extractor:** detect entities structurally and stop attributing container calls to elements ([77f515a](https://github.com/DerPate/archlens/commit/77f515a2370c872bd65c363cedbc3cf4c1d7f36c))
+* **extractor:** give every entrypoint its own runtime flow ([0602c38](https://github.com/DerPate/archlens/commit/0602c3814633b781dfe9bd90ec4c2827bfa700d9))
+* **extractor:** give every entrypoint its own runtime flow ([c57cdcb](https://github.com/DerPate/archlens/commit/c57cdcbc84dfa14a25a2f9072645418dad554bba))
+* **extractor:** guard source positions that have no file ([eaa3ac2](https://github.com/DerPate/archlens/commit/eaa3ac269ef89d29d3aabdd23e7d9943e6209dd3))
+* **extractor:** stop swallowing named path/value fallback on mapping annotations ([842a7cc](https://github.com/DerPate/archlens/commit/842a7cca263456cc1fa3439c1411f929b23324d9))
+* **extractor:** stop swallowing named path/value fallback on mapping annotations ([7583871](https://github.com/DerPate/archlens/commit/75838714fec892db26d566c4df0fbce3a4939f5e))
+* **mcp:** make unfiltered use-case timeline readable and deterministic ([fcaf113](https://github.com/DerPate/archlens/commit/fcaf1137a5d9ab2a3d0fbac87de2a1d37c9aa25f))
+* **mcp:** unbreak detect_use_cases and suppress remaining Optional/Stream calls ([fc8f706](https://github.com/DerPate/archlens/commit/fc8f706f3b5c5bd65292573637811b724f81241f))
+* **renderer:** deterministic call-edge order for duplicate component pairs ([49e3499](https://github.com/DerPate/archlens/commit/49e34993074d8c18160977af636d30118c15921d))
+* **renderer:** emit valid gantt spans and raise condition cap to 255 ([58961d6](https://github.com/DerPate/archlens/commit/58961d668b90a00e06e24a46c0d71915141884d2))
+* **renderer:** guard null kind in architecture view label; correct pipeline shape doc ([5c1baa2](https://github.com/DerPate/archlens/commit/5c1baa2d1c305ef5195e72ed671463567e8f1d87))
+* **renderer:** un-hollow pipeline dedup assertion, refresh shape javadoc ([438cb95](https://github.com/DerPate/archlens/commit/438cb9581f763c1efa3f49da982f13a4d0b19704))
+
+
+### Documentation
+
+* **skill:** restore the tool map and record the diagram conventions ([ff5b322](https://github.com/DerPate/archlens/commit/ff5b32202f03e4bde86277d8bbe699776f222643))
+* **tools:** correct the use-case timeline sample and its defaults ([a24235f](https://github.com/DerPate/archlens/commit/a24235fd43310c0691230d797fba05b921cd93e3))
+* **workflow-graphs:** regenerate against the current tree ([78f8457](https://github.com/DerPate/archlens/commit/78f84574e246defa2311bc039f02a1445829bc79))
+
+
+### Code Refactoring
+
+* **skill:** rename spoon-understand to archlens-understand ([e7b7e4f](https://github.com/DerPate/archlens/commit/e7b7e4f442921217ce777fc775f151d520a7a4fe))
+* **tracing:** rename spoon.traces to archlens.traces ([47c137b](https://github.com/DerPate/archlens/commit/47c137bb71b76374f057aaa65d03d3da4981e60e))
+
 ## [1.5.0](https://github.com/DerPate/archlens/compare/archlens-1.4.2...archlens-1.5.0) (2026-07-20)
 
 

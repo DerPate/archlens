@@ -4,7 +4,7 @@
 
     <groupId>dev.dominikbreu.archlens</groupId>
     <artifactId>archlens</artifactId>
-    <version>1.5.0</version>
+    <version>2.0.0</version>
     <packaging>jar</packaging>
 
     <licenses>
