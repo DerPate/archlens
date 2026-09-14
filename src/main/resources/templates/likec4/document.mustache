@@ -1,0 +1,56 @@
+{{#warnings}}
+// Warning: {{.}}
+{{/warnings}}
+{{#hasWarnings}}
+
+{{/hasWarnings}}
+specification {
+{{#kinds}}
+  element {{.}}
+{{/kinds}}
+}
+
+model {
+{{#elements}}
+  {{id}} = {{kind}} '{{title}}' {
+{{#hasMetadata}}
+    metadata {
+{{#metadata}}
+      {{key}} '{{value}}'
+{{/metadata}}
+    }
+{{/hasMetadata}}
+  }
+{{/elements}}
+{{#relationships}}
+  {{source}} -> {{target}} '{{title}}'{{#hasMetadata}} {
+    metadata {
+{{#metadata}}
+      {{key}} '{{value}}'
+{{/metadata}}
+    }
+  }{{/hasMetadata}}
+{{/relationships}}
+}
+
+views {
+{{#views}}
+  view {{id}} {
+    title '{{title}}'
+{{#notes}}
+    // {{.}}
+{{/notes}}
+{{#includes}}
+    include {{.}}
+{{/includes}}
+  }
+{{/views}}
+{{#dynamicViews}}
+  dynamic view {{id}} {
+    title '{{title}}'
+{{#steps}}
+    {{source}} -> {{target}} '{{title}}'
+{{/steps}}
+  }
+{{/dynamicViews}}
+}

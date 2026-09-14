@@ -1,7 +1,10 @@
 package dev.dominikbreu.archlens.renderer;
 
+import dev.dominikbreu.archlens.renderer.template.MermaidFlowchartTemplate;
 import dev.dominikbreu.archlens.view.ArchitectureViewProjection;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /** Renders an {@link ArchitectureViewProjection} as a Mermaid {@code flowchart LR} diagram. */
@@ -17,12 +20,9 @@ public final class ArchitectureViewMermaidRenderer {
      * @return a Mermaid {@code flowchart LR} diagram string
      */
     public String render(ArchitectureViewProjection projection) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(MermaidStyle.header());
-        sb.append("flowchart LR\n");
-        sb.append("    subgraph scope[\"").append(escape(projection.title())).append("\"]\n");
-
         MermaidStyle.Tracker tracker = new MermaidStyle.Tracker();
+        List<MermaidFlowchartTemplate.Statement> statements = new ArrayList<>();
+        statements.add(MermaidFlowchartTemplate.Statement.subgraph("    ", "scope", escape(projection.title())));
         Map<String, String> ids = new LinkedHashMap<>();
         int index = 0;
         for (ArchitectureViewProjection.Node node : projection.nodes()) {
@@ -30,11 +30,12 @@ public final class ArchitectureViewMermaidRenderer {
             ids.put(node.id(), id);
             MermaidStyle.Role role = roleForKind(node.kind());
             String kindLabel = node.kind() == null ? "" : node.kind();
-            sb.append(MermaidStyle.node("        ", id, node.title() + "\n[" + kindLabel + "]", role));
-            tracker.tag(id, role);
+            statements.add(MermaidFlowchartTemplate.Statement.node(
+                    tracker.node("        ", id, node.title() + "\n[" + kindLabel + "]", role)));
         }
 
-        sb.append("    end\n\n");
+        statements.add(MermaidFlowchartTemplate.Statement.end("    "));
+        statements.add(MermaidFlowchartTemplate.Statement.emptyLine());
 
         for (ArchitectureViewProjection.Edge edge : projection.edges()) {
             String source = ids.get(edge.sourceId());
@@ -42,25 +43,11 @@ public final class ArchitectureViewMermaidRenderer {
             if (source == null || target == null) {
                 continue;
             }
-            sb.append("    ")
-                    .append(source)
-                    .append(" -->|")
-                    .append(escape(edge.title()))
-                    .append("| ")
-                    .append(target)
-                    .append("\n");
+            statements.add(MermaidFlowchartTemplate.Statement.edge(new MermaidFlowchartTemplate.Edge(
+                    "    ", source, target, escape(edge.title()), true, false, false, false)));
         }
 
-        sb.append(tracker.footer());
-
-        if (!projection.warnings().isEmpty()) {
-            sb.append("\n%% Warnings:\n");
-            for (String warning : projection.warnings()) {
-                sb.append("%% - ").append(warning).append("\n");
-            }
-        }
-
-        return sb.toString();
+        return MermaidTemplates.flowchart("LR", statements, tracker, projection.warnings());
     }
 
     private static MermaidStyle.Role roleForKind(String kind) {

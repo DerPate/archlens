@@ -1,12 +1,12 @@
 package dev.dominikbreu.archlens.renderer;
 
 import dev.dominikbreu.archlens.likec4.LikeC4Document;
-import dev.dominikbreu.archlens.likec4.LikeC4DynamicStep;
-import dev.dominikbreu.archlens.likec4.LikeC4DynamicView;
 import dev.dominikbreu.archlens.likec4.LikeC4Element;
 import dev.dominikbreu.archlens.likec4.LikeC4Relationship;
-import dev.dominikbreu.archlens.likec4.LikeC4View;
+import dev.dominikbreu.archlens.renderer.template.LikeC4Template;
+import dev.dominikbreu.archlens.renderer.template.LikeC4TemplateRenderer;
 import dev.dominikbreu.archlens.view.ArchitectureViewProjection;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -19,9 +19,6 @@ import org.apache.commons.lang3.StringUtils;
 /** Renders a {@link LikeC4Document} or {@link ArchitectureViewProjection} as LikeC4 DSL text. */
 public final class LikeC4ModelRenderer {
 
-    private static final String BLOCK_END = "}\n\n";
-    private static final String INDENT_BLOCK_END = "  }\n";
-
     /** Creates a renderer with default settings. */
     public LikeC4ModelRenderer() {}
 
@@ -32,107 +29,45 @@ public final class LikeC4ModelRenderer {
      * @return the LikeC4 DSL text
      */
     public String render(LikeC4Document document) {
-        StringBuilder sb = new StringBuilder();
         Map<String, String> aliases = elementAliases(document);
-        appendWarnings(sb, document.warnings());
-
-        sb.append("specification {\n");
-        for (String elementKind : document.elementKinds()) {
-            sb.append("  element ").append(identifier(elementKind)).append("\n");
-        }
-        sb.append(BLOCK_END);
-
-        appendDocumentModel(sb, document, aliases);
-        appendDocumentViews(sb, document, aliases);
-        return sb.toString();
-    }
-
-    private void appendWarnings(StringBuilder sb, List<String> warnings) {
-        for (String warning : warnings) {
-            appendCommentLines(sb, "", "Warning: ", warning);
-        }
-        if (!warnings.isEmpty()) {
-            sb.append("\n");
-        }
-    }
-
-    private void appendDocumentModel(StringBuilder sb, LikeC4Document document, Map<String, String> aliases) {
-        sb.append("model {\n");
-        for (LikeC4Element element : document.elements()) {
-            sb.append("  ")
-                    .append(aliases.get(element.id()))
-                    .append(" = ")
-                    .append(identifier(element.kind()))
-                    .append(" '")
-                    .append(escape(element.title()))
-                    .append("' {\n");
-            renderMetadata(sb, elementMetadata(element), "    ");
-            sb.append(INDENT_BLOCK_END);
-        }
-        for (LikeC4Relationship relationship : document.relationships()) {
-            appendRelationship(sb, relationship, aliases);
-        }
-        sb.append(BLOCK_END);
-    }
-
-    private void appendRelationship(StringBuilder sb, LikeC4Relationship relationship, Map<String, String> aliases) {
-        sb.append("  ")
-                .append(aliasFor(relationship.sourceId(), aliases))
-                .append(" -> ")
-                .append(aliasFor(relationship.targetId(), aliases))
-                .append(" '")
-                .append(escape(relationship.title()))
-                .append("'");
-        Map<String, Object> metadata = relationshipMetadata(relationship);
-        if (metadata.isEmpty()) {
-            sb.append("\n");
-        } else {
-            sb.append(" {\n");
-            renderMetadata(sb, metadata, "    ");
-            sb.append(INDENT_BLOCK_END);
-        }
-    }
-
-    private void appendDocumentViews(StringBuilder sb, LikeC4Document document, Map<String, String> aliases) {
-        sb.append("views {\n");
-        for (LikeC4View view : document.views()) {
-            appendView(sb, view, aliases);
-        }
-        for (LikeC4DynamicView dynamicView : document.dynamicViews()) {
-            appendDynamicView(sb, dynamicView, aliases);
-        }
-        sb.append("}\n");
-    }
-
-    private void appendDynamicView(StringBuilder sb, LikeC4DynamicView view, Map<String, String> aliases) {
-        sb.append("  dynamic view ").append(identifier(view.id())).append(" {\n");
-        sb.append("    title '").append(escape(view.title())).append("'\n");
-        for (LikeC4DynamicStep step : view.steps()) {
-            sb.append("    ")
-                    .append(aliasFor(step.sourceId(), aliases))
-                    .append(" -> ")
-                    .append(aliasFor(step.targetId(), aliases))
-                    .append(" '")
-                    .append(escape(step.title()))
-                    .append("'\n");
-        }
-        sb.append(INDENT_BLOCK_END);
-    }
-
-    private void appendView(StringBuilder sb, LikeC4View view, Map<String, String> aliases) {
-        sb.append("  view ").append(identifier(view.id())).append(" {\n");
-        sb.append("    title '").append(escape(view.title())).append("'\n");
-        for (String note : view.notes()) {
-            appendCommentLines(sb, "    ", "", note);
-        }
-        if (view.includes().isEmpty()) {
-            sb.append("    include *\n");
-        } else {
-            for (String include : view.includes()) {
-                sb.append("    include ").append(aliasFor(include, aliases)).append("\n");
-            }
-        }
-        sb.append(INDENT_BLOCK_END);
+        return renderTemplate(new LikeC4Template(
+                commentLines(document.warnings()),
+                document.elementKinds().stream()
+                        .map(LikeC4ModelRenderer::identifier)
+                        .toList(),
+                document.elements().stream()
+                        .map(element -> new LikeC4Template.Element(
+                                aliases.get(element.id()),
+                                identifier(element.kind()),
+                                escape(element.title()),
+                                metadata(elementMetadata(element))))
+                        .toList(),
+                document.relationships().stream()
+                        .map(relationship -> new LikeC4Template.Relationship(
+                                aliasFor(relationship.sourceId(), aliases), aliasFor(relationship.targetId(), aliases),
+                                escape(relationship.title()), metadata(relationshipMetadata(relationship))))
+                        .toList(),
+                document.views().stream()
+                        .map(view -> new LikeC4Template.View(
+                                identifier(view.id()),
+                                escape(view.title()),
+                                commentLines(view.notes()),
+                                view.includes().isEmpty()
+                                        ? List.of("*")
+                                        : view.includes().stream()
+                                                .map(include -> aliasFor(include, aliases))
+                                                .toList()))
+                        .toList(),
+                document.dynamicViews().stream()
+                        .map(view -> new LikeC4Template.DynamicView(
+                                identifier(view.id()),
+                                escape(view.title()),
+                                view.steps().stream()
+                                        .map(step -> new LikeC4Template.Relationship(
+                                                aliasFor(step.sourceId(), aliases), aliasFor(step.targetId(), aliases),
+                                                escape(step.title()), List.of()))
+                                        .toList()))
+                        .toList()));
     }
 
     /**
@@ -142,48 +77,25 @@ public final class LikeC4ModelRenderer {
      * @return the LikeC4 DSL text
      */
     public String render(ArchitectureViewProjection projection) {
-        StringBuilder sb = new StringBuilder();
         Map<String, String> aliases = projectionAliases(projection);
-        for (String warning : projection.warnings()) {
-            appendCommentLines(sb, "", "Warning: ", warning);
-        }
-        if (!projection.warnings().isEmpty()) {
-            sb.append("\n");
-        }
+        return renderTemplate(new LikeC4Template(
+                commentLines(projection.warnings()),
+                List.of("component"),
+                projection.nodes().stream()
+                        .map(node -> new LikeC4Template.Element(
+                                aliases.get(node.id()), "component", escape(node.title()), metadata(node.properties())))
+                        .toList(),
+                projection.edges().stream()
+                        .map(edge -> new LikeC4Template.Relationship(
+                                aliasFor(edge.sourceId(), aliases), aliasFor(edge.targetId(), aliases),
+                                escape(edge.title()), List.of()))
+                        .toList(),
+                List.of(new LikeC4Template.View("index", escape(projection.title()), List.of(), List.of("*"))),
+                List.of()));
+    }
 
-        sb.append("specification {\n");
-        sb.append("  element component\n");
-        sb.append(BLOCK_END);
-
-        sb.append("model {\n");
-        for (ArchitectureViewProjection.Node node : projection.nodes()) {
-            sb.append("  ")
-                    .append(aliases.get(node.id()))
-                    .append(" = component '")
-                    .append(escape(node.title()))
-                    .append("' {\n");
-            renderMetadata(sb, node.properties(), "    ");
-            sb.append(INDENT_BLOCK_END);
-        }
-        for (ArchitectureViewProjection.Edge edge : projection.edges()) {
-            sb.append("  ")
-                    .append(aliasFor(edge.sourceId(), aliases))
-                    .append(" -> ")
-                    .append(aliasFor(edge.targetId(), aliases))
-                    .append(" '")
-                    .append(escape(edge.title()))
-                    .append("'\n");
-        }
-        sb.append(BLOCK_END);
-
-        sb.append("views {\n");
-        sb.append("  view index {\n");
-        sb.append("    title '").append(escape(projection.title())).append("'\n");
-        sb.append("    include *\n");
-        sb.append(INDENT_BLOCK_END);
-        sb.append("}\n");
-
-        return sb.toString();
+    private static String renderTemplate(LikeC4Template template) {
+        return LikeC4TemplateRenderer.of().execute(template);
     }
 
     private static Map<String, String> elementAliases(LikeC4Document document) {
@@ -240,26 +152,12 @@ public final class LikeC4ModelRenderer {
         return metadata;
     }
 
-    private static void renderMetadata(StringBuilder sb, Map<String, Object> metadata, String indent) {
-        if (metadata.isEmpty()) {
-            return;
-        }
-        sb.append(indent).append("metadata {\n");
-        for (Map.Entry<String, Object> entry : sortedMetadataEntries(metadata)) {
-            sb.append(indent)
-                    .append("  ")
-                    .append(metadataKey(entry.getKey()))
-                    .append(" '")
-                    .append(escape(String.valueOf(entry.getValue())))
-                    .append("'\n");
-        }
-        sb.append(indent).append("}\n");
-    }
-
-    private static Iterable<Map.Entry<String, Object>> sortedMetadataEntries(Map<String, Object> metadata) {
+    private static List<LikeC4Template.Metadata> metadata(Map<String, Object> metadata) {
         return metadata.entrySet().stream()
                 .sorted(Comparator.comparing((Map.Entry<String, Object> entry) -> metadataKey(entry.getKey()))
                         .thenComparing(Map.Entry::getKey))
+                .map(entry -> new LikeC4Template.Metadata(
+                        metadataKey(entry.getKey()), escape(String.valueOf(entry.getValue()))))
                 .toList();
     }
 
@@ -271,10 +169,10 @@ public final class LikeC4ModelRenderer {
         return key;
     }
 
-    private static void appendCommentLines(StringBuilder sb, String indent, String prefix, String value) {
-        for (String line : value.split("\\R", -1)) {
-            sb.append(indent).append("// ").append(prefix).append(line).append("\n");
-        }
+    private static List<String> commentLines(List<String> values) {
+        return values.stream()
+                .flatMap(value -> Arrays.stream(value.split("\\R", -1)))
+                .toList();
     }
 
     private static String identifier(String raw) {

@@ -5,6 +5,7 @@ import dev.dominikbreu.archlens.cache.GraphQuery.EntrypointNode;
 import dev.dominikbreu.archlens.cache.GraphQuery.RuntimeFlowNode;
 import dev.dominikbreu.archlens.cache.GraphQuery.RuntimeFlowStepNode;
 import dev.dominikbreu.archlens.model.ComponentType;
+import dev.dominikbreu.archlens.renderer.template.MermaidSequenceTemplate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -50,18 +51,13 @@ public class MermaidCallFlowRenderer {
         Map<String, Participant> participants = buildParticipants(steps, pidMap, graph);
         Map<String, Integer> stepOrder = buildStepOrderIndex(steps);
 
-        StringBuilder sb = new StringBuilder(MermaidStyle.header());
-        sb.append("sequenceDiagram\n    autonumber\n    actor Client\n");
-        appendParticipants(sb, participants.values());
+        List<MermaidSequenceTemplate.ParticipantGroup> participantGroups = participantGroups(participants.values());
+        List<MermaidSequenceTemplate.Message> messages = new ArrayList<>();
 
         Set<String> activated = new LinkedHashSet<>();
         RuntimeFlowStepNode first = steps.getFirst();
         String firstPid = pidMap.get(compKey(first));
-        sb.append("    Client->>+")
-                .append(firstPid)
-                .append(": ")
-                .append(escape(entrypointLabel(ep)))
-                .append("\n");
+        messages.add(new MermaidSequenceTemplate.Message("Client", firstPid, escape(entrypointLabel(ep)), false, true));
         activated.add(firstPid);
 
         List<GraphQuery.GraphEdge> callEdges = new ArrayList<>(graph.flowCallEdges(flow.id()));
@@ -87,23 +83,18 @@ public class MermaidCallFlowRenderer {
             String label = String.valueOf(edge.properties().getOrDefault("label", "call"));
             if (label.isBlank() || "null".equals(label)) label = "call";
             Participant target = participants.get(toCompId);
-            String arrow = target != null && isAsyncStereotype(target.stereotype()) ? "-->>" : "->>";
-            String plus = activated.add(toPid) ? "+" : "";
-            sb.append("    ")
-                    .append(fromPid)
-                    .append(arrow)
-                    .append(plus)
-                    .append(toPid)
-                    .append(": ")
-                    .append(escape(label))
-                    .append("\n");
+            boolean async = target != null && isAsyncStereotype(target.stereotype());
+            boolean activate = activated.add(toPid);
+            messages.add(new MermaidSequenceTemplate.Message(fromPid, toPid, escape(label), async, activate));
         }
 
         List<String> order = new ArrayList<>(activated);
+        List<MermaidSequenceTemplate.Deactivation> deactivations = new ArrayList<>();
         for (int i = order.size() - 1; i >= 0; i--) {
-            sb.append("    deactivate ").append(order.get(i)).append("\n");
+            deactivations.add(new MermaidSequenceTemplate.Deactivation(order.get(i)));
         }
-        return sb.toString();
+        return MermaidTemplates.sequence(
+                new MermaidSequenceTemplate(false, participantGroups, messages, deactivations));
     }
 
     /**
@@ -137,7 +128,7 @@ public class MermaidCallFlowRenderer {
     }
 
     private static String emptyDiagram() {
-        return MermaidStyle.header() + "sequenceDiagram\n    actor Client\n    Note over Client: no flow steps found\n";
+        return MermaidTemplates.sequence(new MermaidSequenceTemplate(true, List.of(), List.of(), List.of()));
     }
 
     private Map<String, Participant> buildParticipants(
@@ -175,28 +166,24 @@ public class MermaidCallFlowRenderer {
         return null;
     }
 
-    private void appendParticipants(StringBuilder sb, Collection<Participant> parts) {
+    private List<MermaidSequenceTemplate.ParticipantGroup> participantGroups(Collection<Participant> parts) {
         Map<String, List<Participant>> byApp = new LinkedHashMap<>();
         for (Participant p : parts) {
             byApp.computeIfAbsent(p.appName(), k -> new ArrayList<>()).add(p);
         }
         long apps = byApp.keySet().stream().filter(Objects::nonNull).count();
         boolean useBoxes = apps > 1;
+        List<MermaidSequenceTemplate.ParticipantGroup> result = new ArrayList<>();
         for (Map.Entry<String, List<Participant>> e : byApp.entrySet()) {
             boolean box = useBoxes && e.getKey() != null;
-            if (box) sb.append("    box ").append(escape(e.getKey())).append("\n");
+            List<MermaidSequenceTemplate.Participant> participants = new ArrayList<>();
             for (Participant p : e.getValue()) {
-                sb.append(box ? "        " : "    ")
-                        .append("participant ")
-                        .append(p.pid())
-                        .append(" as ")
-                        .append(escape(p.display()))
-                        .append("«")
-                        .append(p.stereotype())
-                        .append("»\n");
+                participants.add(new MermaidSequenceTemplate.Participant(p.pid(), escape(p.display()), p.stereotype()));
             }
-            if (box) sb.append("    end\n");
+            result.add(new MermaidSequenceTemplate.ParticipantGroup(
+                    box, box ? escape(e.getKey()) : "", box ? "        " : "    ", participants));
         }
+        return result;
     }
 
     private boolean isAsyncStereotype(String stereotype) {

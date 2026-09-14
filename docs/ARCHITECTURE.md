@@ -20,6 +20,24 @@ project roots through its graph lookup, then supplies those roots and the caller
 to the compiler for contained-path resolution, deterministic semantic identity, rendering, and
 safe bundle writes.
 
+## Diagram Templates
+
+`renderer/` prepares presentation data for Mermaid (including its C4 dialect) and LikeC4.
+Graph queries, filtering, traversal, stable ordering, identifier allocation, semantic labels,
+and target-language escaping stay in Java. Typed presentation records under `renderer/template/`
+carry that data into Mustache templates under `src/main/resources/templates/mermaid/` and
+`src/main/resources/templates/likec4/`, which own diagram syntax and document layout.
+
+Maven explicitly runs the JStachio annotation processor to validate template bindings and generate
+Java renderers in `target/generated-sources/annotations/`. Templates use `JStacheType.STACHE` and
+the application calls generated renderers directly. The annotation dependency has provided scope;
+there is no runtime template interpreter, reflection fallback, or runtime template compilation.
+Template changes require a rebuild (use `mvn clean verify` when changing only template resources).
+STACHE passes values through without HTML escaping: Java must escape each value for its Mermaid
+or LikeC4 position before rendering. Values containing Mustache syntax remain literal data.
+
+HTML graph-viewer and user-editable OKF templates have separate rendering paths.
+
 ## Source Overview
 
 ```mermaid
