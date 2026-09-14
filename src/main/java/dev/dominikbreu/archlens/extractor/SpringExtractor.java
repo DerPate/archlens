@@ -495,16 +495,28 @@ public class SpringExtractor {
     protected String annotationAttribute(CtElement element, Set<String> names, String attribute) {
         for (CtAnnotation<?> annotation : element.getAnnotations()) {
             if (!annotationMatches(annotation, names)) continue;
-            try {
-                CtExpression<?> value = annotation.getValue(attribute);
-                if (value == null && VALUE.equals(attribute)) value = annotation.getValue("path");
-                if (value == null) return "";
-                return stripArray(resolveAnnotationValue(value));
-            } catch (Exception _) {
-                return "";
-            }
+            CtExpression<?> value = safeAnnotationValue(annotation, attribute);
+            if (value == null && VALUE.equals(attribute)) value = safeAnnotationValue(annotation, "path");
+            if (value == null) return "";
+            return stripArray(resolveAnnotationValue(value));
         }
         return "";
+    }
+
+    /**
+     * Reads one annotation attribute, treating a failed reflective default-value lookup the same as
+     * "attribute not set" rather than aborting the whole {@link #annotationAttribute} call. Spoon
+     * resolves an attribute that isn't explicitly present in source by reflectively loading the
+     * annotation's own class to read its declared default; that load fails whenever the annotation's
+     * library (e.g. Spring) isn't on ArchLens's own classpath, which is unrelated to whether a sibling
+     * attribute (e.g. {@code path} next to an unset {@code value}) was actually written.
+     */
+    private CtExpression<?> safeAnnotationValue(CtAnnotation<?> annotation, String attribute) {
+        try {
+            return annotation.getValue(attribute);
+        } catch (Exception _) {
+            return null;
+        }
     }
 
     private String resolveAnnotationValue(CtExpression<?> value) {

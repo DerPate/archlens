@@ -201,6 +201,16 @@ class SpringExtractorTest extends ExtractorTestBase {
                         && "/api/orders/{id}/items/{itemId}".equals(e.path));
     }
 
+    @Test
+    void namedPathAttributeAlongsideAnotherAttributeIsResolved() {
+        // @PostMapping(path = "/{id}/confirm", consumes = "application/json") — "path" is a named
+        // attribute, not the bare positional "value", and another attribute follows it.
+        assertThat(model.entrypoints)
+                .anyMatch(e -> e.type == EntrypointType.REST_ENDPOINT
+                        && "POST".equals(e.httpMethod)
+                        && "/api/orders/{id}/confirm".equals(e.path));
+    }
+
     private static void assertComponent(String name, ComponentType type, String technology) {
         assertThat(model.components)
                 .filteredOn(c -> name.equals(c.name))
