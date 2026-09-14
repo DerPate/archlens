@@ -1,6 +1,5 @@
 package dev.dominikbreu.archlens.renderer;
 
-import dev.dominikbreu.archlens.renderer.template.MermaidFlowchartTemplate;
 import dev.dominikbreu.archlens.view.ArchitectureViewProjection;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -21,8 +20,8 @@ public final class ArchitectureViewMermaidRenderer {
      */
     public String render(ArchitectureViewProjection projection) {
         MermaidStyle.Tracker tracker = new MermaidStyle.Tracker();
-        List<MermaidFlowchartTemplate.Statement> statements = new ArrayList<>();
-        statements.add(MermaidFlowchartTemplate.Statement.subgraph("    ", "scope", escape(projection.title())));
+        List<MermaidDocument.Statement> statements = new ArrayList<>();
+        statements.add(MermaidDocument.Statement.subgraph("    ", "scope", escape(projection.title())));
         Map<String, String> ids = new LinkedHashMap<>();
         int index = 0;
         for (ArchitectureViewProjection.Node node : projection.nodes()) {
@@ -30,12 +29,12 @@ public final class ArchitectureViewMermaidRenderer {
             ids.put(node.id(), id);
             MermaidStyle.Role role = roleForKind(node.kind());
             String kindLabel = node.kind() == null ? "" : node.kind();
-            statements.add(MermaidFlowchartTemplate.Statement.node(
+            statements.add(MermaidDocument.Statement.node(
                     tracker.node("        ", id, node.title() + "\n[" + kindLabel + "]", role)));
         }
 
-        statements.add(MermaidFlowchartTemplate.Statement.end("    "));
-        statements.add(MermaidFlowchartTemplate.Statement.emptyLine());
+        statements.add(MermaidDocument.Statement.end("    "));
+        statements.add(MermaidDocument.Statement.emptyLine());
 
         for (ArchitectureViewProjection.Edge edge : projection.edges()) {
             String source = ids.get(edge.sourceId());
@@ -43,11 +42,11 @@ public final class ArchitectureViewMermaidRenderer {
             if (source == null || target == null) {
                 continue;
             }
-            statements.add(MermaidFlowchartTemplate.Statement.edge(new MermaidFlowchartTemplate.Edge(
-                    "    ", source, target, escape(edge.title()), true, false, false, false)));
+            statements.add(MermaidDocument.Statement.edge(
+                    new MermaidDocument.Edge("    ", source, target, escape(edge.title()), true, false, false, false)));
         }
 
-        return MermaidTemplates.flowchart("LR", statements, tracker, projection.warnings());
+        return MermaidTemplateAdapters.flowchart("LR", statements, tracker, projection.warnings());
     }
 
     private static MermaidStyle.Role roleForKind(String kind) {

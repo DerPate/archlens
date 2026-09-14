@@ -2,7 +2,6 @@ package dev.dominikbreu.archlens.renderer;
 
 import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.model.ids.GraphNodeId;
-import dev.dominikbreu.archlens.renderer.template.MermaidFlowchartTemplate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -35,7 +34,7 @@ public class MermaidSourceOverviewRenderer {
                 .collect(Collectors.groupingBy(this::packageName, LinkedHashMap::new, Collectors.toList()));
 
         Map<GraphNodeId, String> componentToPackageNode = new LinkedHashMap<>();
-        List<MermaidFlowchartTemplate.Statement> statements = new ArrayList<>();
+        List<MermaidDocument.Statement> statements = new ArrayList<>();
         MermaidStyle.Tracker tracker = new MermaidStyle.Tracker();
 
         for (Map.Entry<String, List<GraphQuery.ComponentNode>> entry : byPackage.entrySet()) {
@@ -43,17 +42,17 @@ public class MermaidSourceOverviewRenderer {
                     statements, entry.getKey(), entry.getValue(), maxPerPackage, componentToPackageNode, tracker);
         }
         appendPackageEdges(statements, graph, componentToPackageNode);
-        return MermaidTemplates.flowchart("TD", statements, tracker);
+        return MermaidTemplateAdapters.flowchart("TD", statements, tracker);
     }
 
     private void appendPackageSubgraph(
-            List<MermaidFlowchartTemplate.Statement> statements,
+            List<MermaidDocument.Statement> statements,
             String pkg,
             List<GraphQuery.ComponentNode> components,
             int maxPerPackage,
             Map<GraphNodeId, String> componentToPackageNode,
             MermaidStyle.Tracker tracker) {
-        statements.add(MermaidFlowchartTemplate.Statement.subgraph("    ", nodeId("pkg:" + pkg), escape(pkg)));
+        statements.add(MermaidDocument.Statement.subgraph("    ", nodeId("pkg:" + pkg), escape(pkg)));
 
         int rendered = 0;
         for (GraphQuery.ComponentNode c : components) {
@@ -63,21 +62,21 @@ public class MermaidSourceOverviewRenderer {
             MermaidStyle.Role role = MermaidStyle.roleFor(c.type());
             String label = c.name() + "\n«"
                     + (c.type() != null ? c.type().name().toLowerCase(Locale.ROOT) : "component") + "»";
-            statements.add(MermaidFlowchartTemplate.Statement.node(tracker.node("        ", compNode, label, role)));
+            statements.add(MermaidDocument.Statement.node(tracker.node("        ", compNode, label, role)));
             rendered++;
         }
 
         int omitted = components.size() - rendered;
         if (omitted > 0) {
             String omittedId = nodeId("omitted:" + pkg);
-            statements.add(MermaidFlowchartTemplate.Statement.node(
+            statements.add(MermaidDocument.Statement.node(
                     tracker.node("        ", omittedId, "... " + omitted + " more", MermaidStyle.Role.COMPONENT)));
         }
-        statements.add(MermaidFlowchartTemplate.Statement.end("    "));
+        statements.add(MermaidDocument.Statement.end("    "));
     }
 
     private void appendPackageEdges(
-            List<MermaidFlowchartTemplate.Statement> statements,
+            List<MermaidDocument.Statement> statements,
             GraphQuery graph,
             Map<GraphNodeId, String> componentToPackageNode) {
         Set<String> drawn = new LinkedHashSet<>();
@@ -87,8 +86,8 @@ public class MermaidSourceOverviewRenderer {
             if (from == null || to == null || from.equals(to)) continue;
             String key = from + "-->" + to;
             if (drawn.add(key)) {
-                statements.add(MermaidFlowchartTemplate.Statement.edge(
-                        new MermaidFlowchartTemplate.Edge("    ", from, to, "", false, false, false, false)));
+                statements.add(MermaidDocument.Statement.edge(
+                        new MermaidDocument.Edge("    ", from, to, "", false, false, false, false)));
             }
         }
     }

@@ -2,7 +2,6 @@ package dev.dominikbreu.archlens.renderer;
 
 import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.model.ComponentType;
-import dev.dominikbreu.archlens.renderer.template.MermaidFlowchartTemplate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -33,14 +32,14 @@ public class MermaidUseCaseTimelineRenderer {
      */
     public String render(List<GraphQuery.RuntimeFlowNode> flows, GraphQuery graph, int maxDepth) {
         if (flows.isEmpty()) {
-            return MermaidTemplates.flowchart(
+            return MermaidTemplateAdapters.flowchart(
                     "LR",
-                    List.of(MermaidFlowchartTemplate.Statement.node(
-                            new MermaidFlowchartTemplate.Node("    ", "none", "[", "no use cases found", "]"))),
+                    List.of(MermaidDocument.Statement.node(
+                            new MermaidDocument.Node("    ", "none", "[", "no use cases found", "]"))),
                     new MermaidStyle.Tracker());
         }
 
-        List<MermaidFlowchartTemplate.Statement> statements = new ArrayList<>();
+        List<MermaidDocument.Statement> statements = new ArrayList<>();
         MermaidStyle.Tracker tracker = new MermaidStyle.Tracker();
 
         int flowIndex = 0;
@@ -49,9 +48,9 @@ public class MermaidUseCaseTimelineRenderer {
             GraphQuery.EntrypointNode ep = epNode instanceof GraphQuery.EntrypointNode en ? en : null;
             String prefix = "uc" + flowIndex;
 
-            statements.add(MermaidFlowchartTemplate.Statement.subgraph(
-                    "    ", prefix, Mermaid.escapeLabel(sectionLabel(ep, flow))));
-            statements.add(MermaidFlowchartTemplate.Statement.direction("        ", "LR"));
+            statements.add(
+                    MermaidDocument.Statement.subgraph("    ", prefix, Mermaid.escapeLabel(sectionLabel(ep, flow))));
+            statements.add(MermaidDocument.Statement.direction("        ", "LR"));
 
             List<GraphQuery.RuntimeFlowStepNode> steps = graph.flowSteps(flow.id());
             int limit = Math.min(steps.size(), maxDepth);
@@ -60,11 +59,11 @@ public class MermaidUseCaseTimelineRenderer {
                 GraphQuery.RuntimeFlowStepNode step = steps.get(i);
                 String nodeId = prefix + "s" + i;
                 MermaidStyle.Role role = roleFor(step, graph);
-                statements.add(MermaidFlowchartTemplate.Statement.node(
-                        tracker.node("        ", nodeId, taskLabel(step, graph), role)));
+                statements.add(
+                        MermaidDocument.Statement.node(tracker.node("        ", nodeId, taskLabel(step, graph), role)));
                 if (previousId != null) {
-                    statements.add(MermaidFlowchartTemplate.Statement.edge(new MermaidFlowchartTemplate.Edge(
-                            "        ", previousId, nodeId, "", false, false, false, false)));
+                    statements.add(MermaidDocument.Statement.edge(
+                            new MermaidDocument.Edge("        ", previousId, nodeId, "", false, false, false, false)));
                 }
                 previousId = nodeId;
             }
@@ -72,18 +71,18 @@ public class MermaidUseCaseTimelineRenderer {
                 String moreId = prefix + "more";
                 int remaining = steps.size() - limit;
                 String moreLabel = remaining + (remaining == 1 ? " more step" : " more steps");
-                statements.add(MermaidFlowchartTemplate.Statement.node(
-                        new MermaidFlowchartTemplate.Node("        ", moreId, "[", moreLabel, "]")));
+                statements.add(MermaidDocument.Statement.node(
+                        new MermaidDocument.Node("        ", moreId, "[", moreLabel, "]")));
                 if (previousId != null) {
-                    statements.add(MermaidFlowchartTemplate.Statement.edge(new MermaidFlowchartTemplate.Edge(
-                            "        ", previousId, moreId, "", false, false, false, false)));
+                    statements.add(MermaidDocument.Statement.edge(
+                            new MermaidDocument.Edge("        ", previousId, moreId, "", false, false, false, false)));
                 }
             }
-            statements.add(MermaidFlowchartTemplate.Statement.end("    "));
+            statements.add(MermaidDocument.Statement.end("    "));
             flowIndex++;
         }
 
-        return MermaidTemplates.flowchart("LR", statements, tracker);
+        return MermaidTemplateAdapters.flowchart("LR", statements, tracker);
     }
 
     private MermaidStyle.Role roleFor(GraphQuery.RuntimeFlowStepNode step, GraphQuery graph) {

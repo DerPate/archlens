@@ -1,13 +1,6 @@
 package dev.dominikbreu.archlens.renderer;
 
 import dev.dominikbreu.archlens.model.ComponentType;
-import dev.dominikbreu.archlens.renderer.template.MermaidFlowchartTemplate;
-import dev.dominikbreu.archlens.renderer.template.MermaidHeaderTemplate;
-import dev.dominikbreu.archlens.renderer.template.MermaidHeaderTemplateRenderer;
-import dev.dominikbreu.archlens.renderer.template.MermaidNodeTemplate;
-import dev.dominikbreu.archlens.renderer.template.MermaidNodeTemplateRenderer;
-import dev.dominikbreu.archlens.renderer.template.MermaidStyleTemplate;
-import dev.dominikbreu.archlens.renderer.template.MermaidStyleTemplateRenderer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
@@ -94,7 +87,7 @@ final class MermaidStyle {
      * @return single-line {@code %%{init: ...}%%} directive terminated by a newline
      */
     static String header() {
-        return MermaidHeaderTemplateRenderer.of().execute(new MermaidHeaderTemplate());
+        return MermaidTemplateAdapters.header();
     }
 
     /**
@@ -107,8 +100,8 @@ final class MermaidStyle {
      * @return complete node line terminated by a newline
      */
     static String node(String indent, String id, String label, Role role) {
-        return MermaidNodeTemplateRenderer.of()
-                .execute(new MermaidNodeTemplate(indent, id, role.open, Mermaid.escapeLabel(label), role.close));
+        return MermaidTemplateAdapters.node(
+                new MermaidDocument.Node(indent, id, role.open, Mermaid.escapeLabel(label), role.close));
     }
 
     /**
@@ -121,12 +114,11 @@ final class MermaidStyle {
         if (used.isEmpty()) return "";
         EnumSet<Role> ordered = EnumSet.noneOf(Role.class);
         ordered.addAll(used);
-        return MermaidStyleTemplateRenderer.of()
-                .execute(new MermaidStyleTemplate(
-                        ordered.stream()
-                                .map(r -> new MermaidStyleTemplate.ClassDefinition(r.css, r.style))
-                                .toList(),
-                        List.of()));
+        return MermaidTemplateAdapters.style(
+                ordered.stream()
+                        .map(r -> new MermaidDocument.ClassDefinition(r.css, r.style))
+                        .toList(),
+                List.of());
     }
 
     /**
@@ -137,9 +129,7 @@ final class MermaidStyle {
      * @return one {@code class} line terminated by a newline
      */
     static String assign(String nodeId, Role role) {
-        return MermaidStyleTemplateRenderer.of()
-                .execute(new MermaidStyleTemplate(
-                        List.of(), List.of(new MermaidStyleTemplate.ClassAssignment(nodeId, role.css))));
+        return MermaidTemplateAdapters.style(List.of(), List.of(new MermaidDocument.ClassAssignment(nodeId, role.css)));
     }
 
     /**
@@ -201,7 +191,7 @@ final class MermaidStyle {
     /** Accumulates role usage and class assignments while a renderer emits nodes. */
     static final class Tracker {
         private final EnumSet<Role> used = EnumSet.noneOf(Role.class);
-        private final List<MermaidStyleTemplate.ClassAssignment> assigns = new ArrayList<>();
+        private final List<MermaidDocument.ClassAssignment> assigns = new ArrayList<>();
 
         /** Creates an empty tracker. */
         Tracker() {}
@@ -214,21 +204,21 @@ final class MermaidStyle {
          */
         void tag(String nodeId, Role role) {
             used.add(role);
-            assigns.add(new MermaidStyleTemplate.ClassAssignment(nodeId, role.css));
+            assigns.add(new MermaidDocument.ClassAssignment(nodeId, role.css));
         }
 
-        MermaidFlowchartTemplate.Node node(String indent, String id, String label, Role role) {
+        MermaidDocument.Node node(String indent, String id, String label, Role role) {
             tag(id, role);
-            return new MermaidFlowchartTemplate.Node(indent, id, role.open, Mermaid.escapeLabel(label), role.close);
+            return new MermaidDocument.Node(indent, id, role.open, Mermaid.escapeLabel(label), role.close);
         }
 
-        List<MermaidStyleTemplate.ClassDefinition> definitions() {
+        List<MermaidDocument.ClassDefinition> definitions() {
             return used.stream()
-                    .map(r -> new MermaidStyleTemplate.ClassDefinition(r.css, r.style))
+                    .map(r -> new MermaidDocument.ClassDefinition(r.css, r.style))
                     .toList();
         }
 
-        List<MermaidStyleTemplate.ClassAssignment> assignments() {
+        List<MermaidDocument.ClassAssignment> assignments() {
             return List.copyOf(assigns);
         }
 
@@ -239,7 +229,7 @@ final class MermaidStyle {
          */
         String footer() {
             if (used.isEmpty()) return "";
-            return MermaidStyleTemplateRenderer.of().execute(new MermaidStyleTemplate(definitions(), assignments()));
+            return MermaidTemplateAdapters.style(definitions(), assignments());
         }
     }
 }

@@ -5,7 +5,6 @@ import dev.dominikbreu.archlens.cache.GraphQuery.EntrypointNode;
 import dev.dominikbreu.archlens.cache.GraphQuery.RuntimeFlowNode;
 import dev.dominikbreu.archlens.cache.GraphQuery.RuntimeFlowStepNode;
 import dev.dominikbreu.archlens.model.ComponentType;
-import dev.dominikbreu.archlens.renderer.template.MermaidSequenceTemplate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -51,13 +50,13 @@ public class MermaidCallFlowRenderer {
         Map<String, Participant> participants = buildParticipants(steps, pidMap, graph);
         Map<String, Integer> stepOrder = buildStepOrderIndex(steps);
 
-        List<MermaidSequenceTemplate.ParticipantGroup> participantGroups = participantGroups(participants.values());
-        List<MermaidSequenceTemplate.Message> messages = new ArrayList<>();
+        List<MermaidDocument.ParticipantGroup> participantGroups = participantGroups(participants.values());
+        List<MermaidDocument.Message> messages = new ArrayList<>();
 
         Set<String> activated = new LinkedHashSet<>();
         RuntimeFlowStepNode first = steps.getFirst();
         String firstPid = pidMap.get(compKey(first));
-        messages.add(new MermaidSequenceTemplate.Message("Client", firstPid, escape(entrypointLabel(ep)), false, true));
+        messages.add(new MermaidDocument.Message("Client", firstPid, escape(entrypointLabel(ep)), false, true));
         activated.add(firstPid);
 
         List<GraphQuery.GraphEdge> callEdges = new ArrayList<>(graph.flowCallEdges(flow.id()));
@@ -85,16 +84,15 @@ public class MermaidCallFlowRenderer {
             Participant target = participants.get(toCompId);
             boolean async = target != null && isAsyncStereotype(target.stereotype());
             boolean activate = activated.add(toPid);
-            messages.add(new MermaidSequenceTemplate.Message(fromPid, toPid, escape(label), async, activate));
+            messages.add(new MermaidDocument.Message(fromPid, toPid, escape(label), async, activate));
         }
 
         List<String> order = new ArrayList<>(activated);
-        List<MermaidSequenceTemplate.Deactivation> deactivations = new ArrayList<>();
+        List<MermaidDocument.Deactivation> deactivations = new ArrayList<>();
         for (int i = order.size() - 1; i >= 0; i--) {
-            deactivations.add(new MermaidSequenceTemplate.Deactivation(order.get(i)));
+            deactivations.add(new MermaidDocument.Deactivation(order.get(i)));
         }
-        return MermaidTemplates.sequence(
-                new MermaidSequenceTemplate(false, participantGroups, messages, deactivations));
+        return MermaidTemplateAdapters.sequence(false, participantGroups, messages, deactivations);
     }
 
     /**
@@ -128,7 +126,7 @@ public class MermaidCallFlowRenderer {
     }
 
     private static String emptyDiagram() {
-        return MermaidTemplates.sequence(new MermaidSequenceTemplate(true, List.of(), List.of(), List.of()));
+        return MermaidTemplateAdapters.sequence(true, List.of(), List.of(), List.of());
     }
 
     private Map<String, Participant> buildParticipants(
@@ -166,21 +164,21 @@ public class MermaidCallFlowRenderer {
         return null;
     }
 
-    private List<MermaidSequenceTemplate.ParticipantGroup> participantGroups(Collection<Participant> parts) {
+    private List<MermaidDocument.ParticipantGroup> participantGroups(Collection<Participant> parts) {
         Map<String, List<Participant>> byApp = new LinkedHashMap<>();
         for (Participant p : parts) {
             byApp.computeIfAbsent(p.appName(), k -> new ArrayList<>()).add(p);
         }
         long apps = byApp.keySet().stream().filter(Objects::nonNull).count();
         boolean useBoxes = apps > 1;
-        List<MermaidSequenceTemplate.ParticipantGroup> result = new ArrayList<>();
+        List<MermaidDocument.ParticipantGroup> result = new ArrayList<>();
         for (Map.Entry<String, List<Participant>> e : byApp.entrySet()) {
             boolean box = useBoxes && e.getKey() != null;
-            List<MermaidSequenceTemplate.Participant> participants = new ArrayList<>();
+            List<MermaidDocument.Participant> participants = new ArrayList<>();
             for (Participant p : e.getValue()) {
-                participants.add(new MermaidSequenceTemplate.Participant(p.pid(), escape(p.display()), p.stereotype()));
+                participants.add(new MermaidDocument.Participant(p.pid(), escape(p.display()), p.stereotype()));
             }
-            result.add(new MermaidSequenceTemplate.ParticipantGroup(
+            result.add(new MermaidDocument.ParticipantGroup(
                     box, box ? escape(e.getKey()) : "", box ? "        " : "    ", participants));
         }
         return result;
