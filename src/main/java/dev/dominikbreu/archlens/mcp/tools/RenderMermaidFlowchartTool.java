@@ -2,6 +2,7 @@ package dev.dominikbreu.archlens.mcp.tools;
 
 import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.cache.ModelCache;
+import dev.dominikbreu.archlens.renderer.MermaidDialect;
 import dev.dominikbreu.archlens.renderer.MermaidFlowchartRenderer;
 import java.util.Map;
 
@@ -11,15 +12,26 @@ import java.util.Map;
 public class RenderMermaidFlowchartTool {
 
     private final ModelCache cache;
-    private final MermaidFlowchartRenderer renderer = new MermaidFlowchartRenderer();
+    private final MermaidFlowchartRenderer renderer;
 
     /**
-     * Creates the tool with the shared model cache.
+     * Creates the tool with the shared model cache and universal Mermaid output.
      *
      * @param cache model cache used by prior indexing
      */
     public RenderMermaidFlowchartTool(ModelCache cache) {
+        this(cache, MermaidDialect.UNIVERSAL);
+    }
+
+    /**
+     * Creates the tool with an explicit Mermaid dialect.
+     *
+     * @param cache model cache used by prior indexing
+     * @param dialect output dialect for system/container levels
+     */
+    public RenderMermaidFlowchartTool(ModelCache cache, MermaidDialect dialect) {
         this.cache = cache;
+        this.renderer = new MermaidFlowchartRenderer(dialect);
     }
 
     /**

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.model.*;
+import dev.dominikbreu.archlens.model.ids.AppId;
 import dev.dominikbreu.archlens.model.ids.ComponentId;
 import dev.dominikbreu.archlens.model.ids.EntrypointId;
 import org.junit.jupiter.api.Test;
@@ -13,59 +14,106 @@ class MermaidCallFlowRendererTest {
     private final MermaidCallFlowRenderer renderer = new MermaidCallFlowRenderer();
 
     @Test
-    void outputStartsWithFlowchartDirective() {
-        var r = buildGraph(model(3), flow(3));
-        assertThat(renderer.render(r.flowNode(), r.graph())).startsWith("flowchart TD");
-    }
-
-    @Test
-    void containsClientNode() {
-        var r = buildGraph(model(3), flow(3));
-        assertThat(renderer.render(r.flowNode(), r.graph())).contains("Client([Client])");
-    }
-
-    @Test
-    void containsEachComponentBySimpleName() {
+    void outputStartsWithThemeHeaderAndSequenceDirective() {
         var r = buildGraph(model(3), flow(3));
         String out = renderer.render(r.flowNode(), r.graph());
-        for (int i = 0; i < 3; i++) {
-            assertThat(out).contains("Comp" + i);
-        }
+        assertThat(out).startsWith("%%{init:");
+        assertThat(out).contains("sequenceDiagram\n");
+        assertThat(out).contains("autonumber");
     }
 
     @Test
-    void repositoryRendersAsCylinder() {
+    void containsClientActor() {
+        var r = buildGraph(model(3), flow(3));
+        assertThat(renderer.render(r.flowNode(), r.graph())).contains("actor Client");
+    }
+
+    @Test
+    void declaresParticipantsWithStereotypesInFirstAppearanceOrder() {
+        var r = buildGraph(model(3), flow(3));
+        String out = renderer.render(r.flowNode(), r.graph());
+        assertThat(out).contains("participant Comp0 as Comp0«rest_resource»");
+        assertThat(out).contains("participant Comp1 as Comp1«service»");
+        assertThat(out.indexOf("participant Comp0")).isLessThan(out.indexOf("participant Comp1"));
+    }
+
+    @Test
+    void repositoryGetsRepositoryStereotype() {
         ArchitectureModel m = model(2);
         m.components.get(1).type = ComponentType.REPOSITORY;
         var r = buildGraph(m, flow(2));
-        assertThat(renderer.render(r.flowNode(), r.graph())).contains("[(Comp1)]");
+        assertThat(renderer.render(r.flowNode(), r.graph())).contains("Comp1«repository»");
     }
 
     @Test
-    void httpClientRendersAsParallelogram() {
+    void clientEdgeShowsHttpMethodAndPathAndActivatesFirstParticipant() {
         ArchitectureModel m = model(2);
-        m.components.get(1).type = ComponentType.HTTP_CLIENT;
-        var r = buildGraph(m, flow(2));
-        assertThat(renderer.render(r.flowNode(), r.graph())).contains("[/Comp1/]");
+        Entrypoint ep = new Entrypoint();
+        ep.id = EntrypointId.deserialize("test");
+        ep.httpMethod = "POST";
+        ep.path = "/orders";
+        ep.componentId = ComponentId.of("Comp0");
+        m.entrypoints.add(ep);
+        RuntimeFlow f = flow(2);
+        f.entrypointId = ep.id;
+        var r = buildGraph(m, f);
+        assertThat(renderer.render(r.flowNode(), r.graph())).contains("Client->>+Comp0: POST /orders");
     }
 
     @Test
-    void schedulerRendersAsStadium() {
+    void clientEdgeShowsChannelNameForMessaging() {
         ArchitectureModel m = model(2);
-        m.components.get(1).type = ComponentType.SCHEDULER;
-        var r = buildGraph(m, flow(2));
-        assertThat(renderer.render(r.flowNode(), r.graph())).contains("([Comp1])");
+        Entrypoint ep = new Entrypoint();
+        ep.id = EntrypointId.deserialize("test");
+        ep.channelName = "order-events";
+        ep.componentId = ComponentId.of("Comp0");
+        m.entrypoints.add(ep);
+        RuntimeFlow f = flow(2);
+        f.entrypointId = ep.id;
+        var r = buildGraph(m, f);
+        assertThat(renderer.render(r.flowNode(), r.graph())).contains("Client->>+Comp0: order-events");
     }
 
     @Test
-    void containsForwardEdgesWithViaLabel() {
+    void syncCallsUseSolidArrowWithLabel() {
         RuntimeFlow f = flow(3);
         f.edges.get(0).label = "processOrder";
-        f.edges.get(1).label = "save";
         var r = buildGraph(model(3), f);
+        assertThat(renderer.render(r.flowNode(), r.graph())).contains("Comp0->>+Comp1: processOrder");
+    }
+
+    @Test
+    void messagingTargetUsesAsyncArrow() {
+        ArchitectureModel m = model(2);
+        m.components.get(1).type = ComponentType.MESSAGE_DRIVEN_BEAN;
+        var r = buildGraph(m, flow(2));
+        assertThat(renderer.render(r.flowNode(), r.graph())).contains("Comp0-->>+Comp1: call");
+    }
+
+    @Test
+    void duplicateComponentPairEdgesRenderInDeterministicLabelOrder() {
+        ArchitectureModel m = model(2);
+        RuntimeFlow f = new RuntimeFlow();
+        f.id = "flow:test";
+        f.entrypointId = EntrypointId.deserialize("test");
+        for (int i = 0; i < 2; i++) {
+            RuntimeFlowStep s = new RuntimeFlowStep();
+            s.order = i;
+            s.componentId = ComponentId.of("Comp" + i);
+            s.componentName = "Comp" + i;
+            s.componentType = i == 0 ? "REST_RESOURCE" : "SERVICE";
+            s.via = "call";
+            f.steps.add(s);
+        }
+        f.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of("Comp0"), ComponentId.of("Comp1"), "zeta"));
+        f.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of("Comp0"), ComponentId.of("Comp1"), "alpha"));
+        var r = buildGraph(m, f);
         String out = renderer.render(r.flowNode(), r.graph());
-        assertThat(out).contains("-->|processOrder|");
-        assertThat(out).contains("-->|save|");
+        int alphaIdx = out.indexOf("Comp0->>+Comp1: alpha");
+        int zetaIdx = out.indexOf("Comp0->>Comp1: zeta");
+        assertThat(alphaIdx).isPositive();
+        assertThat(zetaIdx).isPositive();
+        assertThat(alphaIdx).isLessThan(zetaIdx);
     }
 
     @Test
@@ -85,41 +133,10 @@ class MermaidCallFlowRendererTest {
         }
         f.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of("Comp0"), ComponentId.of("Comp1"), "doB"));
         f.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of("Comp0"), ComponentId.of("Comp2"), "doC"));
-
         var r = buildGraph(m, f);
         String out = renderer.render(r.flowNode(), r.graph());
-        assertThat(out).contains("Comp0 -->|doB| Comp1");
-        assertThat(out).contains("Comp0 -->|doC| Comp2");
-        assertThat(out).doesNotContain("Comp1 -->");
-    }
-
-    @Test
-    void clientEdgeShowsHttpMethodAndPath() {
-        ArchitectureModel m = model(2);
-        Entrypoint ep = new Entrypoint();
-        ep.id = EntrypointId.deserialize("test");
-        ep.httpMethod = "POST";
-        ep.path = "/orders";
-        ep.componentId = ComponentId.of("Comp0");
-        m.entrypoints.add(ep);
-        RuntimeFlow f = flow(2);
-        f.entrypointId = ep.id;
-        var r = buildGraph(m, f);
-        assertThat(renderer.render(r.flowNode(), r.graph())).contains("POST /orders");
-    }
-
-    @Test
-    void clientEdgeShowsChannelNameForMessaging() {
-        ArchitectureModel m = model(2);
-        Entrypoint ep = new Entrypoint();
-        ep.id = EntrypointId.deserialize("test");
-        ep.channelName = "order-events";
-        ep.componentId = ComponentId.of("Comp0");
-        m.entrypoints.add(ep);
-        RuntimeFlow f = flow(2);
-        f.entrypointId = ep.id;
-        var r = buildGraph(m, f);
-        assertThat(renderer.render(r.flowNode(), r.graph())).contains("order-events");
+        assertThat(out).contains("Comp0->>+Comp1: doB");
+        assertThat(out).contains("Comp0->>+Comp2: doC");
     }
 
     @Test
@@ -140,26 +157,63 @@ class MermaidCallFlowRendererTest {
         f.steps.add(s1);
         f.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of("Comp0"), ComponentId.of("Comp0"), "helper"));
         f.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of("Comp0"), ComponentId.of("Comp1"), "process"));
-
         var r = buildGraph(m, f);
         String out = renderer.render(r.flowNode(), r.graph());
-        assertThat(out).doesNotContain("Comp0 -->|helper| Comp0");
-        assertThat(out).contains("-->|process| Comp1");
+        assertThat(out).doesNotContain("Comp0->>Comp0");
+        assertThat(out).doesNotContain("Comp0->>+Comp0");
+        assertThat(out).contains(": process");
     }
 
     @Test
-    void noReturnArrowsRendered() {
-        var r = buildGraph(model(4), flow(4));
+    void activatedParticipantsAreDeactivatedInReverseOrder() {
+        var r = buildGraph(model(3), flow(3));
         String out = renderer.render(r.flowNode(), r.graph());
-        assertThat(out).doesNotContain("-->>");
-        assertThat(out).doesNotContain("result");
+        int d2 = out.indexOf("deactivate Comp2");
+        int d1 = out.indexOf("deactivate Comp1");
+        int d0 = out.indexOf("deactivate Comp0");
+        assertThat(d2).isPositive();
+        assertThat(d2).isLessThan(d1);
+        assertThat(d1).isLessThan(d0);
     }
 
     @Test
     void emptyFlowProducesFallbackNote() {
         String out = renderer.render(null, null);
-        assertThat(out).contains("flowchart TD");
+        assertThat(out).contains("sequenceDiagram");
         assertThat(out).contains("no flow steps");
+    }
+
+    @Test
+    void multiAppFlowGroupsParticipantsInBoxes() {
+        ArchitectureModel m = model(2);
+        AppEntry orders = new AppEntry();
+        orders.id = AppId.of("app:orders");
+        orders.name = "orders";
+        orders.technology = "quarkus";
+        orders.packagingType = "jar";
+        orders.componentIds.add(ComponentId.of("Comp0"));
+        m.applications.add(orders);
+        AppEntry billing = new AppEntry();
+        billing.id = AppId.of("app:billing");
+        billing.name = "billing";
+        billing.technology = "quarkus";
+        billing.packagingType = "jar";
+        billing.componentIds.add(ComponentId.of("Comp1"));
+        m.applications.add(billing);
+        m.components.get(0).module = AppId.of("app:orders");
+        m.components.get(1).module = AppId.of("app:billing");
+
+        var r = buildGraph(m, flow(2));
+        String out = renderer.render(r.flowNode(), r.graph());
+        assertThat(out).contains("box orders");
+        assertThat(out).contains("box billing");
+        assertThat(out.lines().filter(l -> "end".equals(l.trim())).count()).isEqualTo(2);
+    }
+
+    @Test
+    void singleAppFlowUsesNoBoxes() {
+        var r = buildGraph(model(3), flow(3));
+        assertThat(renderer.render(r.flowNode(), r.graph())).doesNotContain("box ");
     }
 
     @Test
@@ -184,10 +238,11 @@ class MermaidCallFlowRendererTest {
             s.via = "call";
             f.steps.add(s);
         }
+        f.edges.add(new RuntimeFlow.FlowEdge(ComponentId.of("pkg0.Service"), ComponentId.of("pkg1.Service"), "call"));
         var r = buildGraph(m, f);
         String out = renderer.render(r.flowNode(), r.graph());
-        assertThat(out).contains("Service_1");
-        assertThat(out).contains("Service_2");
+        assertThat(out).contains("participant Service_1");
+        assertThat(out).contains("participant Service_2");
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

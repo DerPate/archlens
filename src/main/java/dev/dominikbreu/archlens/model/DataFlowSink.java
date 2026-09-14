@@ -100,6 +100,8 @@ public class DataFlowSink {
     public String payloadType;
     /** Entity type read/written by persistence handoff sinks, when known. */
     public String entityType;
+    /** Persistence unit targeted by a persistence sink, when known. */
+    public String persistenceUnitName;
     /** Persistence operation such as save, delete, findByStatus, or findById. */
     public String repositoryOperation;
     /** Short evidence label explaining how link metadata was extracted. */
