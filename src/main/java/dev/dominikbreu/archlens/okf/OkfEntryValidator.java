@@ -24,6 +24,9 @@ public final class OkfEntryValidator {
     public void validateConcept(String markdown, String semanticKey) {
         Map<String, Object> frontmatter = frontmatter(markdown);
         requireNonblank(frontmatter, "type");
+        requireNonblank(frontmatter, "status");
+        requireNonblank(frontmatter, "stale_after");
+        requireGenerated(frontmatter);
         Object generated = frontmatter.get("archlens_generated");
         if (!Boolean.TRUE.equals(generated)) {
             throw new IllegalArgumentException("Generated concept must set archlens_generated: true");
@@ -78,6 +81,23 @@ public final class OkfEntryValidator {
         Object value = frontmatter.get(key);
         if (!(value instanceof String text) || text.isBlank()) {
             throw new IllegalArgumentException("Generated concept must include nonblank " + key);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void requireGenerated(Map<String, Object> frontmatter) {
+        Object generated = frontmatter.get("generated");
+        if (!(generated instanceof Map<?, ?> map)) {
+            throw new IllegalArgumentException("Generated concept must include a generated object with by and at");
+        }
+        requireNonblankNested((Map<String, Object>) map, "by");
+        requireNonblankNested((Map<String, Object>) map, "at");
+    }
+
+    private static void requireNonblankNested(Map<String, Object> map, String key) {
+        Object value = map.get(key);
+        if (!(value instanceof String text) || text.isBlank()) {
+            throw new IllegalArgumentException("Generated concept must include nonblank generated." + key);
         }
     }
 }

@@ -228,7 +228,7 @@ to selectors that alter meaning produce a different concept.
 
 ## OKF Document Shape
 
-Each generated investigation is an OKF v0.1 concept. It uses standard fields plus namespaced
+Each generated investigation is an OKF v0.2 concept. It uses standard fields plus namespaced
 ArchLens metadata:
 
 ```yaml
@@ -238,7 +238,11 @@ title: Where OrderResource#create persists id
 description: Persistence-destination investigation compiled from ArchLens evidence.
 resource: archlens://investigation/a18f42c9...
 tags: [architecture, persistence-destination, partial]
-timestamp: 2026-07-19T14:20:00Z
+generated:
+  by: process:archlens
+  at: 2026-07-19T14:20:00Z
+status: draft
+stale_after: 2026-10-17
 archlens_family: persistence_destination
 archlens_status: partial
 archlens_semantic_key: a18f42c9...
@@ -246,6 +250,15 @@ archlens_project_path: /work/order-service
 archlens_generated: true
 ---
 ```
+
+`status` is always `draft`: nothing ArchLens generates has been human-reviewed, regardless of how
+resolved the underlying answer is (that distinction lives in `archlens_status`). `stale_after` is
+`generated.at` plus 90 days, signaling that an investigation may no longer match the codebase once
+it passes. The root `index.md` declares `okf_version: "0.2"` in a leading frontmatter block, added
+once on first write and left untouched afterward; `verified` and `sources` are not emitted —
+ArchLens never has a human or CI process confirm an investigation's continued accuracy, and its
+evidence is graph citations already rendered in the `Evidence` body section, not external
+reference docs.
 
 The body contains these logical sections where applicable:
 

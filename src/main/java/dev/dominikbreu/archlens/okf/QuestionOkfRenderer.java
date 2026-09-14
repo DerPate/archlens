@@ -3,7 +3,9 @@ package dev.dominikbreu.archlens.okf;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -148,7 +150,15 @@ public final class QuestionOkfRenderer {
         values.put("description", description);
         values.put("resource", "archlens://investigation/" + identity.semanticKey());
         values.put("tags", List.of("architecture", identity.familySlug(), result.status()));
-        values.put("timestamp", timestamp.toString());
+        values.put("generated", Map.of("by", "process:archlens", "at", timestamp.toString()));
+        values.put("status", "draft");
+        values.put(
+                "stale_after",
+                timestamp
+                        .plus(Duration.ofDays(90))
+                        .atZone(ZoneOffset.UTC)
+                        .toLocalDate()
+                        .toString());
         values.put("archlens_family", result.family());
         values.put("archlens_status", result.status());
         values.put("archlens_semantic_key", identity.semanticKey());

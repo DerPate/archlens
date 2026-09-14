@@ -17,6 +17,11 @@ class OkfBundleWriterTest {
     private static final String CONCEPT = """
             ---
             type: Architecture Investigation
+            generated:
+              by: process:archlens
+              at: '2026-07-19T12:00:00Z'
+            status: draft
+            stale_after: '2026-10-17'
             archlens_generated: true
             archlens_semantic_key: %s
             ---
