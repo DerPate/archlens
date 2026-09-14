@@ -3,7 +3,6 @@ package dev.dominikbreu.archlens.renderer;
 import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.model.ComponentType;
 import dev.dominikbreu.archlens.model.ids.GraphNodeId;
-import dev.dominikbreu.archlens.renderer.template.MermaidFlowchartTemplate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
@@ -71,7 +70,7 @@ public class MermaidDependencyMapRenderer {
             edge.kinds.merge(nullToUnknown(kind), 1, Integer::sum);
         }
 
-        List<MermaidFlowchartTemplate.Statement> statements = new ArrayList<>();
+        List<MermaidDocument.Statement> statements = new ArrayList<>();
         MermaidStyle.Tracker tracker = new MermaidStyle.Tracker();
         for (Map.Entry<String, GroupStats> entry : groups.entrySet()) {
             String group = entry.getKey();
@@ -85,7 +84,7 @@ public class MermaidDependencyMapRenderer {
             }
             MermaidStyle.Role role = MermaidStyle.roleFor(dominantType(typeCounts.get(group)));
             String id = nodeId(group);
-            statements.add(MermaidFlowchartTemplate.Statement.node(tracker.node("    ", id, label.toString(), role)));
+            statements.add(MermaidDocument.Statement.node(tracker.node("    ", id, label.toString(), role)));
         }
 
         for (Map.Entry<EdgeKey, EdgeStats> entry : edges.entrySet()) {
@@ -94,10 +93,10 @@ public class MermaidDependencyMapRenderer {
             boolean allAsync = stats.kinds.keySet().stream().allMatch(MermaidStyle::isAsyncKind);
             String label =
                     stats.count + " " + (stats.count == 1 ? "dep" : "deps") + " / " + escape(stats.kindSummary());
-            statements.add(MermaidFlowchartTemplate.Statement.edge(new MermaidFlowchartTemplate.Edge(
+            statements.add(MermaidDocument.Statement.edge(new MermaidDocument.Edge(
                     "    ", nodeId(key.from()), nodeId(key.to()), label, true, false, allAsync, false)));
         }
-        return MermaidTemplates.flowchart("LR", statements, tracker);
+        return MermaidTemplateAdapters.flowchart("LR", statements, tracker);
     }
 
     /**
