@@ -47,4 +47,10 @@ public class OrderController {
     public void deleteItem(@PathVariable String id, @PathVariable String itemId) {
         service.delete(id + "/" + itemId);
     }
+
+    // Named "path" attribute alongside another attribute (not the bare positional "value")
+    @PostMapping(path = "/{id}/confirm", consumes = "application/json")
+    public String confirm(@PathVariable String id) {
+        return service.create(id);
+    }
 }
