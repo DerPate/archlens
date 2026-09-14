@@ -32,6 +32,25 @@ class QuestionOkfRendererTest {
     }
 
     @Test
+    void rendersOkfV02ProvenanceAndTrustFields() throws Exception {
+        ArchitectureQuestionResult result = Fixtures.partialImpactResult();
+        QuestionConceptIdentity.ConceptIdentity identity = new QuestionConceptIdentity().derive(result);
+
+        String markdown = new QuestionOkfRenderer()
+                .render(result, identity, Path.of("/project"), null, Instant.parse("2026-07-19T12:00:00Z"))
+                .markdown();
+
+        assertThat(markdown)
+                .contains("generated:")
+                .contains("by: process:archlens")
+                .contains("2026-07-19T12:00:00Z")
+                .contains("status: draft")
+                .contains("stale_after:")
+                .contains("2026-10-17")
+                .doesNotContain("timestamp:");
+    }
+
+    @Test
     void rendersAllSupportedFamilyAnswerKeys() throws Exception {
         QuestionOkfRenderer renderer = new QuestionOkfRenderer();
         for (String family : ArchitectureQuestionResult.FAMILIES) {
