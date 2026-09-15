@@ -12,10 +12,19 @@ import spoon.reflect.declaration.*;
  */
 public class QuarkusExtractor {
 
+    /** Technology label assigned to Quarkus-discovered components. */
     private static final String QUARKUS = "quarkus";
+
+    /** Technology and stereotype label assigned to WebSocket endpoints. */
     private static final String WEBSOCKET = "websocket";
+
+    /** Evidence label used when an architecture element comes from an annotation. */
     private static final String ANNOTATION = "annotation";
+
+    /** Interface type assigned to inbound messaging channels. */
     private static final String MESSAGING_CONSUMER = "messaging_consumer";
+
+    /** Interface type assigned to outbound messaging channels. */
     private static final String MESSAGING_PRODUCER = "messaging_producer";
 
     private static final Set<String> CDI_SCOPE_ANNOTATIONS = Set.of(
@@ -28,6 +37,7 @@ public class QuarkusExtractor {
             "javax.inject.Singleton",
             "jakarta.inject.Singleton");
 
+    /** Recognized Java EE and Jakarta REST path annotations. */
     private static final Set<String> JAX_RS_PATH = Set.of("javax.ws.rs.Path", "jakarta.ws.rs.Path");
 
     private static final Set<String> REST_CLIENT_ANNOTATIONS = Set.of(
@@ -66,12 +76,16 @@ public class QuarkusExtractor {
     private static final Set<String> WS_ON_MESSAGE_ANNOTATIONS =
             Set.of("javax.websocket.OnMessage", "jakarta.websocket.OnMessage");
 
+    /** Recognized Java EE and Jakarta REST response media-type annotations. */
     private static final Set<String> JAX_RS_PRODUCES = Set.of("javax.ws.rs.Produces", "jakarta.ws.rs.Produces");
 
+    /** Simple type names that identify server-sent-event method signatures. */
     private static final Set<String> SSE_EVENT_SINK_TYPES = Set.of("SseEventSink", "Sse");
 
+    /** Quarkus annotations that declare gRPC services. */
     private static final Set<String> GRPC_SERVICE_ANNOTATIONS = Set.of("io.quarkus.grpc.GrpcService");
 
+    /** gRPC service interfaces recognized without requiring Quarkus annotations. */
     private static final Set<String> GRPC_BINDABLE_SERVICE_TYPES = Set.of("io.grpc.BindableService");
 
     private static final Set<String> KAFKA_PRODUCER_TYPES =
@@ -84,8 +98,10 @@ public class QuarkusExtractor {
     private static final java.util.regex.Pattern MQTT_CLIENT_NAME =
             java.util.regex.Pattern.compile("^I?Mqtt[35]?(Async|Blocking|Rx)?Client$");
 
+    /** Topic marker used when a raw client has no statically resolvable call site. */
     private static final String UNRESOLVED_TOPIC = "(unresolved)";
 
+    /** Resolves producer and consumer operations performed through raw messaging-client fields. */
     private final MessagingCallSiteResolver callSiteResolver = new MessagingCallSiteResolver();
 
     /** Creates a Quarkus extractor using built-in annotation rules. */
@@ -117,8 +133,16 @@ public class QuarkusExtractor {
         }
     }
 
+    /**
+     * Classification assigned to a Spoon type before its component is created.
+     *
+     * @param type architectural component category
+     * @param technology framework or protocol that caused the match
+     * @param stereotypes additional roles inferred from annotations and naming
+     */
     private record ComponentClassification(ComponentType type, String technology, List<String> stereotypes) {}
 
+    /** Creates a component for a recognized Quarkus construct, or returns {@code null} for unrelated types. */
     private Component tryExtractComponent(CtType<?> type, AppId appId) {
         ComponentClassification classification = classifyComponent(type);
         if (classification == null) return null;
@@ -135,6 +159,7 @@ public class QuarkusExtractor {
         return c;
     }
 
+    /** Classifies entities, clients, resources, schedulers, and CDI or messaging services in precedence order. */
     private ComponentClassification classifyComponent(CtType<?> type) {
         List<String> stereotypes = new ArrayList<>();
         if (PersistenceEntityTypes.isEntity(type)) {
@@ -171,6 +196,7 @@ public class QuarkusExtractor {
         return null;
     }
 
+    /** Reports whether a type consumes, produces, injects a channel, or owns a recognized raw messaging client. */
     private boolean hasMessaging(CtType<?> type) {
         return type.getMethods().stream()
                         .anyMatch(m -> hasAnnotation(m, INCOMING_ANNOTATIONS) || hasAnnotation(m, OUTGOING_ANNOTATIONS))
@@ -178,6 +204,7 @@ public class QuarkusExtractor {
                 || type.getFields().stream().anyMatch(f -> classifyRawClientField(f) != null);
     }
 
+    /** Infers a CDI component role from conventional repository, service, client, and proxy suffixes. */
     private ComponentType cdiComponentType(CtType<?> type, List<String> stereotypes) {
         String lower = type.getSimpleName().toLowerCase();
         if (lower.endsWith("repository") || lower.endsWith("repo") || lower.endsWith("dao")) {
@@ -195,6 +222,7 @@ public class QuarkusExtractor {
         return ComponentType.SERVICE;
     }
 
+    /** Dispatches entrypoint and interface extraction for one classified component. */
     private void extractEntrypoints(CtType<?> type, Component component, ArchitectureModel model) {
         String classBasePath = getAnnotationStringValue(type, JAX_RS_PATH);
         String wsClassPath = getAnnotationStringValue(type, WS_ENDPOINT_ANNOTATIONS);
@@ -212,6 +240,7 @@ public class QuarkusExtractor {
         extractRestClientInterfaces(type, component, model, classBasePath);
     }
 
+    /** Adds the WebSocket, REST, scheduled, and messaging elements declared by one method. */
     private void extractMethodEntrypoint(
             CtMethod<?> method,
             CtType<?> type,
@@ -234,6 +263,7 @@ public class QuarkusExtractor {
         addChannelEntrypoints(method, type, component, model);
     }
 
+    /** Adds an {@code OnMessage} method as a WebSocket entrypoint at its class-level endpoint path. */
     private void addWebSocketEntrypoint(
             CtMethod<?> method, CtType<?> type, Component component, ArchitectureModel model, String wsClassPath) {
         Entrypoint ep = new Entrypoint();
@@ -249,6 +279,7 @@ public class QuarkusExtractor {
         model.entrypoints.add(ep);
     }
 
+    /** Adds a REST or SSE entrypoint and its corresponding exposed interface. */
     private void addRestEntrypoint(
             CtMethod<?> method,
             CtType<?> type,
@@ -280,6 +311,7 @@ public class QuarkusExtractor {
                 model);
     }
 
+    /** Adds a scheduled method and captures its cron or fixed-interval trigger when declared. */
     private void addScheduledEntrypoint(
             CtMethod<?> method, CtType<?> type, Component component, ArchitectureModel model) {
         Entrypoint ep = new Entrypoint();
@@ -303,6 +335,7 @@ public class QuarkusExtractor {
         model.entrypoints.add(ep);
     }
 
+    /** Adds consumer and producer entrypoints and interfaces for MicroProfile channel annotations. */
     private void addChannelEntrypoints(
             CtMethod<?> method, CtType<?> type, Component component, ArchitectureModel model) {
         String incomingChannel = getAnnotationStringValue(method, INCOMING_ANNOTATIONS);
@@ -319,6 +352,7 @@ public class QuarkusExtractor {
         }
     }
 
+    /** Adds producer entrypoints and interfaces for fields injected with a messaging channel. */
     private void extractEmitterFieldEntrypoints(CtType<?> type, Component component, ArchitectureModel model) {
         for (CtField<?> field : type.getFields()) {
             String channel = getAnnotationStringValue(field, CHANNEL_ANNOTATIONS);
@@ -339,6 +373,7 @@ public class QuarkusExtractor {
         }
     }
 
+    /** Resolves Kafka and MQTT field call sites and emits their producer or consumer interfaces. */
     private void extractRawClientInterfaces(CtType<?> type, Component component, ArchitectureModel model) {
         Map<String, MessagingCallSiteResolver.TrackedField> trackedFields = new LinkedHashMap<>();
         Map<String, RawClientKind> kinds = new LinkedHashMap<>();
@@ -369,6 +404,7 @@ public class QuarkusExtractor {
         }
     }
 
+    /** Emits call-site-specific interfaces, falling back to one unresolved field-type interface. */
     private void emitRawClientInterface(
             CtField<?> field,
             RawClientKind kind,
@@ -397,6 +433,7 @@ public class QuarkusExtractor {
         }
     }
 
+    /** Adds a MicroProfile REST client interface plus one operation interface per annotated HTTP method. */
     private void extractRestClientInterfaces(
             CtType<?> type, Component component, ArchitectureModel model, String classBasePath) {
         if (component.type != ComponentType.HTTP_CLIENT) return;
@@ -420,6 +457,7 @@ public class QuarkusExtractor {
         }
     }
 
+    /** Adds a messaging entrypoint with a channel-qualified identifier and unknown broker pending resolution. */
     private void addMessagingEntrypoint(
             CtMethod<?> method,
             CtType<?> type,
@@ -442,6 +480,7 @@ public class QuarkusExtractor {
         model.entrypoints.add(ep);
     }
 
+    /** Adds a channel interface and marks its broker unresolved for later configuration merging. */
     private void addMessagingInterface(
             CtElement element, Component component, String type, String channel, ArchitectureModel model) {
         InterfaceEntry entry = addInterface(element, component, type, channel, channel, model);
@@ -450,6 +489,7 @@ public class QuarkusExtractor {
         }
     }
 
+    /** Adds a deduplicated raw-client interface with call-site or field-type source confidence. */
     private void addRawClientInterface(
             Component component,
             ArchitectureModel model,
@@ -475,6 +515,7 @@ public class QuarkusExtractor {
         model.interfaces.add(entry);
     }
 
+    /** Classifies Kafka producer/consumer fields and bidirectional MQTT client fields. */
     private RawClientKind classifyRawClientField(CtField<?> field) {
         if (field.getType() == null) return null;
         String fqn = field.getType().getQualifiedName();
@@ -491,14 +532,22 @@ public class QuarkusExtractor {
         return null;
     }
 
+    /** Directional capability implied by a raw messaging-client field type. */
     private enum RawClientRole {
         PRODUCER,
         CONSUMER,
         BIDIRECTIONAL
     }
 
+    /**
+     * Broker and directional role inferred from a raw client type.
+     *
+     * @param broker messaging technology used by the client
+     * @param role operations supported by the client type
+     */
     private record RawClientKind(MessagingBroker broker, RawClientRole role) {}
 
+    /** Selects a REST client's config key, base URI, or simple type name as its external service name. */
     private String restClientServiceName(CtType<?> type) {
         String configKey = getAnnotationAttributeValue(type, REST_CLIENT_ANNOTATIONS, "configKey");
         if (!configKey.isEmpty()) return configKey;
@@ -507,6 +556,7 @@ public class QuarkusExtractor {
         return type.getSimpleName();
     }
 
+    /** Creates a component interface unless its stable component/type/name identifier already exists. */
     private InterfaceEntry addInterface(
             CtElement element, Component component, String type, String name, String path, ArchitectureModel model) {
         String id = "iface:" + component.id.qualifiedName() + ":" + type + ":" + name;
@@ -524,6 +574,7 @@ public class QuarkusExtractor {
         return entry;
     }
 
+    /** Detects SSE endpoints from produced media types, return types, or sink parameters. */
     private boolean isSseEndpoint(CtMethod<?> method, CtType<?> type) {
         String produces = getAnnotationStringValue(method, JAX_RS_PRODUCES);
         if (produces.isEmpty()) produces = getAnnotationStringValue(type, JAX_RS_PRODUCES);
@@ -543,6 +594,7 @@ public class QuarkusExtractor {
         return false;
     }
 
+    /** Detects gRPC services implemented through {@code BindableService} or generated {@code ImplBase} classes. */
     private boolean implementsGrpcBindable(CtType<?> type) {
         for (var ref : type.getSuperInterfaces()) {
             String qn = ref.getQualifiedName();
@@ -558,6 +610,7 @@ public class QuarkusExtractor {
         return false;
     }
 
+    /** Adds each public gRPC service operation except infrastructure {@code bindService}, without duplicates. */
     private void emitGrpcEntrypoints(CtType<?> type, Component component, ArchitectureModel model) {
         for (CtMethod<?> method : type.getMethods()) {
             if (!method.getModifiers().contains(spoon.reflect.declaration.ModifierKind.PUBLIC)) continue;
@@ -578,6 +631,7 @@ public class QuarkusExtractor {
         }
     }
 
+    /** Returns the simple name of the first recognized JAX-RS HTTP-method annotation. */
     private String getHttpMethod(CtMethod<?> method) {
         for (var ann : method.getAnnotations()) {
             if (annMatches(ann, HTTP_METHOD_ANNOTATIONS)) {
@@ -587,6 +641,7 @@ public class QuarkusExtractor {
         return null;
     }
 
+    /** Matches an annotation by qualified or simple name to tolerate incomplete Spoon classpaths. */
     private boolean hasAnnotation(CtElement element, Set<String> names) {
         Set<String> simpleNames = simpleNames(names);
         return element.getAnnotations().stream()
@@ -594,21 +649,25 @@ public class QuarkusExtractor {
                         || simpleNames.contains(a.getAnnotationType().getSimpleName()));
     }
 
+    /** Tests one annotation against a set of qualified names and their simple-name fallbacks. */
     private boolean annMatches(spoon.reflect.declaration.CtAnnotation<?> ann, Set<String> names) {
         return names.contains(ann.getAnnotationType().getQualifiedName())
                 || simpleNames(names).contains(ann.getAnnotationType().getSimpleName());
     }
 
+    /** Removes package prefixes from annotation type names for no-classpath matching. */
     private Set<String> simpleNames(Set<String> qualifiedNames) {
         return qualifiedNames.stream()
                 .map(n -> n.substring(n.lastIndexOf('.') + 1))
                 .collect(java.util.stream.Collectors.toSet());
     }
 
+    /** Reads the {@code value} member from the first matching annotation. */
     private String getAnnotationStringValue(CtElement element, Set<String> names) {
         return getAnnotationAttributeValue(element, names, "value");
     }
 
+    /** Reads a named member from the first matching annotation, returning an empty string when absent. */
     private String getAnnotationAttributeValue(CtElement element, Set<String> names, String attribute) {
         for (var ann : element.getAnnotations()) {
             if (!annMatches(ann, names)) continue;
@@ -617,6 +676,7 @@ public class QuarkusExtractor {
         return "";
     }
 
+    /** Converts a literal or source-form annotation value to text without surrounding quotes. */
     private String annotationAttributeString(spoon.reflect.declaration.CtAnnotation<?> ann, String attribute) {
         try {
             CtExpression<?> val = ann.getValue(attribute);
@@ -635,6 +695,7 @@ public class QuarkusExtractor {
         }
     }
 
+    /** Converts an empty path to root and enforces one leading slash without duplicate separators. */
     private String normalizePath(String path) {
         if (path == null || path.isEmpty()) return "/";
         if (!path.startsWith("/")) path = "/" + path;
@@ -642,6 +703,7 @@ public class QuarkusExtractor {
         return path;
     }
 
+    /** Joins class- and method-level paths while preserving exactly one separator. */
     private String combinePaths(String base, String child) {
         if (base == null) base = "";
         if (child == null) child = "";
@@ -650,6 +712,7 @@ public class QuarkusExtractor {
         return normalizePath(base + child);
     }
 
+    /** Returns the absolute source file path, or {@code unknown} for invalid Spoon positions. */
     private String getFile(CtElement el) {
         var pos = el.getPosition();
         if (pos.isValidPosition() && pos.getFile() != null) {
@@ -659,6 +722,7 @@ public class QuarkusExtractor {
         }
     }
 
+    /** Returns the one-based source line, or zero for an invalid Spoon position. */
     private int getLine(CtElement el) {
         var pos = el.getPosition();
         if (pos.isValidPosition()) {
