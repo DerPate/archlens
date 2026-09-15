@@ -105,42 +105,52 @@ final class MermaidTemplateAdapters {
         return c4(new MermaidC4Template(
                 context,
                 containerDiagram,
-                elements.stream()
-                        .map(e -> e.boundaryStart()
-                                ? MermaidC4Template.Element.boundary(e.id(), e.name())
-                                : e.closeBoundary()
-                                        ? MermaidC4Template.Element.closeBoundary()
-                                        : MermaidC4Template.Element.element(
-                                                e.macro(),
-                                                e.id(),
-                                                e.name(),
-                                                e.technology(),
-                                                e.description(),
-                                                e.fourArguments(),
-                                                e.indent()))
-                        .toList(),
+                elements.stream().map(MermaidTemplateAdapters::c4Element).toList(),
                 relations.stream()
                         .map(r -> new MermaidC4Template.Relation(r.from(), r.to(), r.label()))
                         .toList()));
     }
 
+    private static MermaidC4Template.Element c4Element(MermaidDocument.C4Element e) {
+        return switch (e) {
+            case MermaidDocument.C4Element.BoundaryStart(var id, var name) ->
+                MermaidC4Template.Element.boundary(id, name);
+            case MermaidDocument.C4Element.BoundaryEnd() -> MermaidC4Template.Element.closeBoundary();
+            case MermaidDocument.C4Element.Regular(
+                    var macro,
+                    var id,
+                    var name,
+                    var technology,
+                    var description,
+                    var fourArguments,
+                    var indent) ->
+                MermaidC4Template.Element.element(macro, id, name, technology, description, fourArguments, indent);
+        };
+    }
+
     private static MermaidFlowchartTemplate.Statement flowchartStatement(MermaidDocument.Statement s) {
-        if (s.node() != null)
-            return MermaidFlowchartTemplate.Statement.node(new MermaidFlowchartTemplate.Node(
-                    s.node().indent(),
-                    s.node().id(),
-                    s.node().open(),
-                    s.node().label(),
-                    s.node().close()));
-        if (s.edge() != null) {
-            var e = s.edge();
-            return MermaidFlowchartTemplate.Statement.edge(new MermaidFlowchartTemplate.Edge(
-                    e.indent(), e.from(), e.to(), e.label(), e.labeled(), e.conditional(), e.async(), e.quotedLabel()));
-        }
-        if (s.note()) return MermaidFlowchartTemplate.Statement.note(s.indent(), s.id(), s.label());
-        if (s.blank()) return MermaidFlowchartTemplate.Statement.emptyLine();
-        if (s.end()) return MermaidFlowchartTemplate.Statement.end(s.indent());
-        if (s.direction() != null) return MermaidFlowchartTemplate.Statement.direction(s.indent(), s.direction());
-        return MermaidFlowchartTemplate.Statement.subgraph(s.indent(), s.id(), s.label());
+        return switch (s) {
+            case MermaidDocument.Statement.OfNode(var node) ->
+                MermaidFlowchartTemplate.Statement.node(new MermaidFlowchartTemplate.Node(
+                        node.indent(), node.id(), node.open(), node.label(), node.close()));
+            case MermaidDocument.Statement.OfEdge(var e) ->
+                MermaidFlowchartTemplate.Statement.edge(new MermaidFlowchartTemplate.Edge(
+                        e.indent(),
+                        e.from(),
+                        e.to(),
+                        e.label(),
+                        e.labeled(),
+                        e.conditional(),
+                        e.async(),
+                        e.quotedLabel()));
+            case MermaidDocument.Statement.Subgraph(var indent, var id, var label) ->
+                MermaidFlowchartTemplate.Statement.subgraph(indent, id, label);
+            case MermaidDocument.Statement.Direction(var indent, var value) ->
+                MermaidFlowchartTemplate.Statement.direction(indent, value);
+            case MermaidDocument.Statement.End(var indent) -> MermaidFlowchartTemplate.Statement.end(indent);
+            case MermaidDocument.Statement.Note(var indent, var id, var label) ->
+                MermaidFlowchartTemplate.Statement.note(indent, id, label);
+            case MermaidDocument.Statement.BlankLine() -> MermaidFlowchartTemplate.Statement.emptyLine();
+        };
     }
 }
