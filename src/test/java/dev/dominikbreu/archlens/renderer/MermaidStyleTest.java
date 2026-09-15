@@ -3,7 +3,6 @@ package dev.dominikbreu.archlens.renderer;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.dominikbreu.archlens.model.ComponentType;
-import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class MermaidStyleTest {
@@ -14,28 +13,6 @@ class MermaidStyleTest {
         assertThat(h).startsWith("%%{init:").endsWith("%%\n");
         assertThat(h.lines()).hasSize(1);
         assertThat(h).contains("\"theme\": \"base\"");
-    }
-
-    @Test
-    void nodeUsesRoleShapeAndEscapesLabel() {
-        assertThat(MermaidStyle.node("    ", "a", "My \"Repo\"", MermaidStyle.Role.REPOSITORY))
-                .isEqualTo("    a[(\"My 'Repo'\")]\n");
-        assertThat(MermaidStyle.node("    ", "b", "Svc", MermaidStyle.Role.SERVICE))
-                .isEqualTo("    b(\"Svc\")\n");
-        assertThat(MermaidStyle.node("    ", "c", "Api", MermaidStyle.Role.ENTRYPOINT))
-                .isEqualTo("    c([\"Api\"])\n");
-        assertThat(MermaidStyle.node("    ", "d", "Ext", MermaidStyle.Role.EXTERNAL))
-                .isEqualTo("    d[/\"Ext\"\\]\n");
-        assertThat(MermaidStyle.node("    ", "e", "Evt", MermaidStyle.Role.EVENT))
-                .isEqualTo("    e((\"Evt\"))\n");
-    }
-
-    @Test
-    void classDefsEmitOnlyUsedRolesInEnumOrder() {
-        String out = MermaidStyle.classDefs(List.of(MermaidStyle.Role.SERVICE, MermaidStyle.Role.ENTRYPOINT));
-        assertThat(out.lines()).hasSize(2);
-        assertThat(out.indexOf("classDef entrypoint")).isLessThan(out.indexOf("classDef service"));
-        assertThat(MermaidStyle.classDefs(List.of())).isEmpty();
     }
 
     @Test
@@ -74,16 +51,12 @@ class MermaidStyleTest {
     }
 
     @Test
-    void trackerFooterEmitsClassDefsAndAssignments() {
-        MermaidStyle.Tracker t = new MermaidStyle.Tracker();
-        t.tag("n1", MermaidStyle.Role.SERVICE);
-        t.tag("n2", MermaidStyle.Role.STORE);
-        String footer = t.footer();
-        assertThat(footer).contains("classDef service");
-        assertThat(footer).contains("classDef store");
-        assertThat(footer).contains("class n1 service");
-        assertThat(footer).contains("class n2 store");
-        assertThat(footer).doesNotContain("subgraph legend");
-        assertThat(new MermaidStyle.Tracker().footer()).isEmpty();
+    void nidSplitsMermaidC4KeywordsButLeavesOtherDigitCapitalNamesAlone() {
+        assertThat(MermaidStyle.nid("dev.example.likec4.LikeC4DynamicStep"))
+                .isEqualTo("dev_example_likec4_LikeC4_DynamicStep");
+        assertThat(MermaidStyle.nid("dev.example.likec4.LikeC4ContainerView"))
+                .isEqualTo("dev_example_likec4_LikeC4_ContainerView");
+        assertThat(MermaidStyle.nid("dev.example.Base64Encoder")).isEqualTo("dev_example_Base64Encoder");
+        assertThat(MermaidStyle.nid("dev.example.OAuth2Client")).isEqualTo("dev_example_OAuth2Client");
     }
 }

@@ -3,6 +3,7 @@ package dev.dominikbreu.archlens.renderer;
 import dev.dominikbreu.archlens.cache.GraphQuery;
 import dev.dominikbreu.archlens.model.ComponentType;
 import dev.dominikbreu.archlens.model.ids.GraphNodeId;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
@@ -69,41 +70,33 @@ public class MermaidDependencyMapRenderer {
             edge.kinds.merge(nullToUnknown(kind), 1, Integer::sum);
         }
 
-        StringBuilder sb = new StringBuilder(MermaidStyle.header() + "flowchart LR\n");
+        List<MermaidDocument.Statement> statements = new ArrayList<>();
         MermaidStyle.Tracker tracker = new MermaidStyle.Tracker();
         for (Map.Entry<String, GroupStats> entry : groups.entrySet()) {
             String group = entry.getKey();
             GroupStats stats = entry.getValue();
-            String label = group + "\n" + stats.components + " components";
+            StringBuilder label = new StringBuilder(group)
+                    .append('\n')
+                    .append(stats.components)
+                    .append(" components");
             if (stats.internalDependencies > 0) {
-                label += "\n" + stats.internalDependencies + " internal deps";
+                label.append('\n').append(stats.internalDependencies).append(" internal deps");
             }
             MermaidStyle.Role role = MermaidStyle.roleFor(dominantType(typeCounts.get(group)));
             String id = nodeId(group);
-            sb.append(MermaidStyle.node("    ", id, label, role));
-            tracker.tag(id, role);
+            statements.add(MermaidDocument.Statement.node(tracker.node("    ", id, label.toString(), role)));
         }
 
         for (Map.Entry<EdgeKey, EdgeStats> entry : edges.entrySet()) {
             EdgeKey key = entry.getKey();
             EdgeStats stats = entry.getValue();
             boolean allAsync = stats.kinds.keySet().stream().allMatch(MermaidStyle::isAsyncKind);
-            sb.append("    ")
-                    .append(nodeId(key.from()))
-                    .append(allAsync ? " -.->|" : " -->|")
-                    .append(stats.count)
-                    .append(" ")
-                    .append(stats.count == 1 ? "dep" : "deps")
-                    .append(" / ")
-                    .append(escape(stats.kindSummary()))
-                    .append("| ")
-                    .append(nodeId(key.to()))
-                    .append("\n");
+            String label =
+                    stats.count + " " + (stats.count == 1 ? "dep" : "deps") + " / " + escape(stats.kindSummary());
+            statements.add(MermaidDocument.Statement.edge(
+                    MermaidDocument.Edge.labeled("    ", nodeId(key.from()), nodeId(key.to()), label, allAsync)));
         }
-
-        sb.append(tracker.footer());
-
-        return sb.toString();
+        return MermaidTemplateAdapters.flowchart("LR", statements, tracker);
     }
 
     /**

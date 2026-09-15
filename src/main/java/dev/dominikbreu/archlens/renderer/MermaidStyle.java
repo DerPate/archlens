@@ -1,10 +1,12 @@
 package dev.dominikbreu.archlens.renderer;
 
 import dev.dominikbreu.archlens.model.ComponentType;
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Shared Mermaid visual vocabulary: theme header, semantic role palette and shapes,
@@ -16,6 +18,9 @@ final class MermaidStyle {
     /** Dependency kinds rendered as dashed (asynchronous) edges. */
     private static final Set<String> ASYNC_KINDS =
             Set.of("messaging", "jms", "kafka", "event", "cdi-event", "event-bus", "amqp");
+
+    /** Matches any character that is not safe to use unquoted in a Mermaid identifier. */
+    private static final Pattern UNSAFE_ID_CHAR = Pattern.compile("[^A-Za-z0-9_]");
 
     /** Semantic role of a diagram node; maps to one shape and one classDef. */
     enum Role {
@@ -62,6 +67,18 @@ final class MermaidStyle {
         String css() {
             return css;
         }
+
+        String open() {
+            return open;
+        }
+
+        String close() {
+            return close;
+        }
+
+        String style() {
+            return style;
+        }
     }
 
     private MermaidStyle() {}
@@ -73,61 +90,24 @@ final class MermaidStyle {
      * @return single-line {@code %%{init: ...}%%} directive terminated by a newline
      */
     static String header() {
-        return "%%{init: {\"theme\": \"base\", \"themeVariables\": {"
-                + "\"primaryColor\": \"#f5f5f5\", \"primaryBorderColor\": \"#9e9e9e\", "
-                + "\"primaryTextColor\": \"#212121\", \"lineColor\": \"#607d8b\", "
-                + "\"clusterBkg\": \"#fafafa\", \"clusterBorder\": \"#b0bec5\"}}}%%\n";
-    }
-
-    /**
-     * Renders one shaped node line.
-     *
-     * @param indent leading whitespace
-     * @param id sanitized node id
-     * @param label raw label text (escaped here)
-     * @param role semantic role deciding the shape
-     * @return complete node line terminated by a newline
-     */
-    static String node(String indent, String id, String label, Role role) {
-        return indent + id + role.open + "\"" + Mermaid.escapeLabel(label) + "\"" + role.close + "\n";
-    }
-
-    /**
-     * Emits classDef lines for the given roles in enum order.
-     *
-     * @param used roles present in the diagram
-     * @return classDef block, empty string when no roles are used
-     */
-    static String classDefs(Collection<Role> used) {
-        if (used.isEmpty()) return "";
-        EnumSet<Role> ordered = EnumSet.noneOf(Role.class);
-        ordered.addAll(used);
-        StringBuilder sb = new StringBuilder();
-        for (Role r : ordered) {
-            sb.append("    classDef ").append(r.css).append(' ').append(r.style).append('\n');
-        }
-        return sb.toString();
-    }
-
-    /**
-     * Binds a node id to a role's class.
-     *
-     * @param nodeId sanitized node id
-     * @param role role whose class to assign
-     * @return one {@code class} line terminated by a newline
-     */
-    static String assign(String nodeId, Role role) {
-        return "    class " + nodeId + " " + role.css + "\n";
+        return MermaidTemplateAdapters.header();
     }
 
     /**
      * Sanitizes an arbitrary id into a Mermaid-safe identifier.
      *
+     * <p>Unlike quoted labels, node ids appear unquoted in the diagram source, so an id
+     * containing one of Mermaid's C4-diagram keywords (see {@link Mermaid#C4_KEYWORD_BOUNDARY})
+     * is just as capable of tripping Mermaid's diagram-type detection as a label is; that
+     * keyword is split before the general sanitizer runs.
+     *
      * @param id raw id (may be null)
      * @return identifier containing only {@code [A-Za-z0-9_]}
      */
     static String nid(String id) {
-        return id == null ? "_" : id.replaceAll("[^A-Za-z0-9_]", "_");
+        if (id == null) return "_";
+        String split = Mermaid.C4_KEYWORD_BOUNDARY.matcher(id).replaceAll("_");
+        return UNSAFE_ID_CHAR.matcher(split).replaceAll("_");
     }
 
     /**
@@ -179,7 +159,7 @@ final class MermaidStyle {
     /** Accumulates role usage and class assignments while a renderer emits nodes. */
     static final class Tracker {
         private final EnumSet<Role> used = EnumSet.noneOf(Role.class);
-        private final StringBuilder assigns = new StringBuilder();
+        private final List<MermaidDocument.ClassAssignment> assigns = new ArrayList<>();
 
         /** Creates an empty tracker. */
         Tracker() {}
@@ -192,17 +172,22 @@ final class MermaidStyle {
          */
         void tag(String nodeId, Role role) {
             used.add(role);
-            assigns.append(assign(nodeId, role));
+            assigns.add(new MermaidDocument.ClassAssignment(nodeId, role.css));
         }
 
-        /**
-         * Styling footer to append after all nodes and edges.
-         *
-         * @return classDefs and class assignments; empty when nothing tagged
-         */
-        String footer() {
-            if (used.isEmpty()) return "";
-            return classDefs(used) + assigns;
+        MermaidDocument.Node node(String indent, String id, String label, Role role) {
+            tag(id, role);
+            return new MermaidDocument.Node(indent, id, role.open, Mermaid.escapeLabel(label), role.close);
+        }
+
+        List<MermaidDocument.ClassDefinition> definitions() {
+            return used.stream()
+                    .map(r -> new MermaidDocument.ClassDefinition(r.css, r.style))
+                    .toList();
+        }
+
+        List<MermaidDocument.ClassAssignment> assignments() {
+            return List.copyOf(assigns);
         }
     }
 }

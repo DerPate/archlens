@@ -32,7 +32,12 @@ public class MermaidDependencySliceRenderer {
     public String render(GraphQuery graph, String ref, int depth) {
         GraphNodeId rootId = graph.resolveComponent(ref).orElse(null);
         if (rootId == null) {
-            return MermaidStyle.header() + "flowchart LR\n    missing[\"Component not found: " + escape(ref) + "\"]\n";
+            MermaidStyle.Tracker tracker = new MermaidStyle.Tracker();
+            return MermaidTemplateAdapters.flowchart(
+                    "LR",
+                    List.of(MermaidDocument.Statement.node(new MermaidDocument.Node(
+                            "    ", "missing", "[", "Component not found: " + escape(ref), "]"))),
+                    tracker);
         }
 
         List<GraphQuery.ComponentNode> allComponents = graph.allComponentNodes();
@@ -48,12 +53,11 @@ public class MermaidDependencySliceRenderer {
         Set<GraphQuery.GraphEdge> visibleEdges = new LinkedHashSet<>();
         traverseSlice(rootId, outgoing, Math.max(1, depth), visibleNodes, visibleEdges);
 
-        StringBuilder sb = new StringBuilder(MermaidStyle.header() + "flowchart LR\n");
+        List<MermaidDocument.Statement> statements = new ArrayList<>();
         MermaidStyle.Tracker tracker = new MermaidStyle.Tracker();
-        appendSliceNodes(sb, visibleNodes, byId, tracker);
-        appendSliceEdges(sb, visibleEdges);
-        sb.append(tracker.footer());
-        return sb.toString();
+        appendSliceNodes(statements, visibleNodes, byId, tracker);
+        appendSliceEdges(statements, visibleEdges);
+        return MermaidTemplateAdapters.flowchart("LR", statements, tracker);
     }
 
     private void traverseSlice(
@@ -88,7 +92,7 @@ public class MermaidDependencySliceRenderer {
     }
 
     private void appendSliceNodes(
-            StringBuilder sb,
+            List<MermaidDocument.Statement> statements,
             Set<GraphNodeId> visibleNodes,
             Map<GraphNodeId, GraphQuery.ComponentNode> byId,
             MermaidStyle.Tracker tracker) {
@@ -100,22 +104,19 @@ public class MermaidDependencySliceRenderer {
                             + "»"
                     : id.value();
             String sanitizedId = nodeId(id.value());
-            sb.append(MermaidStyle.node("    ", sanitizedId, label, role));
-            tracker.tag(sanitizedId, role);
+            statements.add(MermaidDocument.Statement.node(tracker.node("    ", sanitizedId, label, role)));
         }
     }
 
-    private void appendSliceEdges(StringBuilder sb, Set<GraphQuery.GraphEdge> visibleEdges) {
+    private void appendSliceEdges(List<MermaidDocument.Statement> statements, Set<GraphQuery.GraphEdge> visibleEdges) {
         for (GraphQuery.GraphEdge dep : visibleEdges) {
             String kind = dep.properties().get("kind") instanceof String s ? s : "";
-            String arrow = MermaidStyle.isAsyncKind(kind) ? " -.->|" : " -->|";
-            sb.append("    ")
-                    .append(nodeId(dep.fromId().value()))
-                    .append(arrow)
-                    .append(escape(kind))
-                    .append("| ")
-                    .append(nodeId(dep.toId().value()))
-                    .append("\n");
+            statements.add(MermaidDocument.Statement.edge(MermaidDocument.Edge.labeled(
+                    "    ",
+                    nodeId(dep.fromId().value()),
+                    nodeId(dep.toId().value()),
+                    escape(kind),
+                    MermaidStyle.isAsyncKind(kind))));
         }
     }
 
