@@ -35,6 +35,41 @@
   --shadow: none;
 }
 
+/* Self-hosted so every visitor renders the same weights (including the non-standard
+   in-between values below) instead of falling back to whatever's installed locally,
+   which on some systems forces synthetic-bold rendering and visible glyph bleed. */
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/fonts/JetBrainsMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/fonts/JetBrainsMono-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/fonts/JetBrainsMono-ExtraBold.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/InterVariable.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 * { box-sizing: border-box; }
 
 html {
@@ -399,9 +434,18 @@ pre {
 
 .workflow-section,
 .dashboard-section,
+.workflow-pack-section,
 .install-section {
   background: color-mix(in srgb, var(--terminal-charcoal) 74%, var(--void-black));
 }
+
+.section-copy a {
+  color: var(--electric-cyan);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.section-copy a:hover { color: var(--agent-orange); }
 
 .section-heading {
   max-width: 820px;
@@ -745,6 +789,7 @@ pre {
 
 .tool-page-title {
   font-family: var(--font-mono);
+  max-width: none;
   font-size: clamp(1.6rem, 3vw, 2.4rem);
   font-weight: 700;
   color: var(--electric-cyan);
