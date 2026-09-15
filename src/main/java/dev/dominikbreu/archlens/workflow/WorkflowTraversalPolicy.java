@@ -75,6 +75,8 @@ public final class WorkflowTraversalPolicy {
      * (a field owned by a different component) — no same-component writer exists, so the link
      * is kept.
      *
+     * @param sink the cross-component STORE write to check
+     * @param fromEntrypoint the entrypoint reaching the write
      * @param directOwnerWrittenFields store fields for which at least one same-component
      *                                 entrypoint has a direct write (pre-computed by the caller)
      */
