@@ -31,8 +31,10 @@ import org.apache.commons.lang3.StringUtils;
  */
 public class DataFlowTracer {
 
+    /** Call-kind and stereotype label used for messaging sinks. */
     private static final String MESSAGING = "messaging";
 
+    /** Maximum number of inline call edges followed by one tracked path. */
     private static final int MAX_DEPTH = 8;
 
     private static final Set<ComponentType> SINK_TYPES =
@@ -54,6 +56,7 @@ public class DataFlowTracer {
         this.traversalPolicy = traversalPolicy;
     }
 
+    /** Returns the global OpenTelemetry tracer used to instrument data-flow extraction. */
     private static Tracer tracer() {
         return GlobalOpenTelemetry.getTracer("dev.dominikbreu.archlens");
     }
@@ -206,6 +209,7 @@ public class DataFlowTracer {
         return visited;
     }
 
+    /** Seeds stable-order tracking from parameters, reachable field reads, and assigned return values. */
     private LinkedHashSet<String> collectTrackedNames(Entrypoint ep, ModelIndex index) {
         LinkedHashSet<String> trackedNames = new LinkedHashSet<>();
         if (ep.parameters.isEmpty()) {
@@ -226,6 +230,7 @@ public class DataFlowTracer {
         return trackedNames;
     }
 
+    /** Creates one root topology node for each original tracked name. */
     private Map<String, String> createRootNodes(
             Entrypoint ep,
             ModelIndex index,
@@ -244,6 +249,7 @@ public class DataFlowTracer {
         return currentNodeByOriginal;
     }
 
+    /** Links shared-field store sinks to paths rooted at other entrypoints that transitively read the same field. */
     private void linkStoreSinksToFieldReaders(List<DataFlowPath> paths, ArchitectureModel model, ModelIndex index) {
         // Build entrypointId → set of (fieldOwnerComponentId, fieldName) pairs read transitively.
         Map<dev.dominikbreu.archlens.model.ids.EntrypointId, Set<dev.dominikbreu.archlens.model.ids.FieldRef>>
@@ -279,6 +285,7 @@ public class DataFlowTracer {
         }
     }
 
+    /** Adds cross-entrypoint reader path identifiers to one fully identified store sink. */
     private void linkStoreSink(
             DataFlowSink s,
             DataFlowPath p,
@@ -329,6 +336,7 @@ public class DataFlowTracer {
         }
     }
 
+    /** Indexes a messaging consumer path by broker-qualified destination and plain channel. */
     private void indexConsumerPath(
             DataFlowPath path,
             Map<dev.dominikbreu.archlens.model.ids.EntrypointId, Entrypoint> entrypointById,
@@ -349,6 +357,7 @@ public class DataFlowTracer {
         }
     }
 
+    /** Links a messaging sink to matching consumer paths, with channel-only fallback for an unresolved broker. */
     private void linkMessagingSink(
             DataFlowSink sink,
             DataFlowPath path,
@@ -375,6 +384,7 @@ public class DataFlowTracer {
         }
     }
 
+    /** Builds a normalized broker-qualified destination key, excluding blank and unresolved destinations. */
     private String destinationKey(dev.dominikbreu.archlens.model.MessagingBroker broker, String destination) {
         if (StringUtils.isBlank(destination) || "(unresolved)".equals(destination)) return null;
         String brokerKey;
@@ -386,6 +396,7 @@ public class DataFlowTracer {
         return brokerKey + ":" + destination.trim();
     }
 
+    /** Collects cross-component fields read within a bounded inline call closure from an entrypoint. */
     private Set<dev.dominikbreu.archlens.model.ids.FieldRef> collectReachableReadFieldKeys(
             Entrypoint ep, ModelIndex index) {
         Set<dev.dominikbreu.archlens.model.ids.FieldRef> keys = new LinkedHashSet<>();
@@ -428,8 +439,16 @@ public class DataFlowTracer {
             Map<String, Integer> nodeCounters,
             Map<String, Set<String>> seenSinkKeys) {}
 
+    /**
+     * Normalized branch metadata attached to a topology edge.
+     *
+     * @param branchId identifier shared by all arms of a control-flow branch
+     * @param armId identifier for the selected arm
+     * @param label human-readable arm label
+     */
     private record BranchTopologyMetadata(String branchId, String armId, String label) {}
 
+    /** Traverses one method frame, recording steps and sinks before following eligible call edges. */
     private void dfs(
             DfsContext ctx,
             dev.dominikbreu.archlens.model.ids.ComponentId compId,
@@ -467,6 +486,7 @@ public class DataFlowTracer {
         }
     }
 
+    /** Records direct persistence operations whose argument matches each currently tracked value. */
     private void recordPersistenceOperationSinks(
             DfsContext ctx,
             dev.dominikbreu.archlens.model.ids.ComponentId compId,
@@ -495,10 +515,12 @@ public class DataFlowTracer {
         }
     }
 
+    /** Matches an operation argument to a named tracked value or the wildcard seed. */
     private boolean matchesPersistenceArgument(String currentName, String argumentName) {
         return argumentName != null && ("*".equals(currentName) || currentName.equals(argumentName));
     }
 
+    /** Appends the current method as the next linear step on every active tracked path. */
     private void recordSteps(
             DfsContext ctx,
             dev.dominikbreu.archlens.model.ids.ComponentId compId,
@@ -555,6 +577,7 @@ public class DataFlowTracer {
         }
     }
 
+    /** Records qualifying field writes as store sinks owned by the resolved field component. */
     private void recordFieldWriteSinks(
             DfsContext ctx,
             dev.dominikbreu.archlens.model.ids.ComponentId compId,
@@ -581,6 +604,7 @@ public class DataFlowTracer {
         }
     }
 
+    /** Accepts entrypoint writes and writes whose source is tracked or cannot be resolved more precisely. */
     private boolean emitsStoreSink(FieldAccess fw, String currentName, int depth) {
         boolean isEntrypointBody = depth == 0 && !"*".equals(currentName);
         boolean sourceMatches = matchesTracked(currentName, fw.sourceVarName)
@@ -595,6 +619,7 @@ public class DataFlowTracer {
         return isEntrypointBody || sourceMatches || valueSourceUnresolvable;
     }
 
+    /** Records terminal call sinks and recursively enters non-sink edges allowed by workflow policy. */
     private void traverseCallEdges(
             DfsContext ctx,
             dev.dominikbreu.archlens.model.ids.ComponentId compId,
@@ -626,6 +651,7 @@ public class DataFlowTracer {
         }
     }
 
+    /** Prevents recursion cycles and traversal beyond the configured depth cap. */
     private boolean canEnter(
             DfsContext ctx, dev.dominikbreu.archlens.model.ids.ComponentId compId, String method, int depth) {
         dev.dominikbreu.archlens.model.ids.MethodRef nodeKey =
@@ -633,6 +659,7 @@ public class DataFlowTracer {
         return !ctx.onCurrentPath().contains(nodeKey) && depth <= MAX_DEPTH;
     }
 
+    /** Adds a classified sink for each surviving tracked value carried into a terminal call edge. */
     private void recordCallSinks(
             DfsContext ctx,
             CallEdge edge,
@@ -662,6 +689,7 @@ public class DataFlowTracer {
         }
     }
 
+    /** Creates callee topology nodes and edges, keyed by each path's original tracked name. */
     private Map<String, String> createMethodNodes(
             DfsContext ctx,
             CallEdge edge,
@@ -689,6 +717,7 @@ public class DataFlowTracer {
         return nextNodeByOriginal;
     }
 
+    /** Adds a terminal topology node and connects it to the preceding node on the path. */
     private void recordSinkNode(
             DfsContext ctx,
             DataFlowPath path,
@@ -758,6 +787,7 @@ public class DataFlowTracer {
                 s.source != null ? s.source.file + ":" + s.source.line : "");
     }
 
+    /** Adds a topology edge and materializes any branch and arm metadata referenced by its call edge. */
     private void addTopologyEdge(DataFlowPath path, String fromNodeId, String toNodeId, CallEdge edge) {
         if (fromNodeId == null) return;
         BranchTopologyMetadata branch = branchTopologyMetadata(edge);
@@ -773,6 +803,7 @@ public class DataFlowTracer {
                 branch != null ? branch.label : null));
     }
 
+    /** Normalizes optional call-edge branch fields and synthesizes a stable arm identifier when needed. */
     private BranchTopologyMetadata branchTopologyMetadata(CallEdge edge) {
         if (edge == null || StringUtils.isBlank(edge.branchGroupId)) return null;
         String label = branchLabel(edge);
@@ -780,6 +811,7 @@ public class DataFlowTracer {
                 edge.branchGroupId, firstNonBlank(edge.branchArmId, edge.branchGroupId + ":" + label), label);
     }
 
+    /** Creates a branch and arm once, retaining the first topology node reached by that arm. */
     private void ensureBranch(
             DataFlowPath path, CallEdge edge, BranchTopologyMetadata branchMetadata, String entryNodeId) {
         DataFlowBranch branch = path.branches.stream()
@@ -801,6 +833,7 @@ public class DataFlowTracer {
         }
     }
 
+    /** Maps call-edge control metadata to unconditional, conditional, or exception topology edges. */
     private DataFlowEdge.Kind edgeKind(CallEdge edge) {
         if (edge == null || StringUtils.isBlank(edge.branchGroupId)) return DataFlowEdge.Kind.UNCONDITIONAL;
         if (edge.controlFlowKind == CallEdge.ControlFlowKind.CATCH
@@ -810,6 +843,7 @@ public class DataFlowTracer {
         return DataFlowEdge.Kind.CONDITIONAL;
     }
 
+    /** Groups detailed call-edge control-flow kinds into data-flow branch categories. */
     private DataFlowBranch.Kind branchKind(CallEdge.ControlFlowKind kind) {
         return switch (kind) {
             case SWITCH_CASE, SWITCH_DEFAULT -> DataFlowBranch.Kind.SWITCH;
@@ -823,6 +857,7 @@ public class DataFlowTracer {
     // fires for its output — it exists for any other CallEdge producer (alternate-language
     // extractor, hand-built/cached edge) that sets branchGroupId/controlFlowKind but omits
     // the label. See DataFlowTracerTest.topologyEdgesReferenceSynthesizedBranchArmIds.
+    /** Returns the extracted branch label or a control-kind-specific fallback. */
     private String branchLabel(CallEdge edge) {
         if (StringUtils.isNotBlank(edge.branchLabel)) return edge.branchLabel;
         return switch (edge.controlFlowKind) {
@@ -836,12 +871,14 @@ public class DataFlowTracer {
         };
     }
 
+    /** Allocates the next path-local sequential topology node identifier. */
     private String nextNodeId(String originalName, Map<String, Integer> nodeCounters) {
         int next = nodeCounters.getOrDefault(originalName, 0) + 1;
         nodeCounters.put(originalName, next);
         return "n" + next;
     }
 
+    /** Translates active caller names to callee names while retaining their original path keys. */
     private Map<String, String> buildNextMapping(CallEdge edge, Map<String, String> currentToOriginal) {
         Map<String, String> nextMapping = new LinkedHashMap<>();
         boolean mapsAnyTrackedName = currentToOriginal.keySet().stream()
@@ -856,6 +893,7 @@ public class DataFlowTracer {
         return nextMapping;
     }
 
+    /** Drops killed, unmapped sibling, and unrelated receiver-local values at a call boundary. */
     private boolean dropsTrackedName(CallEdge edge, String currentName, boolean mapsAnyTrackedName) {
         if ("*".equals(currentName)) return false;
         if (edge.killedTrackedNames.contains(currentName)) return true;
@@ -866,16 +904,19 @@ public class DataFlowTracer {
                 && !edge.receiverLocalName.equals(currentName);
     }
 
+    /** Returns the first nonblank candidate, otherwise the second candidate unchanged. */
     private String firstNonBlank(String first, String second) {
         if (StringUtils.isNotBlank(first)) return first;
         return second;
     }
 
+    /** Compares a concrete tracked name with a resolved source name, excluding wildcard tracking. */
     private boolean matchesTracked(String trackedName, String sourceVarName) {
         if ("*".equals(trackedName) || sourceVarName == null) return false;
         return trackedName.equals(sourceVarName);
     }
 
+    /** Collects simple field names read in a bounded inline call closure for seed generation. */
     private Set<String> collectReachableReadFields(Entrypoint ep, ModelIndex index) {
         Set<String> fields = new LinkedHashSet<>();
         Deque<dev.dominikbreu.archlens.model.ids.MethodRef> stack = new ArrayDeque<>();
@@ -900,11 +941,13 @@ public class DataFlowTracer {
         return fields;
     }
 
+    /** Recognizes explicit messaging/event-bus calls and calls into configured sink component types. */
     private boolean isSink(CallEdge edge, Component target) {
         if (MESSAGING.equals(edge.callKind) || "event-bus".equals(edge.callKind)) return true;
         return target != null && SINK_TYPES.contains(target.type);
     }
 
+    /** Classifies a terminal call using call kind, target stereotypes, and component type. */
     private DataFlowSink.Kind classifySink(CallEdge edge, Component target) {
         if ("event-bus".equals(edge.callKind)) return DataFlowSink.Kind.EVENT_BUS;
         if (MESSAGING.equals(edge.callKind)) return DataFlowSink.Kind.MESSAGING;
@@ -919,10 +962,12 @@ public class DataFlowTracer {
         };
     }
 
+    /** Reports whether an HTTP-client component is stereotyped as a messaging client. */
     private boolean isMsgClient(Component c) {
         return hasStereotype(c, MESSAGING);
     }
 
+    /** Safely checks a component's optional stereotype collection. */
     private boolean hasStereotype(Component c, String stereotype) {
         return c != null && c.stereotypes != null && c.stereotypes.contains(stereotype);
     }
@@ -939,6 +984,7 @@ public class DataFlowTracer {
             EntrypointType.MAIN_METHOD,
             EntrypointType.UNKNOWN);
 
+    /** Links repository write sinks to eligible paths that read the same inferred entity type. */
     private void linkPersistenceWritesToReaders(List<DataFlowPath> paths, ArchitectureModel model) {
         Map<dev.dominikbreu.archlens.model.ids.EntrypointId, Entrypoint> entrypointById = new HashMap<>();
         for (Entrypoint ep : model.entrypoints) {
@@ -954,6 +1000,7 @@ public class DataFlowTracer {
         }
     }
 
+    /** Indexes persistence-read paths by entity, excluding request-driven entrypoint kinds. */
     private Map<String, List<dev.dominikbreu.archlens.model.ids.DataFlowPathId>> indexPersistenceReadPaths(
             List<DataFlowPath> paths, Map<dev.dominikbreu.archlens.model.ids.EntrypointId, Entrypoint> entrypointById) {
         Map<String, List<dev.dominikbreu.archlens.model.ids.DataFlowPathId>> readPathsByEntity = new HashMap<>();
@@ -965,6 +1012,7 @@ public class DataFlowTracer {
         return readPathsByEntity;
     }
 
+    /** Adds one path to the entity index for each persistence read sink it contains. */
     private void indexReadPathSinks(
             DataFlowPath path, Map<String, List<dev.dominikbreu.archlens.model.ids.DataFlowPathId>> readPathsByEntity) {
         for (DataFlowSink sink : path.sinks) {
@@ -977,6 +1025,7 @@ public class DataFlowTracer {
         }
     }
 
+    /** Adds other paths reading the same entity to a persistence write sink. */
     private void linkPersistenceWriteSink(
             DataFlowSink sink,
             DataFlowPath path,
@@ -993,6 +1042,7 @@ public class DataFlowTracer {
         }
     }
 
+    /** Infers a repository's entity through naming/package conventions and simple-name fallback lookup. */
     private String repositoryEntityType(Component target, ModelIndex index) {
         if (target == null || target.name == null) return null;
         String entity = target.name;
@@ -1016,11 +1066,13 @@ public class DataFlowTracer {
         return index.entityIndex.resolveBySimpleName(entity);
     }
 
+    /** Recognizes repository writes by {@code save} and {@code delete} method prefixes. */
     private boolean isWriteOperation(String method) {
         if (method == null) return false;
         return method.startsWith("save") || method.startsWith("delete");
     }
 
+    /** Recognizes repository reads by conventional finder, getter, reader, and existence prefixes. */
     private boolean isReadOperation(String method) {
         if (method == null) return false;
         return method.startsWith("find")
