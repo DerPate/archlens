@@ -43,7 +43,7 @@ public final class ArchitectureViewMermaidRenderer {
                 continue;
             }
             statements.add(MermaidDocument.Statement.edge(
-                    new MermaidDocument.Edge("    ", source, target, escape(edge.title()), true, false, false, false)));
+                    MermaidDocument.Edge.labeled("    ", source, target, escape(edge.title()), false)));
         }
 
         return MermaidTemplateAdapters.flowchart("LR", statements, tracker, projection.warnings());

@@ -120,8 +120,8 @@ public class MermaidFlowchartRenderer {
             if (fromApp == null || toApp == null || fromApp.equals(toApp)) continue;
             String key = fromApp + "->" + toApp;
             if (drawn.add(key)) {
-                statements.add(MermaidDocument.Statement.edge(
-                        new MermaidDocument.Edge("    ", nid(fromApp), nid(toApp), "", false, false, false, false)));
+                statements.add(
+                        MermaidDocument.Statement.edge(MermaidDocument.Edge.plain("    ", nid(fromApp), nid(toApp))));
             }
         }
     }
@@ -151,15 +151,8 @@ public class MermaidFlowchartRenderer {
             String kind = dep.properties().get("kind") instanceof String s ? s : "";
             String key = fromApp + "->" + dep.toId().value() + ":" + kind;
             if (drawnEdges.add(key)) {
-                statements.add(MermaidDocument.Statement.edge(new MermaidDocument.Edge(
-                        "    ",
-                        nid(fromApp),
-                        nid(dep.toId().value()),
-                        escape(kind),
-                        true,
-                        false,
-                        MermaidStyle.isAsyncKind(kind),
-                        false)));
+                statements.add(MermaidDocument.Statement.edge(MermaidDocument.Edge.labeled(
+                        "    ", nid(fromApp), nid(dep.toId().value()), escape(kind), MermaidStyle.isAsyncKind(kind))));
             }
         }
 
@@ -269,8 +262,8 @@ public class MermaidFlowchartRenderer {
             Set<String> kinds = entry.getValue();
             String kindLabel = String.join(", ", kinds);
             boolean allAsync = kinds.stream().allMatch(MermaidStyle::isAsyncKind);
-            statements.add(MermaidDocument.Statement.edge(new MermaidDocument.Edge(
-                    "    ", nid(parts[0]), nid(parts[1]), escape(kindLabel), true, false, allAsync, false)));
+            statements.add(MermaidDocument.Statement.edge(
+                    MermaidDocument.Edge.labeled("    ", nid(parts[0]), nid(parts[1]), escape(kindLabel), allAsync)));
         }
     }
 
@@ -328,15 +321,12 @@ public class MermaidFlowchartRenderer {
             if (visibleComps.contains(dep.fromId().value())
                     && visibleComps.contains(dep.toId().value())) {
                 String kind = dep.properties().get("kind") instanceof String s ? s : "";
-                statements.add(MermaidDocument.Statement.edge(new MermaidDocument.Edge(
+                statements.add(MermaidDocument.Statement.edge(MermaidDocument.Edge.labeled(
                         "    ",
                         nid(dep.fromId().value()),
                         nid(dep.toId().value()),
                         escape(kind),
-                        true,
-                        false,
-                        MermaidStyle.isAsyncKind(kind),
-                        false)));
+                        MermaidStyle.isAsyncKind(kind))));
             }
         }
     }

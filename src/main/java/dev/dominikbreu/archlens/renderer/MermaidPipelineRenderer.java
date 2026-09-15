@@ -88,19 +88,16 @@ public class MermaidPipelineRenderer {
         MermaidStyle.Role role = boundaryRole(seg.incomingSink.kind);
         st.nodes.add(MermaidDocument.Statement.node(st.tracker.node("    ", boundaryId, boundaryLabel, role)));
         if (st.previousLastNode != null) {
-            st.edges.add(MermaidDocument.Statement.edge(new MermaidDocument.Edge(
+            st.edges.add(MermaidDocument.Statement.edge(MermaidDocument.Edge.labeled(
                     "    ",
                     st.previousLastNode,
                     boundaryId,
                     escape(st.previousSinkLabel == null ? "" : st.previousSinkLabel),
-                    true,
-                    false,
-                    false,
                     false)));
         }
         String consumeLabel = (ep != null && ep.name != null) ? ep.name : "";
-        st.edges.add(MermaidDocument.Statement.edge(new MermaidDocument.Edge(
-                "    ", boundaryId, "S" + segIdx + "_0", escape(consumeLabel), true, false, false, false)));
+        st.edges.add(MermaidDocument.Statement.edge(
+                MermaidDocument.Edge.labeled("    ", boundaryId, "S" + segIdx + "_0", escape(consumeLabel), false)));
     }
 
     private String renderHeader(RenderState st, Segment seg, Entrypoint ep, int segIdx, GraphQuery graph) {
@@ -165,8 +162,8 @@ public class MermaidPipelineRenderer {
             String label = step.componentName + "." + step.method;
             MermaidStyle.Role role = MermaidStyle.roleFor(type);
             st.nodes.add(MermaidDocument.Statement.node(st.tracker.node("    ", nodeId, label, role)));
-            st.edges.add(MermaidDocument.Statement.edge(new MermaidDocument.Edge(
-                    "    ", previousNodeInSeg, nodeId, escape(step.method), true, false, false, false)));
+            st.edges.add(MermaidDocument.Statement.edge(
+                    MermaidDocument.Edge.labeled("    ", previousNodeInSeg, nodeId, escape(step.method), false)));
             previousNodeInSeg = nodeId;
             prevComponentKey = stepKey;
             if (step.componentId != null) callerNodeIds.put(step.componentId.serialize(), nodeId);
@@ -235,13 +232,8 @@ public class MermaidPipelineRenderer {
             boolean conditional = "conditional".equals(edgeKind);
             String labelStr = edgeLabel != null && !edgeLabel.isBlank() ? edgeLabel : "";
 
-            if (labelStr.isEmpty()) {
-                st.edges.add(MermaidDocument.Statement.edge(new MermaidDocument.Edge(
-                        "    ", fromMermaid, toMermaid, "", false, conditional, false, false)));
-            } else {
-                st.edges.add(MermaidDocument.Statement.edge(new MermaidDocument.Edge(
-                        "    ", fromMermaid, toMermaid, escape(labelStr), true, conditional, false, true)));
-            }
+            st.edges.add(MermaidDocument.Statement.edge(
+                    MermaidDocument.Edge.conditional("    ", fromMermaid, toMermaid, escape(labelStr), conditional)));
         }
 
         return lastMethodNodeId;
@@ -280,8 +272,8 @@ public class MermaidPipelineRenderer {
             String callerNode = s.callerComponentId != null
                     ? callerNodeIds.getOrDefault(s.callerComponentId.serialize(), previousNodeInSeg)
                     : previousNodeInSeg;
-            st.edges.add(MermaidDocument.Statement.edge(new MermaidDocument.Edge(
-                    "    ", callerNode, termId, escape(s.method == null ? "" : s.method), true, false, false, false)));
+            st.edges.add(MermaidDocument.Statement.edge(MermaidDocument.Edge.labeled(
+                    "    ", callerNode, termId, escape(s.method == null ? "" : s.method), false)));
         }
     }
 

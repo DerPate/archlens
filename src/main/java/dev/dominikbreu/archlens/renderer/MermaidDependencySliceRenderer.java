@@ -111,15 +111,12 @@ public class MermaidDependencySliceRenderer {
     private void appendSliceEdges(List<MermaidDocument.Statement> statements, Set<GraphQuery.GraphEdge> visibleEdges) {
         for (GraphQuery.GraphEdge dep : visibleEdges) {
             String kind = dep.properties().get("kind") instanceof String s ? s : "";
-            statements.add(MermaidDocument.Statement.edge(new MermaidDocument.Edge(
+            statements.add(MermaidDocument.Statement.edge(MermaidDocument.Edge.labeled(
                     "    ",
                     nodeId(dep.fromId().value()),
                     nodeId(dep.toId().value()),
                     escape(kind),
-                    true,
-                    false,
-                    MermaidStyle.isAsyncKind(kind),
-                    false)));
+                    MermaidStyle.isAsyncKind(kind))));
         }
     }
 

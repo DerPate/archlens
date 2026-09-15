@@ -16,7 +16,23 @@ final class MermaidDocument {
             boolean labeled,
             boolean conditional,
             boolean async,
-            boolean quotedLabel) {}
+            boolean quotedLabel) {
+        /** An unlabeled, synchronous edge. */
+        static Edge plain(String indent, String from, String to) {
+            return new Edge(indent, from, to, "", false, false, false, false);
+        }
+
+        /** A labeled edge, dashed when {@code async} is true. */
+        static Edge labeled(String indent, String from, String to, String label, boolean async) {
+            return new Edge(indent, from, to, label, true, false, async, false);
+        }
+
+        /** An edge whose branch style (solid/dashed) is decided by {@code conditional}; quoted when labeled. */
+        static Edge conditional(String indent, String from, String to, String label, boolean conditional) {
+            boolean labeledAndQuoted = !label.isEmpty();
+            return new Edge(indent, from, to, label, labeledAndQuoted, conditional, false, labeledAndQuoted);
+        }
+    }
 
     record Statement(
             Node node,
@@ -71,6 +87,7 @@ final class MermaidDocument {
             String description,
             String indent,
             boolean fourArguments,
+            boolean boundaryStart,
             boolean closeBoundary) {
         static C4Element element(
                 String macro,
@@ -80,15 +97,15 @@ final class MermaidDocument {
                 String description,
                 boolean fourArguments,
                 String indent) {
-            return new C4Element(macro, id, name, technology, description, indent, fourArguments, false);
+            return new C4Element(macro, id, name, technology, description, indent, fourArguments, false, false);
         }
 
         static C4Element boundary(String id, String name) {
-            return new C4Element("System_Boundary", id, name, "", "", "    ", false, false);
+            return new C4Element("", id, name, "", "", "    ", false, true, false);
         }
 
         static C4Element closingBoundary() {
-            return new C4Element("", "", "", "", "", "", false, true);
+            return new C4Element("", "", "", "", "", "", false, false, true);
         }
     }
 

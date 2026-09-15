@@ -392,6 +392,45 @@ class MermaidFlowchartRendererTest {
         assertThat(end).isLessThan(styles);
     }
 
+    @Test
+    void splitsMermaidC4KeywordsToAvoidMisdetectionAsAC4Diagram() {
+        model.containers.clear();
+        for (String keyword : List.of("C4Container", "C4Component", "C4Dynamic", "C4Deployment")) {
+            String name = "Like" + keyword + "Step";
+            Component component = comp(name, ComponentType.SERVICE, "app:orders", "java");
+            model.components.add(component);
+            model.applications.getFirst().componentIds.add(component.id);
+            model.dependencies.add(dep("Service", name));
+        }
+
+        String out = renderer.render(GraphQuery.from(model), null, "component");
+
+        assertThat(out).contains("flowchart TD");
+        for (String suffix : List.of("Container", "Component", "Dynamic", "Deployment")) {
+            assertThat(out)
+                    .doesNotContain("#67;")
+                    .contains("LikeC4 " + suffix + "Step")
+                    .contains("Service -->|injection| LikeC4_" + suffix + "Step");
+        }
+    }
+
+    @Test
+    void leavesOrdinaryDigitCapitalNamesIntact() {
+        model.containers.clear();
+        for (String name : List.of("Base64Encoder", "OAuth2Client", "S3Bucket", "H2DataSource")) {
+            Component component = comp(name, ComponentType.SERVICE, "app:orders", "java");
+            model.components.add(component);
+            model.applications.getFirst().componentIds.add(component.id);
+            model.dependencies.add(dep("Service", name));
+        }
+
+        String out = renderer.render(GraphQuery.from(model), null, "component");
+
+        for (String name : List.of("Base64Encoder", "OAuth2Client", "S3Bucket", "H2DataSource")) {
+            assertThat(out).contains("(\"" + name + "\\n").contains("Service -->|injection| " + name);
+        }
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private ArchitectureModel modelWithWarAndModules() {

@@ -62,8 +62,8 @@ public class MermaidUseCaseTimelineRenderer {
                 statements.add(
                         MermaidDocument.Statement.node(tracker.node("        ", nodeId, taskLabel(step, graph), role)));
                 if (previousId != null) {
-                    statements.add(MermaidDocument.Statement.edge(
-                            new MermaidDocument.Edge("        ", previousId, nodeId, "", false, false, false, false)));
+                    statements.add(
+                            MermaidDocument.Statement.edge(MermaidDocument.Edge.plain("        ", previousId, nodeId)));
                 }
                 previousId = nodeId;
             }
@@ -74,8 +74,8 @@ public class MermaidUseCaseTimelineRenderer {
                 statements.add(MermaidDocument.Statement.node(
                         new MermaidDocument.Node("        ", moreId, "[", moreLabel, "]")));
                 if (previousId != null) {
-                    statements.add(MermaidDocument.Statement.edge(
-                            new MermaidDocument.Edge("        ", previousId, moreId, "", false, false, false, false)));
+                    statements.add(
+                            MermaidDocument.Statement.edge(MermaidDocument.Edge.plain("        ", previousId, moreId)));
                 }
             }
             statements.add(MermaidDocument.Statement.end("    "));
