@@ -24,28 +24,70 @@ import spoon.reflect.declaration.CtType;
  */
 public class ArchitectureExtractor {
 
+    /** Technology label for non-Boot Spring applications. */
     private static final String SPRING = "spring";
+
+    /** Technology label for Spring Boot applications. */
     private static final String SPRING_BOOT = "spring-boot";
+
+    /** Technology label for Java EE and Jakarta EE applications. */
     private static final String JAVAEE = "javaee";
+
+    /** Technology label for Quarkus applications. */
     private static final String QUARKUS = "quarkus";
+
+    /** Fallback technology label for recognized Java build modules. */
     private static final String JAVA = "java";
 
+    /** Adds configured source roots to Spoon launchers and reads Maven packaging metadata. */
     private final SpoonScanner scanner = new SpoonScanner();
+
+    /** Extracts Quarkus, JAX-RS, CDI, and MicroProfile constructs. */
     private final QuarkusExtractor quarkusExtractor = new QuarkusExtractor();
+
+    /** Extracts Java EE and Jakarta EE components and entrypoints. */
     private final JavaEEExtractor javaEEExtractor = new JavaEEExtractor();
+
+    /** Extracts framework-independent Java components when no supported framework is detected. */
     private final GenericJavaExtractor genericJavaExtractor = new GenericJavaExtractor();
+
+    /** Extracts dependencies between the registered components. */
     private final DependencyExtractor dependencyExtractor = new DependencyExtractor();
+
+    /** Groups extracted components into inferred runtime containers. */
     private final ContainerInferrer containerInferrer = new ContainerInferrer();
+
+    /** Classifies child modules inside deployment units by their extracted contents. */
     private final InternalModuleClassifier moduleClassifier = new InternalModuleClassifier();
+
+    /** Extracts and links CDI event-bus producers and consumers. */
     private final EventBusExtractor eventBusExtractor = new EventBusExtractor();
+
+    /** Infers bounded runtime flows from each workflow-root entrypoint. */
     private final RuntimeFlowInferrer runtimeFlowInferrer = new RuntimeFlowInferrer();
+
+    /** Resolves channel brokers and topics from application properties. */
     private final MessagingConfigResolver messagingConfigResolver = new MessagingConfigResolver();
+
+    /** Adds external systems implied by outbound component interfaces. */
     private final ExternalSystemInferrer externalSystemInferrer = new ExternalSystemInferrer();
+
+    /** Traces entrypoint data through calls, fields, and architectural sinks. */
     private final DataFlowTracer dataFlowTracer = new DataFlowTracer();
+
+    /** Detects Maven and Gradle projects and their constituent modules. */
     private final BuildMetadataService buildMetadataService = new BuildMetadataService();
+
+    /** Builds reusable source-level method, field, annotation, and code-flow facts. */
     private final SourceFactIndexBuilder sourceFactIndexBuilder = new SourceFactIndexBuilder();
+
+    /** Extracts persistence units, data sources, entities, and their usage relationships. */
     private final PersistenceTopologyExtractor persistenceTopologyExtractor = new PersistenceTopologyExtractor();
+
+    /** Substitutes application configuration values into extracted architecture metadata. */
     private final ConfigPropertyResolver configPropertyResolver = new ConfigPropertyResolver();
+
+    /** Extracts annotation- and descriptor-defined transaction policies. */
     private final TransactionPolicyExtractor transactionPolicyExtractor = new TransactionPolicyExtractor();
 
     /** Creates an extractor with the default scanner and extraction passes. */
@@ -140,6 +182,7 @@ public class ArchitectureExtractor {
         new TransactionScopeInferrer().infer(model);
     }
 
+    /** Builds a no-classpath Spoon model for one module and attributes its work to an extraction phase. */
     private CtModel buildCtModel(BuildModule module, String phase) {
         return Spans.traced("ctmodel.build", () -> {
             Span.current().setAttribute("phase", phase);
@@ -156,6 +199,7 @@ public class ArchitectureExtractor {
         });
     }
 
+    /** Runs dependency extraction under a module-labelled tracing span. */
     private void extractDependencies(CtModel ctModel, ArchitectureModel model, BuildModule module) {
         Spans.traced("dependency.extract", () -> {
             Span.current().setAttribute("module", module.name());
@@ -163,6 +207,7 @@ public class ArchitectureExtractor {
         });
     }
 
+    /** Holds a module's application entry and its temporary pass-1 Spoon model between extraction phases. */
     private static final class ModuleWork {
         private final AppEntry app;
         private final BuildModule module;
@@ -173,15 +218,18 @@ public class ArchitectureExtractor {
             this.module = module;
         }
 
+        /** Returns the architecture application registered for this module. */
         private AppEntry app() {
             return app;
         }
 
+        /** Returns the detected build module to scan. */
         private BuildModule module() {
             return module;
         }
     }
 
+    /** Detects all requested projects and registers their modules in stable input order. */
     private List<ModuleWork> collectAllModules(List<String> projectPaths, ArchitectureModel model) {
         List<ModuleWork> result = new ArrayList<>();
         for (String path : projectPaths) {
@@ -191,6 +239,7 @@ public class ArchitectureExtractor {
         return result;
     }
 
+    /** Registers an optional WAR parent followed by every detected child or standalone module. */
     private void collectProjectModules(BuildProject project, ArchitectureModel model, List<ModuleWork> result) {
         List<BuildModule> modules = project.modules();
         registerWarParent(project, modules, model);
@@ -220,6 +269,7 @@ public class ArchitectureExtractor {
         model.applications.add(parent);
     }
 
+    /** Registers a unique module and marks it internal when its parent is a WAR deployment unit. */
     private void registerModule(BuildModule module, ArchitectureModel model, List<ModuleWork> result) {
         AppEntry app = buildAppEntry(module);
         if (model.applications.stream().anyMatch(a -> a.id.equals(app.id))) return;
@@ -240,6 +290,7 @@ public class ArchitectureExtractor {
         result.add(new ModuleWork(app, module));
     }
 
+    /** Converts build-module identity, root, and packaging metadata into an application entry. */
     private AppEntry buildAppEntry(BuildModule module) {
         AppEntry app = new AppEntry();
         app.id = AppId.of(module.name());
@@ -249,6 +300,7 @@ public class ArchitectureExtractor {
         return app;
     }
 
+    /** Runs the detected framework extractor, then the framework-independent event-bus pass. */
     private void dispatchExtractors(
             Collection<CtType<?>> types, ArchitectureModel model, AppId appId, BuildModule module, String tech) {
         switch (tech) {
@@ -261,6 +313,7 @@ public class ArchitectureExtractor {
         eventBusExtractor.extract(types, model, appId);
     }
 
+    /** Applies configured messaging destinations and then marks unresolved local producer-consumer pairs in-memory. */
     private void applyMessagingBrokers(
             ArchitectureModel model, AppId appId, Map<String, MessagingConfigResolver.ChannelConfig> resolved) {
         applyResolvedBrokers(model, appId, resolved);
@@ -282,6 +335,7 @@ public class ArchitectureExtractor {
         }
     }
 
+    /** Copies a resolved channel's broker and optional topic to one entrypoint. */
     private void applyResolvedToEntrypoint(Entrypoint ep, Map<String, MessagingConfigResolver.ChannelConfig> resolved) {
         if (ep.channelName == null) return;
         MessagingConfigResolver.ChannelConfig cfg = resolved.get(ep.channelName);
@@ -290,6 +344,7 @@ public class ArchitectureExtractor {
         if (cfg.topic != null) ep.topic = cfg.topic;
     }
 
+    /** Copies a resolved channel's broker and optional topic to one component interface. */
     private void applyResolvedToInterface(
             InterfaceEntry iface, Map<String, MessagingConfigResolver.ChannelConfig> resolved) {
         if (iface.path == null) return;
@@ -322,6 +377,7 @@ public class ArchitectureExtractor {
         return inMemory;
     }
 
+    /** Marks matching entrypoints and interfaces in one application as in-memory messaging. */
     private void applyInMemoryBroker(ArchitectureModel model, AppId appId, Set<String> inMemory) {
         for (Entrypoint ep : model.entrypoints) {
             if (!appId.equals(componentModule(model, ep.componentId))) continue;
@@ -337,12 +393,14 @@ public class ArchitectureExtractor {
         }
     }
 
+    /** Resolves a component identifier to its owning application module. */
     private AppId componentModule(ArchitectureModel model, dev.dominikbreu.archlens.model.ids.ComponentId componentId) {
         if (componentId == null) return null;
         for (Component c : model.components) if (componentId.equals(c.id)) return c.module;
         return null;
     }
 
+    /** Detects framework technology from plugins, Maven content, annotations, and build-file presence. */
     private String detectTechnology(Collection<CtType<?>> types, BuildModule module) {
         String pluginText = String.join(" ", module.plugins()).toLowerCase();
         if (pluginText.contains("org.springframework.boot")) return SPRING_BOOT;
@@ -368,6 +426,7 @@ public class ArchitectureExtractor {
         return hasMaven || new File(module.root(), "build.gradle").exists() ? JAVA : "unknown";
     }
 
+    /** Returns the first supported framework found on a type, method, or field annotation. */
     private String detectTechnologyFromAnnotations(Collection<CtType<?>> types) {
         for (CtType<?> type : types) {
             String tech = technologyFromAnnotations(type.getAnnotations());
@@ -384,6 +443,7 @@ public class ArchitectureExtractor {
         return null;
     }
 
+    /** Maps the first recognized annotation in an iterable to its framework technology. */
     private String technologyFromAnnotations(
             Iterable<? extends spoon.reflect.declaration.CtAnnotation<?>> annotations) {
         for (var annotation : annotations) {
@@ -394,6 +454,7 @@ public class ArchitectureExtractor {
         return null;
     }
 
+    /** Maps supported annotation-package prefixes to framework technology labels. */
     private String technologyFromAnnotationName(String qualifiedName) {
         if (qualifiedName.startsWith("org.springframework.boot")) return SPRING_BOOT;
         if (qualifiedName.startsWith("org.springframework")) return SPRING;
@@ -402,6 +463,7 @@ public class ArchitectureExtractor {
         return null;
     }
 
+    /** Reads Maven packaging for a project root, returning {@code unknown} when no POM exists. */
     private String detectMavenPackagingType(String path) {
         File root = new File(path);
         if (!new File(root, "pom.xml").exists()) return "unknown";
