@@ -34,42 +34,48 @@ final class MermaidDocument {
         }
     }
 
-    record Statement(
-            Node node,
-            Edge edge,
-            String indent,
-            String id,
-            String label,
-            String direction,
-            boolean end,
-            boolean note,
-            boolean blank) {
+    /** One line of flowchart source; exactly one of the permitted shapes below. */
+    sealed interface Statement {
+        record OfNode(Node node) implements Statement {}
+
+        record OfEdge(Edge edge) implements Statement {}
+
+        record Subgraph(String indent, String id, String label) implements Statement {}
+
+        record Direction(String indent, String value) implements Statement {}
+
+        record End(String indent) implements Statement {}
+
+        record Note(String indent, String id, String label) implements Statement {}
+
+        record BlankLine() implements Statement {}
+
         static Statement node(Node value) {
-            return new Statement(value, null, null, null, null, null, false, false, false);
+            return new OfNode(value);
         }
 
         static Statement edge(Edge value) {
-            return new Statement(null, value, null, null, null, null, false, false, false);
+            return new OfEdge(value);
         }
 
         static Statement subgraph(String indent, String id, String label) {
-            return new Statement(null, null, indent, id, label, null, false, false, false);
+            return new Subgraph(indent, id, label);
         }
 
         static Statement direction(String indent, String value) {
-            return new Statement(null, null, indent, null, null, value, false, false, false);
+            return new Direction(indent, value);
         }
 
         static Statement end(String indent) {
-            return new Statement(null, null, indent, null, null, null, true, false, false);
+            return new End(indent);
         }
 
         static Statement note(String indent, String id, String label) {
-            return new Statement(null, null, indent, id, label, null, false, true, false);
+            return new Note(indent, id, label);
         }
 
         static Statement emptyLine() {
-            return new Statement(null, null, null, null, null, null, false, false, true);
+            return new BlankLine();
         }
     }
 
@@ -79,16 +85,22 @@ final class MermaidDocument {
 
     record Warning(String text) {}
 
-    record C4Element(
-            String macro,
-            String id,
-            String name,
-            String technology,
-            String description,
-            String indent,
-            boolean fourArguments,
-            boolean boundaryStart,
-            boolean closeBoundary) {
+    /** One C4 element/relationship-block line; exactly one of the permitted shapes below. */
+    sealed interface C4Element {
+        record Regular(
+                String macro,
+                String id,
+                String name,
+                String technology,
+                String description,
+                boolean fourArguments,
+                String indent)
+                implements C4Element {}
+
+        record BoundaryStart(String id, String name) implements C4Element {}
+
+        record BoundaryEnd() implements C4Element {}
+
         static C4Element element(
                 String macro,
                 String id,
@@ -97,15 +109,15 @@ final class MermaidDocument {
                 String description,
                 boolean fourArguments,
                 String indent) {
-            return new C4Element(macro, id, name, technology, description, indent, fourArguments, false, false);
+            return new Regular(macro, id, name, technology, description, fourArguments, indent);
         }
 
         static C4Element boundary(String id, String name) {
-            return new C4Element("", id, name, "", "", "    ", false, true, false);
+            return new BoundaryStart(id, name);
         }
 
         static C4Element closingBoundary() {
-            return new C4Element("", "", "", "", "", "", false, false, true);
+            return new BoundaryEnd();
         }
     }
 
