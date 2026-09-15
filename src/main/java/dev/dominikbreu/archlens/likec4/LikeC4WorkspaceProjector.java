@@ -190,6 +190,7 @@ public final class LikeC4WorkspaceProjector {
                 dynamicViews);
     }
 
+    /** Groups messaging entrypoints by broker and projects publish/consume steps through synthetic topic nodes. */
     private static List<LikeC4DynamicView> projectMessageBrokerFlows(List<GraphQuery.GraphNode> entrypoints) {
         List<GraphQuery.GraphNode> messagingNodes = entrypoints.stream()
                 .filter(node -> MESSAGING_ENTRYPOINT_TYPES.contains(entrypointTypeOf(node)))
@@ -231,6 +232,7 @@ public final class LikeC4WorkspaceProjector {
         return views;
     }
 
+    /** Materializes the distinct synthetic topic nodes referenced by dynamic views. */
     private static List<LikeC4Element> topicElementsFor(List<LikeC4DynamicView> dynamicViews) {
         Set<String> seen = new LinkedHashSet<>();
         List<LikeC4Element> elements = new ArrayList<>();
@@ -243,6 +245,7 @@ public final class LikeC4WorkspaceProjector {
         return elements;
     }
 
+    /** Adds one queue element when an unseen dynamic-step endpoint is a synthetic topic identifier. */
     private static void collectTopicId(String id, Set<String> seen, List<LikeC4Element> elements) {
         if (id.startsWith("topic:") && seen.add(id)) {
             String[] parts = id.split(":", 3);
@@ -253,20 +256,24 @@ public final class LikeC4WorkspaceProjector {
         }
     }
 
+    /** Builds the synthetic element identifier for a broker channel or topic. */
     private static String topicNodeId(String broker, String channel) {
         return "topic:" + broker + ":" + channel;
     }
 
+    /** Reads an entrypoint type property as text. */
     private static String entrypointTypeOf(GraphQuery.GraphNode node) {
         return String.valueOf(node.properties().getOrDefault("entrypointType", ""));
     }
 
+    /** Reads a broker property, normalizing missing values to {@code UNKNOWN}. */
     private static String brokerOf(GraphQuery.GraphNode node) {
         String broker =
                 String.valueOf(node.properties().getOrDefault("broker", "")).trim();
         return broker.isBlank() ? "UNKNOWN" : broker;
     }
 
+    /** Selects a messaging node's channel name, falling back to its topic property. */
     private static String channelOf(GraphQuery.GraphNode node) {
         String channel = String.valueOf(node.properties().getOrDefault("channelName", ""))
                 .trim();
@@ -276,6 +283,7 @@ public final class LikeC4WorkspaceProjector {
         return String.valueOf(node.properties().getOrDefault("topic", "")).trim();
     }
 
+    /** Returns components owned by the selected application, or all workspace components. */
     private static List<GraphQuery.GraphNode> scopedComponents(GraphQuery graph, GraphQuery.ApplicationNode app) {
         if (app != null) {
             return graph.componentNodesOwnedBy(AppId.deserialize(app.id().value()));
@@ -283,6 +291,7 @@ public final class LikeC4WorkspaceProjector {
         return graph.findNodes("Component", null, Map.of(), 0);
     }
 
+    /** Returns entrypoints whose component belongs to the selected application, or all entrypoints. */
     private static List<GraphQuery.GraphNode> scopedEntrypoints(GraphQuery graph, GraphQuery.ApplicationNode app) {
         if (app != null) {
             List<GraphNodeId> compIds = graph.componentIdsOwnedBy(app.id());
@@ -298,12 +307,14 @@ public final class LikeC4WorkspaceProjector {
         return graph.findNodes("Entrypoint", null, Map.of(), 0);
     }
 
+    /** Collects graph-node identifiers in encounter order. */
     private static Set<GraphNodeId> ids(List<GraphQuery.GraphNode> nodes) {
         Set<GraphNodeId> ids = new LinkedHashSet<>();
         nodes.forEach(node -> ids.add(node.id()));
         return ids;
     }
 
+    /** Collects nonblank owning-component identifiers from graph-node properties. */
     private static Set<GraphNodeId> componentIds(List<GraphQuery.GraphNode> nodes) {
         Set<GraphNodeId> ids = new LinkedHashSet<>();
         nodes.stream()
@@ -313,16 +324,19 @@ public final class LikeC4WorkspaceProjector {
         return ids;
     }
 
+    /** Returns an encounter-ordered union without mutating either input set. */
     private static Set<GraphNodeId> union(Set<GraphNodeId> left, Set<GraphNodeId> right) {
         Set<GraphNodeId> ids = new LinkedHashSet<>(left);
         ids.addAll(right);
         return ids;
     }
 
+    /** Reserves roughly one third of the node budget for entrypoints, capped at eight and floored at one. */
     private static int entrypointBudget(int maxNodes) {
         return Math.max(1, Math.min(8, maxNodes / 3));
     }
 
+    /** Gives connected entities remaining capacity up to four nodes and roughly one fifth of the total budget. */
     private static int supportingEntityBudget(int maxNodes, int entrypointCount, int primaryCount) {
         int used = entrypointCount + primaryCount;
         if (used >= maxNodes) {
@@ -331,6 +345,7 @@ public final class LikeC4WorkspaceProjector {
         return Math.min(maxNodes - used, Math.min(4, Math.max(1, maxNodes / 5)));
     }
 
+    /** Fills the primary-component limit with forced nodes before other already-ranked candidates. */
     private static List<GraphQuery.GraphNode> selectPrimaryComponents(
             List<GraphQuery.GraphNode> candidates, Set<GraphNodeId> forcedIds, int limit) {
         List<GraphQuery.GraphNode> selected = new ArrayList<>();
@@ -344,6 +359,7 @@ public final class LikeC4WorkspaceProjector {
         return selected;
     }
 
+    /** Adds a distinct candidate when capacity remains. */
     private static void addSelected(
             List<GraphQuery.GraphNode> selected, Set<GraphNodeId> selectedIds, GraphQuery.GraphNode node, int limit) {
         if (selected.size() < limit && selectedIds.add(node.id())) {
@@ -351,6 +367,7 @@ public final class LikeC4WorkspaceProjector {
         }
     }
 
+    /** Checks whether a node participates in a view relationship with any selected node. */
     private static boolean connectedToAny(GraphQuery graph, GraphNodeId nodeId, Set<GraphNodeId> selectedIds) {
         if (selectedIds.isEmpty()) {
             return false;
@@ -361,6 +378,7 @@ public final class LikeC4WorkspaceProjector {
                 .anyMatch(edge -> nodeId.equals(edge.fromId()) || nodeId.equals(edge.toId()));
     }
 
+    /** Prioritizes architectural roles, workflow relevance, bridge value, low noise, and graph weight. */
     private static Comparator<GraphQuery.GraphNode> primaryComponentPriority() {
         return Comparator.comparingInt(LikeC4WorkspaceProjector::primaryRank)
                 .thenComparing(LikeC4WorkspaceProjector::workflowRelevant, Comparator.reverseOrder())
@@ -371,18 +389,21 @@ public final class LikeC4WorkspaceProjector {
                 .thenComparing(GraphQuery.GraphNode::name);
     }
 
+    /** Orders consumers, schedulers, REST, main, and remaining entrypoints with stable ties. */
     private static Comparator<GraphQuery.GraphNode> entrypointPriority() {
         return Comparator.comparingInt(LikeC4WorkspaceProjector::entrypointRank)
                 .thenComparing(GraphQuery.GraphNode::name)
                 .thenComparing(node -> node.id().value());
     }
 
+    /** Prefers low-noise, high-weight fallback components when primary selection leaves capacity. */
     private static Comparator<GraphQuery.GraphNode> fallbackComponentPriority() {
         return Comparator.comparingInt(LikeC4WorkspaceProjector::noiseScore)
                 .thenComparingInt(node -> -architecturalWeight(node))
                 .thenComparing(GraphQuery.GraphNode::name);
     }
 
+    /** Prioritizes entities connected to more primary nodes, then business relevance and low noise. */
     private static Comparator<GraphQuery.GraphNode> supportingEntityPriority(
             GraphQuery graph, Set<GraphNodeId> primaryIds) {
         return Comparator.comparingInt(
@@ -393,6 +414,7 @@ public final class LikeC4WorkspaceProjector {
                 .thenComparing(GraphQuery.GraphNode::name);
     }
 
+    /** Counts selected view relationships incident to an entity and the primary set. */
     private static int primaryConnectionCount(GraphQuery graph, GraphNodeId nodeId, Set<GraphNodeId> primaryIds) {
         Set<GraphNodeId> ids = new HashSet<>(primaryIds);
         ids.add(nodeId);
@@ -401,6 +423,7 @@ public final class LikeC4WorkspaceProjector {
                 .count();
     }
 
+    /** Assigns architectural-role priority from inbound roots through services, repositories, and outbound edges. */
     private static int primaryRank(GraphQuery.GraphNode node) {
         return switch (componentType(node)) {
             case "REST_RESOURCE", "MESSAGE_DRIVEN_BEAN", "SCHEDULER", "CDI_EVENT_CONSUMER" -> 0;
@@ -411,22 +434,27 @@ public final class LikeC4WorkspaceProjector {
         };
     }
 
+    /** Reports whether the component type belongs to the workspace view's primary role catalog. */
     private static boolean isPrimaryComponent(GraphQuery.GraphNode node) {
         return PRIMARY_COMPONENT_TYPES.contains(componentType(node));
     }
 
+    /** Reports whether a graph node represents a persistence entity component. */
     private static boolean isEntityComponent(GraphQuery.GraphNode node) {
         return "ENTITY".equals(componentType(node));
     }
 
+    /** Reads a component-type property as text. */
     private static String componentType(GraphQuery.GraphNode node) {
         return String.valueOf(node.properties().getOrDefault("componentType", ""));
     }
 
+    /** Reads and wraps an owning-component identifier property. */
     private static GraphNodeId componentId(GraphQuery.GraphNode node) {
         return GraphNodeId.of(String.valueOf(node.properties().getOrDefault("componentId", "")));
     }
 
+    /** Assigns view priority to consumer, scheduler, REST, main, and other entrypoint types. */
     private static int entrypointRank(GraphQuery.GraphNode node) {
         return switch (String.valueOf(node.properties().getOrDefault("entrypointType", ""))) {
             case "MESSAGING_CONSUMER" -> 0;
@@ -437,6 +465,7 @@ public final class LikeC4WorkspaceProjector {
         };
     }
 
+    /** Formats REST and messaging entrypoints from protocol metadata, otherwise using the node title. */
     private static String entrypointTitle(GraphQuery.GraphNode node) {
         Map<String, Object> properties = node.properties();
         String type = String.valueOf(properties.getOrDefault("entrypointType", ""));
@@ -455,6 +484,7 @@ public final class LikeC4WorkspaceProjector {
         return title(node.name(), node.id().value());
     }
 
+    /** Uses a relationship's semantic kind when present, otherwise humanizes its graph label. */
     private static String relationshipTitle(String label, Map<String, Object> properties) {
         Object kind = properties.get("kind");
         if (kind != null && !kind.toString().isBlank()) {
@@ -463,26 +493,32 @@ public final class LikeC4WorkspaceProjector {
         return label.toLowerCase().replace('_', ' ');
     }
 
+    /** Reads the precomputed workflow-relevance flag. */
     private static boolean workflowRelevant(GraphQuery.GraphNode node) {
         return Boolean.TRUE.equals(node.properties().get("workflowRelevant"));
     }
 
+    /** Reads the precomputed business-relevance flag. */
     private static boolean businessRelevant(GraphQuery.GraphNode node) {
         return Boolean.TRUE.equals(node.properties().get("businessRelevant"));
     }
 
+    /** Reads the score measuring how strongly a component bridges workflow segments. */
     private static int workflowBridgeScore(GraphQuery.GraphNode node) {
         return intProp(node, "workflowBridgeScore");
     }
 
+    /** Reads the precomputed architectural connectivity weight. */
     private static int architecturalWeight(GraphQuery.GraphNode node) {
         return intProp(node, "architecturalWeight");
     }
 
+    /** Reads the precomputed penalty for low-signal infrastructure or utility nodes. */
     private static int noiseScore(GraphQuery.GraphNode node) {
         return intProp(node, "noiseScore");
     }
 
+    /** Reads a numeric node property as an integer, returning zero for missing or nonnumeric values. */
     private static int intProp(GraphQuery.GraphNode node, String key) {
         Object value = node.properties().get(key);
         if (value instanceof Number number) {
@@ -491,6 +527,7 @@ public final class LikeC4WorkspaceProjector {
         return 0;
     }
 
+    /** Builds the selected application system element or a workspace-wide fallback system. */
     private static LikeC4Element systemElement(GraphQuery.ApplicationNode app) {
         if (app != null) {
             return new LikeC4Element(
@@ -503,6 +540,7 @@ public final class LikeC4WorkspaceProjector {
         return new LikeC4Element("system:workspace", "system", "Workspace", "workspace", Map.of());
     }
 
+    /** Collects nonblank technology, packaging, role, and root-path application metadata. */
     private static Map<String, Object> appMetadata(GraphQuery.ApplicationNode app) {
         Map<String, Object> metadata = new LinkedHashMap<>();
         putIfPresent(metadata, "technology", app.technology());
@@ -512,22 +550,26 @@ public final class LikeC4WorkspaceProjector {
         return metadata;
     }
 
+    /** Normalizes a nullable property map to an immutable empty map. */
     private static Map<String, Object> metadata(Map<String, Object> properties) {
         return properties == null ? Map.of() : properties;
     }
 
+    /** Concatenates relationship lists without mutating either input. */
     private static List<LikeC4Relationship> concat(List<LikeC4Relationship> first, List<LikeC4Relationship> second) {
         List<LikeC4Relationship> combined = new ArrayList<>(first);
         combined.addAll(second);
         return combined;
     }
 
+    /** Adds a string metadata value only when it is nonblank. */
     private static void putIfPresent(Map<String, Object> metadata, String key, String value) {
         if (value != null && !value.isBlank()) {
             metadata.put(key, value);
         }
     }
 
+    /** Returns a nonblank display value or its fallback title. */
     private static String title(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
     }
