@@ -42,7 +42,7 @@ HTML graph-viewer and user-editable OKF templates have separate rendering paths.
 
 ```mermaid
 flowchart TD
-    subgraph pkg_dev_dominikbreu_archlens_model_ids["dev.dominikbreu.archlens.model.ids"]
+    subgraph pkg_dev_dominikbreu_archlens_model_ids ["dev.dominikbreu.archlens.model.ids"]
         dev_dominikbreu_archlens_model_ids_DependencyId["DependencyId\nENTITY"]
         dev_dominikbreu_archlens_model_ids_FieldRef["FieldRef\nENTITY"]
         dev_dominikbreu_archlens_model_ids_GraphNodeId["GraphNodeId\nENTITY"]
@@ -56,7 +56,7 @@ flowchart TD
         dev_dominikbreu_archlens_model_ids_FieldAccessId["FieldAccessId\nENTITY"]
         dev_dominikbreu_archlens_model_ids_ComponentId["ComponentId\nENTITY"]
     end
-    subgraph pkg_dev_dominikbreu_archlens_extractor["dev.dominikbreu.archlens.extractor"]
+    subgraph pkg_dev_dominikbreu_archlens_extractor ["dev.dominikbreu.archlens.extractor"]
         dev_dominikbreu_archlens_extractor_EntityIndex["EntityIndex\nUNKNOWN"]
         dev_dominikbreu_archlens_extractor_MessagingTopicResolver["MessagingTopicResolver\nUNKNOWN"]
         dev_dominikbreu_archlens_extractor_ModelIndex["ModelIndex\nUNKNOWN"]
@@ -88,7 +88,7 @@ flowchart TD
         dev_dominikbreu_archlens_extractor_StringExpressionResolver["StringExpressionResolver\nUNKNOWN"]
         dev_dominikbreu_archlens_extractor_PipelineGraphBuilder["PipelineGraphBuilder\nUNKNOWN"]
     end
-    subgraph pkg_dev_dominikbreu_archlens_mcp_tools["dev.dominikbreu.archlens.mcp.tools"]
+    subgraph pkg_dev_dominikbreu_archlens_mcp_tools ["dev.dominikbreu.archlens.mcp.tools"]
         dev_dominikbreu_archlens_mcp_tools_RenderArchitectureViewTool["RenderArchitectureViewTool\nSERVICE"]
         dev_dominikbreu_archlens_mcp_tools_RenderMermaidFlowchartTool["RenderMermaidFlowchartTool\nSERVICE"]
         dev_dominikbreu_archlens_mcp_tools_ExportArchitectureDocsTool["ExportArchitectureDocsTool\nSERVICE"]
@@ -115,7 +115,7 @@ flowchart TD
         dev_dominikbreu_archlens_mcp_tools_FindComponentsTool["FindComponentsTool\nSERVICE"]
         dev_dominikbreu_archlens_mcp_tools_RenderSourceOverviewTool["RenderSourceOverviewTool\nSERVICE"]
     end
-    subgraph pkg_dev_dominikbreu_archlens_model["dev.dominikbreu.archlens.model"]
+    subgraph pkg_dev_dominikbreu_archlens_model ["dev.dominikbreu.archlens.model"]
         dev_dominikbreu_archlens_model_DataFlowBranch["DataFlowBranch\nENTITY"]
         dev_dominikbreu_archlens_model_DataFlowSink["DataFlowSink\nENTITY"]
         dev_dominikbreu_archlens_model_Dependency["Dependency\nENTITY"]
@@ -145,7 +145,7 @@ flowchart TD
         dev_dominikbreu_archlens_model_Entrypoint["Entrypoint\nENTITY"]
         dev_dominikbreu_archlens_model_UseCase["UseCase\nENTITY"]
     end
-    subgraph pkg_dev_dominikbreu_archlens_likec4["dev.dominikbreu.archlens.likec4"]
+    subgraph pkg_dev_dominikbreu_archlens_likec4 ["dev.dominikbreu.archlens.likec4"]
         dev_dominikbreu_archlens_likec4_LikeC4View["LikeC4View\nUNKNOWN"]
         dev_dominikbreu_archlens_likec4_LikeC4Relationship["LikeC4Relationship\nUNKNOWN"]
         dev_dominikbreu_archlens_likec4_LikeC4Document["LikeC4Document\nUNKNOWN"]
@@ -154,7 +154,7 @@ flowchart TD
         dev_dominikbreu_archlens_likec4_LikeC4DynamicView["LikeC4DynamicView\nUNKNOWN"]
         dev_dominikbreu_archlens_likec4_LikeC4WorkspaceProjector["LikeC4WorkspaceProjector\nUNKNOWN"]
     end
-    subgraph pkg_dev_dominikbreu_archlens_renderer["dev.dominikbreu.archlens.renderer"]
+    subgraph pkg_dev_dominikbreu_archlens_renderer ["dev.dominikbreu.archlens.renderer"]
         dev_dominikbreu_archlens_renderer_MermaidDependencySliceRenderer["MermaidDependencySliceRenderer\nSERVICE"]
         dev_dominikbreu_archlens_renderer_GraphViewerHtmlRenderer["GraphViewerHtmlRenderer\nSERVICE"]
         dev_dominikbreu_archlens_renderer_MermaidDependencyMapRenderer["MermaidDependencyMapRenderer\nSERVICE"]
@@ -167,16 +167,16 @@ flowchart TD
         dev_dominikbreu_archlens_renderer_Mermaid["Mermaid\nUNKNOWN"]
         dev_dominikbreu_archlens_renderer_ArchitectureViewMermaidRenderer["ArchitectureViewMermaidRenderer\nSERVICE"]
     end
-    subgraph pkg_dev_dominikbreu_archlens_mcp["dev.dominikbreu.archlens.mcp"]
+    subgraph pkg_dev_dominikbreu_archlens_mcp ["dev.dominikbreu.archlens.mcp"]
         dev_dominikbreu_archlens_mcp_McpServer["McpServer\nSERVICE"]
         dev_dominikbreu_archlens_mcp_StructuredOutputMode["StructuredOutputMode\nUNKNOWN"]
     end
-    subgraph pkg_dev_dominikbreu_archlens_tracing["dev.dominikbreu.archlens.tracing"]
+    subgraph pkg_dev_dominikbreu_archlens_tracing ["dev.dominikbreu.archlens.tracing"]
         dev_dominikbreu_archlens_tracing_TracingConfig["TracingConfig\nUNKNOWN"]
         dev_dominikbreu_archlens_tracing_Spans["Spans\nUNKNOWN"]
         dev_dominikbreu_archlens_tracing_StdoutSpanExporter["StdoutSpanExporter\nUNKNOWN"]
     end
-    subgraph pkg_dev_dominikbreu_archlens_extractor_sourcefacts["dev.dominikbreu.archlens.extractor.sourcefacts"]
+    subgraph pkg_dev_dominikbreu_archlens_extractor_sourcefacts ["dev.dominikbreu.archlens.extractor.sourcefacts"]
         dev_dominikbreu_archlens_extractor_sourcefacts_FactConfidence["FactConfidence\nUNKNOWN"]
         dev_dominikbreu_archlens_extractor_sourcefacts_SourceInvocation["SourceInvocation\nUNKNOWN"]
         dev_dominikbreu_archlens_extractor_sourcefacts_SourceFactIndex["SourceFactIndex\nUNKNOWN"]
@@ -191,12 +191,12 @@ flowchart TD
         dev_dominikbreu_archlens_extractor_sourcefacts_SourceLocation["SourceLocation\nUNKNOWN"]
         dev_dominikbreu_archlens_extractor_sourcefacts_SourceFactIndexBuilder["SourceFactIndexBuilder\nUNKNOWN"]
     end
-    subgraph pkg_dev_dominikbreu_archlens_merger["dev.dominikbreu.archlens.merger"]
+    subgraph pkg_dev_dominikbreu_archlens_merger ["dev.dominikbreu.archlens.merger"]
         dev_dominikbreu_archlens_merger_DockerComposeMerger["DockerComposeMerger\nSERVICE"]
         dev_dominikbreu_archlens_merger_AnsibleMerger["AnsibleMerger\nSERVICE"]
         dev_dominikbreu_archlens_merger_DeploymentMerger["DeploymentMerger\nSERVICE"]
     end
-    subgraph pkg_dev_dominikbreu_archlens_build["dev.dominikbreu.archlens.build"]
+    subgraph pkg_dev_dominikbreu_archlens_build ["dev.dominikbreu.archlens.build"]
         dev_dominikbreu_archlens_build_BuildSystem["BuildSystem\nUNKNOWN"]
         dev_dominikbreu_archlens_build_BuildMetadataService["BuildMetadataService\nUNKNOWN"]
         dev_dominikbreu_archlens_build_UnknownBuildProjectDetector["UnknownBuildProjectDetector\nUNKNOWN"]
@@ -206,14 +206,14 @@ flowchart TD
         dev_dominikbreu_archlens_build_BuildModule["BuildModule\nUNKNOWN"]
         dev_dominikbreu_archlens_build_BuildProject["BuildProject\nUNKNOWN"]
     end
-    subgraph pkg_dev_dominikbreu_archlens_extractor_objectflow["dev.dominikbreu.archlens.extractor.objectflow"]
+    subgraph pkg_dev_dominikbreu_archlens_extractor_objectflow ["dev.dominikbreu.archlens.extractor.objectflow"]
         dev_dominikbreu_archlens_extractor_objectflow_ObjectFlowEvidence["ObjectFlowEvidence\nUNKNOWN"]
         dev_dominikbreu_archlens_extractor_objectflow_ObjectFlowIndexBuilder["ObjectFlowIndexBuilder\nUNKNOWN"]
         dev_dominikbreu_archlens_extractor_objectflow_ObjectFlowIndex["ObjectFlowIndex\nUNKNOWN"]
         dev_dominikbreu_archlens_extractor_objectflow_ReceiverTarget["ReceiverTarget\nUNKNOWN"]
         dev_dominikbreu_archlens_extractor_objectflow_ObjectFlowMethodAnalyzer["ObjectFlowMethodAnalyzer\nUNKNOWN"]
     end
-    subgraph pkg_dev_dominikbreu_archlens_cache["dev.dominikbreu.archlens.cache"]
+    subgraph pkg_dev_dominikbreu_archlens_cache ["dev.dominikbreu.archlens.cache"]
         dev_dominikbreu_archlens_cache_GraphQuery["GraphQuery\nUNKNOWN"]
         dev_dominikbreu_archlens_cache_GraphDataProjection["GraphDataProjection\nUNKNOWN"]
         dev_dominikbreu_archlens_cache_TraversalRecorder["TraversalRecorder\nUNKNOWN"]
@@ -223,17 +223,17 @@ flowchart TD
         dev_dominikbreu_archlens_cache_ModelCache["ModelCache\nSERVICE"]
         dev_dominikbreu_archlens_cache_ArchitectureRelevanceScorer["ArchitectureRelevanceScorer\nUNKNOWN"]
     end
-    subgraph pkg_dev_dominikbreu_archlens["dev.dominikbreu.archlens"]
+    subgraph pkg_dev_dominikbreu_archlens ["dev.dominikbreu.archlens"]
         dev_dominikbreu_archlens_Main["Main\nUNKNOWN"]
     end
-    subgraph pkg_dev_dominikbreu_archlens_workflow["dev.dominikbreu.archlens.workflow"]
+    subgraph pkg_dev_dominikbreu_archlens_workflow ["dev.dominikbreu.archlens.workflow"]
         dev_dominikbreu_archlens_workflow_WorkflowTraversalPolicy["WorkflowTraversalPolicy\nUNKNOWN"]
         dev_dominikbreu_archlens_workflow_WorkflowGraphBuilder["WorkflowGraphBuilder\nUNKNOWN"]
         dev_dominikbreu_archlens_workflow_WorkflowLink["WorkflowLink\nUNKNOWN"]
         dev_dominikbreu_archlens_workflow_WorkflowGraph["WorkflowGraph\nUNKNOWN"]
         dev_dominikbreu_archlens_workflow_WorkflowLinker["WorkflowLinker\nUNKNOWN"]
     end
-    subgraph pkg_dev_dominikbreu_archlens_dashboard["dev.dominikbreu.archlens.dashboard"]
+    subgraph pkg_dev_dominikbreu_archlens_dashboard ["dev.dominikbreu.archlens.dashboard"]
         dev_dominikbreu_archlens_dashboard_DashboardRenderer["DashboardRenderer\nSERVICE"]
         dev_dominikbreu_archlens_dashboard_DashboardEvent["DashboardEvent\nUNKNOWN"]
         dev_dominikbreu_archlens_dashboard_Dashboard["Dashboard\nUNKNOWN"]
@@ -244,12 +244,12 @@ flowchart TD
         dev_dominikbreu_archlens_dashboard_ReplParseException["ReplParseException\nUNKNOWN"]
         dev_dominikbreu_archlens_dashboard_DashboardState["DashboardState\nUNKNOWN"]
     end
-    subgraph pkg_dev_dominikbreu_archlens_view["dev.dominikbreu.archlens.view"]
+    subgraph pkg_dev_dominikbreu_archlens_view ["dev.dominikbreu.archlens.view"]
         dev_dominikbreu_archlens_view_ArchitectureViewProjector["ArchitectureViewProjector\nUNKNOWN"]
         dev_dominikbreu_archlens_view_ArchitectureViewProjection["ArchitectureViewProjection\nUNKNOWN"]
         dev_dominikbreu_archlens_view_ArchitectureViewKind["ArchitectureViewKind\nUNKNOWN"]
     end
-    subgraph pkg_dev_dominikbreu_archlens_scanner["dev.dominikbreu.archlens.scanner"]
+    subgraph pkg_dev_dominikbreu_archlens_scanner ["dev.dominikbreu.archlens.scanner"]
         dev_dominikbreu_archlens_scanner_SpoonScanner["SpoonScanner\nSERVICE"]
     end
     dev_dominikbreu_archlens_build_BuildMetadataService --> dev_dominikbreu_archlens_build_BuildProject
@@ -358,8 +358,8 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    subgraph archlens["archlens (java)"]
-        subgraph container_archlens_misc["misc"]
+    subgraph archlens ["archlens (java)"]
+        subgraph container_archlens_misc ["misc"]
             dev_dominikbreu_archlens_build_GradleBuildProjectDetector["UNKNOWN\nGradleBuildProjectDetector"]
             dev_dominikbreu_archlens_build_MavenBuildProjectDetector["UNKNOWN\nMavenBuildProjectDetector"]
             dev_dominikbreu_archlens_build_UnknownBuildProjectDetector["UNKNOWN\nUnknownBuildProjectDetector"]
@@ -396,14 +396,14 @@ flowchart TD
             dev_dominikbreu_archlens_build_BuildProjectDetector["UNKNOWN\nBuildProjectDetector"]
             dev_dominikbreu_archlens_build_BuildSystem["UNKNOWN\nBuildSystem"]
         end
-        subgraph container_archlens_mcp_server["mcp-server"]
+        subgraph container_archlens_mcp_server ["mcp-server"]
             dev_dominikbreu_archlens_mcp_McpServer["SERVICE\nMcpServer"]
             dev_dominikbreu_archlens_mcp_StructuredOutputMode["UNKNOWN\nStructuredOutputMode"]
         end
-        subgraph container_archlens_scanner["scanner"]
+        subgraph container_archlens_scanner ["scanner"]
             dev_dominikbreu_archlens_scanner_SpoonScanner["SERVICE\nSpoonScanner"]
         end
-        subgraph container_archlens_mcp_tools["mcp-tools"]
+        subgraph container_archlens_mcp_tools ["mcp-tools"]
             dev_dominikbreu_archlens_mcp_tools_CallFlowTool["SERVICE\nCallFlowTool"]
             dev_dominikbreu_archlens_mcp_tools_DetectUseCasesTool["SERVICE\nDetectUseCasesTool"]
             dev_dominikbreu_archlens_mcp_tools_ExportArchitectureDocsTool["SERVICE\nExportArchitectureDocsTool"]
@@ -430,7 +430,7 @@ flowchart TD
             dev_dominikbreu_archlens_mcp_tools_ToolResult["UNKNOWN\nToolResult"]
             dev_dominikbreu_archlens_mcp_tools_TraceDataFlowTool["SERVICE\nTraceDataFlowTool"]
         end
-        subgraph container_archlens_extractor["extractor"]
+        subgraph container_archlens_extractor ["extractor"]
             dev_dominikbreu_archlens_extractor_SpringConfigResolver["UNKNOWN\nSpringConfigResolver"]
             dev_dominikbreu_archlens_extractor_SpringExtractor["SERVICE\nSpringExtractor"]
             dev_dominikbreu_archlens_extractor_StringExpressionResolver["UNKNOWN\nStringExpressionResolver"]
@@ -480,10 +480,10 @@ flowchart TD
             dev_dominikbreu_archlens_extractor_QuarkusExtractor["SERVICE\nQuarkusExtractor"]
             dev_dominikbreu_archlens_extractor_RuntimeFlowInferrer["UNKNOWN\nRuntimeFlowInferrer"]
         end
-        subgraph container_archlens_service["service"]
+        subgraph container_archlens_service ["service"]
             dev_dominikbreu_archlens_dashboard_DashboardRenderer["SERVICE\nDashboardRenderer"]
         end
-        subgraph container_archlens_model["model"]
+        subgraph container_archlens_model ["model"]
             dev_dominikbreu_archlens_model_DataFlowStep[("ENTITY\nDataFlowStep")]
             dev_dominikbreu_archlens_model_Dependency[("ENTITY\nDependency")]
             dev_dominikbreu_archlens_model_DeploymentEntry[("ENTITY\nDeploymentEntry")]
@@ -525,7 +525,7 @@ flowchart TD
             dev_dominikbreu_archlens_model_DataFlowPath[("ENTITY\nDataFlowPath")]
             dev_dominikbreu_archlens_model_DataFlowSink[("ENTITY\nDataFlowSink")]
         end
-        subgraph container_archlens_renderer["renderer"]
+        subgraph container_archlens_renderer ["renderer"]
             dev_dominikbreu_archlens_renderer_MermaidCallFlowRenderer["SERVICE\nMermaidCallFlowRenderer"]
             dev_dominikbreu_archlens_renderer_MermaidDependencyMapRenderer["SERVICE\nMermaidDependencyMapRenderer"]
             dev_dominikbreu_archlens_renderer_MermaidDependencySliceRenderer["SERVICE\nMermaidDependencySliceRenderer"]
@@ -538,12 +538,12 @@ flowchart TD
             dev_dominikbreu_archlens_renderer_LikeC4ModelRenderer["SERVICE\nLikeC4ModelRenderer"]
             dev_dominikbreu_archlens_renderer_Mermaid["UNKNOWN\nMermaid"]
         end
-        subgraph container_archlens_deployment_merge["deployment-merge"]
+        subgraph container_archlens_deployment_merge ["deployment-merge"]
             dev_dominikbreu_archlens_merger_AnsibleMerger["SERVICE\nAnsibleMerger"]
             dev_dominikbreu_archlens_merger_DeploymentMerger["SERVICE\nDeploymentMerger"]
             dev_dominikbreu_archlens_merger_DockerComposeMerger["SERVICE\nDockerComposeMerger"]
         end
-        subgraph container_archlens_cache["cache"]
+        subgraph container_archlens_cache ["cache"]
             dev_dominikbreu_archlens_cache_GraphProjector["UNKNOWN\nGraphProjector"]
             dev_dominikbreu_archlens_cache_GraphQuery["UNKNOWN\nGraphQuery"]
             dev_dominikbreu_archlens_cache_GraphStore["UNKNOWN\nGraphStore"]
@@ -660,7 +660,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    subgraph archlens["archlens (java)"]
+    subgraph archlens ["archlens (java)"]
         container_archlens_misc["misc\n35 components / 1 EP"]
         container_archlens_mcp_server["mcp-server\n2 components"]
         container_archlens_scanner["scanner\n1 component"]

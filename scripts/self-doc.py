@@ -7,15 +7,20 @@ import subprocess
 import sys
 import os
 
-_target = os.path.join(os.path.dirname(__file__), "..", "target")
-_candidates = [
-    j for j in glob.glob(os.path.join(_target, "archlens*.jar"))
-    if not any(x in os.path.basename(j) for x in ("-sources", "-javadoc", "original-"))
-]
-if not _candidates:
-    raise FileNotFoundError(f"No archlens jar found in {_target}. Run 'mvn package' first.")
-JAR = max(_candidates, key=os.path.getmtime)
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+
+def packaged_jar():
+    """Build the server and return the current packaged jar."""
+    subprocess.run(["mvn", "-q", "package"], cwd=PROJECT_ROOT, check=True)
+    target = os.path.join(PROJECT_ROOT, "target")
+    candidates = [
+        j for j in glob.glob(os.path.join(target, "archlens*.jar"))
+        if not any(x in os.path.basename(j) for x in ("-sources", "-javadoc", "original-"))
+    ]
+    if not candidates:
+        raise FileNotFoundError(f"No archlens jar found in {target} after packaging.")
+    return max(candidates, key=os.path.getmtime)
 
 
 def call(proc, req_id, method, params=None):
@@ -45,8 +50,9 @@ def notify(proc, method, params=None):
 
 
 def main():
+    jar = packaged_jar()
     proc = subprocess.Popen(
-        ["java", "-jar", JAR],
+        ["java", "-jar", jar],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=sys.stderr,
