@@ -2,6 +2,27 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.1.0](https://github.com/DerPate/archlens/compare/archlens-2.0.0...archlens-2.1.0) (2026-09-15)
+
+
+### Features
+
+* **okf:** backfill okf_version declaration on index.md ([6375b4d](https://github.com/DerPate/archlens/commit/6375b4d6cb5e60236047ef6f622a13a6cf172a9a))
+* **okf:** upgrade generated concepts to OKF v0.2 frontmatter ([c3b16b7](https://github.com/DerPate/archlens/commit/c3b16b71c0d3d1905d90dd4cbcd43d77071db1f9))
+
+
+### Bug Fixes
+
+* emit valid Mermaid subgraph syntax ([6688500](https://github.com/DerPate/archlens/commit/6688500ca6366ab38296fb9f817e17c609acf8a0))
+* rebuild renderer before generating architecture docs ([4c03959](https://github.com/DerPate/archlens/commit/4c0395991717eb6b826c9aee350146d820627d8b))
+* scope Mermaid C4-keyword escaping to avoid id/label collisions ([cfd67d2](https://github.com/DerPate/archlens/commit/cfd67d2dc8b024d829718021b93a6ddc977ab3dd))
+
+
+### Documentation
+
+* confirm renderer comparison holds after C4-keyword scoping fix ([2caf375](https://github.com/DerPate/archlens/commit/2caf37564ef020259c70dccf5bf63d6ccf4ab13f))
+* partition oversized generated flowcharts in self-doc output ([2bf9dea](https://github.com/DerPate/archlens/commit/2bf9dea93ac9285d7c69e8db45503bb208702d6c))
+
 ## [2.0.0](https://github.com/DerPate/archlens/compare/archlens-1.5.0...archlens-2.0.0) (2026-09-14)
 
 
