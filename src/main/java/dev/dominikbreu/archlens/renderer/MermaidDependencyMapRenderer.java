@@ -93,8 +93,8 @@ public class MermaidDependencyMapRenderer {
             boolean allAsync = stats.kinds.keySet().stream().allMatch(MermaidStyle::isAsyncKind);
             String label =
                     stats.count + " " + (stats.count == 1 ? "dep" : "deps") + " / " + escape(stats.kindSummary());
-            statements.add(MermaidDocument.Statement.edge(new MermaidDocument.Edge(
-                    "    ", nodeId(key.from()), nodeId(key.to()), label, true, false, allAsync, false)));
+            statements.add(MermaidDocument.Statement.edge(
+                    MermaidDocument.Edge.labeled("    ", nodeId(key.from()), nodeId(key.to()), label, allAsync)));
         }
         return MermaidTemplateAdapters.flowchart("LR", statements, tracker);
     }

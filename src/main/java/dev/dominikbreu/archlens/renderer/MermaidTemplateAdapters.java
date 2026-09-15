@@ -63,7 +63,7 @@ final class MermaidTemplateAdapters {
                         .toList(),
                 !warnings.isEmpty(),
                 warnings.stream().map(MermaidFlowchartTemplate.Warning::new).toList());
-        return MermaidFlowchartTemplateRenderer.of().execute(model);
+        return header() + MermaidFlowchartTemplateRenderer.of().execute(model);
     }
 
     static String sequence(
@@ -90,7 +90,7 @@ final class MermaidTemplateAdapters {
                 deactivations.stream()
                         .map(d -> new MermaidSequenceTemplate.Deactivation(d.participant()))
                         .toList());
-        return MermaidSequenceTemplateRenderer.of().execute(model);
+        return header() + MermaidSequenceTemplateRenderer.of().execute(model);
     }
 
     static String c4(MermaidC4Template model) {
@@ -106,7 +106,7 @@ final class MermaidTemplateAdapters {
                 context,
                 containerDiagram,
                 elements.stream()
-                        .map(e -> "System_Boundary".equals(e.macro())
+                        .map(e -> e.boundaryStart()
                                 ? MermaidC4Template.Element.boundary(e.id(), e.name())
                                 : e.closeBoundary()
                                         ? MermaidC4Template.Element.closeBoundary()

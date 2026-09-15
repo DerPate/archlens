@@ -86,8 +86,7 @@ public class MermaidSourceOverviewRenderer {
             if (from == null || to == null || from.equals(to)) continue;
             String key = from + "-->" + to;
             if (drawn.add(key)) {
-                statements.add(MermaidDocument.Statement.edge(
-                        new MermaidDocument.Edge("    ", from, to, "", false, false, false, false)));
+                statements.add(MermaidDocument.Statement.edge(MermaidDocument.Edge.plain("    ", from, to)));
             }
         }
     }
