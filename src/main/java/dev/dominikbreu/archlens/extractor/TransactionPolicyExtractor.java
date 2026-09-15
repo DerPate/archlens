@@ -38,6 +38,7 @@ public class TransactionPolicyExtractor {
      * @param facts module source facts
      * @param model architecture model to enrich
      * @param appId owning application/module
+     * @param module build module being analyzed
      */
     public void extract(SourceFactIndex facts, ArchitectureModel model, AppId appId, BuildModule module) {
         for (SourceType type : facts.types()) {

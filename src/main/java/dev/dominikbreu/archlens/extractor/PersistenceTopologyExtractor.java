@@ -46,8 +46,13 @@ import spoon.reflect.declaration.CtType;
 /** Extracts JPA persistence units, datasource bindings, and safe database topology facts. */
 public class PersistenceTopologyExtractor {
 
+    /** Simple names of annotations that bind a field/method/parameter to a persistence unit. */
     private static final Set<String> PERSISTENCE_CONTEXT = Set.of("PersistenceContext");
+
+    /** Simple names of annotations that bind a field/method/parameter to a container resource (e.g. a datasource). */
     private static final Set<String> RESOURCE = Set.of("Resource");
+
+    /** Simple names of annotations that declare a datasource inline on a type. */
     private static final Set<String> DATA_SOURCE_DEFINITION = Set.of("DataSourceDefinition");
 
     /** Creates an extractor with secure XML parsing and bounded project-local discovery. */
@@ -77,6 +82,15 @@ public class PersistenceTopologyExtractor {
         reconcile(model, appId);
     }
 
+    /**
+     * Parses a {@code persistence.xml} descriptor and upserts one {@link PersistenceUnitInfo}
+     * per {@code <persistence-unit>} element, recording any unresolved {@code ${...}}/{@code #{...}}
+     * placeholders found in its name, provider, or datasource references.
+     *
+     * @param path descriptor file path
+     * @param model architecture model to enrich
+     * @param appId owning application identifier
+     */
     private void parsePersistenceXml(Path path, ArchitectureModel model, AppId appId) {
         Document document = parseXml(path);
         if (document == null) return;
@@ -101,6 +115,15 @@ public class PersistenceTopologyExtractor {
         }
     }
 
+    /**
+     * Parses a Java EE deployment descriptor ({@code web.xml}, {@code ejb-jar.xml}, or
+     * {@code application.xml}) and records a datasource usage for each {@code <resource-ref>}
+     * whose {@code res-type} ends in {@code DataSource} and that has a lookup/mapped/ref name.
+     *
+     * @param path descriptor file path
+     * @param model architecture model to enrich
+     * @param appId owning application identifier
+     */
     private void parseResourceReferences(Path path, ArchitectureModel model, AppId appId) {
         Document document = parseXml(path);
         if (document == null) return;
@@ -114,6 +137,16 @@ public class PersistenceTopologyExtractor {
         }
     }
 
+    /**
+     * Parses a WildFly {@code standalone.xml}/{@code domain.xml}/{@code *-ds.xml} descriptor
+     * and upserts a {@link DataSourceInfo} for each {@code <datasource>} or
+     * {@code <xa-datasource>} declaration, deriving the JDBC endpoint and database kind from
+     * its connection URL (or XA property) and driver.
+     *
+     * @param path descriptor file path
+     * @param model architecture model to enrich
+     * @param appId owning application identifier
+     */
     private void parseWildFlyDataSources(Path path, ArchitectureModel model, AppId appId) {
         Document document = parseXml(path);
         if (document == null) return;
@@ -143,6 +176,16 @@ public class PersistenceTopologyExtractor {
         }
     }
 
+    /**
+     * Reads {@code spring.datasource.*} properties from the module's
+     * {@code application.properties}/{@code .yml}/{@code .yaml} files and upserts a
+     * {@link DataSourceInfo} plus a usage record for each file that declares a JNDI name, URL,
+     * or driver class.
+     *
+     * @param module build module whose resource roots are searched
+     * @param model architecture model to enrich
+     * @param appId owning application identifier
+     */
     private void extractSpringDataSource(BuildModule module, ArchitectureModel model, AppId appId) {
         for (Path path : springConfigFiles(module)) {
             Map<String, String> values = readSpringValues(path);
@@ -166,6 +209,16 @@ public class PersistenceTopologyExtractor {
         }
     }
 
+    /**
+     * Scans every type, field, method, and parameter annotation in {@code types} for
+     * {@code @PersistenceContext}/{@code @Resource}/{@code @DataSourceDefinition} usage, and
+     * additionally records a persistence-unit usage for a bare {@code EntityManager} field when
+     * the module declares exactly one persistence unit (so the unit name can be inferred).
+     *
+     * @param types Spoon types belonging to the module
+     * @param model architecture model to enrich
+     * @param appId owning application identifier
+     */
     private void extractSourceReferences(Collection<CtType<?>> types, ArchitectureModel model, AppId appId) {
         for (CtType<?> type : types) {
             ComponentId componentId = ComponentId.of(type.getQualifiedName());
@@ -244,6 +297,16 @@ public class PersistenceTopologyExtractor {
         }
     }
 
+    /**
+     * Fills in gaps left by the per-source extraction passes for one application: creates a
+     * placeholder, unresolved {@link DataSourceInfo} for any datasource referenced by a
+     * persistence unit or usage but never declared; assigns the sole persistence unit's name to
+     * usages that didn't specify one; and adds an {@link ExternalSystem} of kind
+     * {@code DATABASE} for each datasource with a known endpoint.
+     *
+     * @param model architecture model to reconcile
+     * @param appId owning application identifier
+     */
     private void reconcile(ArchitectureModel model, AppId appId) {
         List<PersistenceUnitInfo> units = model.persistenceUnits.stream()
                 .filter(unit -> appId.equals(unit.appId))
@@ -295,6 +358,15 @@ public class PersistenceTopologyExtractor {
         upsertDataSource(model, unresolved);
     }
 
+    /**
+     * Finds an existing datasource for the app whose JNDI name, name, or an alias normalizes to
+     * the same value as {@code reference}.
+     *
+     * @param model architecture model to search
+     * @param appId owning application identifier
+     * @param reference JNDI name or datasource name to match
+     * @return the matching datasource, or {@code null} if none is registered
+     */
     private static DataSourceInfo findDataSource(ArchitectureModel model, AppId appId, String reference) {
         String normalized = normalizeJndi(reference);
         return model.dataSources.stream()
@@ -308,11 +380,25 @@ public class PersistenceTopologyExtractor {
                 .orElse(null);
     }
 
+    /**
+     * Replaces any existing persistence unit with the same id and adds {@code candidate}.
+     *
+     * @param model architecture model to update
+     * @param candidate persistence unit to insert
+     */
     private static void upsertPersistenceUnit(ArchitectureModel model, PersistenceUnitInfo candidate) {
         model.persistenceUnits.removeIf(existing -> candidate.id.equals(existing.id));
         model.persistenceUnits.add(candidate);
     }
 
+    /**
+     * Merges {@code candidate} into any existing datasource found for the same app and JNDI
+     * name/name (filling only the fields the existing record lacks, and unioning aliases), or
+     * adds it as a new datasource if none matches.
+     *
+     * @param model architecture model to update
+     * @param candidate datasource to insert or merge
+     */
     private static void upsertDataSource(ArchitectureModel model, DataSourceInfo candidate) {
         DataSourceInfo existing =
                 findDataSource(model, candidate.appId, firstNonBlank(candidate.jndiName, candidate.name));
@@ -365,6 +451,13 @@ public class PersistenceTopologyExtractor {
         model.dataSourceUsages.add(usage);
     }
 
+    /**
+     * Collects every persistence/resource-ref/WildFly descriptor file under the module's
+     * resource roots and module root (search depth 8, generated directories excluded).
+     *
+     * @param module build module to search
+     * @return matching descriptor files, sorted
+     */
     private static List<Path> descriptorFiles(BuildModule module) {
         Set<Path> files = new LinkedHashSet<>();
         for (File resourceRoot : module.resourceRoots()) {
@@ -377,6 +470,15 @@ public class PersistenceTopologyExtractor {
                 .toList();
     }
 
+    /**
+     * Recursively adds every regular file under {@code root} (up to {@code maxDepth}) to
+     * {@code files}, skipping build/VCS output directories. Missing or unreadable roots are
+     * silently ignored.
+     *
+     * @param root directory to search; a no-op if it isn't a directory
+     * @param maxDepth maximum directory depth to descend
+     * @param files accumulator collection
+     */
     private static void collectFiles(Path root, int maxDepth, Set<Path> files) {
         if (!Files.isDirectory(root)) return;
         try (var paths = Files.find(root, maxDepth, (path, attrs) -> attrs.isRegularFile())) {
@@ -385,6 +487,13 @@ public class PersistenceTopologyExtractor {
         }
     }
 
+    /**
+     * Returns true if any path segment is a build-output or VCS directory
+     * ({@code target}, {@code build}, {@code bin}, or {@code .git}).
+     *
+     * @param path path to check
+     * @return true if the path should be excluded from descriptor discovery
+     */
     private static boolean isGeneratedPath(Path path) {
         for (Path part : path) {
             String value = part.toString();
@@ -395,24 +504,60 @@ public class PersistenceTopologyExtractor {
         return false;
     }
 
+    /**
+     * Returns true if the file is a persistence, resource-ref, or WildFly datasource descriptor
+     * this extractor knows how to parse.
+     *
+     * @param path candidate file path
+     * @return true if the file should be parsed
+     */
     private static boolean isRelevantDescriptor(Path path) {
         return isPersistenceXml(path) || isResourceReferenceDescriptor(path) || isWildFlyDescriptor(path);
     }
 
+    /**
+     * Returns true if the file is named {@code persistence.xml} (case-insensitive).
+     *
+     * @param path candidate file path
+     * @return true if the file is a JPA persistence descriptor
+     */
     private static boolean isPersistenceXml(Path path) {
         return "persistence.xml".equalsIgnoreCase(fileName(path));
     }
 
+    /**
+     * Returns true if the file is a Java EE deployment descriptor that may declare
+     * {@code <resource-ref>} elements ({@code web.xml}, {@code ejb-jar.xml}, or
+     * {@code application.xml}).
+     *
+     * @param path candidate file path
+     * @return true if the file should be scanned for resource references
+     */
     private static boolean isResourceReferenceDescriptor(Path path) {
         String name = fileName(path).toLowerCase(Locale.ROOT);
         return "web.xml".equals(name) || "ejb-jar.xml".equals(name) || "application.xml".equals(name);
     }
 
+    /**
+     * Returns true if the file is a WildFly server or standalone datasource descriptor
+     * ({@code standalone.xml}, {@code domain.xml}, or a name ending in {@code -ds.xml}).
+     *
+     * @param path candidate file path
+     * @return true if the file should be scanned for WildFly datasources
+     */
     private static boolean isWildFlyDescriptor(Path path) {
         String name = fileName(path).toLowerCase(Locale.ROOT);
         return "standalone.xml".equals(name) || "domain.xml".equals(name) || name.endsWith("-ds.xml");
     }
 
+    /**
+     * Finds the module's Spring Boot configuration files
+     * ({@code application.properties}/{@code .yml}/{@code .yaml}) directly under its resource
+     * roots.
+     *
+     * @param module build module to search
+     * @return existing config files, sorted
+     */
     private static List<Path> springConfigFiles(BuildModule module) {
         Set<Path> result = new LinkedHashSet<>();
         for (File root : module.resourceRoots()) {
@@ -424,6 +569,14 @@ public class PersistenceTopologyExtractor {
         return result.stream().sorted().toList();
     }
 
+    /**
+     * Reads the {@code spring.datasource.*} entries from a properties or YAML config file,
+     * excluding any key {@link SecretKeyFilter} flags as secret. Delegates to
+     * {@link #readSimpleYaml} for non-{@code .properties} files.
+     *
+     * @param path config file path
+     * @return matching key/value pairs, or an empty map if the file is unreadable
+     */
     private static Map<String, String> readSpringValues(Path path) {
         if (!fileName(path).endsWith(".properties")) {
             return readSimpleYaml(path);
@@ -443,6 +596,15 @@ public class PersistenceTopologyExtractor {
         return result;
     }
 
+    /**
+     * Minimal indentation-based YAML reader (no library dependency) that flattens nested maps
+     * into dotted keys and returns only the {@code spring.datasource.*} entries that
+     * {@link SecretKeyFilter} doesn't flag as secret. Comments, blank lines, and list syntax are
+     * not supported.
+     *
+     * @param path YAML file path
+     * @return matching dotted key/value pairs, or an empty map if the file is unreadable
+     */
     private static Map<String, String> readSimpleYaml(Path path) {
         Map<String, String> result = new LinkedHashMap<>();
         try {
@@ -471,6 +633,13 @@ public class PersistenceTopologyExtractor {
         return result;
     }
 
+    /**
+     * Parses an XML file with DOCTYPE declarations and external entities disabled (XXE-safe).
+     *
+     * @param path XML file path
+     * @return the parsed document, or {@code null} if the file is missing, malformed, or
+     *     otherwise unreadable
+     */
     private static Document parseXml(Path path) {
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
@@ -488,11 +657,26 @@ public class PersistenceTopologyExtractor {
         }
     }
 
+    /**
+     * Returns the file name component of {@code path}.
+     *
+     * @param path path to inspect, may be {@code null}
+     * @return the file name, or {@code ""} if {@code path} is {@code null} or has none
+     */
     private static String fileName(Path path) {
         Path fileName = path != null ? path.getFileName() : null;
         return fileName != null ? fileName.toString() : "";
     }
 
+    /**
+     * Finds all descendant elements named {@code localName}, first trying namespace-agnostic
+     * lookup and falling back to a plain-tag-name lookup if that finds nothing (for documents
+     * without a namespace).
+     *
+     * @param root element to search under
+     * @param localName local (namespace-stripped) element name to match
+     * @return matching descendant elements, in document order
+     */
     private static List<Element> descendants(Element root, String localName) {
         List<Element> result = new ArrayList<>();
         NodeList all = root.getElementsByTagNameNS("*", localName);
@@ -508,6 +692,14 @@ public class PersistenceTopologyExtractor {
         return result;
     }
 
+    /**
+     * Returns the trimmed, non-blank text content of every direct child element named
+     * {@code localName}.
+     *
+     * @param parent element whose direct children are scanned
+     * @param localName local element name to match
+     * @return matching child text values, in document order
+     */
     private static List<String> childTexts(Element parent, String localName) {
         List<String> result = new ArrayList<>();
         for (Node child = parent.getFirstChild(); child != null; child = child.getNextSibling()) {
@@ -519,10 +711,25 @@ public class PersistenceTopologyExtractor {
         return result;
     }
 
+    /**
+     * Returns the text of the first direct child element named {@code localName}.
+     *
+     * @param parent element whose direct children are scanned
+     * @param localName local element name to match
+     * @return the first matching child's text, or {@code null} if there is none
+     */
     private static String childText(Element parent, String localName) {
         return childTexts(parent, localName).stream().findFirst().orElse(null);
     }
 
+    /**
+     * Finds the connection URL of an XA datasource, stored as an
+     * {@code <xa-datasource-property name="url">} element rather than a direct
+     * {@code <connection-url>}.
+     *
+     * @param element {@code <xa-datasource>} element
+     * @return the URL property's text, or {@code null} if not present
+     */
     private static String xaUrl(Element element) {
         for (Element property : descendants(element, "xa-datasource-property")) {
             if ("url".equalsIgnoreCase(attribute(property, "name"))) {
@@ -532,11 +739,25 @@ public class PersistenceTopologyExtractor {
         return null;
     }
 
+    /**
+     * Returns a trimmed XML attribute value.
+     *
+     * @param element element to read
+     * @param name attribute name
+     * @return the trimmed value, or {@code null} if absent or blank
+     */
     private static String attribute(Element element, String name) {
         String value = element.getAttribute(name);
         return blank(value) ? null : value.strip();
     }
 
+    /**
+     * Returns an element's local (namespace-stripped) tag name, falling back to stripping any
+     * {@code prefix:} from the raw tag name when {@link Element#getLocalName()} is unavailable.
+     *
+     * @param element element to inspect
+     * @return the local element name
+     */
     private static String localName(Element element) {
         if (element.getLocalName() != null) return element.getLocalName();
         String name = element.getTagName();
@@ -544,6 +765,14 @@ public class PersistenceTopologyExtractor {
         return colon >= 0 ? name.substring(colon + 1) : name;
     }
 
+    /**
+     * Reads an annotation attribute's value as a plain string, unquoting it if Spoon couldn't
+     * resolve it to a literal.
+     *
+     * @param annotation annotation to read
+     * @param key attribute name
+     * @return the attribute's string value, or {@code null} if absent or unreadable
+     */
     private static String annotationString(CtAnnotation<?> annotation, String key) {
         try {
             CtExpression<?> expression = annotation.getValue(key);
@@ -557,11 +786,24 @@ public class PersistenceTopologyExtractor {
         }
     }
 
+    /**
+     * Returns true if the field's declared type is (or is simply named) {@code EntityManager}.
+     *
+     * @param field field to check
+     * @return true if the field is an {@code EntityManager}
+     */
     private static boolean isEntityManager(CtField<?> field) {
         String qualified = field.getType() != null ? field.getType().getQualifiedName() : "";
         return qualified.endsWith(".EntityManager") || "EntityManager".equals(qualified);
     }
 
+    /**
+     * Returns true if the annotated element is a field or parameter whose declared type ends
+     * in {@code DataSource}.
+     *
+     * @param element annotated field or parameter
+     * @return true if the element's type looks like a datasource
+     */
     private static boolean isDataSourceElement(CtElement element) {
         if (element instanceof CtField<?> field && field.getType() != null) {
             return field.getType().getQualifiedName().endsWith(".DataSource");
@@ -572,12 +814,29 @@ public class PersistenceTopologyExtractor {
         return false;
     }
 
+    /**
+     * Returns true if the value's lowercased text contains {@code jdbc} or {@code datasource},
+     * used to decide whether an untyped {@code @Resource} lookup/mapped name likely refers to a
+     * datasource.
+     *
+     * @param value candidate lookup or mapped name
+     * @return true if the name looks like a datasource reference
+     */
     private static boolean looksLikeDataSourceName(String value) {
         if (blank(value)) return false;
         String lower = value.toLowerCase(Locale.ROOT);
         return lower.contains("jdbc") || lower.contains("datasource");
     }
 
+    /**
+     * Builds provenance info pointing at a Spoon element's source position, falling back to an
+     * {@code "unknown"} file/line-0 marker if the element has no resolvable position.
+     *
+     * @param element source element the fact was derived from
+     * @param derivedFrom short label for how the fact was derived (e.g. {@code "annotation"})
+     * @param confidence confidence score for the extraction, in {@code [0,1]}
+     * @return the resulting source info
+     */
     private static SourceInfo source(CtElement element, String derivedFrom, double confidence) {
         if (element.getPosition().isValidPosition() && element.getPosition().getFile() != null) {
             return new SourceInfo(
@@ -589,10 +848,26 @@ public class PersistenceTopologyExtractor {
         return new SourceInfo("unknown", 0, derivedFrom, confidence);
     }
 
+    /**
+     * Builds provenance info pointing at a descriptor file (no specific line, since the fact
+     * came from parsing the whole file rather than a single element).
+     *
+     * @param path descriptor file the fact was derived from
+     * @param derivedFrom short label for how the fact was derived (e.g. {@code "persistence.xml"})
+     * @param confidence confidence score for the extraction, in {@code [0,1]}
+     * @return the resulting source info
+     */
     private static SourceInfo source(Path path, String derivedFrom, double confidence) {
         return new SourceInfo(path.toAbsolutePath().normalize().toString(), 0, derivedFrom, confidence);
     }
 
+    /**
+     * Adds each value that contains an unresolved {@code ${...}}/{@code #{...}} placeholder to
+     * the unit's {@code unresolvedPlaceholders} list, skipping duplicates.
+     *
+     * @param unit persistence unit to update
+     * @param values candidate values to check
+     */
     private static void collectPlaceholders(PersistenceUnitInfo unit, String... values) {
         for (String value : values) {
             if (containsPlaceholder(value) && !unit.unresolvedPlaceholders.contains(value)) {
@@ -632,6 +907,14 @@ public class PersistenceTopologyExtractor {
         return value;
     }
 
+    /**
+     * Guesses the database product from a JDBC URL and/or driver class name by substring
+     * matching against a fixed list of known vendor keywords.
+     *
+     * @param rawUrl JDBC connection URL, may be {@code null}
+     * @param driver driver class name, may be {@code null}
+     * @return the matched vendor keyword (e.g. {@code "postgresql"}), or {@code null} if none matched
+     */
     private static String databaseKind(String rawUrl, String driver) {
         String value = (Objects.toString(rawUrl, "") + " " + Objects.toString(driver, "")).toLowerCase(Locale.ROOT);
         for (String kind : List.of("postgresql", "mariadb", "mysql", "oracle", "sqlserver", "db2", "h2")) {
@@ -661,6 +944,12 @@ public class PersistenceTopologyExtractor {
         return "external:database:" + appId.serialize() + ":" + endpoint;
     }
 
+    /**
+     * Returns the first non-blank value.
+     *
+     * @param values candidates, in preference order
+     * @return the first non-blank value, or {@code null} if all are blank
+     */
     private static String firstNonBlank(String... values) {
         for (String value : values) {
             if (!blank(value)) return value;
@@ -668,14 +957,33 @@ public class PersistenceTopologyExtractor {
         return null;
     }
 
+    /**
+     * Returns true if the value is {@code null} or contains only whitespace.
+     *
+     * @param value value to check
+     * @return true if the value is blank
+     */
     private static boolean blank(String value) {
         return value == null || value.isBlank();
     }
 
+    /**
+     * Returns true if the value contains an unresolved Java EE ({@code ${...}}) or Spring
+     * ({@code #{...}}) property placeholder.
+     *
+     * @param value value to check, may be {@code null}
+     * @return true if a placeholder marker is present
+     */
     private static boolean containsPlaceholder(String value) {
         return value != null && (value.contains("${") || value.contains("#{"));
     }
 
+    /**
+     * Strips a single matching pair of surrounding double or single quotes, if present.
+     *
+     * @param value value to unquote, may be {@code null}
+     * @return the unquoted value, or the original value if it isn't quoted
+     */
     private static String unquote(String value) {
         if (value == null || value.length() < 2) return value;
         if ((value.startsWith("\"") && value.endsWith("\"")) || (value.startsWith("'") && value.endsWith("'"))) {

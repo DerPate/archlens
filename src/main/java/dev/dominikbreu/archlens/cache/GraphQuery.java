@@ -50,6 +50,7 @@ public class GraphQuery {
     private static final Comparator<GraphNode> NODE_ORDER =
             Comparator.comparing(GraphNode::label).thenComparing(n -> n.id().serialize());
 
+    /** Sort order for exported edges: by label, then by endpoint ids for stable output. */
     private static final Comparator<GraphEdge> EDGE_ORDER = Comparator.comparing(GraphEdge::label)
             .thenComparing(e -> e.fromId().serialize())
             .thenComparing(e -> e.toId().serialize());
@@ -70,6 +71,7 @@ public class GraphQuery {
     private static final String CONFIDENCE = "confidence";
 
     final GraphStore store;
+    /** Guards all reads of {@link #store} against concurrent re-indexing. */
     private final ReentrantLock lock = new ReentrantLock();
 
     GraphQuery(GraphStore store) {
@@ -878,6 +880,11 @@ public class GraphQuery {
             int persistenceWrites,
             int persistenceReads) {}
 
+    /**
+     * Rebuilds a pipeline {@link Chain} from its {@code chainV} vertex by walking its
+     * {@code HAS_SEGMENT} edges in {@code segmentIndex} order, reconstructing each segment's
+     * path and entrypoint and threading the incoming sink between consecutive segments.
+     */
     private Chain reconstructChain(Vertex chainV) {
         List<Edge> segEdges = new ArrayList<>();
         chainV.edges(Direction.OUT, "HAS_SEGMENT").forEachRemaining(segEdges::add);
@@ -903,6 +910,11 @@ public class GraphQuery {
         return chain;
     }
 
+    /**
+     * Rebuilds a {@link DataFlowPath} from its {@code pathV} vertex, restoring its steps
+     * (via {@code HAS_DATA_STEP} edges, ordered by {@code stepIndex}) and sinks (via
+     * {@code REACHES} edges, ordered by the sink's vertex-id index).
+     */
     private DataFlowPath reconstructPath(Vertex pathV) {
         DataFlowPath path = new DataFlowPath();
         path.id = DataFlowPathId.deserialize(pathV.id().toString());
@@ -920,12 +932,18 @@ public class GraphQuery {
         return path;
     }
 
+    /**
+     * Indexes {@code path}'s already-reconstructed sinks by the synthetic vertex id
+     * ({@code <pathId>:sink:<index>}) they were stored under, so a chain segment's
+     * {@code incomingSinkId} edge property can be resolved back to a {@link DataFlowSink}.
+     */
     private Map<String, DataFlowSink> buildSinksByVertexId(String pathId, DataFlowPath path) {
         Map<String, DataFlowSink> result = new LinkedHashMap<>();
         for (int i = 0; i < path.sinks.size(); i++) result.put(pathId + ":sink:" + i, path.sinks.get(i));
         return result;
     }
 
+    /** Rebuilds a {@link DataFlowSink} by reading its persisted properties off {@code sinkV}. */
     private DataFlowSink reconstructSink(Vertex sinkV) {
         DataFlowSink sink = new DataFlowSink();
         String sinkKindStr = vStr(sinkV, "sinkKind");
@@ -949,6 +967,7 @@ public class GraphQuery {
         return sink;
     }
 
+    /** Rebuilds a {@link DataFlowStep} by reading its persisted properties off {@code stepV}. */
     private DataFlowStep reconstructStep(Vertex stepV) {
         DataFlowStep step = new DataFlowStep();
         step.index = vInt(stepV, "stepIndex");
@@ -959,6 +978,10 @@ public class GraphQuery {
         return step;
     }
 
+    /**
+     * Looks up {@code entrypointId}'s vertex in the store and rebuilds the {@link Entrypoint},
+     * or returns null if no such vertex was indexed.
+     */
     private Entrypoint reconstructEntrypoint(EntrypointId entrypointId) {
         Vertex epV = store.verticesById.get(GraphNodeId.of(entrypointId.serialize()));
         if (epV == null) return null;
@@ -973,16 +996,23 @@ public class GraphQuery {
         return ep;
     }
 
+    /** Reads {@code key} off edge {@code e} as a string, or null if the property is absent. */
     private String eStr(Edge e, String key) {
         var it = e.properties(key);
         return it.hasNext() ? Objects.toString(it.next().value(), null) : null;
     }
 
+    /** Reads {@code key} off edge {@code e} as an int, or 0 if the property is absent. */
     private int eInt(Edge e, String key) {
         var it = e.properties(key);
         return it.hasNext() ? ((Number) it.next().value()).intValue() : 0;
     }
 
+    /**
+     * Extracts the trailing sink index from a synthetic sink vertex id of the form
+     * {@code <pathId>:sink:<index>}, or {@code Integer.MAX_VALUE} if the id has no such suffix
+     * or the suffix isn't a valid integer (sorts malformed ids last).
+     */
     private static int sinkIndexFromVertexId(String vertexId) {
         int i = vertexId.lastIndexOf(":sink:");
         if (i < 0) return Integer.MAX_VALUE;
@@ -1472,6 +1502,11 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Extracts the leading HTTP method from a {@code "METHOD /path"}-style reference string
+     * (e.g. {@code "GET /users"} → {@code "GET"}), or null if {@code ref} is null or doesn't
+     * start with a recognized method.
+     */
     private static String extractHttpMethodFromRef(String ref) {
         if (ref == null) return null;
         String upper = ref.toUpperCase(Locale.ROOT);
@@ -1481,6 +1516,11 @@ public class GraphQuery {
         return null;
     }
 
+    /**
+     * Checks whether an entrypoint's path {@code epPath} matches a reference path {@code ref}
+     * (case-insensitive): exact equality, a literal path-segment prefix, or (when {@code ref}
+     * has no path-variable placeholder) a shared path-variable prefix.
+     */
     private static boolean epPathPrefixMatches(String epPath, String ref) {
         if (epPath == null || ref == null || !ref.startsWith("/")) return false;
         String lp = epPath.toLowerCase(Locale.ROOT);
@@ -1502,10 +1542,12 @@ public class GraphQuery {
         };
     }
 
+    /** Looks up the vertex for {@code nodeId}, or empty if it isn't indexed. */
     private Optional<Vertex> vertex(GraphNodeId nodeId) {
         return Optional.ofNullable(store.verticesById.get(nodeId));
     }
 
+    /** Derives the {@link GraphNodeId} for {@code vertex} from its Gremlin vertex id. */
     private static GraphNodeId nid(Vertex vertex) {
         return GraphNodeId.of(vertex.id().toString());
     }
@@ -1769,26 +1811,34 @@ public class GraphQuery {
         };
     }
 
+    /** Reads {@code key} off vertex {@code v} as a string, or null if the property is absent. */
     private String vStr(Vertex v, String key) {
         var it = v.properties(key);
         return it.hasNext() ? Objects.toString(it.next().value(), null) : null;
     }
 
+    /** Reads {@code key} off vertex {@code v} as an int, or 0 if the property is absent. */
     private int vInt(Vertex v, String key) {
         var it = v.properties(key);
         return it.hasNext() ? ((Number) it.next().value()).intValue() : 0;
     }
 
+    /** Reads {@code key} off vertex {@code v} as a double, or 0.0 if the property is absent. */
     private double vDouble(Vertex v, String key) {
         var it = v.properties(key);
         return it.hasNext() ? ((Number) it.next().value()).doubleValue() : 0.0;
     }
 
+    /** Reads {@code key} off vertex {@code v} as a boolean, or false if the property is absent. */
     private boolean vBool(Vertex v, String key) {
         var it = v.properties(key);
         return it.hasNext() && Boolean.TRUE.equals(it.next().value());
     }
 
+    /**
+     * Reads {@code key} off vertex {@code v} as a boolean, distinguishing "not set" from a
+     * stored {@code false} — unlike {@link #vBool}, which collapses both to false.
+     */
     private Optional<Boolean> vOptionalBool(Vertex v, String key) {
         var it = v.properties(key);
         return it.hasNext()
@@ -1796,6 +1846,10 @@ public class GraphQuery {
                 : Optional.empty();
     }
 
+    /**
+     * Reads {@code key} off vertex {@code v} as an enum constant of {@code cls} (matched
+     * case-insensitively), or null if the property is absent, blank, or doesn't match a constant.
+     */
     private <T extends Enum<T>> T vEnum(Vertex v, String key, Class<T> cls) {
         String s = vStr(v, key);
         if (s == null || s.isBlank()) return null;
@@ -1806,31 +1860,48 @@ public class GraphQuery {
         }
     }
 
+    /**
+     * Reads {@code key} off vertex {@code v} as a comma-split list of strings, or an empty
+     * list if the property is absent or blank.
+     */
     private List<String> vList(Vertex v, String key) {
         String s = vStr(v, key);
         if (s == null || s.isBlank()) return List.of();
         return List.of(s.split(","));
     }
 
+    /** Reads {@code key} off vertex {@code v} as a {@link ComponentId}, or null if absent/blank. */
     private ComponentId vComponentId(Vertex v, String key) {
         String s = vStr(v, key);
         return s != null && !s.isBlank() ? ComponentId.of(s) : null;
     }
 
+    /**
+     * Rebuilds a {@link SourceInfo} from the {@code sourceFile}/{@code sourceLine}/
+     * {@code derivedFrom}/{@code confidence} properties on vertex {@code v}, or null if no
+     * source file was recorded.
+     */
     private SourceInfo vSource(Vertex v) {
         String file = vStr(v, SOURCE_FILE);
         if (file == null) return null;
         return new SourceInfo(file, vInt(v, SOURCE_LINE), vStr(v, DERIVED_FROM), vDouble(v, CONFIDENCE));
     }
 
+    /** Merges {@code source}'s normalized evidence fields into an outgoing properties map. */
     private static void putEvidenceProperties(Map<String, Object> properties, SourceInfo source) {
         properties.putAll(EvidenceNormalizer.fromSource(source));
     }
 
+    /** Converts a Gremlin {@code edge} into its exported {@link GraphEdge} representation. */
     private GraphEdge toEdge(Edge edge) {
         return new GraphEdge(nid(edge.outVertex()), nid(edge.inVertex()), edge.label(), properties(edge));
     }
 
+    /**
+     * Converts a Gremlin traversal {@code path} into a {@link GraphPath}, converting each
+     * visited vertex to a {@link GraphNode} and collecting the labels of edges traversed
+     * between them.
+     */
     private GraphPath pathToGraphPath(Path path) {
         List<GraphNode> nodes = new ArrayList<>();
         List<String> edgeLabels = new ArrayList<>();
@@ -1841,20 +1912,27 @@ public class GraphQuery {
         return new GraphPath(nodes, edgeLabels);
     }
 
+    /** Copies all properties of a Gremlin {@code element} (vertex or edge) into a plain map. */
     private Map<String, Object> properties(org.apache.tinkerpop.gremlin.structure.Element element) {
         Map<String, Object> props = new LinkedHashMap<>();
         element.properties().forEachRemaining(property -> props.put(property.key(), property.value()));
         return props;
     }
 
+    /** Trims {@code value}, or returns null if it is null/blank. */
     private static String normalizeBlank(String value) {
         return StringUtils.isBlank(value) ? null : value.trim();
     }
 
+    /** Clamps a caller-supplied limit to [1, 100], defaulting non-positive values to 25. */
     private static int normalizeLimit(int limit) {
         return Math.clamp(limit <= 0 ? 25 : limit, 1, 100);
     }
 
+    /**
+     * Clamps a caller-supplied limit for {@link #findNodes} to [1, 50000], treating
+     * non-positive values as "unlimited" ({@code Long.MAX_VALUE}).
+     */
     private static long normalizeFindNodesLimit(int limit) {
         return limit <= 0 ? Long.MAX_VALUE : Math.clamp(limit, 1, 50_000);
     }
@@ -1869,6 +1947,12 @@ public class GraphQuery {
         return Math.clamp(limit <= 0 ? 25 : limit, 1, 50_000);
     }
 
+    /**
+     * Parses a caller-supplied filter value into a Gremlin predicate: a leading
+     * {@code <=}, {@code >=}, {@code <}, or {@code >} plus a number yields a numeric
+     * comparison; anything else (or a comparison that fails to parse as a number) falls back
+     * to a case-insensitive substring match. Returns null if {@code filterValue} is blank.
+     */
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static P<Object> toGremlinPredicate(String filterValue) {
         if (StringUtils.isBlank(filterValue)) return null;
@@ -1972,16 +2056,29 @@ public class GraphQuery {
                     DataFlowStepNode,
                     PipelineChainNode,
                     UnknownNode {
+        /** The node's stable graph id. */
         GraphNodeId id();
 
+        /** The node's display name (the domain object's own name, not a graph label). */
         String name();
 
+        /** The vertex label this node was materialized from (e.g. {@code "Component"}). */
         String label();
 
+        /** The node's type-specific attributes, exposed to tools/renderers as a flat map. */
         Map<String, Object> properties();
 
+        /**
+         * Returns whether this node satisfies a free-text search {@code query}, matched
+         * case-insensitively against the node's id and its most relevant type-specific fields.
+         */
         boolean matches(String query);
 
+        /**
+         * Builds a properties map from alternating key/value pairs, dropping any pair whose
+         * value is null or (once stringified) blank. Used by {@code properties()} overrides to
+         * assemble their type-specific attribute map without hand-rolled null checks.
+         */
         private static Map<String, Object> propsOf(Object... keysAndValues) {
             Map<String, Object> map = new LinkedHashMap<>();
             for (int i = 0; i + 1 < keysAndValues.length; i += 2) {
@@ -1993,6 +2090,10 @@ public class GraphQuery {
             return map;
         }
 
+        /**
+         * Case-insensitive substring test used by {@code matches()} overrides: true if
+         * {@code value} is non-null and contains {@code query}.
+         */
         private static boolean q(String query, String value) {
             return value != null && value.toLowerCase(Locale.ROOT).contains(query.toLowerCase(Locale.ROOT));
         }
@@ -2018,11 +2119,13 @@ public class GraphQuery {
             String rootPath,
             AppId parentAppId)
             implements GraphNode {
+        /** Vertex label: {@code "Application"}. */
         @Override
         public String label() {
             return "Application";
         }
 
+        /** Exposes technology, packaging type, role, root path, and parent app id. */
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
@@ -2038,6 +2141,7 @@ public class GraphQuery {
                     parentAppId != null ? parentAppId.serialize() : null);
         }
 
+        /** Matches by id, name, technology, or role. */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -2101,11 +2205,13 @@ public class GraphQuery {
             String agentCategory,
             String classificationEvidence)
             implements GraphNode {
+        /** Vertex label: {@code "Component"}. */
         @Override
         public String label() {
             return "Component";
         }
 
+        /** Exposes this component's classification, metrics, and source evidence. */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -2139,6 +2245,7 @@ public class GraphQuery {
             return m;
         }
 
+        /** Matches by id, name, qualified name, technology, type, module, or role/category fields. */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -2189,11 +2296,13 @@ public class GraphQuery {
             ComponentId componentId,
             SourceInfo source)
             implements GraphNode {
+        /** Vertex label: {@code "Entrypoint"}. */
         @Override
         public String label() {
             return "Entrypoint";
         }
 
+        /** Exposes trigger type, HTTP/messaging routing fields, parameters, and source evidence. */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -2216,6 +2325,7 @@ public class GraphQuery {
             return m;
         }
 
+        /** Matches by id, name, path, channel, topic, or trigger type. */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -2255,11 +2365,13 @@ public class GraphQuery {
             String externalServiceName,
             SourceInfo source)
             implements GraphNode {
+        /** Vertex label: {@code "Interface"}. */
         @Override
         public String label() {
             return "Interface";
         }
 
+        /** Exposes interface type, path, owning component/module, technology, and messaging fields. */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> properties = GraphNode.propsOf(
@@ -2285,6 +2397,7 @@ public class GraphQuery {
             return properties;
         }
 
+        /** Matches by id, name, path, or interface type. */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -2305,11 +2418,13 @@ public class GraphQuery {
      */
     public record ContainerNode(GraphNodeId id, String name, AppId appId, String technology, String derivedFrom)
             implements GraphNode {
+        /** Vertex label: {@code "Container"}. */
         @Override
         public String label() {
             return "Container";
         }
 
+        /** Exposes owning app id, technology, and how the container was inferred. */
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
@@ -2321,6 +2436,7 @@ public class GraphQuery {
                     derivedFrom);
         }
 
+        /** Matches by id, name, or technology. */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name) || GraphNode.q(query, technology);
@@ -2348,11 +2464,13 @@ public class GraphQuery {
             List<String> roles,
             List<String> hosts)
             implements GraphNode {
+        /** Vertex label: {@code "Deployment"}. */
         @Override
         public String label() {
             return "Deployment";
         }
 
+        /** Exposes deployment type, ports, dependencies, roles, and hosts as comma-joined lists. */
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
@@ -2370,6 +2488,7 @@ public class GraphQuery {
                     hosts.isEmpty() ? null : String.join(",", hosts));
         }
 
+        /** Matches by id, name, or deployment type. */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name) || GraphNode.q(query, type);
@@ -2387,11 +2506,13 @@ public class GraphQuery {
      */
     public record ExternalSystemNode(GraphNodeId id, String name, String kind, String technology, SourceInfo source)
             implements GraphNode {
+        /** Vertex label: {@code "ExternalSystem"}. */
         @Override
         public String label() {
             return "ExternalSystem";
         }
 
+        /** Exposes external system kind, technology, and source evidence. */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> properties = GraphNode.propsOf(
@@ -2400,6 +2521,7 @@ public class GraphQuery {
             return properties;
         }
 
+        /** Matches by id, name, kind, or technology. */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -2431,11 +2553,13 @@ public class GraphQuery {
             String sourceFile,
             SourceInfo source)
             implements GraphNode {
+        /** Vertex label: {@code "ConfigProperty"}. */
         @Override
         public String label() {
             return "ConfigProperty";
         }
 
+        /** Exposes key, resolved value, resolution state, owning app, source file, and evidence. */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> properties = GraphNode.propsOf(
@@ -2453,6 +2577,7 @@ public class GraphQuery {
             return properties;
         }
 
+        /** Matches by id, key, or value. */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize()) || GraphNode.q(query, key) || GraphNode.q(query, value);
@@ -2489,11 +2614,13 @@ public class GraphQuery {
             boolean entrypointReachable,
             SourceInfo source)
             implements GraphNode {
+        /** Vertex label: {@code "PersistenceUnit"}. */
         @Override
         public String label() {
             return "PersistenceUnit";
         }
 
+        /** Exposes provider, transaction type, datasource bindings, managed classes, and evidence. */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> properties = GraphNode.propsOf(
@@ -2519,6 +2646,7 @@ public class GraphQuery {
             return properties;
         }
 
+        /** Matches by id, name, provider, transaction type, JTA/non-JTA datasource, or managed class. */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -2561,11 +2689,13 @@ public class GraphQuery {
             boolean entrypointReachable,
             SourceInfo source)
             implements GraphNode {
+        /** Vertex label: {@code "DataSource"}. */
         @Override
         public String label() {
             return "DataSource";
         }
 
+        /** Exposes JNDI/aliases, driver, endpoint, database kind, resolution state, and evidence. */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> properties = GraphNode.propsOf(
@@ -2591,6 +2721,7 @@ public class GraphQuery {
             return properties;
         }
 
+        /** Matches by id, name, JNDI name, driver, endpoint, database kind, or alias. */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -2631,11 +2762,13 @@ public class GraphQuery {
             String persistenceUnitName,
             SourceInfo source)
             implements GraphNode {
+        /** Vertex label: {@code "PersistenceOperation"}. */
         @Override
         public String label() {
             return "PersistenceOperation";
         }
 
+        /** Exposes the enclosing method, the EntityManager operation, entity type, and evidence. */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> p = GraphNode.propsOf(
@@ -2659,6 +2792,7 @@ public class GraphQuery {
             return p;
         }
 
+        /** Matches by id, method name, operation, entity type, argument name, or persistence unit. */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -2691,11 +2825,13 @@ public class GraphQuery {
             boolean entrypointReachable,
             SourceInfo source)
             implements GraphNode {
+        /** Vertex label: {@code "TransactionBoundary"}. */
         @Override
         public String label() {
             return "TransactionBoundary";
         }
 
+        /** Exposes the framework/policy classification, isolation, rollback rules, and limitations. */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> p = GraphNode.propsOf(
@@ -2733,6 +2869,7 @@ public class GraphQuery {
             return p;
         }
 
+        /** Matches by id, method name, framework, policy, or declaration level. */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -2753,17 +2890,20 @@ public class GraphQuery {
      */
     public record RuntimeFlowNode(GraphNodeId id, String name, EntrypointId entrypointId, int stepCount)
             implements GraphNode {
+        /** Vertex label: {@code "RuntimeFlow"}. */
         @Override
         public String label() {
             return "RuntimeFlow";
         }
 
+        /** Exposes the originating entrypoint id and the number of steps in the flow. */
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
                     "entrypointId", entrypointId != null ? entrypointId.serialize() : null, "stepCount", stepCount);
         }
 
+        /** Matches by id, name, or originating entrypoint id. */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -2816,11 +2956,13 @@ public class GraphQuery {
             this(id, name, flowId, order, componentId, componentType, via, null, null, null, null, 0.0, null);
         }
 
+        /** Vertex label: {@code "RuntimeFlowStep"}. */
         @Override
         public String label() {
             return "RuntimeFlowStep";
         }
 
+        /** Exposes step order, component/via/method, and the inferred transaction transition. */
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
@@ -2848,6 +2990,7 @@ public class GraphQuery {
                     transactionLimitations);
         }
 
+        /** Matches by id, name, or component type. */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name) || GraphNode.q(query, componentType);
@@ -2868,11 +3011,13 @@ public class GraphQuery {
     public record DataFlowPathNode(
             GraphNodeId id, String name, EntrypointId entrypointId, String trackedParam, int stepCount, int sinkCount)
             implements GraphNode {
+        /** Vertex label: {@code "DataFlowPath"}. */
         @Override
         public String label() {
             return "DataFlowPath";
         }
 
+        /** Exposes the originating entrypoint id, tracked parameter, step count, and sink count. */
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
@@ -2886,6 +3031,7 @@ public class GraphQuery {
                     sinkCount);
         }
 
+        /** Matches by id or tracked parameter name. */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize()) || GraphNode.q(query, trackedParam);
@@ -2937,11 +3083,13 @@ public class GraphQuery {
             String calleeQualifiedName,
             SourceInfo source)
             implements GraphNode {
+        /** Vertex label: {@code "DataFlowSink"}. */
         @Override
         public String label() {
             return "DataFlowSink";
         }
 
+        /** Exposes the sink kind and every terminal-write field relevant to it (persistence, messaging, etc). */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> properties = GraphNode.propsOf(
@@ -2981,6 +3129,7 @@ public class GraphQuery {
             return properties;
         }
 
+        /** Matches by id, name, sink kind, method, channel, or persistence unit. */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -3020,11 +3169,13 @@ public class GraphQuery {
             String localName,
             SourceInfo source)
             implements GraphNode {
+        /** Vertex label: {@code "DataFlowNode"}. */
         @Override
         public String label() {
             return "DataFlowNode";
         }
 
+        /** Exposes the node's position/kind within its path graph, owning component, and evidence. */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -3040,6 +3191,7 @@ public class GraphQuery {
             return m;
         }
 
+        /** Matches by id, name, path id, flow-node id, node kind, component name, method, or local name. */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -3066,11 +3218,13 @@ public class GraphQuery {
     public record DataFlowBranchNode(
             GraphNodeId id, String name, String pathId, String branchId, String branchKind, SourceInfo source)
             implements GraphNode {
+        /** Vertex label: {@code "DataFlowBranch"}. */
         @Override
         public String label() {
             return "DataFlowBranch";
         }
 
+        /** Exposes the owning path id, branch id, branch kind, and evidence. */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -3082,6 +3236,7 @@ public class GraphQuery {
             return m;
         }
 
+        /** Matches by id, name, path id, branch id, or branch kind. */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -3112,11 +3267,13 @@ public class GraphQuery {
             String armLabel,
             String entryNodeId)
             implements GraphNode {
+        /** Vertex label: {@code "DataFlowBranchArm"}. */
         @Override
         public String label() {
             return "DataFlowBranchArm";
         }
 
+        /** Exposes the owning path/branch ids, arm id, arm label, and its entry node id. */
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
@@ -3132,6 +3289,7 @@ public class GraphQuery {
                     entryNodeId);
         }
 
+        /** Matches by id, name, path/branch/arm ids, arm label, or entry node id. */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -3166,11 +3324,13 @@ public class GraphQuery {
             String method,
             String localName)
             implements GraphNode {
+        /** Vertex label: {@code "DataFlowStep"}. */
         @Override
         public String label() {
             return "DataFlowStep";
         }
 
+        /** Exposes the owning path id, step index, executing component, method, and local name. */
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
@@ -3188,6 +3348,7 @@ public class GraphQuery {
                     localName);
         }
 
+        /** Matches by id, name, path id, component name, or method. */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -3210,11 +3371,13 @@ public class GraphQuery {
     public record PipelineChainNode(
             GraphNodeId id, String name, int segmentCount, String rootEntrypointId, List<String> linkKinds)
             implements GraphNode {
+        /** Vertex label: {@code "PipelineChain"}. */
         @Override
         public String label() {
             return "PipelineChain";
         }
 
+        /** Exposes segment count, the root entrypoint id, and the kinds of links joining segments. */
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
@@ -3226,6 +3389,7 @@ public class GraphQuery {
                     linkKinds.isEmpty() ? null : String.join(",", linkKinds));
         }
 
+        /** Matches by id or root entrypoint id. */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize()) || GraphNode.q(query, rootEntrypointId);
@@ -3242,11 +3406,13 @@ public class GraphQuery {
      */
     public record UnknownNode(GraphNodeId id, String label, String name, Map<String, Object> rawProperties)
             implements GraphNode {
+        /** Returns {@code rawProperties} unchanged — there's no typed schema to project. */
         @Override
         public Map<String, Object> properties() {
             return rawProperties;
         }
 
+        /** Matches by id, raw label, name, or any raw property value. */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
