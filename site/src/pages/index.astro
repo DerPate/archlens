@@ -190,6 +190,35 @@ archlens&gt; answer_architecture_question question="Where is order data stored?"
     </div>
   </section>
 
+  <section id="workflow-pack" class="section workflow-pack-section">
+    <div class="container split-layout">
+      <div>
+        <span class="section-kicker">Workflow pack</span>
+        <h2 class="section-title">A guided skill for "understand this Java system."</h2>
+        <p class="section-copy">
+          The <a href="https://github.com/DerPate/archlens/tree/main/skills/archlens-understand" target="_blank" rel="noopener noreferrer">archlens-understand</a> skill
+          is a portable, host-neutral workflow pack that sequences the MCP tools into a coherent architecture tour: index,
+          discover entrypoints and components, trace runtime and data flows, then render or export. It ships with small
+          adapters for Claude, OpenAI/Codex, and Copilot, and is optional — the server and tools work directly from any
+          MCP-capable client without it.
+        </p>
+      </div>
+      <div class="terminal-card" aria-label="archlens-understand skill layout">
+        <div class="terminal-top">
+          <span></span><span></span><span></span>
+          <strong>skills/archlens-understand</strong>
+        </div>
+        <pre><code>SKILL.md
+references/
+  mcp-tool-map.md
+agents/
+  claude.md
+  openai.yaml
+  copilot.md</code></pre>
+      </div>
+    </div>
+  </section>
+
   <section id="install" class="section install-section">
     <div class="container install-grid">
       <div>
@@ -256,7 +285,7 @@ mvn clean package</code></pre>
     <div class="container">
       <div class="section-heading">
         <span class="section-kicker">Tools</span>
-        <h2 class="section-title">23 typed tools. One indexed graph.</h2>
+        <h2 class="section-title">24 typed tools. One indexed graph.</h2>
       </div>
 
       <div class="tool-groups">
@@ -332,6 +361,12 @@ mvn clean package</code></pre>
           <a href="/tools/answer-architecture-question" class="tool-card-link">Deep dive →</a>
         </article>
 
+        <article class="tool-card tool-card--query">
+          <span class="tool-card-phase">Query</span>
+          <span class="tool-card-name">compile_architecture_question_to_okf</span>
+          <p class="tool-card-desc">Compile a reviewed answer_architecture_question result into a project-local OKF investigation concept.</p>
+        </article>
+
         <article class="tool-card tool-card--query tool-card--promoted">
           <span class="tool-card-phase">Query</span>
           <span class="tool-card-name">render_pipeline</span>
@@ -353,13 +388,13 @@ mvn clean package</code></pre>
         <article class="tool-card tool-card--render">
           <span class="tool-card-phase">Render</span>
           <span class="tool-card-name">call_flow</span>
-          <p class="tool-card-desc">Return the runtime call flow for an entrypoint as ordered steps and a Mermaid flowchart.</p>
+          <p class="tool-card-desc">Return the runtime call flow for an entrypoint as ordered steps and a Mermaid sequence diagram.</p>
         </article>
 
         <article class="tool-card tool-card--render">
           <span class="tool-card-phase">Render</span>
           <span class="tool-card-name">render_use_case_timeline</span>
-          <p class="tool-card-desc">Render a Mermaid gantt chart comparing execution depth across use cases.</p>
+          <p class="tool-card-desc">Render a Mermaid flowchart, one left-to-right chain per use case, for comparing execution depth.</p>
         </article>
 
         <article class="tool-card tool-card--render">
