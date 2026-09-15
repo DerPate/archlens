@@ -1,10 +1,14 @@
 # Pre-JStachio renderer comparison
 
 Verified on 2026-09-15 against pre-migration commit `ca5e37f`, the parent of
-JStachio migration commit `a19a8a3`. The baseline was built from a separate Git
-archive using `mvn -q clean package` (851 tests passed). The current jar was
-clean-built by `scripts/self-doc.py` with the Mermaid escaping fixes (859 tests
-passed).
+JStachio migration commit `a19a8a3`. The baseline was built from a separate git
+worktree using `mvn -q clean package` (851 tests passed). The current jar was
+clean-built from this branch (858 tests passed), after the Mermaid C4-keyword
+escaping was narrowed to fix an id-collision bug found in review (it now
+splits only the five literal Mermaid C4 keywords instead of every
+digit-then-capital boundary). Re-running the comparison after that change
+reproduced the identical 81/33/3 split recorded below, confirming the
+narrower escaping still fully addresses the case it was written for.
 
 Both jars indexed **identical current source paths**, rather than comparing
 different historical versions of the projects. Inputs were the Quarkus, Java EE,
