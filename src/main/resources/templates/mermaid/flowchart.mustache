@@ -8,7 +8,7 @@ flowchart {{direction}}
 {{indent}}{{from}}{{#labeled}}{{#conditional}} -.->|{{/conditional}}{{^conditional}}{{#async}} -.->|{{/async}}{{^async}} -->|{{/async}}{{/conditional}}{{#quotedLabel}}"{{label}}"{{/quotedLabel}}{{^quotedLabel}}{{label}}{{/quotedLabel}}| {{to}}{{/labeled}}{{^labeled}}{{#conditional}} -.-> {{/conditional}}{{^conditional}} --> {{/conditional}}{{to}}{{/labeled}}
 {{/edge}}
 {{#subgraph}}
-{{indent}}subgraph {{id}}["{{label}}"]
+{{indent}}subgraph {{id}} ["{{label}}"]
 {{/subgraph}}
 {{#directionStatement}}
 {{indent}}direction {{value}}

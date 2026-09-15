@@ -88,7 +88,7 @@ class ArchitectureViewMermaidRendererTest {
         String mermaid = new ArchitectureViewMermaidRenderer().render(projection);
 
         assertThat(mermaid)
-                .contains("subgraph scope[\"{{scope}} 'quoted' - pipe\"]")
+                .contains("subgraph scope [\"{{scope}} 'quoted' - pipe\"]")
                 .contains("n0(\"{{node}}\\n[service]\")")
                 .contains("n0 -->|{{edge}} - 'quoted'| n0")
                 .endsWith("%% Warnings:\n%% - {{warning}}\n");
@@ -105,6 +105,6 @@ class ArchitectureViewMermaidRendererTest {
         String mermaid = new ArchitectureViewMermaidRenderer().render(projection);
 
         assertThat(mermaid.substring(mermaid.indexOf("flowchart LR")))
-                .isEqualTo("flowchart LR\n    subgraph scope[\"Empty\"]\n    end\n\n");
+                .isEqualTo("flowchart LR\n    subgraph scope [\"Empty\"]\n    end\n\n");
     }
 }
