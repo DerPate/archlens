@@ -1216,6 +1216,12 @@ Example — pass the prior tool's reviewed `structuredContent` verbatim as `resu
 
 Write Markdown architecture documentation with MCP-generated Mermaid diagrams.
 
+For this repository's checked-in `docs/ARCHITECTURE.md`, run `python3 scripts/self-doc.py`.
+It rebuilds compiled templates and postprocesses large flowcharts into smaller diagrams that
+fit hosted Mermaid text/edge limits, retaining all dependencies. The raw tool export does not
+partition diagrams. Shared Mermaid escaping protects C4 keywords in component names from
+being mistaken for a C4 diagram declaration.
+
 Arguments:
 
 - `outputPath` string, optional. Default `docs/GENERATED_ARCHITECTURE.md`.

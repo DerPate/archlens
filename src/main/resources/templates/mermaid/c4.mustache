@@ -1,0 +1,24 @@
+{{#context}}
+C4Context
+    title System Context
+{{/context}}
+{{#containerDiagram}}
+C4Container
+    title Container Diagram
+{{/containerDiagram}}
+{{#elements}}
+{{#boundaryStart}}
+{{indent}}System_Boundary({{id}}, "{{name}}") {
+{{/boundaryStart}}
+{{#boundaryEnd}}
+    }
+{{/boundaryEnd}}
+{{^boundaryStart}}
+{{^boundaryEnd}}
+{{indent}}{{macro}}({{id}}, "{{name}}", "{{technology}}"{{#fourArguments}}, "{{description}}"{{/fourArguments}})
+{{/boundaryEnd}}
+{{/boundaryStart}}
+{{/elements}}
+{{#relations}}
+    Rel({{from}}, {{to}}, "{{label}}")
+{{/relations}}

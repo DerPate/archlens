@@ -1,0 +1,26 @@
+sequenceDiagram
+{{#empty}}
+    actor Client
+    Note over Client: no flow steps found
+{{/empty}}
+{{^empty}}
+    autonumber
+    actor Client
+{{#participantGroups}}
+{{#boxed}}
+    box {{appName}}
+{{/boxed}}
+{{#participants}}
+{{indent}}participant {{pid}} as {{display}}«{{stereotype}}»
+{{/participants}}
+{{#boxed}}
+    end
+{{/boxed}}
+{{/participantGroups}}
+{{#messages}}
+    {{from}}{{#async}}-->>{{/async}}{{^async}}->>{{/async}}{{#activate}}+{{/activate}}{{to}}: {{label}}
+{{/messages}}
+{{#deactivations}}
+    deactivate {{participant}}
+{{/deactivations}}
+{{/empty}}

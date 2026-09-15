@@ -1,5 +1,6 @@
 package dev.dominikbreu.archlens.renderer;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -72,5 +73,38 @@ class ArchitectureViewMermaidRendererTest {
 
         assertTrue(mermaid.contains("[]"));
         assertFalse(mermaid.contains("[null]"));
+    }
+
+    @Test
+    void preservesTemplateLookingInputAndDocumentOrdering() {
+        ArchitectureViewProjection projection = new ArchitectureViewProjection(
+                ArchitectureViewKind.COMPONENT,
+                "{{scope}} \"quoted\" | pipe",
+                "app:demo",
+                List.of(new ArchitectureViewProjection.Node("node", "{{node}}", "service", Map.of())),
+                List.of(new ArchitectureViewProjection.Edge("node", "node", "CALLS", "{{edge}} | \"quoted\"")),
+                List.of("{{warning}}"));
+
+        String mermaid = new ArchitectureViewMermaidRenderer().render(projection);
+
+        assertThat(mermaid)
+                .contains("subgraph scope [\"{{scope}} 'quoted' - pipe\"]")
+                .contains("n0(\"{{node}}\\n[service]\")")
+                .contains("n0 -->|{{edge}} - 'quoted'| n0")
+                .endsWith("%% Warnings:\n%% - {{warning}}\n");
+        assertThat(mermaid.indexOf("subgraph scope")).isLessThan(mermaid.indexOf("n0(\""));
+        assertThat(mermaid.indexOf("n0 -->|")).isLessThan(mermaid.indexOf("classDef service"));
+        assertThat(mermaid.indexOf("class n0 service")).isLessThan(mermaid.indexOf("%% Warnings:"));
+    }
+
+    @Test
+    void rendersAnEmptyProjectionWithItsEmptyScope() {
+        ArchitectureViewProjection projection = new ArchitectureViewProjection(
+                ArchitectureViewKind.COMPONENT, "Empty", "app:demo", List.of(), List.of(), List.of());
+
+        String mermaid = new ArchitectureViewMermaidRenderer().render(projection);
+
+        assertThat(mermaid.substring(mermaid.indexOf("flowchart LR")))
+                .isEqualTo("flowchart LR\n    subgraph scope [\"Empty\"]\n    end\n\n");
     }
 }

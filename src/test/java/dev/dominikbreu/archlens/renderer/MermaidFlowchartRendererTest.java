@@ -312,6 +312,20 @@ class MermaidFlowchartRendererTest {
     }
 
     @Test
+    void c4SystemLevelPreservesLiteralTemplateInputAndExactLayout() {
+        model.applications.getFirst().name = "{{orders}} \"quoted\"";
+        model.applications.getFirst().technology = "{{quarkus}}";
+        MermaidFlowchartRenderer c4 = new MermaidFlowchartRenderer(MermaidDialect.C4);
+
+        String out = c4.render(GraphQuery.from(model), null, "system");
+
+        assertThat(out)
+                .isEqualTo("C4Context\n"
+                        + "    title System Context\n"
+                        + "    System(app_orders, \"{{orders}} 'quoted'\", \"{{quarkus}} / jar\")\n");
+    }
+
+    @Test
     void c4SystemLevelRendersBrokerAsQueueExt() {
         ExternalSystem kafka = new ExternalSystem();
         kafka.id = "ext:messaging:kafka";
@@ -353,6 +367,68 @@ class MermaidFlowchartRendererTest {
         String out = new MermaidFlowchartRenderer().render(GraphQuery.from(model), null, "system");
         assertThat(out).doesNotContain("C4Context");
         assertThat(out).contains("flowchart TD");
+    }
+
+    @Test
+    void emptyGraphHasNoStatementsAfterTheUniversalHeader() {
+        String out = renderer.render(GraphQuery.from(new ArchitectureModel("empty")), null, "component");
+
+        assertThat(out.substring(out.indexOf("flowchart TD"))).isEqualTo("flowchart TD\n");
+    }
+
+    @Test
+    void nestedModuleGroupsKeepChildrenBeforeTheClosingBoundaryAndStylesAfterIt() {
+        String out = renderer.render(GraphQuery.from(modelWithWarAndModules()), null, "module");
+
+        int boundary = out.indexOf("subgraph app_war_app");
+        int core = out.indexOf("app_core");
+        int util = out.indexOf("app_util");
+        int end = out.indexOf("    end\n", boundary);
+        int styles = out.indexOf("classDef container");
+        assertThat(boundary).isNotNegative();
+        assertThat(boundary).isLessThan(core);
+        assertThat(core).isLessThan(util);
+        assertThat(util).isLessThan(end);
+        assertThat(end).isLessThan(styles);
+    }
+
+    @Test
+    void splitsMermaidC4KeywordsToAvoidMisdetectionAsAC4Diagram() {
+        model.containers.clear();
+        for (String keyword : List.of("C4Container", "C4Component", "C4Dynamic", "C4Deployment")) {
+            String name = "Like" + keyword + "Step";
+            Component component = comp(name, ComponentType.SERVICE, "app:orders", "java");
+            model.components.add(component);
+            model.applications.getFirst().componentIds.add(component.id);
+            model.dependencies.add(dep("Service", name));
+        }
+
+        String out = renderer.render(GraphQuery.from(model), null, "component");
+
+        assertThat(out).contains("flowchart TD");
+        for (String suffix : List.of("Container", "Component", "Dynamic", "Deployment")) {
+            assertThat(out)
+                    .doesNotContain("#67;")
+                    .contains("LikeC4 " + suffix + "Step")
+                    .contains("Service -->|injection| LikeC4_" + suffix + "Step");
+        }
+    }
+
+    @Test
+    void leavesOrdinaryDigitCapitalNamesIntact() {
+        model.containers.clear();
+        for (String name : List.of("Base64Encoder", "OAuth2Client", "S3Bucket", "H2DataSource")) {
+            Component component = comp(name, ComponentType.SERVICE, "app:orders", "java");
+            model.components.add(component);
+            model.applications.getFirst().componentIds.add(component.id);
+            model.dependencies.add(dep("Service", name));
+        }
+
+        String out = renderer.render(GraphQuery.from(model), null, "component");
+
+        for (String name : List.of("Base64Encoder", "OAuth2Client", "S3Bucket", "H2DataSource")) {
+            assertThat(out).contains("(\"" + name + "\\n").contains("Service -->|injection| " + name);
+        }
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
