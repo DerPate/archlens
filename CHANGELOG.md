@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.2.0](https://github.com/DerPate/archlens/compare/archlens-2.1.0...archlens-2.2.0) (2026-09-15)
+
+
+### Features
+
+* **site:** self-host fonts, add workflow-pack section, fix nav hash links ([057aa28](https://github.com/DerPate/archlens/commit/057aa2898b4054f973f69a3360271743678164cc))
+
+
+### Bug Fixes
+
+* refresh npm lockfiles to resolve dependabot alerts ([b93ba42](https://github.com/DerPate/archlens/commit/b93ba42fcac606121c31ede6d63ebce9c659db68))
+
 ## [2.1.0](https://github.com/DerPate/archlens/compare/archlens-2.0.0...archlens-2.1.0) (2026-09-15)
 
 
