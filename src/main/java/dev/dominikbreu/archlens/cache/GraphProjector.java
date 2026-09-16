@@ -58,7 +58,9 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
  */
 class GraphProjector {
 
+    /** Gremlin property keys and stable sink-identifier marker used during projection. */
     private static final String SOURCE = "source";
+
     private static final String TECHNOLOGY = "technology";
     private static final String BROKER = "broker";
     private static final String TOPIC = "topic";
@@ -73,7 +75,9 @@ class GraphProjector {
     private static final String VIA_FIELD = "viaField";
     private static final String VIA_CHANNEL = "viaChannel";
     private static final String CONFIDENCE = "confidence";
+    /** Gremlin relationship labels shared by projection passes. */
     private static final String REL_STARTS_AT = "STARTS_AT";
+
     private static final String REL_DEPENDS_ON = "DEPENDS_ON";
     private static final String REL_WRITES_STATE = "WRITES_STATE";
     private static final String REL_READS_STATE = "READS_STATE";
@@ -149,6 +153,7 @@ class GraphProjector {
         this.store.projected = true;
     }
 
+    /** Projects an application/module as an {@code Application} vertex with its packaging and role metadata. */
     private void addApplication(AppEntry app) {
         Vertex vertex = addVertex(app.id.serialize(), "Application", app.name);
         set(vertex, "kind", "application");
@@ -159,6 +164,7 @@ class GraphProjector {
         set(vertex, "parentAppId", app.parentAppId != null ? app.parentAppId.serialize() : null);
     }
 
+    /** Projects a component as a {@code Component} vertex, indexing it by qualified name, package, module, and stereotypes. */
     private void addComponent(Component component) {
         Vertex vertex = addVertex(component.id.serialize(), "Component", component.name);
         set(vertex, "kind", "component");
@@ -173,6 +179,7 @@ class GraphProjector {
         setSource(vertex, component.source);
     }
 
+    /** Projects an entrypoint as an {@code Entrypoint} vertex, including its trigger metadata and resolved {@link #protocolFor protocol}. */
     private void addEntrypoint(Entrypoint entrypoint) {
         Vertex vertex = addVertex(entrypoint.id.serialize(), "Entrypoint", entrypoint.name);
         set(vertex, "kind", "entrypoint");
@@ -191,6 +198,7 @@ class GraphProjector {
         setSource(vertex, entrypoint.source);
     }
 
+    /** Projects an interface entry (REST client, messaging channel, etc.) as an {@code Interface} vertex. */
     private void addInterface(InterfaceEntry interfaceEntry) {
         Vertex vertex = addVertex(interfaceEntry.id, "Interface", interfaceEntry.name);
         set(vertex, "kind", "interface");
@@ -206,6 +214,7 @@ class GraphProjector {
         setSource(vertex, interfaceEntry.source);
     }
 
+    /** Projects a deployment container as a {@code Container} vertex. */
     private void addContainer(Container container) {
         Vertex vertex = addVertex(container.id, "Container", container.name);
         set(vertex, "kind", "container");
@@ -214,6 +223,7 @@ class GraphProjector {
         set(vertex, DERIVED_FROM, container.derivedFrom);
     }
 
+    /** Projects a deployment entry as a {@code Deployment} vertex, including its ports, hosts, and dependency names. */
     private void addDeployment(DeploymentEntry deployment) {
         Vertex vertex = addVertex(deployment.id, "Deployment", deployment.name);
         set(vertex, "kind", "deployment");
@@ -226,6 +236,7 @@ class GraphProjector {
         set(vertex, "hosts", String.join(",", deployment.hosts));
     }
 
+    /** Projects an external system as an {@code ExternalSystem} vertex. */
     private void addExternalSystem(ExternalSystem externalSystem) {
         Vertex vertex = addVertex(externalSystem.id, "ExternalSystem", externalSystem.name);
         set(vertex, "kind", "externalSystem");
@@ -235,6 +246,7 @@ class GraphProjector {
         setSource(vertex, externalSystem.source);
     }
 
+    /** Projects a configuration property as a {@code ConfigProperty} vertex. */
     private void addConfigProperty(ConfigProperty property) {
         Vertex vertex = addVertex(property.id, "ConfigProperty", property.key);
         set(vertex, "kind", "configProperty");
@@ -246,6 +258,10 @@ class GraphProjector {
         setSource(vertex, property.source);
     }
 
+    /**
+     * Links each {@code ExternalSystem} to the {@code ConfigProperty} that supplies its base URL,
+     * when one can be matched via {@link #findBaseUrlProperty}.
+     */
     private void addConfigurationEdges(ArchitectureModel sourceModel) {
         Map<String, ConfigProperty> propertiesByKey = new LinkedHashMap<>();
         for (ConfigProperty property : sourceModel.configProperties) {
@@ -263,6 +279,10 @@ class GraphProjector {
         }
     }
 
+    /**
+     * Looks up the config property backing an external system's base URL, trying the
+     * REST-client and MP-rest-client key conventions in turn.
+     */
     private static ConfigProperty findBaseUrlProperty(Map<String, ConfigProperty> propertiesByKey, String configKey) {
         for (String candidate : List.of(
                 "quarkus.rest-client." + configKey + ".url",
@@ -275,6 +295,7 @@ class GraphProjector {
         return null;
     }
 
+    /** Projects a JPA persistence unit as a {@code PersistenceUnit} vertex. */
     private void addPersistenceUnit(PersistenceUnitInfo unit) {
         Vertex vertex = addVertex(unit.id, "PersistenceUnit", unit.name);
         set(vertex, "kind", "persistenceUnit");
@@ -289,6 +310,7 @@ class GraphProjector {
         setSource(vertex, unit.source);
     }
 
+    /** Projects a data source declaration as a {@code DataSource} vertex. */
     private void addDataSource(DataSourceInfo dataSource) {
         Vertex vertex = addVertex(dataSource.id, "DataSource", dataSource.name);
         set(vertex, "kind", "dataSource");
@@ -303,6 +325,7 @@ class GraphProjector {
         setSource(vertex, dataSource.source);
     }
 
+    /** Projects a single JPA/EntityManager operation call site as a {@code PersistenceOperation} vertex. */
     private void addPersistenceOperation(PersistenceOperation operation) {
         Vertex vertex = addVertex(operation.id, "PersistenceOperation", operation.operation);
         set(vertex, "kind", "persistenceOperation");
@@ -317,6 +340,7 @@ class GraphProjector {
         setSource(vertex, operation.source);
     }
 
+    /** Projects a method's effective transaction policy as a {@code TransactionBoundary} vertex. */
     private void addTransactionBoundary(TransactionPolicy policy) {
         Vertex vertex = addVertex(policy.id, "TransactionBoundary", policy.methodName);
         set(vertex, "kind", "transactionBoundary");
@@ -337,6 +361,11 @@ class GraphProjector {
         setSource(vertex, policy.source);
     }
 
+    /**
+     * Links persistence operations and transaction policies to their owning component/app and to
+     * each other: persistence-unit usage, operated-on entity, the transaction boundary governing
+     * an operation, and the entrypoint that triggers a transaction policy.
+     */
     private void addMethodPolicyEdges(ArchitectureModel sourceModel) {
         for (PersistenceOperation operation : sourceModel.persistenceOperations) {
             if (operation.componentId != null)
@@ -397,6 +426,11 @@ class GraphProjector {
         }
     }
 
+    /**
+     * Links persistence units to their declaring app, backing data sources, and managed entity
+     * components; links usage sites to the persistence unit/data source they resolve to; and
+     * links data sources with a known endpoint to a synthetic external-database node.
+     */
     private void addPersistenceTopologyEdges(ArchitectureModel sourceModel) {
         for (PersistenceUnitInfo unit : sourceModel.persistenceUnits) {
             if (unit.appId != null) {
@@ -443,6 +477,10 @@ class GraphProjector {
         }
     }
 
+    /**
+     * Resolves the persistence unit a usage site refers to: the sole unit for that app when the
+     * usage names none, otherwise the unit matching the usage's declared unit name.
+     */
     private static PersistenceUnitInfo findPersistenceUnit(ArchitectureModel sourceModel, PersistenceUnitUsage usage) {
         List<PersistenceUnitInfo> candidates = sourceModel.persistenceUnits.stream()
                 .filter(unit -> Objects.equals(unit.appId, usage.appId))
@@ -454,11 +492,16 @@ class GraphProjector {
                 .orElse(null);
     }
 
+    /** Resolves a data source referenced by a persistence unit's JTA/non-JTA data source name, scoped to the unit's app. */
     private static DataSourceInfo findDataSource(
             ArchitectureModel sourceModel, PersistenceUnitInfo unit, String dataSourceName) {
         return findDataSource(sourceModel, unit.appId, dataSourceName);
     }
 
+    /**
+     * Resolves a data source by app and name/JNDI alias, matching after {@link #normalizeJndi}
+     * normalization against the data source's JNDI name, plain name, and aliases.
+     */
     private static DataSourceInfo findDataSource(
             ArchitectureModel sourceModel, dev.dominikbreu.archlens.model.ids.AppId appId, String dataSourceName) {
         if (StringUtils.isBlank(dataSourceName)) return null;
@@ -474,6 +517,10 @@ class GraphProjector {
                 .orElse(null);
     }
 
+    /**
+     * Lowercases and strips a JNDI name of its {@code java:comp/env/}, {@code java:/}, or
+     * {@code java:jboss/} prefix, so data source names can be compared regardless of lookup style.
+     */
     private static String normalizeJndi(String value) {
         String normalized = Objects.toString(value, "").strip().toLowerCase(Locale.ROOT);
         for (String prefix : List.of("java:comp/env/", "java:/", "java:jboss/")) {
@@ -482,6 +529,7 @@ class GraphProjector {
         return normalized;
     }
 
+    /** Projects a recorded runtime flow as a {@code RuntimeFlow} vertex. */
     private void addRuntimeFlow(RuntimeFlow flow) {
         Vertex vertex = addVertex(flow.id, "RuntimeFlow", flow.id);
         set(vertex, "kind", "runtimeFlow");
@@ -489,6 +537,11 @@ class GraphProjector {
         set(vertex, "stepCount", flow.steps.size());
     }
 
+    /**
+     * Projects a runtime flow's steps as {@code RuntimeFlowStep} vertices linked to the flow and
+     * the component they visited, then links consecutive steps belonging to different components
+     * with {@code FLOW_CALLS} edges.
+     */
     private void addRuntimeFlowEdges(RuntimeFlow flow) {
         addEdge(
                 flow.id,
@@ -536,6 +589,7 @@ class GraphProjector {
         }
     }
 
+    /** Projects a tracked data-flow path as a {@code DataFlowPath} vertex. */
     private void addDataFlowPath(DataFlowPath path) {
         Vertex vertex = addVertex(path.id.serialize(), "DataFlowPath", path.id.serialize());
         set(vertex, "kind", "dataFlowPath");
@@ -545,6 +599,11 @@ class GraphProjector {
         set(vertex, "sinkCount", path.sinks.size());
     }
 
+    /**
+     * Projects the extracted call graph as {@code CALLS} edges between components, carrying
+     * call-site evidence (methods, receiver confidence, parameter/argument mappings) as edge
+     * properties.
+     */
     private void addCallEdges(ArchitectureModel sourceModel) {
         for (CallEdge callEdge : sourceModel.callEdges) {
             if (callEdge.fromComponentId == null || callEdge.toComponentId == null) {
@@ -580,6 +639,11 @@ class GraphProjector {
         }
     }
 
+    /**
+     * Links a data-flow path to its originating entrypoint, projects its steps as
+     * {@code DataFlowStep} vertices, and projects/links its sinks, before delegating to
+     * {@link #addDataFlowTopology} for the detailed node/branch graph.
+     */
     private void addDataFlowEdges(DataFlowPath path) {
         String epVertexId = path.entrypointId != null ? path.entrypointId.serialize() : "";
         addEdge(
@@ -615,6 +679,10 @@ class GraphProjector {
         addDataFlowTopology(path);
     }
 
+    /**
+     * Projects a data-flow path's detailed topology: flow nodes, the edges between them, and
+     * their branches/branch-arms, then links flow nodes that represent a sink to that sink's vertex.
+     */
     private void addDataFlowTopology(DataFlowPath path) {
         String pathId = path.id.serialize();
         for (int nodeIdx = 0; nodeIdx < path.flowNodes.size(); nodeIdx++) {
@@ -679,6 +747,7 @@ class GraphProjector {
         }
     }
 
+    /** Builds a display label for a data-flow node from its component name and method, falling back to whichever one is present. */
     private static String nodeLabel(DataFlowNode node) {
         String component = Objects.toString(node.componentName, "");
         String method = Objects.toString(node.method, "");
@@ -687,18 +756,26 @@ class GraphProjector {
         return method;
     }
 
+    /** Builds the vertex id for a data-flow node scoped to its owning path. */
     private static String flowNodeId(DataFlowPath path, String nodeId) {
         return path.id.serialize() + ":node:" + nodeId;
     }
 
+    /** Builds the vertex id for a data-flow branch scoped to its owning path. */
     private static String branchId(DataFlowPath path, String branchId) {
         return path.id.serialize() + ":branch:" + branchId;
     }
 
+    /** Builds the vertex id for a data-flow branch arm scoped to its owning path. */
     private static String branchArmId(DataFlowPath path, String branchArmId) {
         return path.id.serialize() + ":arm:" + branchArmId;
     }
 
+    /**
+     * Projects a data-flow sink as a {@code DataFlowSink} vertex, carrying its kind-specific
+     * evidence (channel/broker/topic for messaging sinks, entity/persistence-unit for store
+     * sinks, etc.).
+     */
     private void addSinkVertex(String sinkId, DataFlowPath path, DataFlowSink sink) {
         Vertex sinkVertex = addVertex(sinkId, "DataFlowSink", sink.componentName);
         set(sinkVertex, "kind", "dataFlowSink");
@@ -728,6 +805,7 @@ class GraphProjector {
         setSource(sinkVertex, sink.source);
     }
 
+    /** Links a sink vertex to the component it actually affects: the field owner for STORE sinks, or the calling component otherwise. */
     private void addSinkTargetEdge(String sinkId, DataFlowSink sink) {
         if (sink.kind == DataFlowSink.Kind.STORE && sink.fieldOwnerComponentId != null) {
             addEdge(
@@ -744,6 +822,7 @@ class GraphProjector {
         }
     }
 
+    /** Links every sink of every data-flow path to the downstream paths that read from it, via {@link #linkSinkReaders}. */
     private void linkDataFlowSinkReaders(ArchitectureModel sourceModel) {
         for (DataFlowPath path : sourceModel.dataFlowPaths) {
             for (int i = 0; i < path.sinks.size(); i++) {
@@ -752,6 +831,10 @@ class GraphProjector {
         }
     }
 
+    /**
+     * Adds a {@code LINKS_TO} edge from one sink to each path listed in its {@code linkedPathIds},
+     * for STORE/MESSAGING/EVENT_BUS sinks only, carrying the field or channel that connects them.
+     */
     private void linkSinkReaders(DataFlowPath path, int sinkIndex, DataFlowSink sink) {
         if (sink.linkedPathIds == null || sink.linkedPathIds.isEmpty()) return;
         if (sink.kind != DataFlowSink.Kind.STORE
@@ -773,6 +856,7 @@ class GraphProjector {
         }
     }
 
+    /** Runs the {@link WorkflowLinker} over the model and projects each resulting link as a {@code WORKFLOW_LINK} edge between the two data-flow paths it connects. */
     private void addWorkflowLinks(ArchitectureModel sourceModel) {
         for (WorkflowLink link : new WorkflowLinker().link(sourceModel)) {
             Map<String, Object> props = new HashMap<>();
@@ -798,6 +882,7 @@ class GraphProjector {
         }
     }
 
+    /** Builds pipeline chains via {@link PipelineGraphBuilder} and projects each one as a {@code PipelineChain} vertex with its segment edges. */
     private void addPipelineChains(ArchitectureModel sourceModel) {
         List<Chain> chains = new PipelineGraphBuilder().build(sourceModel, 32);
         int chainIdx = 0;
@@ -809,6 +894,7 @@ class GraphProjector {
         }
     }
 
+    /** Projects a pipeline chain as a {@code PipelineChain} vertex, recording its root entrypoint and the sink kinds linking its segments. */
     private void addChainVertex(String chainId, Chain chain) {
         Segment root = chain.segments.getFirst();
         String rootEpId =
@@ -826,6 +912,7 @@ class GraphProjector {
         set(vertex, "linkKinds", linkKinds.toString());
     }
 
+    /** Links a pipeline chain to each of its segments' data-flow paths via {@code HAS_SEGMENT} edges, carrying the incoming sink's link kind and field/channel. */
     private void addChainSegmentEdges(String chainId, Chain chain, ArchitectureModel sourceModel) {
         for (int i = 0; i < chain.segments.size(); i++) {
             Segment seg = chain.segments.get(i);
@@ -848,6 +935,7 @@ class GraphProjector {
         }
     }
 
+    /** Finds the vertex id of the sink in the previous segment that hands off into the given segment, or an empty string for the chain's first segment. */
     private String incomingSinkId(Chain chain, int segmentIndex, ArchitectureModel sourceModel) {
         if (segmentIndex == 0) return "";
         Segment prev = chain.segments.get(segmentIndex - 1);
@@ -858,6 +946,10 @@ class GraphProjector {
         return "";
     }
 
+    /**
+     * Builds the edge properties for a {@code DEPENDS_ON} edge: kind, provenance, confidence,
+     * runtime-relevance/condensability flags, and whether it crosses a module boundary.
+     */
     private Map<String, Object> dependencyProperties(Dependency dependency) {
         Map<String, Object> properties = new HashMap<>();
         properties.put("id", dependency.id != null ? dependency.id.serialize() : null);
@@ -876,6 +968,7 @@ class GraphProjector {
         return properties;
     }
 
+    /** Projects all field accesses as {@code WRITES_STATE}/{@code READS_STATE} edges, then links writes to same-field reads as state handoffs. */
     private void addFieldAccessEdges(ArchitectureModel sourceModel) {
         Map<dev.dominikbreu.archlens.model.ids.FieldRef, List<FieldAccess>> readsByState = new LinkedHashMap<>();
         Map<dev.dominikbreu.archlens.model.ids.FieldRef, List<FieldAccess>> writesByState = new LinkedHashMap<>();
@@ -885,6 +978,11 @@ class GraphProjector {
         linkStateHandoffs(sourceModel, writesByState, readsByState);
     }
 
+    /**
+     * Adds one field access as a {@code WRITES_STATE}/{@code READS_STATE} edge and indexes it by
+     * field for later state-handoff linking; ignores accesses with no resolved kind, component,
+     * or field binding.
+     */
     private void indexFieldAccess(
             FieldAccess access,
             Map<dev.dominikbreu.archlens.model.ids.FieldRef, List<FieldAccess>> readsByState,
@@ -908,6 +1006,7 @@ class GraphProjector {
         }
     }
 
+    /** For every state field with recorded writes, links each write to every read of the same field via {@link #linkWriteToRead}. */
     private void linkStateHandoffs(
             ArchitectureModel sourceModel,
             Map<dev.dominikbreu.archlens.model.ids.FieldRef, List<FieldAccess>> writesByState,
@@ -926,6 +1025,11 @@ class GraphProjector {
         }
     }
 
+    /**
+     * Links a state write to a state read of the same field: a direct {@code STATE_HANDOFF} edge
+     * when they're in different components, or propagated through callers when they're in the
+     * same component but different methods.
+     */
     private void linkWriteToRead(FieldAccess write, FieldAccess read, ArchitectureModel sourceModel) {
         if (Objects.equals(write.componentId, read.componentId)) {
             if (!Objects.equals(write.method, read.method)) {
@@ -940,6 +1044,7 @@ class GraphProjector {
         }
     }
 
+    /** Builds the edge properties for a single field-access edge: field name/owner, accessing method, access kind, and source evidence. */
     private Map<String, Object> fieldAccessProperties(FieldAccess access) {
         Map<String, Object> properties = new HashMap<>();
         String fieldName;
@@ -968,6 +1073,7 @@ class GraphProjector {
         return properties;
     }
 
+    /** Builds the edge properties for a {@code STATE_HANDOFF} edge: the field name/owner and the writer/reader methods on each side. */
     private Map<String, Object> stateHandoffProperties(FieldAccess write, FieldAccess read) {
         Map<String, Object> properties = new HashMap<>();
         String writeFieldName;
@@ -991,6 +1097,11 @@ class GraphProjector {
         return properties;
     }
 
+    /**
+     * Links a write/read pair on the same field within one component by connecting their
+     * respective callers instead, since a same-component handoff carries no cross-component
+     * signal on its own.
+     */
     private void propagateStateHandoffThroughCallers(
             FieldAccess write, FieldAccess read, ArchitectureModel sourceModel) {
         Set<dev.dominikbreu.archlens.model.ids.ComponentId> writerCallers =
@@ -1010,6 +1121,7 @@ class GraphProjector {
         }
     }
 
+    /** Collects the components that call a specific method on a target component, based on the extracted call graph. */
     private Set<dev.dominikbreu.archlens.model.ids.ComponentId> collectCallers(
             ArchitectureModel sourceModel,
             dev.dominikbreu.archlens.model.ids.ComponentId targetComponent,
@@ -1026,6 +1138,11 @@ class GraphProjector {
         return callers;
     }
 
+    /**
+     * Computes graph-wide derived metrics after projection: fan-in/out and degree for every
+     * vertex, entrypoint reachability, and (for components) the full architectural relevance
+     * scoring from {@link ArchitectureRelevanceScorer}.
+     */
     private void computeDerivedProperties() {
         Set<String> entrypointReachable = reachableFromEntrypoints();
         for (Vertex vertex : store.verticesById.values()) {
@@ -1067,6 +1184,10 @@ class GraphProjector {
         }
     }
 
+    /**
+     * Computes the set of vertex ids reachable by traversing outward from every {@code Entrypoint}
+     * vertex, across the full set of structural/dependency/data-flow edge labels.
+     */
     @SuppressWarnings("unchecked")
     private Set<String> reachableFromEntrypoints() {
         return store.g
@@ -1115,6 +1236,7 @@ class GraphProjector {
                 .toSet();
     }
 
+    /** Counts a vertex's edges with the given label in the given direction. */
     private int countEdges(Vertex vertex, Direction direction, String label) {
         int count = 0;
         Iterator<Edge> edges = vertex.edges(direction, label);
@@ -1125,6 +1247,7 @@ class GraphProjector {
         return count;
     }
 
+    /** Counts a vertex's outgoing edges with the given label whose target is a different vertex (i.e. excludes self-loops). */
     private int countCrossComponentStateEdges(Vertex vertex, String label) {
         int count = 0;
         String vertexId = vertex.id().toString();
@@ -1138,6 +1261,10 @@ class GraphProjector {
         return count;
     }
 
+    /**
+     * Returns the existing vertex for the given id, or creates and registers a new one with the
+     * given label and name if none exists yet; falls back to a generated id when {@code id} is blank.
+     */
     private Vertex addVertex(String id, String label, String name) {
         if (StringUtils.isBlank(id)) {
             id = label + ":" + store.verticesById.size();
@@ -1153,6 +1280,10 @@ class GraphProjector {
         return vertex;
     }
 
+    /**
+     * Adds an edge between two already-registered vertices, normalizing its properties via
+     * {@link EvidenceNormalizer}; does nothing if either endpoint id is missing or unregistered.
+     */
     private void addEdge(String fromId, String toId, String label, Map<String, ?> properties) {
         if (fromId == null || toId == null || fromId.isBlank() || toId.isBlank()) {
             return;
@@ -1166,6 +1297,7 @@ class GraphProjector {
         EvidenceNormalizer.normalize(properties).forEach((key, value) -> set(edge, key, value));
     }
 
+    /** Looks up a component in the source model by its serialized id. */
     private Component componentById(String componentId) {
         if (model == null || componentId == null) {
             return null;
@@ -1176,6 +1308,7 @@ class GraphProjector {
                 .orElse(null);
     }
 
+    /** Returns the package portion of a qualified name (everything before the last {@code '.'}), or an empty string if there is none. */
     private static String packageName(String qualifiedName) {
         if (qualifiedName == null) {
             return null;
@@ -1188,6 +1321,7 @@ class GraphProjector {
         }
     }
 
+    /** Maps an entrypoint's type to the protocol label used for filtering/rendering (e.g. {@code http}, {@code messaging}). */
     private static String protocolFor(Entrypoint entrypoint) {
         if (entrypoint.type == null) {
             return null;
@@ -1210,6 +1344,11 @@ class GraphProjector {
         };
     }
 
+    /**
+     * Returns true if a dependency's kind suggests it reflects a real runtime call path
+     * (injection, method call, event, client, or messaging), as opposed to a purely
+     * structural/compile-time relationship.
+     */
     private static boolean isRuntimeRelevant(Dependency dependency) {
         String kind = Objects.toString(dependency.kind, "").toLowerCase(Locale.ROOT);
         return kind.contains("injection")
@@ -1219,18 +1358,21 @@ class GraphProjector {
                 || kind.contains("message");
     }
 
+    /** Returns true if either endpoint of a dependency is a utility-like component, making the edge a candidate for condensing in views that hide low-signal dependencies. */
     private boolean isCondensable(Dependency dependency) {
         Component from = componentById(dependency.fromId.serialize());
         Component to = componentById(dependency.toId.serialize());
         return isUtilityLike(from) || isUtilityLike(to);
     }
 
+    /** Returns true if a component's type is {@code UTILITY} or {@code UNKNOWN}. */
     private static boolean isUtilityLike(Component component) {
         return component != null
                 && component.type != null
                 && ("UTILITY".equals(component.type.name()) || "UNKNOWN".equals(component.type.name()));
     }
 
+    /** Formats a string map as a comma-separated {@code key<separator>value} list, or an empty string if the map is null/empty. */
     private static String formatMapping(Map<String, String> mapping, String separator) {
         if (mapping == null || mapping.isEmpty()) {
             return "";
@@ -1240,24 +1382,28 @@ class GraphProjector {
                 .collect(java.util.stream.Collectors.joining(","));
     }
 
+    /** Sets a vertex property, skipping null or blank values so absent data doesn't pollute the graph. */
     private static void set(Vertex vertex, String key, Object value) {
         if (value != null && !Objects.toString(value).isBlank()) {
             vertex.property(key, value);
         }
     }
 
+    /** Sets a vertex property to the lowercased value, skipping null or blank values. */
     private static void setLower(Vertex vertex, String key, String value) {
         if (value != null && !value.isBlank()) {
             vertex.property(key, value.toLowerCase(Locale.ROOT));
         }
     }
 
+    /** Sets an edge property, skipping null or blank values. */
     private static void set(Edge edge, String key, Object value) {
         if (value != null && !Objects.toString(value).isBlank()) {
             edge.property(key, value);
         }
     }
 
+    /** Copies a domain object's source info onto a vertex as normalized evidence properties via {@link EvidenceNormalizer}. */
     private static void setSource(Vertex vertex, SourceInfo source) {
         EvidenceNormalizer.fromSource(source).forEach((key, value) -> set(vertex, key, value));
     }

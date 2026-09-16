@@ -56,13 +56,22 @@ import spoon.reflect.visitor.filter.TypeFilter;
  */
 public class CallGraphExtractor {
 
+    /** Stable identifier prefix for extracted field-access facts. */
     private static final String FIELD_PREFIX = "field:";
 
+    /** Fallback source file marker for invalid Spoon positions. */
     private static final String UNKNOWN = "unknown";
+
+    /** Call kind used for ordinary synchronous invocation edges. */
     private static final String DIRECT = "direct";
+
+    /** Call kind used for reactive-messaging sends. */
     private static final String MESSAGING = "messaging";
 
+    /** Simple type names recognized as a Vert.x-style event bus field, for call-kind and outbound classification. */
     private static final Set<String> EVENT_BUS_TYPES = Set.of("EventBus");
+
+    /** Simple type names of Reactive Messaging emitter fields, classified as messaging outbound sends. */
     private static final Set<String> EMITTER_TYPES = Set.of("Emitter", "MutinyEmitter");
 
     private static final Set<String> SHARED_STATE_SIMPLE_TYPES = Set.of(
@@ -94,10 +103,13 @@ public class CallGraphExtractor {
     private static final Set<String> SHARED_STATE_NAME_SUFFIXES =
             Set.of("Cache", "State", "Store", "Buffer", "Queue", "Registry", "Snapshots", "Repository");
 
+    /** Field type names excluded from shared-state detection; logging/tracing fields are never shared state. */
     private static final Set<String> SHARED_STATE_TYPE_DENYLIST = Set.of("Logger", "Log", "Slf4j", "Tracer");
 
+    /** Simple-type-name prefixes excluded from shared-state detection (e.g. {@code AuditLog}-style types). */
     private static final Set<String> SHARED_STATE_TYPE_DENYLIST_PREFIXES = Set.of("Audit");
 
+    /** Callee qualified-name prefixes classified as file-system outbound writes. */
     private static final Set<String> FILE_OUTBOUND_PREFIXES = Set.of("java.nio.file.Files");
 
     private static final Set<String> OBJECT_STORAGE_PREFIXES =
@@ -157,6 +169,7 @@ public class CallGraphExtractor {
         this.sourceFacts = sourceFacts;
     }
 
+    /** Returns the OpenTelemetry tracer used to span the {@link #extract} pass. */
     private static Tracer tracer() {
         return GlobalOpenTelemetry.getTracer("dev.dominikbreu.archlens");
     }
@@ -173,6 +186,17 @@ public class CallGraphExtractor {
             List<CtAssignment<?, ?>> assignments,
             List<CtFieldRead<?>> fieldReads) {}
 
+    /**
+     * The control-flow branch (if/else, ternary, switch case, catch, finally) an invocation is
+     * nested in, used to tag the resulting {@link CallEdge} with branch identity so that
+     * different arms of the same branch don't collapse into a single edge.
+     *
+     * @param kind the kind of control-flow construct
+     * @param branchGroupId id shared by every arm of the same branch (e.g. the same if/switch/try)
+     * @param branchArmId id unique to this specific arm
+     * @param branchLabel human-readable label for the arm (condition text, case value, exception type)
+     * @param controlSource source location of the controlling construct
+     */
     private record BranchContext(
             CallEdge.ControlFlowKind kind,
             String branchGroupId,
@@ -180,6 +204,14 @@ public class CallGraphExtractor {
             String branchLabel,
             SourceInfo controlSource) {}
 
+    /**
+     * Walks {@code method}'s body once in source order, collecting every invocation together
+     * with a snapshot of which local names have already been reassigned ("killed") at that
+     * point, plus the method's assignments and field reads. See {@link MethodScan}.
+     *
+     * @param method the method to scan
+     * @return the collected invocations, kill snapshots, assignments, and field reads
+     */
     private static MethodScan scanMethod(CtMethod<?> method) {
         List<CtInvocation<?>> invocations = new ArrayList<>();
         Map<CtInvocation<?>, Set<String>> snapshots = new java.util.IdentityHashMap<>();
@@ -252,6 +284,16 @@ public class CallGraphExtractor {
         }
     }
 
+    /**
+     * Finds {@code type}'s fields that look like mutable shared state: collection/atomic field
+     * types, or a field/type name ending in a shared-state-ish suffix ({@code Cache}, {@code
+     * State}, {@code Store}, …), excluding anything on the denylist (loggers, tracers, audit
+     * types). Used to decide which field accesses are worth recording as {@link FieldAccess}
+     * edges.
+     *
+     * @param type the type whose fields to scan
+     * @return names of fields recognized as shared state
+     */
     private Set<String> buildSharedStateFieldSet(CtType<?> type) {
         Set<String> names = new HashSet<>();
         for (CtField<?> field : type.getFields()) {
@@ -274,6 +316,13 @@ public class CallGraphExtractor {
         return names;
     }
 
+    /**
+     * Lowercases the first character, so a type-name suffix like {@code "Cache"} can be matched
+     * against a field-name suffix like {@code "...cache"}.
+     *
+     * @param s the string to adjust
+     * @return {@code s} with its first character lowercased
+     */
     private static String lowerFirst(String s) {
         if (s.isEmpty()) {
             return s;
@@ -282,6 +331,13 @@ public class CallGraphExtractor {
         }
     }
 
+    /**
+     * Checks {@code simpleTypeName} against {@link #SHARED_STATE_TYPE_DENYLIST} and {@link
+     * #SHARED_STATE_TYPE_DENYLIST_PREFIXES}.
+     *
+     * @param simpleTypeName the field's simple type name, or {@code null}
+     * @return {@code true} if the type is excluded from shared-state detection
+     */
     private static boolean isSharedStateDenylisted(String simpleTypeName) {
         if (simpleTypeName == null) return false;
         if (SHARED_STATE_TYPE_DENYLIST.contains(simpleTypeName)) return true;
@@ -291,6 +347,7 @@ public class CallGraphExtractor {
         return false;
     }
 
+    /** Extracts cross-component accessor-chain accesses and direct shared-state reads and writes. */
     private void extractFieldAccesses(
             MethodScan scan,
             CtMethod<?> method,
@@ -306,6 +363,7 @@ public class CallGraphExtractor {
         extractFieldReadAccesses(scan, methodName, fromComp, sharedStateFields, model);
     }
 
+    /** Records assignments to recognized shared-state fields with their direct value source. */
     private void extractAssignmentFieldWrites(
             MethodScan scan,
             String methodName,
@@ -327,6 +385,7 @@ public class CallGraphExtractor {
         }
     }
 
+    /** Classifies method calls on shared-state fields as writes or reads and captures key/value sources. */
     private void extractInvocationFieldAccesses(
             MethodScan scan,
             String methodName,
@@ -361,6 +420,7 @@ public class CallGraphExtractor {
         }
     }
 
+    /** Records standalone shared-state field reads not already represented by a target invocation. */
     private void extractFieldReadAccesses(
             MethodScan scan,
             String methodName,
@@ -377,6 +437,7 @@ public class CallGraphExtractor {
         }
     }
 
+    /** Builds an own-field access without a separate key variable. */
     private FieldAccess buildAccess(
             FieldAccess.Kind kind,
             Component owner,
@@ -388,6 +449,7 @@ public class CallGraphExtractor {
         return buildAccess(kind, owner, method, fieldName, sourceVar, sourceField, null, pos);
     }
 
+    /** Builds an own-field access with stable identity and source evidence. */
     private FieldAccess buildAccess(
             FieldAccess.Kind kind,
             Component owner,
@@ -423,10 +485,15 @@ public class CallGraphExtractor {
         return fa;
     }
 
+    /**
+     * Returns the key-variable name for keyed-write methods ({@code put}, {@code set}, {@code
+     * merge}, …). Only meaningful when there are at least 2 arguments; single-argument writes
+     * ({@code add}, {@code offer}, {@code push}, …) have no separate key position.
+     *
+     * @param args the invocation's arguments
+     * @return the key argument's local variable name, or {@code null} if not applicable
+     */
     private static String firstVarReadName(List<spoon.reflect.code.CtExpression<?>> args) {
-        // Returns the key variable name for keyed-write methods (put, set, merge, …).
-        // Only meaningful when there are at least 2 arguments; single-argument writes
-        // (add, offer, push, …) have no separate key position.
         if (args.size() < 2) return null;
         CtExpression<?> first = args.getFirst();
         if (first instanceof CtVariableRead<?> vr) {
@@ -436,11 +503,17 @@ public class CallGraphExtractor {
         }
     }
 
+    /**
+     * Returns the value-variable name for write methods ({@code put}/{@code set}/{@code add}
+     * etc.). Only the last argument is inspected — the value position — since falling back to
+     * earlier arguments would confuse the key with the value for calls like {@code put(key,
+     * someInvocation())}.
+     *
+     * @param args the invocation's arguments
+     * @return the last argument's local variable name, or {@code null} if it isn't a variable read
+     */
     private static String lastVarReadName(List<spoon.reflect.code.CtExpression<?>> args) {
         if (args.isEmpty()) return null;
-        // Only inspect the last argument (value position for put/set/add etc.).
-        // Falling back to earlier arguments would confuse the key with the value
-        // for calls like put(key, someInvocation()).
         CtExpression<?> last = args.getLast();
         if (last instanceof CtVariableRead<?> vr) {
             return vr.getVariable().getSimpleName();
@@ -449,6 +522,12 @@ public class CallGraphExtractor {
         }
     }
 
+    /**
+     * Same as {@link #lastVarReadName} but for a field read in the value position.
+     *
+     * @param args the invocation's arguments
+     * @return the last argument's field name, or {@code null} if it isn't a field read
+     */
     private static String lastFieldReadName(List<spoon.reflect.code.CtExpression<?>> args) {
         if (args.isEmpty()) return null;
         CtExpression<?> last = args.getLast();
@@ -459,6 +538,7 @@ public class CallGraphExtractor {
         }
     }
 
+    /** Detects read/write calls on getter-returned shared state and resolves their owning component. */
     private void extractAccessorChainFieldAccesses(
             MethodScan scan, CtMethod<?> method, Component fromComp, ArchitectureModel model, ExtractionContext ctx) {
         String methodName = method.getSimpleName();
@@ -472,12 +552,19 @@ public class CallGraphExtractor {
         }
     }
 
+    /**
+     * Classifies a terminal accessor-chain method name as a shared-state read or write.
+     *
+     * @param terminalMethod the method name at the end of the accessor chain (e.g. {@code get}, {@code put})
+     * @return {@link FieldAccess.Kind#WRITE}, {@link FieldAccess.Kind#READ}, or {@code null} if neither
+     */
     private static FieldAccess.Kind accessKind(String terminalMethod) {
         if (WRITE_METHODS.contains(terminalMethod)) return FieldAccess.Kind.WRITE;
         if (READ_METHODS.contains(terminalMethod)) return FieldAccess.Kind.READ;
         return null;
     }
 
+    /** Records deduplicated cross-component field accesses for each object-flow receiver target. */
     private void recordAccessorAccesses(
             CtInvocation<?> inv,
             FieldAccess.Kind kind,
@@ -497,6 +584,7 @@ public class CallGraphExtractor {
         }
     }
 
+    /** Builds a cross-component field access attributed to an object-flow-resolved owner. */
     private FieldAccess buildAccessorAccess(
             FieldAccess.Kind kind,
             Component fromComp,
@@ -518,6 +606,15 @@ public class CallGraphExtractor {
         return access;
     }
 
+    /**
+     * Resolves an accessor-chain target (e.g. {@code getCache()} in {@code getCache().get(k)})
+     * to the shared-state field it returns, if the accessor is a getter-like method whose body
+     * returns one of its declaring type's shared-state fields.
+     *
+     * @param accessor the accessor invocation being called on
+     * @param ctx extraction context, used to resolve the accessor's declaring type's shared-state fields
+     * @return the returned field's name, or {@code null} if the accessor doesn't resolve to one
+     */
     private String accessorReturnedSharedFieldName(CtInvocation<?> accessor, ExtractionContext ctx) {
         var executable = accessor.getExecutable().getDeclaration();
         if (!(executable instanceof CtMethod<?> accessorMethod)) {
@@ -576,6 +673,7 @@ public class CallGraphExtractor {
         }
     }
 
+    /** Maps injection facts and declared fields to unique architecture component targets. */
     private Map<String, Component> buildFieldMap(
             CtType<?> type, dev.dominikbreu.archlens.model.ids.ComponentId ownId, ExtractionContext ctx) {
         Map<String, Component> map = new HashMap<>();
@@ -584,6 +682,7 @@ public class CallGraphExtractor {
         return map;
     }
 
+    /** Adds source-fact injection fields whose target resolves outside the owning component. */
     private void addInjectionFieldTargets(
             Map<String, Component> map,
             CtType<?> type,
@@ -600,6 +699,7 @@ public class CallGraphExtractor {
         }
     }
 
+    /** Adds declared field targets using direct lookup or source-fact implementation resolution. */
     private void addDeclaredFieldTargets(
             Map<String, Component> map,
             CtType<?> type,
@@ -617,6 +717,7 @@ public class CallGraphExtractor {
         }
     }
 
+    /** Resolves a declared type directly or through its sole architecture-backed implementation. */
     private Component resolveSourceFactType(
             String qualifiedName, dev.dominikbreu.archlens.model.ids.ComponentId ownId, ExtractionContext ctx) {
         Component direct = ctx.components.find(qualifiedName, simpleName(qualifiedName));
@@ -641,6 +742,12 @@ public class CallGraphExtractor {
         }
     }
 
+    /**
+     * Returns the simple (unqualified) name of a fully qualified type name.
+     *
+     * @param qualifiedName the fully qualified type name
+     * @return the substring after the last {@code '.'}, or the whole string if there is none
+     */
     private static String simpleName(String qualifiedName) {
         int dot = qualifiedName.lastIndexOf('.');
         if (dot < 0) {
@@ -650,6 +757,7 @@ public class CallGraphExtractor {
         }
     }
 
+    /** Emits cross-component call edges using object flow first and legacy field-read fallback second. */
     private void extractFromMethod(
             MethodScan scan,
             CtMethod<?> method,
@@ -705,6 +813,7 @@ public class CallGraphExtractor {
         }
     }
 
+    /** Emits an ordinary direct call edge for a resolved receiver. */
     private void emitCallEdge(
             CtInvocation<?> inv,
             Component fromComp,
@@ -732,6 +841,7 @@ public class CallGraphExtractor {
                 DIRECT);
     }
 
+    /** Emits a deduplicated call edge with branch, receiver, parameter, return, and kill metadata. */
     private void emitCallEdge(
             CtInvocation<?> inv,
             Component fromComp,
@@ -770,6 +880,7 @@ public class CallGraphExtractor {
         emitCallerSideFieldReadIfGetter(inv, fromComp, fromMethod, toComp, model, ctx);
     }
 
+    /** Builds a stable call-edge identifier, adding branch-arm identity when applicable. */
     private static String callEdgeId(
             Component fromComp, String fromMethod, Component toComp, String toMethod, BranchContext branch) {
         String edgeId =
@@ -780,6 +891,12 @@ public class CallGraphExtractor {
         return edgeId + "@arm:" + sanitizeIdSegment(branch.branchArmId());
     }
 
+    /**
+     * Copies branch identity from {@code branch} onto {@code edge}, if present.
+     *
+     * @param edge the call edge to tag
+     * @param branch the branch context, or {@code null} if the call isn't inside a branch
+     */
     private void applyBranchContext(CallEdge edge, BranchContext branch) {
         if (branch == null) return;
         edge.controlFlowKind = branch.kind();
@@ -789,6 +906,13 @@ public class CallGraphExtractor {
         edge.controlSource = branch.controlSource();
     }
 
+    /**
+     * Walks up {@code invocation}'s ancestor chain to find the nearest enclosing control-flow
+     * construct (if/else, ternary, switch case, catch, or finally) and builds its branch context.
+     *
+     * @param invocation the invocation to classify
+     * @return the enclosing branch context, or {@code null} if the call isn't inside one
+     */
     private BranchContext branchContext(CtInvocation<?> invocation) {
         CtElement cursor = invocation;
         while (cursor != null) {
@@ -814,6 +938,13 @@ public class CallGraphExtractor {
         return null;
     }
 
+    /**
+     * Builds the branch context for an invocation inside an {@code if}'s then/else block.
+     *
+     * @param invocation the invocation being classified
+     * @param ctIf the enclosing {@code if} statement
+     * @return the then/else branch context, or {@code null} if {@code invocation} is in neither block
+     */
     private BranchContext ifBranchContext(CtInvocation<?> invocation, CtIf ctIf) {
         SourceInfo source = buildControlSource(ctIf);
         String groupId = branchId("if", ctIf);
@@ -829,6 +960,13 @@ public class CallGraphExtractor {
         return null;
     }
 
+    /**
+     * Builds the branch context for an invocation inside a ternary's then/else expression.
+     *
+     * @param invocation the invocation being classified
+     * @param conditional the enclosing ternary expression
+     * @return the then/else branch context, or {@code null} if {@code invocation} is in neither side
+     */
     private BranchContext ternaryBranchContext(CtInvocation<?> invocation, CtConditional<?> conditional) {
         SourceInfo source = buildControlSource(conditional);
         String groupId = branchId("ternary", conditional);
@@ -847,6 +985,12 @@ public class CallGraphExtractor {
     /** Upper bound on stored branch-condition text; truncation here is lossy for every consumer. */
     private static final int MAX_CONDITION_LENGTH = 255;
 
+    /**
+     * Renders a branch condition as a label, truncated to {@link #MAX_CONDITION_LENGTH}.
+     *
+     * @param condition the condition expression, or {@code null}
+     * @return the condition's source text (truncated), or {@code "?"} if {@code condition} is {@code null}
+     */
     private static String conditionLabel(CtExpression<?> condition) {
         if (condition == null) return "?";
         String text = condition.toString();
@@ -854,6 +998,12 @@ public class CallGraphExtractor {
         return text.substring(0, MAX_CONDITION_LENGTH - 3) + "...";
     }
 
+    /**
+     * Builds the branch context for a {@code switch} case (or {@code default}) arm.
+     *
+     * @param ctCase the case (or default) arm the invocation belongs to
+     * @return the case/default branch context for {@code ctCase}
+     */
     private BranchContext switchBranchContext(CtCase<?> ctCase) {
         CtAbstractSwitch<?> ctSwitch = parentOf(ctCase, CtAbstractSwitch.class);
         CtElement control = ctSwitch != null ? ctSwitch : ctCase;
@@ -869,6 +1019,12 @@ public class CallGraphExtractor {
                 kind, groupId, groupId + ":" + armKind + ":" + ordinal + ":" + sanitizeIdSegment(label), label, source);
     }
 
+    /**
+     * Builds the branch context for an invocation inside a {@code catch} block.
+     *
+     * @param ctCatch the catch clause the invocation is inside
+     * @return the catch branch context, labeled with the caught exception's simple type name
+     */
     private BranchContext catchBranchContext(CtCatch ctCatch) {
         CtTry owner = parentOf(ctCatch, CtTry.class);
         SourceInfo source = buildControlSource(ctCatch);
@@ -887,6 +1043,12 @@ public class CallGraphExtractor {
                 source);
     }
 
+    /**
+     * Builds the branch context for an invocation inside a {@code finally} block.
+     *
+     * @param ctTry the {@code try} statement owning the finally block
+     * @return the finally branch context
+     */
     private BranchContext finallyBranchContext(CtTry ctTry) {
         CtBlock<?> finalizer = ctTry.getFinalizer();
         SourceInfo source = buildControlSource(finalizer != null ? finalizer : ctTry);
@@ -894,6 +1056,14 @@ public class CallGraphExtractor {
         return new BranchContext(CallEdge.ControlFlowKind.FINALLY, groupId, groupId + ":finally", "finally", source);
     }
 
+    /**
+     * Builds a stable id identifying a branch group, so repeated extraction runs (and different
+     * checkouts) produce the same id for the same source construct.
+     *
+     * @param kind the branch construct kind ({@code "if"}, {@code "ternary"}, {@code "switch"}, {@code "try"})
+     * @param element the controlling construct (the if/conditional/switch/try element)
+     * @return an id combining kind, owner type/method, file, and source coordinates
+     */
     private static String branchId(String kind, CtElement element) {
         CtType<?> ownerType = parentOf(element, CtType.class);
         CtMethod<?> ownerMethod = parentOf(element, CtMethod.class);
@@ -903,6 +1073,10 @@ public class CallGraphExtractor {
                 + sourceCoordinates(pos);
     }
 
+    /**
+     * @param ownerType the enclosing type, or {@code null}
+     * @return the type's qualified name, or {@link #UNKNOWN} if unavailable
+     */
     private static String ownerTypeName(CtType<?> ownerType) {
         if (ownerType == null
                 || ownerType.getQualifiedName() == null
@@ -912,6 +1086,10 @@ public class CallGraphExtractor {
         return ownerType.getQualifiedName();
     }
 
+    /**
+     * @param ownerMethod the enclosing method, or {@code null}
+     * @return the method's simple name, or {@link #UNKNOWN} if unavailable
+     */
     private static String ownerMethodName(CtMethod<?> ownerMethod) {
         if (ownerMethod == null
                 || ownerMethod.getSimpleName() == null
@@ -921,6 +1099,12 @@ public class CallGraphExtractor {
         return ownerMethod.getSimpleName();
     }
 
+    /**
+     * Renders a source position as a compact coordinate string for use in {@link #branchId}.
+     *
+     * @param pos the source position, or {@code null}/invalid
+     * @return {@code "L<line>C<col>-L<endLine>C<endCol>@<start>-<end>"}, or a zero placeholder if unavailable
+     */
     private static String sourceCoordinates(spoon.reflect.cu.SourcePosition pos) {
         if (pos == null || !pos.isValidPosition()) {
             return "L0C0-L0C0";
@@ -929,6 +1113,11 @@ public class CallGraphExtractor {
                 + pos.getSourceStart() + "-" + pos.getSourceEnd();
     }
 
+    /**
+     * @param ctSwitch the owning switch, or {@code null}
+     * @param ctCase the case to locate
+     * @return {@code ctCase}'s index among its switch's cases, or {@code 0} if not found
+     */
     private static int caseOrdinal(CtAbstractSwitch<?> ctSwitch, CtCase<?> ctCase) {
         if (ctSwitch == null || ctSwitch.getCases() == null) {
             return 0;
@@ -942,6 +1131,11 @@ public class CallGraphExtractor {
         return 0;
     }
 
+    /**
+     * @param owner the owning try statement, or {@code null}
+     * @param ctCatch the catch clause to locate
+     * @return {@code ctCatch}'s index among its try's catch clauses, or {@code 0} if not found
+     */
     private static int catchOrdinal(CtTry owner, CtCatch ctCatch) {
         if (owner == null || owner.getCatchers() == null) {
             return 0;
@@ -955,6 +1149,13 @@ public class CallGraphExtractor {
         return 0;
     }
 
+    /**
+     * Extracts and sanitizes just the file name (not the full path) from a source file path, so
+     * branch ids stay stable across machines and checkout locations.
+     *
+     * @param file the absolute source file path, or {@code null}/blank
+     * @return the sanitized file name, or {@link #UNKNOWN}
+     */
     private static String stableFileSegment(String file) {
         if (file == null || file.isBlank()) {
             return UNKNOWN;
@@ -965,6 +1166,13 @@ public class CallGraphExtractor {
         return sanitizeIdSegment(name);
     }
 
+    /**
+     * Sanitizes arbitrary text into an id-safe segment (letters, digits, {@code . _ : -} only),
+     * trimming stray leading/trailing dashes left by the substitution.
+     *
+     * @param value the raw text, or {@code null}/blank
+     * @return the sanitized segment, or {@link #UNKNOWN}
+     */
     private static String sanitizeIdSegment(String value) {
         if (value == null || value.isBlank()) {
             return UNKNOWN;
@@ -976,6 +1184,10 @@ public class CallGraphExtractor {
         return sanitized.isBlank() ? UNKNOWN : sanitized;
     }
 
+    /**
+     * @param ctCase the case (or default) arm
+     * @return the case's label expressions joined with {@code ", "}, or {@code "default"} if none
+     */
     private static String caseLabel(CtCase<?> ctCase) {
         List<? extends CtExpression<?>> expressions = ctCase.getCaseExpressions();
         if (expressions == null || expressions.isEmpty()) {
@@ -984,6 +1196,11 @@ public class CallGraphExtractor {
         return expressions.stream().map(Object::toString).collect(Collectors.joining(", "));
     }
 
+    /**
+     * @param candidate the element to test, or {@code null}
+     * @param possibleAncestor the possible ancestor (or the element itself), or {@code null}
+     * @return {@code true} if {@code possibleAncestor} is {@code candidate} or one of its ancestors
+     */
     private static boolean isWithin(CtElement candidate, CtElement possibleAncestor) {
         if (candidate == null || possibleAncestor == null) return false;
         CtElement cursor = candidate;
@@ -994,6 +1211,13 @@ public class CallGraphExtractor {
         return false;
     }
 
+    /**
+     * Walks up from {@code element} to find the nearest ancestor assignable to {@code type}.
+     *
+     * @param element the element to start from, or {@code null}
+     * @param type the ancestor type to look for
+     * @return the nearest matching ancestor, or {@code null} if none is found
+     */
     @SuppressWarnings("unchecked")
     private static <T extends CtElement> T parentOf(CtElement element, Class<T> type) {
         CtElement cursor = element == null ? null : element.getParent();
@@ -1006,10 +1230,21 @@ public class CallGraphExtractor {
         return null;
     }
 
+    /**
+     * @param inv the invocation whose receiver to name
+     * @return the receiver's local variable or field name, or {@code null} if it can't be resolved to one
+     */
     private String resolveReceiverLocalName(CtInvocation<?> inv) {
         return receiverLocalName(inv.getTarget());
     }
 
+    /**
+     * Resolves an expression to the local variable or field name it reads, unwrapping chained
+     * invocations (e.g. {@code getCache().get(k)} resolves through to {@code getCache}'s target).
+     *
+     * @param expression the receiver expression, or {@code null}
+     * @return the resolved variable/field name, or {@code null} if it isn't a var/field read
+     */
     private String receiverLocalName(CtExpression<?> expression) {
         if (expression instanceof CtVariableRead<?> read && read.getVariable() != null) {
             return read.getVariable().getSimpleName();
@@ -1023,6 +1258,10 @@ public class CallGraphExtractor {
         return null;
     }
 
+    /**
+     * @param inv the invocation whose result may be assigned
+     * @return the local variable or field name the call result is assigned to, or {@code null} if unused/discarded
+     */
     private String resolveAssignedToVar(CtInvocation<?> inv) {
         var parent = inv.getParent();
         if (parent instanceof CtLocalVariable<?> lv) {
@@ -1034,6 +1273,7 @@ public class CallGraphExtractor {
         return null;
     }
 
+    /** Records classified outbound invocations as uniquely identified data-flow sink sites. */
     private void extractOutboundSinkSites(
             MethodScan scan, CtMethod<?> method, Component fromComp, ArchitectureModel model, ExtractionContext ctx) {
         String methodName = method.getSimpleName();
@@ -1054,8 +1294,23 @@ public class CallGraphExtractor {
         }
     }
 
+    /**
+     * The outcome of classifying an invocation as an outbound data-flow sink.
+     *
+     * @param kind the sink kind (messaging, event bus, file, or object storage)
+     * @param channel the resolved messaging channel name, or {@code null} if not applicable/derivable
+     */
     private record OutboundClassification(DataFlowSink.Kind kind, String channel) {}
 
+    /**
+     * Classifies an invocation as an outbound sink, first by the callee's qualified name
+     * ({@link #classifyOutboundCallee}), then by whether its target is a messaging/event-bus
+     * field ({@link #classifyMessagingFieldTarget}).
+     *
+     * @param inv the invocation to classify
+     * @param qn the callee method's declaring type's qualified name
+     * @return the outbound classification, or {@code null} if the call isn't an outbound sink
+     */
     private OutboundClassification classifyOutbound(CtInvocation<?> inv, String qn) {
         DataFlowSink.Kind kind = classifyOutboundCallee(qn);
         if (kind != null) return new OutboundClassification(kind, null);
@@ -1066,6 +1321,7 @@ public class CallGraphExtractor {
         return new OutboundClassification(resolved, kindAndChannel[1]);
     }
 
+    /** Builds an outbound sink site from its classification and invocation source location. */
     private OutboundSinkSite buildOutboundSite(
             String id,
             OutboundClassification classification,
@@ -1086,12 +1342,20 @@ public class CallGraphExtractor {
         return site;
     }
 
+    /**
+     * @param pos the source position, or {@code null}/invalid
+     * @return the source file's absolute path, or {@link #UNKNOWN} if unavailable
+     */
     private static String sourceFileOf(spoon.reflect.cu.SourcePosition pos) {
         return pos != null && pos.isValidPosition() && pos.getFile() != null
                 ? pos.getFile().getAbsolutePath()
                 : UNKNOWN;
     }
 
+    /**
+     * @param pos the source position, or {@code null}/invalid
+     * @return the 1-based source line, or {@code 0} if unavailable
+     */
     private static int sourceLineOf(spoon.reflect.cu.SourcePosition pos) {
         return pos != null && pos.isValidPosition() ? pos.getLine() : 0;
     }
@@ -1110,6 +1374,12 @@ public class CallGraphExtractor {
         return new String[] {kindStr, channel};
     }
 
+    /**
+     * Reads the channel name off a field's {@code @Channel("name")} annotation, if present.
+     *
+     * @param fr a read of the Emitter/EventBus field
+     * @return the channel name (quotes stripped), or {@code null} if the field has no {@code @Channel} annotation
+     */
     private static String extractChannelAnnotation(CtFieldRead<?> fr) {
         var fieldDecl = fr.getVariable().getFieldDeclaration();
         if (fieldDecl == null) return null;
@@ -1123,6 +1393,13 @@ public class CallGraphExtractor {
         return null;
     }
 
+    /**
+     * Classifies a callee by its declaring type's qualified-name prefix into a file or
+     * object-storage outbound sink.
+     *
+     * @param calleeQualifiedName the callee method's declaring type's qualified name
+     * @return the matching sink kind, or {@code null} if the callee matches neither prefix set
+     */
     private static DataFlowSink.Kind classifyOutboundCallee(String calleeQualifiedName) {
         for (String prefix : FILE_OUTBOUND_PREFIXES) {
             if (calleeQualifiedName.equals(prefix) || calleeQualifiedName.startsWith(prefix + ".")) {
@@ -1137,6 +1414,15 @@ public class CallGraphExtractor {
         return null;
     }
 
+    /**
+     * Checks whether the callee's return statements ultimately return one of the callee's own
+     * shared-state fields or one of its parameters, meaning the call result carries tracked data
+     * the {@code DataFlowTracer} should be able to follow through the caller's assignment.
+     *
+     * @param inv the invocation whose callee to inspect
+     * @param ctx extraction context, used to resolve the callee type's shared-state fields
+     * @return {@code true} if the callee's return value is traceable to tracked state
+     */
     private boolean calleeReturnsTracked(CtInvocation<?> inv, ExtractionContext ctx) {
         var executable = inv.getExecutable().getDeclaration();
         if (!(executable instanceof CtMethod<?> calleeMethod)) return false;
@@ -1161,6 +1447,7 @@ public class CallGraphExtractor {
         return false;
     }
 
+    /** Records a caller-side cross-component read when the callee returns its own shared-state field. */
     private void emitCallerSideFieldReadIfGetter(
             CtInvocation<?> inv,
             Component fromComp,
@@ -1206,6 +1493,15 @@ public class CallGraphExtractor {
         }
     }
 
+    /**
+     * Finds the shared-state field name a return expression evaluates to: either the expression
+     * itself is a direct field read, or one of the fields it contains (e.g. inside a ternary or
+     * method chain) is a tracked shared-state field.
+     *
+     * @param expression the returned expression, or {@code null}
+     * @param sharedStateFields the declaring type's known shared-state field names
+     * @return the matching field's name, or {@code null} if none is found
+     */
     private String returnedSharedFieldName(CtExpression<?> expression, Set<String> sharedStateFields) {
         if (expression == null || sharedStateFields.isEmpty()) {
             return null;
@@ -1227,6 +1523,16 @@ public class CallGraphExtractor {
         return null;
     }
 
+    /**
+     * Maps each positional argument at the call site to the callee's parameter name, so the
+     * {@code DataFlowTracer} can follow tracked values across the call boundary: direct variable
+     * arguments map 1:1, literal arguments are recorded in {@code edge.resolvedLiteralArgs}, and
+     * otherwise a variable name found anywhere inside the argument expression is used as a
+     * best-effort ("synthetic") mapping.
+     *
+     * @param inv the call site
+     * @param edge the call edge to populate with parameter mappings
+     */
     private void buildParamMapping(CtInvocation<?> inv, CallEdge edge) {
         var executable = inv.getExecutable().getDeclaration();
         if (executable == null) return;
@@ -1256,10 +1562,21 @@ public class CallGraphExtractor {
         }
     }
 
+    /**
+     * @param lit the literal to read
+     * @return the literal's string form, or {@code ""} if its value is {@code null}
+     */
     private static String literalValue(CtLiteral<?> lit) {
         return lit.getValue() == null ? "" : lit.getValue().toString();
     }
 
+    /**
+     * Resolves an argument expression to a literal string, either directly or by following a
+     * variable read back to its constant field/local-variable initializer.
+     *
+     * @param arg the argument expression
+     * @return the resolved literal string, or {@code null} if the argument isn't a resolvable constant
+     */
     private static String resolveArgToLiteral(CtExpression<?> arg) {
         if (arg instanceof CtLiteral<?> lit) {
             return literalValue(lit);
@@ -1271,6 +1588,11 @@ public class CallGraphExtractor {
         return null;
     }
 
+    /**
+     * @param read a read of a field reference
+     * @return the field's constant literal initializer value, or {@code null} if it isn't a field
+     *     reference or has no constant initializer
+     */
     private static String fieldReferenceLiteral(CtVariableRead<?> read) {
         if (!(read.getVariable() instanceof CtFieldReference<?> ref)) return null;
         try {
@@ -1283,6 +1605,11 @@ public class CallGraphExtractor {
         return null;
     }
 
+    /**
+     * @param read a read of a local variable
+     * @return the variable's constant literal initializer value, or {@code null} if it isn't a
+     *     local variable or has no constant initializer
+     */
     private static String localVariableLiteral(CtVariableRead<?> read) {
         try {
             if (read.getVariable().getDeclaration() instanceof CtLocalVariable<?> local
@@ -1294,6 +1621,15 @@ public class CallGraphExtractor {
         return null;
     }
 
+    /**
+     * Recursively searches an expression for the first variable read it contains, descending
+     * into ternaries (both branches), constructor call arguments, and chained invocation targets
+     * and arguments. Used as a best-effort fallback when an argument isn't a direct variable
+     * read, so a mapping can still be synthesized for the {@code DataFlowTracer}.
+     *
+     * @param expr the expression to search, or {@code null}
+     * @return the first variable name found, or {@code null} if none is found
+     */
     private static String findFirstVarRead(CtExpression<?> expr) {
         if (expr == null) return null;
         if (expr instanceof CtVariableRead<?> vr) return vr.getVariable().getSimpleName();
@@ -1311,6 +1647,10 @@ public class CallGraphExtractor {
         return null;
     }
 
+    /**
+     * @param args the expressions to search, in order
+     * @return the first variable name {@link #findFirstVarRead} finds among {@code args}, or {@code null}
+     */
     private static String firstVarReadInArgs(List<? extends CtExpression<?>> args) {
         for (CtExpression<?> a : args) {
             String r = findFirstVarRead(a);
@@ -1319,6 +1659,14 @@ public class CallGraphExtractor {
         return null;
     }
 
+    /**
+     * Seeds an empty parameter-name list for every known entrypoint, keyed by
+     * {@code "<componentId>#<methodName>"}. {@link #enrichEntrypointParameters} fills each list
+     * in as matching methods are visited during the extraction pass.
+     *
+     * @param model the architecture model whose entrypoints to seed
+     * @return a mutable map from entrypoint key to its (initially empty) parameter-name list
+     */
     private Map<String, List<String>> buildEntrypointParamMap(ArchitectureModel model) {
         Map<String, List<String>> map = new HashMap<>();
         for (Entrypoint ep : model.entrypoints) {
@@ -1327,6 +1675,7 @@ public class CallGraphExtractor {
         return map;
     }
 
+    /** Copies Spoon method parameter names onto matching entrypoints that do not already have them. */
     private void enrichEntrypointParameters(
             CtMethod<?> method,
             dev.dominikbreu.archlens.model.ids.ComponentId compId,
@@ -1342,6 +1691,13 @@ public class CallGraphExtractor {
                 .forEach(ep -> ep.parameters.addAll(names));
     }
 
+    /**
+     * Legacy call-kind resolution (used only by {@link #extractFromMethod}'s field-read
+     * fallback path) based on the field's declared type.
+     *
+     * @param fieldRead the field read acting as the call receiver
+     * @return {@code "event-bus"}/{@code "messaging"} for event-bus/emitter fields, else {@link #DIRECT}
+     */
     private String resolveCallKind(CtFieldRead<?> fieldRead) {
         if (fieldRead.getType() == null) return DIRECT;
         String simple = fieldRead.getType().getSimpleName();
@@ -1350,6 +1706,10 @@ public class CallGraphExtractor {
         return DIRECT;
     }
 
+    /**
+     * @param inv the call site
+     * @return source info for a call edge, evidence label {@code "invocation"}
+     */
     private SourceInfo buildSource(CtInvocation<?> inv) {
         var pos = inv.getPosition();
         String file;
@@ -1367,6 +1727,10 @@ public class CallGraphExtractor {
         return new SourceInfo(file, line, "invocation", 0.95);
     }
 
+    /**
+     * @param element the controlling construct
+     * @return source info for a branch context, evidence label {@code "control-flow"}
+     */
     private SourceInfo buildControlSource(CtElement element) {
         var pos = element.getPosition();
         return new SourceInfo(sourceFileOf(pos), sourceLineOf(pos), "control-flow", 0.95);

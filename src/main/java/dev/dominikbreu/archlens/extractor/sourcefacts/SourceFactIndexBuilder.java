@@ -39,6 +39,7 @@ public class SourceFactIndexBuilder {
     /** Creates a builder with default settings. */
     public SourceFactIndexBuilder() {}
 
+    /** Returns the global OpenTelemetry tracer used for source-fact indexing spans. */
     private static Tracer tracer() {
         return GlobalOpenTelemetry.getTracer("dev.dominikbreu.archlens");
     }
@@ -93,6 +94,7 @@ public class SourceFactIndexBuilder {
         }
     }
 
+    /** Indexes concrete source types beneath every project supertype in their transitive closures. */
     private Map<String, List<SourceType>> buildImplementations(CtModel ctModel, List<SourceType> sourceTypes) {
         Span span = tracer().spanBuilder("sourcefacts.inheritance").startSpan();
         try (var _ = span.makeCurrent()) {
@@ -129,12 +131,14 @@ public class SourceFactIndexBuilder {
         }
     }
 
+    /** Returns the distinct qualified names in a type's transitive superclass and interface closure. */
     private Set<String> supertypeClosure(CtType<?> type, Map<String, CtType<?>> spoonTypesByQualifiedName) {
         Set<String> result = new LinkedHashSet<>();
         collectSupertypes(type, spoonTypesByQualifiedName, result);
         return result;
     }
 
+    /** Adds the direct interfaces and superclass of a type and continues through project declarations. */
     private void collectSupertypes(
             CtType<?> type, Map<String, CtType<?>> spoonTypesByQualifiedName, Set<String> result) {
         for (CtTypeReference<?> iface : type.getSuperInterfaces()) {
@@ -143,6 +147,7 @@ public class SourceFactIndexBuilder {
         collectTypeReference(type.getSuperclass(), spoonTypesByQualifiedName, result);
     }
 
+    /** Adds one referenced type once and recursively follows its declaration when present in the model. */
     private void collectTypeReference(
             CtTypeReference<?> reference, Map<String, CtType<?>> spoonTypesByQualifiedName, Set<String> result) {
         if (reference == null || reference.getQualifiedName() == null) return;
@@ -154,6 +159,7 @@ public class SourceFactIndexBuilder {
         }
     }
 
+    /** Builds type, field, constructor, method, and owning-annotation facts for the entire model. */
     private void buildMembers(
             CtModel ctModel,
             List<SourceType> types,
@@ -216,6 +222,7 @@ public class SourceFactIndexBuilder {
         }
     }
 
+    /** Extracts annotated field injection and constructor assignment injection facts. */
     private void buildInjectionFacts(
             CtModel ctModel, List<SourceAnnotation> annotations, List<SourceInjectionPoint> injectionPoints) {
         Span span = tracer().spanBuilder("sourcefacts.injection").startSpan();
@@ -235,6 +242,7 @@ public class SourceFactIndexBuilder {
         }
     }
 
+    /** Groups annotations by the fact identifier of their owning source element. */
     private Map<SourceFactId, List<SourceAnnotation>> indexAnnotationsByOwner(List<SourceAnnotation> annotations) {
         Map<SourceFactId, List<SourceAnnotation>> annotationsByOwner = new LinkedHashMap<>();
         for (SourceAnnotation annotation : annotations) {
@@ -245,6 +253,7 @@ public class SourceFactIndexBuilder {
         return annotationsByOwner;
     }
 
+    /** Adds injection facts for fields carrying recognized injection annotations. */
     private void collectFieldInjectionPoints(
             CtType<?> type,
             Map<SourceFactId, List<SourceAnnotation>> annotationsByOwner,
@@ -267,6 +276,7 @@ public class SourceFactIndexBuilder {
         }
     }
 
+    /** Recognizes constructor injection from assignments of constructor parameters into fields. */
     private void addConstructorInjectionFacts(
             CtType<?> type, CtConstructor<?> constructor, List<SourceInjectionPoint> injectionPoints) {
         Map<String, CtParameter<?>> parametersByName = new LinkedHashMap<>();
@@ -303,6 +313,7 @@ public class SourceFactIndexBuilder {
         }
     }
 
+    /** Builds invocation, assignment, local-initializer, and return facts from executable bodies. */
     private void buildCodeFlowFacts(
             CtModel ctModel,
             List<SourceInvocation> invocations,
@@ -342,6 +353,7 @@ public class SourceFactIndexBuilder {
         }
     }
 
+    /** Returns constructors, methods, and other executable members declared by a type. */
     private List<CtExecutable<?>> executables(CtType<?> type) {
         List<CtExecutable<?>> result = new ArrayList<>();
         for (CtTypeMember member : type.getTypeMembers()) {
@@ -352,6 +364,7 @@ public class SourceFactIndexBuilder {
         return result;
     }
 
+    /** Converts an invocation into a stable fact including receiver, callee, arguments, and assignment target. */
     private SourceInvocation invocationFact(SourceFactId methodId, CtInvocation<?> invocation, int index) {
         CtElement parent = invocation.getParent();
         String assignedTo = null;
@@ -377,6 +390,7 @@ public class SourceFactIndexBuilder {
                 location(invocation));
     }
 
+    /** Converts a Spoon assignment into a field, constructor, or local assignment fact. */
     private SourceAssignment assignmentFact(SourceFactId methodId, CtAssignment<?, ?> assignment, int index) {
         SourceEvidence evidence;
         if (assignment.getAssigned() instanceof CtFieldWrite<?>) {
@@ -397,6 +411,7 @@ public class SourceFactIndexBuilder {
                 location(assignment));
     }
 
+    /** Converts a local-variable initializer into a constructor or local assignment fact. */
     private SourceAssignment localAssignmentFact(SourceFactId methodId, CtLocalVariable<?> localVariable, int index) {
         SourceEvidence evidence;
         if (localVariable.getDefaultExpression() instanceof CtConstructorCall<?>) {
@@ -415,6 +430,7 @@ public class SourceFactIndexBuilder {
                 location(localVariable));
     }
 
+    /** Classifies a return by referenced field, parameter, invocation, or other local expression. */
     private SourceReturn returnFact(SourceFactId methodId, CtReturn<?> ctReturn, int index) {
         CtExpression<?> returnedExpression = ctReturn.getReturnedExpression();
         String referencedField = referencedField(returnedExpression);
@@ -440,6 +456,7 @@ public class SourceFactIndexBuilder {
                 location(ctReturn));
     }
 
+    /** Creates a method or constructor fact with parallel parameter-name and type lists. */
     private SourceMethod methodFact(
             CtType<?> owner,
             String name,
@@ -464,6 +481,7 @@ public class SourceFactIndexBuilder {
                 location(element));
     }
 
+    /** Converts every annotation on an element into a source annotation fact owned by the given identifier. */
     private List<SourceAnnotation> annotations(SourceFactId ownerId, CtElement element) {
         List<SourceAnnotation> result = new ArrayList<>();
         for (CtAnnotation<?> annotation : element.getAnnotations()) {
@@ -478,6 +496,7 @@ public class SourceFactIndexBuilder {
         return result;
     }
 
+    /** Resolves an annotation name from its Spoon type or reflective instance, with an unknown fallback. */
     private String annotationQualifiedName(CtAnnotation<?> annotation) {
         if (annotation.getAnnotationType() != null) {
             return annotation.getAnnotationType().getQualifiedName();
@@ -489,6 +508,7 @@ public class SourceFactIndexBuilder {
         }
     }
 
+    /** Recognizes Inject, Autowired, and Resource annotations by qualified or simple name. */
     private boolean isInjectionAnnotation(SourceAnnotation annotation) {
         String qn = annotation.qualifiedName();
         return qn.endsWith(".Inject")
@@ -498,6 +518,7 @@ public class SourceFactIndexBuilder {
                 || "Resource".equals(qn);
     }
 
+    /** Returns an expression's Spoon source text, preserving {@code null}. */
     private String expressionText(Object expression) {
         if (expression == null) {
             return null;
@@ -506,6 +527,7 @@ public class SourceFactIndexBuilder {
         }
     }
 
+    /** Returns an expression's qualified type name when Spoon resolved one. */
     private String expressionType(CtExpression<?> expression) {
         if (expression == null || expression.getType() == null) {
             return null;
@@ -514,6 +536,7 @@ public class SourceFactIndexBuilder {
         }
     }
 
+    /** Returns the simple field name for a direct field-read expression. */
     private String referencedField(CtExpression<?> expression) {
         if (expression instanceof CtFieldRead<?> fieldRead) {
             if (fieldRead.getVariable() == null) {
@@ -525,6 +548,7 @@ public class SourceFactIndexBuilder {
         return null;
     }
 
+    /** Returns the simple parameter name for a variable read whose declaration is a parameter. */
     private String referencedParameter(CtExpression<?> expression) {
         if (expression instanceof CtVariableRead<?> variableRead
                 && variableRead.getVariable() != null
@@ -534,6 +558,7 @@ public class SourceFactIndexBuilder {
         return null;
     }
 
+    /** Returns the written field name when an assignment targets a field. */
     private String assignedFieldName(CtAssignment<?, ?> assignment) {
         if (assignment.getAssigned() instanceof CtFieldWrite<?> fieldWrite && fieldWrite.getVariable() != null) {
             return fieldWrite.getVariable().getSimpleName();
@@ -541,6 +566,7 @@ public class SourceFactIndexBuilder {
         return null;
     }
 
+    /** Returns the parameter name when an assignment's value directly reads a parameter. */
     private String assignedParameterName(CtAssignment<?, ?> assignment) {
         if (assignment.getAssignment() instanceof CtVariableRead<?> variableRead
                 && variableRead.getVariable() != null
@@ -550,6 +576,7 @@ public class SourceFactIndexBuilder {
         return null;
     }
 
+    /** Converts explicitly declared annotation members to their Spoon source text. */
     @SuppressWarnings("rawtypes")
     private Map<String, String> annotationValues(CtAnnotation<?> annotation) {
         Map<String, String> values = new LinkedHashMap<>();
@@ -561,6 +588,7 @@ public class SourceFactIndexBuilder {
         return values;
     }
 
+    /** Publishes fact counts and initial receiver-resolution counters on the build span. */
     private void setBuildCounts(Span span, SourceFactIndex index) {
         span.setAttribute("type-count", (long) index.typeCount());
         span.setAttribute("method-count", (long) index.methodCount());
@@ -605,6 +633,7 @@ public class SourceFactIndexBuilder {
         return SourceFactId.of("field:" + qualifiedTypeName + "#" + fieldName);
     }
 
+    /** Returns the package prefix of a qualified name, or an empty string for the default package. */
     private static String packageName(String qualifiedName) {
         int dot = qualifiedName.lastIndexOf('.');
         if (dot < 0) {

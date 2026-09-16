@@ -50,6 +50,7 @@ final class TransactionXmlPolicyResolver {
         }
     }
 
+    /** Applies Spring advice rules to methods matched by safely parsed execution pointcuts. */
     private void applySpringContext(
             Path path, Document document, SourceFactIndex facts, ArchitectureModel model, AppId appId) {
         Map<String, List<XmlRule>> rulesByAdvice = new LinkedHashMap<>();
@@ -102,6 +103,7 @@ final class TransactionXmlPolicyResolver {
         }
     }
 
+    /** Applies EJB container-transaction declarations to matching bean methods and parameter signatures. */
     private void applyEjbDescriptor(
             Path path, Document document, SourceFactIndex facts, ArchitectureModel model, AppId appId) {
         for (Element transaction : descendants(document.getDocumentElement(), "container-transaction")) {
@@ -133,6 +135,7 @@ final class TransactionXmlPolicyResolver {
         }
     }
 
+    /** Builds a method-bound transaction policy from a resolved XML rule. */
     private static TransactionPolicy xmlPolicy(
             Component component,
             AppId appId,
@@ -158,6 +161,7 @@ final class TransactionXmlPolicyResolver {
         return policy;
     }
 
+    /** Preserves unmatched Spring advice as a lower-confidence unresolved configuration policy. */
     private static void addUnresolved(ArchitectureModel model, AppId appId, Path path, String adviceId, XmlRule rule) {
         TransactionPolicy policy = new TransactionPolicy();
         policy.id = "transaction-config:" + appId.serialize() + ":" + adviceId;
@@ -173,6 +177,7 @@ final class TransactionXmlPolicyResolver {
         model.transactionPolicies.add(policy);
     }
 
+    /** Replaces a policy by stable identifier and marks XML overlap with a nondefault annotation policy. */
     private static void upsert(ArchitectureModel model, TransactionPolicy candidate) {
         TransactionPolicy existing = model.transactionPolicies.stream()
                 .filter(policy -> candidate.id.equals(policy.id))
@@ -186,11 +191,13 @@ final class TransactionXmlPolicyResolver {
         model.transactionPolicies.add(candidate);
     }
 
+    /** Extracts type and method globs from a supported Spring {@code execution(...)} expression. */
     private static Target target(String pointcut) {
         Matcher matcher = EXECUTION.matcher(Objects.toString(pointcut, ""));
         return matcher.matches() ? new Target(matcher.group(1), matcher.group(2)) : null;
     }
 
+    /** Selects the matching method rule with the most literal pattern characters. */
     private static XmlRule firstRule(List<XmlRule> rules, String method) {
         return rules.stream()
                 .filter(rule -> glob(rule.methodPattern(), method))
@@ -198,10 +205,12 @@ final class TransactionXmlPolicyResolver {
                 .orElse(null);
     }
 
+    /** Scores a glob by its non-wildcard character count. */
     private static int specificity(String pattern) {
         return pattern == null ? 0 : pattern.replace("*", "").length();
     }
 
+    /** Matches optional EJB descriptor parameter types by qualified or simple name. */
     private static boolean parametersMatch(List<String> descriptorTypes, SourceMethod method) {
         if (descriptorTypes.isEmpty()) return true;
         if (descriptorTypes.size() != method.parameterTypes().size()) return false;
@@ -213,17 +222,20 @@ final class TransactionXmlPolicyResolver {
         return true;
     }
 
+    /** Removes package and nested-class prefixes from a type name. */
     private static String simpleName(String type) {
         int separator = type != null ? Math.max(type.lastIndexOf('.'), type.lastIndexOf('$')) : -1;
         return separator >= 0 ? type.substring(separator + 1) : Objects.toString(type, "");
     }
 
+    /** Matches a value against a literal glob whose only wildcard is {@code *}. */
     private static boolean glob(String pattern, String value) {
         if (pattern == null || value == null) return false;
         String regex = "\\Q" + pattern.replace("*", "\\E.*\\Q") + "\\E";
         return value.matches(regex);
     }
 
+    /** Finds distinct resource XML files up to depth eight, excluding persistence descriptors. */
     private static List<Path> xmlFiles(BuildModule module) {
         List<Path> result = new ArrayList<>();
         for (File root : module.resourceRoots()) {
@@ -238,6 +250,7 @@ final class TransactionXmlPolicyResolver {
         return result.stream().distinct().sorted().toList();
     }
 
+    /** Parses XML with DTD, external entity, and external schema access disabled. */
     private static Document parse(Path path) {
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
@@ -255,6 +268,7 @@ final class TransactionXmlPolicyResolver {
         }
     }
 
+    /** Returns namespace-agnostic descendant elements with the requested local name. */
     private static List<Element> descendants(Element root, String localName) {
         List<Element> result = new ArrayList<>();
         NodeList list = root.getElementsByTagNameNS("*", localName);
@@ -262,6 +276,7 @@ final class TransactionXmlPolicyResolver {
         return result;
     }
 
+    /** Returns direct child elements with the requested local name. */
     private static List<Element> children(Element root, String localName) {
         List<Element> result = new ArrayList<>();
         for (Node child = root.getFirstChild(); child != null; child = child.getNextSibling()) {
@@ -270,6 +285,7 @@ final class TransactionXmlPolicyResolver {
         return result;
     }
 
+    /** Returns stripped text from the first matching direct child. */
     private static String childText(Element root, String localName) {
         return children(root, localName).stream()
                 .findFirst()
@@ -277,11 +293,13 @@ final class TransactionXmlPolicyResolver {
                 .orElse(null);
     }
 
+    /** Reads a nonblank attribute or returns its fallback. */
     private static String value(Element element, String name, String fallback) {
         String value = element.getAttribute(name);
         return value.isBlank() ? fallback : value;
     }
 
+    /** Preserves declared rollback and no-rollback attributes as named rule strings. */
     private static List<String> rollbackRules(Element method) {
         List<String> result = new ArrayList<>();
         for (String name : List.of("rollback-for", "no-rollback-for")) {
@@ -290,6 +308,7 @@ final class TransactionXmlPolicyResolver {
         return result;
     }
 
+    /** Normalizes Spring and EJB policy spellings to canonical transaction attribute names. */
     private static String normalize(String value) {
         if (value == null || value.isBlank()) return "REQUIRED";
         String normalized = value.replace("_", "").replace("-", "").toUpperCase(Locale.ROOT);
@@ -300,14 +319,17 @@ final class TransactionXmlPolicyResolver {
         };
     }
 
+    /** Parses a nonblank Boolean while preserving an unspecified value as {@code null}. */
     private static Boolean nullableBoolean(String value) {
         return value == null || value.isBlank() ? null : Boolean.valueOf(value);
     }
 
+    /** Converts blank configuration text to {@code null}. */
     private static String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value;
     }
 
+    /** Finds a component by application and qualified type name. */
     private static Component component(ArchitectureModel model, AppId appId, String qualifiedName) {
         return model.components.stream()
                 .filter(value -> appId.equals(value.module) && qualifiedName.equals(value.qualifiedName))
@@ -315,11 +337,22 @@ final class TransactionXmlPolicyResolver {
                 .orElse(null);
     }
 
+    /** Returns a path's file name or an empty string when unavailable. */
     private static String fileName(Path path) {
         Path fileName = path != null ? path.getFileName() : null;
         return fileName != null ? fileName.toString() : "";
     }
 
+    /**
+     * Normalized transaction attributes extracted from one XML method rule.
+     *
+     * @param methodPattern method-name glob
+     * @param policy canonical transaction policy
+     * @param nativePolicy original descriptor spelling
+     * @param readOnly optional Spring read-only flag
+     * @param isolation optional isolation declaration
+     * @param rollbackRules rollback and no-rollback declarations
+     */
     private record XmlRule(
             String methodPattern,
             String policy,
@@ -328,5 +361,11 @@ final class TransactionXmlPolicyResolver {
             String isolation,
             List<String> rollbackRules) {}
 
+    /**
+     * Type and method globs extracted from a supported pointcut.
+     *
+     * @param typePattern qualified type glob
+     * @param methodPattern method-name glob
+     */
     private record Target(String typePattern, String methodPattern) {}
 }

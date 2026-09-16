@@ -61,6 +61,19 @@ public class MermaidPipelineRenderer {
         String previousSinkLabel;
     }
 
+    /**
+     * Renders one pipeline {@link Segment}: an optional boundary node linking from the previous
+     * segment, the segment's header node, its step chain, and any terminal sinks it reaches.
+     *
+     * <p>After rendering, records this segment's last step node and the label of the sink that
+     * links to the next segment (if any) in {@code st}, so the next call to {@code renderSegment}
+     * (via {@link #renderBoundary}) can draw the connecting edge.
+     *
+     * @param st     accumulator for nodes/edges/tracker state, mutated in place
+     * @param chain  full pipeline chain, used to look up the next segment's incoming sink
+     * @param segIdx index of the segment being rendered within {@code chain.segments}
+     * @param graph  graph query interface for component lookups
+     */
     private void renderSegment(RenderState st, Chain chain, int segIdx, GraphQuery graph) {
         Segment seg = chain.segments.get(segIdx);
         Entrypoint ep = seg.entrypoint;
@@ -81,6 +94,20 @@ public class MermaidPipelineRenderer {
         st.previousSinkLabel = linkOut != null && linkOut.method != null ? linkOut.method : "";
     }
 
+    /**
+     * Renders the boundary node that carries the value from the previous segment's sink into
+     * {@code seg}, plus its two edges: an incoming edge from the previous segment's last node
+     * (labeled with the sink method that produced it, omitted for the first segment) and an
+     * outgoing edge into this segment's header node (labeled with the entrypoint name that
+     * consumes it). The boundary's shape/style is chosen by {@link #boundaryRole} from
+     * {@code seg.incomingSink.kind}, and its label by {@link #boundaryLabel}.
+     *
+     * @param st     accumulator for nodes/edges/tracker state, mutated in place
+     * @param seg    segment whose {@code incomingSink} defines this boundary
+     * @param ep     entrypoint that consumes the boundary value, used for the outgoing edge label
+     * @param segIdx index of {@code seg}, used to target its header node id ({@code "S<segIdx>_0"})
+     * @param graph  graph query interface used by {@link #boundaryLabel} to resolve owning components
+     */
     private void renderBoundary(RenderState st, Segment seg, Entrypoint ep, int segIdx, GraphQuery graph) {
         st.boundaryCounter++;
         String boundaryId = "B" + st.boundaryCounter;
@@ -100,6 +127,24 @@ public class MermaidPipelineRenderer {
                 MermaidDocument.Edge.labeled("    ", boundaryId, "S" + segIdx + "_0", escape(consumeLabel), false)));
     }
 
+    /**
+     * Renders the header node for {@code seg}: the entry point into this segment, always assigned
+     * id {@code "S<segIdx>_0"} so {@link #renderBoundary} and {@link #renderSteps} can address it
+     * without threading the id back through {@code st}.
+     *
+     * <p>The header's component name is resolved in order of preference: the entrypoint's
+     * component (looked up via {@code graph}), then the first step's component name when the
+     * segment has steps, then the literal {@code "?"} when neither is available. Its label appends
+     * the entrypoint method name (e.g. {@code "OrderService.handle"}) when {@code ep.name} is set,
+     * and its shape/style come from {@link MermaidStyle#roleFor} on the resolved component's type.
+     *
+     * @param st          accumulator for nodes/edges/tracker state, mutated in place
+     * @param seg         segment being rendered
+     * @param ep          entrypoint owning this segment, may be null
+     * @param segIdx      index of {@code seg}, used to build the header node id
+     * @param graph       graph query interface for resolving the entrypoint's component
+     * @return the header node id ({@code "S<segIdx>_0"})
+     */
     private String renderHeader(RenderState st, Segment seg, Entrypoint ep, int segIdx, GraphQuery graph) {
         String headerNodeId = "S" + segIdx + "_0";
         GraphQuery.ComponentNode headerComp = null;
@@ -122,6 +167,25 @@ public class MermaidPipelineRenderer {
         return headerNodeId;
     }
 
+    /**
+     * Renders the intra-segment step chain starting at {@code headerNodeId}, preferring the
+     * recorded topology graph over the flat steps list when one is available.
+     *
+     * <p>Looks up recorded topology nodes/edges for {@code seg.path} via {@code graph}; when any
+     * exist, delegates to {@link #renderStepsFromTopology} so branching/conditional structure is
+     * preserved. Otherwise falls back to a straight-line rendering of {@code seg.path.steps},
+     * which is the only structure available for paths recorded before topology capture existed or
+     * for which topology capture did not apply.
+     *
+     * @param st             accumulator for nodes/edges/tracker state, mutated in place
+     * @param seg            segment whose path is being rendered
+     * @param segIdx         index of {@code seg}, used to build step node ids
+     * @param headerNodeId   id of the segment's header node, the chain's starting point
+     * @param graph          graph query interface for topology and component lookups
+     * @param callerNodeIds  map from component id to the node id of the step that last called it,
+     *                       populated here and consulted by {@link #renderTerminalSinks}
+     * @return the node id of the last step rendered (or {@code headerNodeId} if there were none)
+     */
     private String renderSteps(
             RenderState st,
             Segment seg,
@@ -171,6 +235,31 @@ public class MermaidPipelineRenderer {
         return previousNodeInSeg;
     }
 
+    /**
+     * Renders {@code seg}'s step chain from recorded topology nodes/edges rather than the flat
+     * steps list, so conditional branches and merges are drawn as the graph actually recorded
+     * them instead of flattened into a single line.
+     *
+     * <p>Each topology node is mapped to a Mermaid node id in {@code nodeIdMap}: {@code "root"}
+     * nodes alias to {@code headerNodeId} (the segment already rendered its header separately),
+     * {@code "method"} nodes get a fresh id ({@code "S<segIdx>_N<nodeOrder>"}) and are rendered
+     * with a shape/style from {@link MermaidStyle#roleFor}, and {@code "sink"} (and any unknown)
+     * node kinds are skipped here because {@link #renderTerminalSinks} renders sinks separately
+     * from {@code seg.path.sinks}. Topology edges that target a sink node are likewise skipped for
+     * the same reason; remaining edges are drawn dashed when their {@code edgeKind} property is
+     * {@code "conditional"}, carrying the edge's {@code label} property when present.
+     *
+     * @param st             accumulator for nodes/edges/tracker state, mutated in place
+     * @param seg            segment whose path is being rendered
+     * @param segIdx         index of {@code seg}, used to build step node ids
+     * @param headerNodeId   id of the segment's header node, aliased to the topology root node
+     * @param graph          graph query interface for topology edges and component lookups
+     * @param callerNodeIds  map from component id to the node id of the step that last called it,
+     *                       populated here and consulted by {@link #renderTerminalSinks}
+     * @param nodes          topology nodes for {@code seg.path}, as returned by {@code graph}
+     * @return the node id of the last {@code "method"} node rendered (or {@code headerNodeId} if
+     *     the topology had none)
+     */
     private String renderStepsFromTopology(
             RenderState st,
             Segment seg,
@@ -239,10 +328,39 @@ public class MermaidPipelineRenderer {
         return lastMethodNodeId;
     }
 
+    /**
+     * Identity key for the component that made a step's call, preferring the stable component id
+     * and falling back to the display name only when no id was resolved. Used by the flat-steps
+     * fallback in {@link #renderSteps} to detect consecutive re-visits of the same component.
+     *
+     * @param step data-flow step to key
+     * @return {@code step.componentId} serialized, or {@code step.componentName} if the id is null
+     */
     private static String compKey(DataFlowStep step) {
         return step.componentId != null ? step.componentId.serialize() : step.componentName;
     }
 
+    /**
+     * Renders the sinks in {@code seg.path.sinks} that terminate here rather than link onward to
+     * the next segment: the sink that {@link #renderSegment} identified as the next segment's
+     * {@code incomingSink} is excluded, since it is drawn as a boundary node instead.
+     *
+     * <p>Remaining sinks are deduplicated by {@link #sinkDedupKey} (component + method + kind +
+     * channel/topic) via a {@link LinkedHashMap}, keeping insertion order and the first sink seen
+     * for each key, so a value re-observed at the same call site during DFS tracing is drawn only
+     * once. Each surviving sink gets its own terminal node (shape/style from {@link #terminalRole})
+     * wired from the step that actually called it — looked up in {@code callerNodeIds} by
+     * {@code s.callerComponentId} — falling back to {@code previousNodeInSeg} when the caller is
+     * unknown or wasn't recorded as a step node.
+     *
+     * @param st                accumulator for nodes/edges/tracker state, mutated in place
+     * @param chain             full pipeline chain, used to identify the next segment's linking sink
+     * @param seg               segment whose sinks are being rendered
+     * @param segIdx            index of {@code seg}, used to build terminal node ids
+     * @param previousNodeInSeg fallback caller node when a sink's caller isn't in {@code callerNodeIds}
+     * @param callerNodeIds     map from component id to the node id of the step that called it,
+     *                          as populated by {@link #renderSteps}/{@link #renderStepsFromTopology}
+     */
     private void renderTerminalSinks(
             RenderState st,
             Chain chain,
@@ -277,6 +395,17 @@ public class MermaidPipelineRenderer {
         }
     }
 
+    /**
+     * Identity key for grouping equivalent terminal sinks in {@link #renderTerminalSinks}: sinks
+     * with the same component, method, kind, and channel/topic are considered the same terminal
+     * and rendered only once, even if the tracer recorded them from multiple call paths.
+     *
+     * <p>Falls back to {@code s.topic} when {@code s.channel} is null so messaging sinks recorded
+     * only with a resolved topic (rather than a raw channel expression) still dedupe correctly.
+     *
+     * @param s sink to key
+     * @return {@code "componentName|method|kind|channelOrTopic"}, with empty segments for null fields
+     */
     private static String sinkDedupKey(DataFlowSink s) {
         return (s.componentName != null ? s.componentName : "")
                 + "|" + (s.method != null ? s.method : "")
@@ -284,6 +413,16 @@ public class MermaidPipelineRenderer {
                 + "|" + (s.channel != null ? s.channel : s.topic != null ? s.topic : "");
     }
 
+    /**
+     * Assembles the accumulated nodes and edges into final Mermaid flowchart text: all node
+     * declarations first, then a blank line, then all edges, then a trailing blank line, wrapped
+     * as a {@code flowchart TD} via {@link MermaidTemplateAdapters#flowchart}. Grouping nodes
+     * before edges (rather than interleaving them in render order) keeps Mermaid's own layout
+     * pass free to lay out edges independently of declaration order.
+     *
+     * @param st fully populated render state for the chain
+     * @return complete Mermaid flowchart text
+     */
     private String assemble(RenderState st) {
         List<MermaidDocument.Statement> statements = new ArrayList<>(st.nodes);
         statements.add(MermaidDocument.Statement.emptyLine());
@@ -292,6 +431,21 @@ public class MermaidPipelineRenderer {
         return MermaidTemplateAdapters.flowchart("TD", statements, st.tracker);
     }
 
+    /**
+     * Chooses the shape/style role for a boundary node from the kind of sink that produced the
+     * value crossing into the next segment. {@code STORE} and {@code PERSISTENCE} both render as
+     * a cylinder ({@link MermaidStyle.Role#STORE}) since both represent data at rest between
+     * segments; {@code MESSAGING} and {@code EVENT_BUS} each get their own distinct shape
+     * (stadium vs. double circle) so the diagram visually distinguishes queue/topic handoffs from
+     * event-bus handoffs, even though both are broker-mediated. Any other
+     * kind falls back to {@code STORE} as a neutral boundary shape; in practice {@link Chain}
+     * construction only ever assigns {@code STORE}, {@code PERSISTENCE}, {@code MESSAGING}, or
+     * {@code EVENT_BUS} as an {@code incomingSink}, so the default case is unreachable in current
+     * usage but kept for switch exhaustiveness.
+     *
+     * @param kind sink kind linking the previous segment to the next
+     * @return shape/style role for the boundary node
+     */
     private MermaidStyle.Role boundaryRole(DataFlowSink.Kind kind) {
         return switch (kind) {
             case STORE, PERSISTENCE -> MermaidStyle.Role.STORE;
@@ -301,6 +455,19 @@ public class MermaidPipelineRenderer {
         };
     }
 
+    /**
+     * Chooses the shape/style role for a terminal sink node, unlike {@link #boundaryRole} covering
+     * every {@link DataFlowSink.Kind} since a terminal sink (unlike a boundary) can be any kind the
+     * tracer records. {@code PERSISTENCE}, {@code OBJECT_STORAGE}, and {@code STORE} all render as
+     * the same cylinder shape since each represents data coming to rest; {@code HTTP_OUTBOUND} and
+     * {@code MESSAGING}/{@code EVENT_BUS} get shapes distinguishing outbound HTTP calls from
+     * broker-mediated handoffs; {@code FILE_OUTBOUND} renders as a plain component box since no
+     * dedicated file-sink shape exists. Any remaining kind (only {@code UNKNOWN}) falls back to
+     * {@code STORE}.
+     *
+     * @param kind terminal sink's kind
+     * @return shape/style role for the terminal node
+     */
     private MermaidStyle.Role terminalRole(DataFlowSink.Kind kind) {
         return switch (kind) {
             case PERSISTENCE, OBJECT_STORAGE, STORE -> MermaidStyle.Role.STORE;
@@ -312,6 +479,22 @@ public class MermaidPipelineRenderer {
         };
     }
 
+    /**
+     * Builds the label text shown on a boundary node, using whichever field of {@code sink}
+     * best names the crossing for that sink's kind: {@code STORE} sinks delegate to
+     * {@link #storeBoundaryLabel} for an {@code Owner.field} label since a shared field is only
+     * meaningful together with its owning component; {@code MESSAGING}/{@code EVENT_BUS} sinks use
+     * the channel name (falling back to the literal {@code "channel"} when unresolved) since that
+     * is what identifies the crossing to a reader; {@code PERSISTENCE} sinks prefer the entity type
+     * over the component name since the entity is what's actually being handed off; any other kind
+     * falls back to the sink's component name, or its kind's wire value if even that is unknown.
+     *
+     * @param sink  sink whose crossing is being labeled
+     * @param graph graph query interface, used by {@link #storeBoundaryLabel} to resolve the
+     *              field-owning component
+     * @return raw label text for the boundary node; {@link MermaidStyle.Tracker#node} escapes it
+     *     when the node is emitted, so this method does not escape its own return value
+     */
     private String boundaryLabel(DataFlowSink sink, GraphQuery graph) {
         return switch (sink.kind) {
             case STORE -> storeBoundaryLabel(sink, graph);
@@ -321,6 +504,17 @@ public class MermaidPipelineRenderer {
         };
     }
 
+    /**
+     * Builds an {@code Owner.field} label for a {@code STORE} boundary, resolving the owning
+     * component by {@code sink.fieldOwnerComponentId} via {@code graph} rather than
+     * {@code sink.componentName}, since the field owner (where the value is actually held) can
+     * differ from the component that wrote to it. Falls back to {@link #nonNullComponentName} for
+     * the owner name and to {@code "?"} for the field name when either is unresolved.
+     *
+     * @param sink  {@code STORE}-kind sink describing the shared field
+     * @param graph graph query interface used to resolve the field-owning component
+     * @return {@code "OwnerName.fieldName"} label text
+     */
     private String storeBoundaryLabel(DataFlowSink sink, GraphQuery graph) {
         GraphQuery.ComponentNode owner = null;
         if (sink.fieldOwnerComponentId != null) {
@@ -331,10 +525,24 @@ public class MermaidPipelineRenderer {
         return ownerName + "." + (sink.fieldName != null ? sink.fieldName : "?");
     }
 
+    /**
+     * Null-safe accessor for a sink's component display name, used wherever a label needs a
+     * guaranteed non-null placeholder instead of propagating null into string concatenation.
+     *
+     * @param sink sink to read the component name from
+     * @return {@code sink.componentName}, or {@code "?"} when it is null
+     */
     private static String nonNullComponentName(DataFlowSink sink) {
         return sink.componentName != null ? sink.componentName : "?";
     }
 
+    /**
+     * Escapes text for safe inclusion inside a Mermaid node/edge label, delegating to
+     * {@link Mermaid#escapeLabel}.
+     *
+     * @param s raw label text
+     * @return Mermaid-safe escaped text
+     */
     private String escape(String s) {
         return Mermaid.escapeLabel(s);
     }

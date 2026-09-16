@@ -26,7 +26,9 @@ public final class QuestionOkfRenderer {
             "uncertainty",
             "query_plan",
             "suggested_questions");
+    /** Matches a single {@code {{name}}} template placeholder, capturing its lowercase/underscore name. */
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{([a-z_]+)}}");
+
     private static final Map<String, List<String>> FAMILY_ANSWER_KEYS = Map.ofEntries(
             Map.entry("persistence_destination", List.of("origins", "transformations", "operations", "destinations")),
             Map.entry("consumer_context", List.of("inboundBinding", "upstream", "downstream")),
@@ -116,6 +118,20 @@ public final class QuestionOkfRenderer {
      */
     public record RenderedConcept(String title, String description, String markdown) {}
 
+    /**
+     * Builds the full set of named Markdown blocks for a rendered concept, keyed by the
+     * placeholder names substituted into the template ({@code frontmatter}, {@code question},
+     * {@code subject}, {@code answer}, {@code evidence}, {@code uncertainty}, {@code query_plan},
+     * {@code suggested_questions}).
+     *
+     * @param result validated question result
+     * @param identity semantic identity for the result
+     * @param projectPath selected indexed project path
+     * @param timestamp generation timestamp
+     * @param title concept title
+     * @param description concept description
+     * @return ordered map from placeholder name to rendered block content
+     */
     private static Map<String, String> blocks(
             ArchitectureQuestionResult result,
             QuestionConceptIdentity.ConceptIdentity identity,
@@ -137,6 +153,19 @@ public final class QuestionOkfRenderer {
         return blocks;
     }
 
+    /**
+     * Renders the YAML frontmatter block describing the concept's metadata, including the
+     * generation timestamp, a staleness deadline 90 days out, and the ArchLens-specific fields
+     * used for provenance.
+     *
+     * @param result validated question result
+     * @param identity semantic identity for the result
+     * @param projectPath selected indexed project path
+     * @param timestamp generation timestamp
+     * @param title concept title
+     * @param description concept description
+     * @return YAML frontmatter delimited by {@code ---} lines
+     */
     private static String frontmatter(
             ArchitectureQuestionResult result,
             QuestionConceptIdentity.ConceptIdentity identity,
@@ -172,6 +201,14 @@ public final class QuestionOkfRenderer {
         return "---\n" + yaml.dump(values).stripTrailing() + "\n---";
     }
 
+    /**
+     * Renders the "Question" section, using the raw natural-language question from the
+     * interpretation when present and non-blank, otherwise synthesizing one from the humanized
+     * family name and a summary of the request.
+     *
+     * @param result validated question result
+     * @return rendered "Question" section
+     */
     private static String question(ArchitectureQuestionResult result) {
         Object raw = result.interpretation().get("rawQuestion");
         String text = raw instanceof String rawQuestion && !rawQuestion.isBlank()
@@ -181,6 +218,15 @@ public final class QuestionOkfRenderer {
         return section("Question", text);
     }
 
+    /**
+     * Renders the "Findings" section, grouping the answer map by the family-specific key order
+     * (from {@link #FAMILY_ANSWER_KEYS}), with any remaining keys not covered by that order
+     * appended alphabetically. Each present key becomes its own subsection.
+     *
+     * @param result validated question result
+     * @return rendered "Findings" section, or a "None recorded." fallback when the answer map is
+     *     empty
+     */
     private static String answer(ArchitectureQuestionResult result) {
         List<String> keys = new ArrayList<>(FAMILY_ANSWER_KEYS.getOrDefault(result.family(), List.of()));
         result.answer().keySet().stream()
@@ -207,6 +253,14 @@ public final class QuestionOkfRenderer {
         return builder.toString().stripTrailing();
     }
 
+    /**
+     * Renders the "Uncertainty" section, combining unresolved and ambiguous items into
+     * "Unresolved" / "Ambiguous" subsections when present.
+     *
+     * @param result validated question result
+     * @return rendered "Uncertainty" section, or a "None recorded." fallback when both the
+     *     unresolved and ambiguous lists are empty
+     */
     private static String uncertainty(ArchitectureQuestionResult result) {
         if (result.unresolved().isEmpty() && result.ambiguous().isEmpty()) {
             return section("Uncertainty", "None recorded.");
@@ -224,10 +278,23 @@ public final class QuestionOkfRenderer {
         return builder.toString();
     }
 
+    /**
+     * Wraps body text under a top-level Markdown heading, substituting "None recorded." when the
+     * body is null or blank.
+     *
+     * @param title heading text, without the leading {@code #}
+     * @param body section body, or {@code null}/blank for the fallback text
+     * @return heading followed by the trimmed body, or the fallback text
+     */
     private static String section(String title, String body) {
         return "# " + title + "\n" + (body == null || body.isBlank() ? "None recorded." : body.stripTrailing());
     }
 
+    /**
+     * Built-in OKF template listing every required placeholder exactly once, in canonical order.
+     *
+     * @return built-in Markdown template text
+     */
     private static String defaultTemplate() {
         return """
                 {{frontmatter}}
@@ -248,6 +315,14 @@ public final class QuestionOkfRenderer {
                 """;
     }
 
+    /**
+     * Validates that a custom OKF template references every known placeholder in {@link
+     * #PLACEHOLDERS} exactly once and no unknown placeholders.
+     *
+     * @param template candidate OKF template text
+     * @throws IllegalArgumentException if the template references an unknown placeholder, or
+     *     omits or duplicates a required placeholder
+     */
     private static void validateTemplate(String template) {
         Map<String, Integer> counts = new LinkedHashMap<>();
         PLACEHOLDERS.forEach(name -> counts.put(name, 0));
@@ -267,10 +342,23 @@ public final class QuestionOkfRenderer {
         }
     }
 
+    /**
+     * Builds the concept title from the humanized family name and the resolved request subject.
+     *
+     * @param result validated question result
+     * @return concept title
+     */
     private static String title(ArchitectureQuestionResult result) {
         return humanize(result.family()) + " - " + subject(result.request());
     }
 
+    /**
+     * Summarizes a request map as a comma-separated {@code key=value} list sorted by key, with
+     * each value normalized to a single line.
+     *
+     * @param request raw request parameters
+     * @return one-line summary, or "an unresolved request" when the request is empty
+     */
     private static String requestSummary(Map<String, Object> request) {
         if (request.isEmpty()) {
             return "an unresolved request";
@@ -281,10 +369,25 @@ public final class QuestionOkfRenderer {
                 .collect(java.util.stream.Collectors.joining(", "));
     }
 
+    /**
+     * Collapses whitespace runs in a value's string representation into single spaces and trims
+     * the result.
+     *
+     * @param value value to normalize
+     * @return single-line, trimmed string representation
+     */
     private static String oneLine(Object value) {
         return String.valueOf(value).replaceAll("\\s+", " ").trim();
     }
 
+    /**
+     * Resolves the request subject by checking a fixed priority of keys ({@code entrypoint},
+     * {@code component}, {@code field}, {@code query}, {@code subject}) for the first non-blank
+     * string value.
+     *
+     * @param request raw request parameters
+     * @return the first matching non-blank value, or "Unresolved subject" when none match
+     */
     private static String subject(Map<String, Object> request) {
         for (String key : List.of("entrypoint", "component", "field", "query", "subject")) {
             Object value = request.get(key);
@@ -295,6 +398,14 @@ public final class QuestionOkfRenderer {
         return "Unresolved subject";
     }
 
+    /**
+     * Converts an identifier (camelCase, snake_case, or kebab-case) into a human-readable phrase:
+     * inserts a space at each lower-to-upper case boundary, replaces underscores and hyphens with
+     * spaces, collapses whitespace, lowercases the result, then capitalizes each word.
+     *
+     * @param value identifier to humanize
+     * @return humanized, capitalized phrase
+     */
     private static String humanize(String value) {
         return value.replaceAll("([a-z0-9])([A-Z])", "$1 $2")
                 .replace('_', ' ')
@@ -305,6 +416,13 @@ public final class QuestionOkfRenderer {
                 .transform(QuestionOkfRenderer::capitalizeWords);
     }
 
+    /**
+     * Capitalizes the first letter of each space-separated word, skipping empty tokens produced
+     * by repeated delimiters.
+     *
+     * @param value space-separated lowercase words
+     * @return words with leading letters capitalized
+     */
     private static String capitalizeWords(String value) {
         StringBuilder builder = new StringBuilder();
         for (String word : value.split(" ")) {

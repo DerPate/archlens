@@ -39,12 +39,16 @@ import spoon.reflect.visitor.filter.TypeFilter;
 /** Builds the object-flow index from source and architecture metadata. */
 public class ObjectFlowIndexBuilder {
 
+    /** Span attribute counting architecture-backed project types. */
     private static final String PROJECT_TYPES = "project-types";
+
+    /** Span attribute counting declared types with registered implementations. */
     private static final String IMPLEMENTATION_GROUPS = "implementation-groups";
 
     /** Creates a builder with default settings. */
     public ObjectFlowIndexBuilder() {}
 
+    /** Returns the global OpenTelemetry tracer used for object-flow indexing spans. */
     private static Tracer tracer() {
         return GlobalOpenTelemetry.getTracer("dev.dominikbreu.archlens");
     }
@@ -114,6 +118,7 @@ public class ObjectFlowIndexBuilder {
         }
     }
 
+    /** Builds type facts from source facts that correspond to extracted architecture components. */
     private static void indexTypes(
             SourceFactIndex sourceFacts,
             Map<String, Component> componentByQualifiedName,
@@ -146,6 +151,7 @@ public class ObjectFlowIndexBuilder {
         }
     }
 
+    /** Builds type facts directly from Spoon project types and their architecture components. */
     private static void indexTypes(
             List<CtType<?>> projectTypes,
             Map<String, Component> componentByQualifiedName,
@@ -175,6 +181,7 @@ public class ObjectFlowIndexBuilder {
         }
     }
 
+    /** Computes concrete implementation groups from Spoon supertype closures. */
     private static void indexImplementations(
             List<CtType<?>> projectTypes,
             Map<String, CtType<?>> projectTypeByQualifiedName,
@@ -215,6 +222,7 @@ public class ObjectFlowIndexBuilder {
         }
     }
 
+    /** Populates implementation groups from the precomputed source-fact implementation index. */
     private static void indexImplementations(
             SourceFactIndex sourceFacts,
             Map<String, ObjectFlowIndex.TypeFact> types,
@@ -254,6 +262,7 @@ public class ObjectFlowIndexBuilder {
         }
     }
 
+    /** Resolves receiver targets for every Spoon invocation and records resolution statistics. */
     private static Map<CtInvocation<?>, List<ReceiverTarget>> receiverTargets(
             CtModel ctModel,
             List<CtType<?>> projectTypes,
@@ -287,6 +296,7 @@ public class ObjectFlowIndexBuilder {
         }
     }
 
+    /** Resolves an invocation receiver through arrays, accessors, locals, fields, then declared types. */
     private static ReceiverResolution resolveInvocation(
             CtInvocation<?> invocation, List<CtType<?>> projectTypes, ObjectFlowIndex typeIndex) {
         CtExpression<?> target = invocation.getTarget();
@@ -345,6 +355,7 @@ public class ObjectFlowIndexBuilder {
         return ReceiverResolution.unresolved();
     }
 
+    /** Resolves an inherited or local field from its allocation before falling back to its declared type. */
     private static List<ReceiverTarget> resolveField(
             CtInvocation<?> invocation, String fieldName, String methodName, ObjectFlowIndex typeIndex) {
         CtType<?> owner = invocation.getParent(CtType.class);
@@ -365,6 +376,7 @@ public class ObjectFlowIndexBuilder {
         return List.of();
     }
 
+    /** Resolves array-field element allocations, falling back to expansion of the array's declared type. */
     private static List<ReceiverTarget> resolveArrayField(
             CtInvocation<?> invocation, String fieldName, String methodName, ObjectFlowIndex typeIndex) {
         CtType<?> owner = invocation.getParent(CtType.class);
@@ -483,6 +495,7 @@ public class ObjectFlowIndexBuilder {
             "stream",
             "forEach");
 
+    /** Resolves chained-call receivers from declared return types or guarded project-accessor name fallback. */
     private static List<ReceiverTarget> resolveAccessorTarget(
             CtInvocation<?> targetInvocation,
             List<CtType<?>> projectTypes,
@@ -561,6 +574,7 @@ public class ObjectFlowIndexBuilder {
         return !receiverType.getActualTypeArguments().isEmpty() && GENERIC_JAVA_API_METHODS.contains(methodName);
     }
 
+    /** Returns an array component, first generic argument, or the declared qualified type name. */
     private static String elementOrDeclaredType(CtTypeReference<?> type) {
         if (type == null) return "";
         if (type instanceof spoon.reflect.reference.CtArrayTypeReference<?> arrayType) {
@@ -572,6 +586,7 @@ public class ObjectFlowIndexBuilder {
         return type.getQualifiedName();
     }
 
+    /** Finds a named field on a type or its resolvable superclass chain. */
     private static CtField<?> field(CtType<?> owner, String fieldName) {
         CtType<?> current = owner;
         while (current != null) {
@@ -586,6 +601,7 @@ public class ObjectFlowIndexBuilder {
         return null;
     }
 
+    /** Reports whether a type exposes a method with the requested simple name. */
     private static boolean hasMethod(CtType<?> type, String methodName) {
         for (CtMethod<?> method : type.getMethods()) {
             if (methodName.equals(method.getSimpleName())) {
@@ -595,6 +611,7 @@ public class ObjectFlowIndexBuilder {
         return false;
     }
 
+    /** Extracts the allocated qualified type from a constructor-call expression. */
     private static String constructorType(CtExpression<?> expression) {
         if (expression instanceof CtConstructorCall<?> constructorCall && constructorCall.getType() != null) {
             return constructorCall.getType().getQualifiedName();
@@ -602,6 +619,7 @@ public class ObjectFlowIndexBuilder {
         return null;
     }
 
+    /** Creates a single receiver target for a nonblank qualified type and evidence kind. */
     private static List<ReceiverTarget> targetFor(
             String qualifiedName, String methodName, ObjectFlowEvidence evidence) {
         if (StringUtils.isBlank(qualifiedName)) {
@@ -610,6 +628,7 @@ public class ObjectFlowIndexBuilder {
         return List.of(new ReceiverTarget(qualifiedName, methodName, evidence, evidence.confidence(), false));
     }
 
+    /** Resolves the simple variable name represented by an expression. */
     private static String variableName(CtExpression<?> expression) {
         if (expression instanceof CtVariableRead<?> variableRead && variableRead.getVariable() != null) {
             return variableRead.getVariable().getSimpleName();
@@ -622,6 +641,7 @@ public class ObjectFlowIndexBuilder {
         }
     }
 
+    /** Resolves a variable-read declaration, tolerating no-classpath Spoon lookup failures. */
     private static CtVariable<?> variable(CtExpression<?> expression) {
         if (expression instanceof CtVariableRead<?> variableRead) {
             var reference = variableRead.getVariable();
@@ -640,6 +660,7 @@ public class ObjectFlowIndexBuilder {
         return null;
     }
 
+    /** Indexes the first architecture component for each nonblank qualified name. */
     private static Map<String, Component> componentByQualifiedName(ArchitectureModel architecture) {
         Span span = tracer().spanBuilder("objectflow.component-index").startSpan();
         try (var _ = span.makeCurrent()) {
@@ -661,6 +682,7 @@ public class ObjectFlowIndexBuilder {
         }
     }
 
+    /** Returns a stable transitive closure of a type's superclass and interfaces. */
     private static List<String> supertypeClosure(CtType<?> type, Map<String, CtType<?>> projectTypeByQualifiedName) {
         Set<String> closure = new LinkedHashSet<>();
         Set<String> visited = new LinkedHashSet<>();
@@ -671,6 +693,7 @@ public class ObjectFlowIndexBuilder {
         return List.copyOf(closure);
     }
 
+    /** Recursively collects a supertype once while excluding the concrete type itself. */
     private static void collectSupertype(
             CtTypeReference<?> supertype,
             String concreteQualifiedName,
@@ -699,6 +722,7 @@ public class ObjectFlowIndexBuilder {
         }
     }
 
+    /** Sorts type references deterministically by nullable qualified name. */
     private static List<CtTypeReference<?>> sortedTypeReferences(Set<CtTypeReference<?>> typeReferences) {
         return typeReferences.stream()
                 .sorted(Comparator.comparing(
@@ -706,6 +730,7 @@ public class ObjectFlowIndexBuilder {
                 .toList();
     }
 
+    /** Registers a distinct concrete implementation under a different declared type. */
     private static boolean registerImplementation(
             Map<String, List<ObjectFlowIndex.TypeFact>> implementations,
             String declaredQualifiedName,
@@ -722,7 +747,14 @@ public class ObjectFlowIndexBuilder {
         return false;
     }
 
+    /**
+     * Receiver targets paired with the strategy that resolved them.
+     *
+     * @param targets candidate runtime receivers
+     * @param path resolution strategy used for metrics
+     */
     private record ReceiverResolution(List<ReceiverTarget> targets, ReceiverResolutionPath path) {
+        /** Normalizes an empty successful lookup to the unresolved result. */
         private static ReceiverResolution of(List<ReceiverTarget> targets, ReceiverResolutionPath path) {
             if (targets.isEmpty()) {
                 return unresolved();
@@ -730,11 +762,13 @@ public class ObjectFlowIndexBuilder {
             return new ReceiverResolution(targets, path);
         }
 
+        /** Returns the canonical empty unresolved result. */
         private static ReceiverResolution unresolved() {
             return new ReceiverResolution(List.of(), ReceiverResolutionPath.UNRESOLVED);
         }
     }
 
+    /** High-level strategy used to resolve an invocation receiver. */
     private enum ReceiverResolutionPath {
         ARRAY_FIELD,
         ACCESSOR,
@@ -744,6 +778,7 @@ public class ObjectFlowIndexBuilder {
         UNRESOLVED
     }
 
+    /** Accumulates receiver-resolution outcomes and evidence counts for tracing telemetry. */
     private static final class ReceiverResolutionStats {
         private long unresolvedInvocations;
         private long resolvedInvocations;
@@ -759,6 +794,7 @@ public class ObjectFlowIndexBuilder {
         private long declaredInterfaceOnlyTargets;
         private long polymorphicTargets;
 
+        /** Incorporates one invocation resolution into aggregate counters. */
         private void record(ReceiverResolution resolved) {
             if (resolved.targets().isEmpty()) {
                 unresolvedInvocations++;
@@ -785,6 +821,7 @@ public class ObjectFlowIndexBuilder {
             }
         }
 
+        /** Writes all aggregate counters to an OpenTelemetry span. */
         private void apply(Span span) {
             span.setAttribute("resolved-invocations", resolvedInvocations);
             span.setAttribute("unresolved-invocations", unresolvedInvocations);

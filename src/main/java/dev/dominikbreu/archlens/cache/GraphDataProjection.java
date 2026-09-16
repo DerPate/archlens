@@ -26,6 +26,13 @@ public final class GraphDataProjection {
         return new ViewerProjections(pipelineProjections(snapshot));
     }
 
+    /**
+     * Projects every pipeline chain node in the snapshot into a viewer-ready pipeline, sorted by
+     * title for stable display order.
+     *
+     * @param snapshot the graph snapshot to project
+     * @return the pipeline projections, sorted by {@link PipelineProjection#title()}
+     */
     private static List<PipelineProjection> pipelineProjections(GraphQuery.GraphSnapshot snapshot) {
         Map<GraphNodeId, GraphQuery.GraphNode> nodeById = snapshot.nodes().stream()
                 .collect(Collectors.toMap(GraphQuery.GraphNode::id, Function.identity(), (a, b) -> a));
@@ -38,6 +45,20 @@ public final class GraphDataProjection {
                 .toList();
     }
 
+    /**
+     * Builds the viewer projection for a single pipeline chain: resolves its ordered
+     * {@code HAS_SEGMENT} edges into segment projections, then collects each segment's node id and
+     * hand-off boundary-sink id across the whole chain and recomputes a fresh chain-wide
+     * {@link GraphSlice} over that combined set — independently of each segment's own per-segment
+     * slice, so the chain-wide slice can surface cross-segment closing edges no single segment's
+     * slice would include. The subtitle is derived from the chain's link kinds and segment count
+     * (falling back to the resolved segment count when the chain does not report one).
+     *
+     * @param snapshot the graph snapshot to project
+     * @param nodeById all graph nodes indexed by id, used to resolve segment and sink nodes
+     * @param chain the pipeline chain node to project
+     * @return the viewer-ready pipeline projection
+     */
     private static PipelineProjection pipelineProjection(
             GraphQuery.GraphSnapshot snapshot,
             Map<GraphNodeId, GraphQuery.GraphNode> nodeById,
@@ -75,6 +96,20 @@ public final class GraphDataProjection {
                 slice.edgeKeys());
     }
 
+    /**
+     * Builds the viewer projection for one pipeline segment, keyed by the {@code HAS_SEGMENT}
+     * edge's target node. Returns {@code null} when that target is not a data-flow path node (the
+     * segment is skipped rather than projected with missing data). The segment's {@code linkKind}
+     * and {@code viaChannel} come from the {@code HAS_SEGMENT} edge's own properties, and its slice
+     * is scoped to just this segment's node plus the given boundary sinks.
+     *
+     * @param snapshot the graph snapshot to project
+     * @param nodeById all graph nodes indexed by id, used to resolve the segment's target node
+     * @param segmentEdge the indexed {@code HAS_SEGMENT} edge identifying this segment
+     * @param endNodeIds the boundary sink node ids that link this segment to the next one
+     * @return the viewer-ready segment projection, or {@code null} if the edge does not target a
+     *     data-flow path node
+     */
     private static PipelineSegmentProjection segmentProjection(
             GraphQuery.GraphSnapshot snapshot,
             Map<GraphNodeId, GraphQuery.GraphNode> nodeById,
@@ -99,6 +134,17 @@ public final class GraphDataProjection {
                 blankToNull(viaChannel));
     }
 
+    /**
+     * Finds the boundary sink node id where the segment at {@code segmentIndex} hands off to the
+     * next segment, read from the following segment's {@code incomingSinkId} edge property.
+     * Segment edges other than the immediate successor are ignored; if the successor's
+     * {@code incomingSinkId} is blank or no successor exists, there is no known hand-off sink.
+     *
+     * @param segmentEdges the chain's segment edges, indexed by segment position
+     * @param segmentIndex the zero-based index of the segment whose hand-off sink is sought
+     * @return a single-element list with the hand-off sink node id, or an empty list if none is
+     *     recorded
+     */
     private static List<String> primaryEndNodeIds(List<SegmentEdge> segmentEdges, int segmentIndex) {
         for (SegmentEdge edge : segmentEdges) {
             if (edge.index() != segmentIndex + 1) continue;
@@ -108,6 +154,15 @@ public final class GraphDataProjection {
         return List.of();
     }
 
+    /**
+     * Finds the given chain's {@code HAS_SEGMENT} edges and pairs each with its
+     * {@code segmentIndex} property (defaulting to {@code 0} if absent), sorted ascending by that
+     * index to yield the pipeline's segment order.
+     *
+     * @param snapshot the graph snapshot to search
+     * @param chainId the pipeline chain node id whose segment edges are sought
+     * @return the chain's segment edges, ordered by segment index
+     */
     private static List<SegmentEdge> segmentEdges(GraphQuery.GraphSnapshot snapshot, GraphNodeId chainId) {
         return snapshot.edges().stream()
                 .filter(edge -> chainId.equals(edge.fromId()))
@@ -117,6 +172,34 @@ public final class GraphDataProjection {
                 .toList();
     }
 
+    /**
+     * Builds a focused node/edge slice of the graph around one or more pipeline segments, for
+     * rendering a segment or whole-pipeline view without the noise of the full snapshot.
+     *
+     * <p>Edges are selected in three passes, each skipping edges already selected by an earlier
+     * pass:
+     *
+     * <ol>
+     *   <li>{@code HAS_SEGMENT} edges are skipped outright; the rest are tested as spine edges
+     *       ({@link #isPipelineSpineEdge}) connecting the segment nodes to each other and to the
+     *       boundary sinks, and their endpoints are added to the selected node set.
+     *   <li>Boundary-sink target edges ({@link #isBoundarySinkTargetEdge}), e.g. a data-flow sink's
+     *       {@code AT_COMPONENT}/{@code ON_FIELD} edges, again adding their endpoints.
+     *   <li>Any remaining non-{@code HAS_SEGMENT} edge whose endpoints are both already selected
+     *       (closing edges between nodes pulled in by the earlier passes), without adding further
+     *       nodes.
+     * </ol>
+     *
+     * <p>Pipeline chain nodes (ids serialized with a {@code "chain:"} prefix) are excluded from the
+     * resulting node set, and only edges whose endpoints both survive that exclusion are reported as
+     * visible edge keys.
+     *
+     * @param snapshot the graph snapshot to slice
+     * @param nodeById all graph nodes indexed by id, used to identify data-flow sinks
+     * @param segmentIds the data-flow path node ids forming the slice's spine
+     * @param boundarySinkIds the boundary sink node ids linking the spine onward
+     * @return the selected node ids and their visible edge keys
+     */
     private static GraphSlice graphSlice(
             GraphQuery.GraphSnapshot snapshot,
             Map<GraphNodeId, GraphQuery.GraphNode> nodeById,
@@ -168,10 +251,29 @@ public final class GraphDataProjection {
         return new GraphSlice(nodeIds.stream().map(GraphNodeId::serialize).toList(), visibleEdgeKeys);
     }
 
+    /**
+     * Tests whether an equal edge is already present among the given indexed edges, used to avoid
+     * re-selecting the same edge across {@link #graphSlice}'s selection passes.
+     *
+     * @param edges the already-selected indexed edges
+     * @param edge the edge to look for
+     * @return {@code true} if an equal edge is already selected
+     */
     private static boolean containsEdge(List<IndexedEdge> edges, GraphQuery.GraphEdge edge) {
         return edges.stream().anyMatch(indexed -> indexed.edge().equals(edge));
     }
 
+    /**
+     * Tests whether an edge belongs on the pipeline spine connecting segments to each other and to
+     * boundary sinks: an {@code ORIGINATES} edge into a segment, a {@code REACHES} edge from a
+     * segment to a boundary sink, a {@code LINKS_TO} edge from a boundary sink into a segment, or a
+     * {@code WORKFLOW_LINK} edge between two segments. Any other edge label is not a spine edge.
+     *
+     * @param edge the edge to classify
+     * @param segmentIds the data-flow path node ids forming the slice's spine
+     * @param boundarySinkIds the boundary sink node ids linking the spine onward
+     * @return {@code true} if the edge is one of the spine-qualifying label/direction combinations
+     */
     private static boolean isPipelineSpineEdge(
             GraphQuery.GraphEdge edge, Set<GraphNodeId> segmentIds, Set<GraphNodeId> boundarySinkIds) {
         if ("ORIGINATES".equals(edge.label())) return segmentIds.contains(edge.toId());
@@ -185,6 +287,16 @@ public final class GraphDataProjection {
         return false;
     }
 
+    /**
+     * Tests whether an edge originates at a boundary sink that is itself a data-flow sink node and
+     * targets that sink's underlying component or field, via an {@code AT_COMPONENT} or
+     * {@code ON_FIELD} edge. These edges surface what a boundary sink resolves to in the graph.
+     *
+     * @param edge the edge to classify
+     * @param nodeById all graph nodes indexed by id, used to check the source node's type
+     * @param boundarySinkIds the boundary sink node ids under consideration
+     * @return {@code true} if the edge is a data-flow sink's component/field target edge
+     */
     private static boolean isBoundarySinkTargetEdge(
             GraphQuery.GraphEdge edge,
             Map<GraphNodeId, GraphQuery.GraphNode> nodeById,
@@ -194,10 +306,27 @@ public final class GraphDataProjection {
         return "AT_COMPONENT".equals(edge.label()) || "ON_FIELD".equals(edge.label());
     }
 
+    /**
+     * Tests whether a node is a data-flow sink, either by its concrete type or, as a fallback for
+     * nodes not modeled with that type, by its {@code "DataFlowSink"} label.
+     *
+     * @param node the node to classify, may be {@code null}
+     * @return {@code true} if the node is a data-flow sink; {@code false} if {@code node} is
+     *     {@code null} or not a sink
+     */
     private static boolean isDataFlowSink(GraphQuery.GraphNode node) {
         return node instanceof GraphQuery.DataFlowSinkNode || (node != null && "DataFlowSink".equals(node.label()));
     }
 
+    /**
+     * Builds a stable, unique key for an edge within a slice, combining its endpoints and label
+     * with its original position in the snapshot's edge list so that parallel edges sharing the
+     * same endpoints and label remain distinguishable.
+     *
+     * @param edge the edge to key
+     * @param index the edge's index in the source snapshot's edge list
+     * @return the edge key, formatted as {@code "<fromId>-><toId>:<label>:<index>"}
+     */
     private static String edgeKey(GraphQuery.GraphEdge edge, int index) {
         return edge.fromId().serialize() + "->" + edge.toId().serialize() + ":" + edge.label() + ":" + index;
     }
@@ -224,6 +353,14 @@ public final class GraphDataProjection {
         return method.isBlank() ? simpleOwner : simpleOwner + "." + method;
     }
 
+    /**
+     * Builds the human-readable title for a data-flow path segment, formatted from its entrypoint
+     * (falling back to a synthesized entrypoint id when the node has none) and, when present, the
+     * tracked parameter name suffixed as {@code "#<trackedParam>"}.
+     *
+     * @param node the data-flow path node to title
+     * @return the segment title
+     */
     private static String dataFlowPathTitle(GraphQuery.DataFlowPathNode node) {
         EntrypointId entrypointId = node.entrypointId();
         String serializedEntrypointId =
@@ -233,22 +370,57 @@ public final class GraphDataProjection {
                 + (trackedParam == null || trackedParam.isBlank() ? "" : " #" + trackedParam);
     }
 
+    /**
+     * Derives an entrypoint id from a data-flow path node's own id when the node carries no
+     * explicit {@link EntrypointId}, by stripping the trailing {@code "#..."} tracked-parameter
+     * suffix, if any.
+     *
+     * @param id the data-flow path node id to derive from
+     * @return the id with any trailing {@code "#..."} suffix removed, or the id unchanged if it has
+     *     none
+     */
     private static String fallbackEntrypointId(GraphNodeId id) {
         String value = id.serialize();
         int lastHash = value.lastIndexOf('#');
         return lastHash >= 0 ? value.substring(0, lastHash) : value;
     }
 
+    /**
+     * Reads a {@link String}-typed property, falling back to a default when the key is absent or
+     * holds a value of another type.
+     *
+     * @param properties the edge or node properties to read from
+     * @param key the property key to look up
+     * @param defaultValue the value to return when the property is missing or not a string
+     * @return the string property value, or {@code defaultValue}
+     */
     private static String stringProperty(Map<String, Object> properties, String key, String defaultValue) {
         Object value = properties.get(key);
         return value instanceof String s ? s : defaultValue;
     }
 
+    /**
+     * Reads a numeric property as an {@code int}, falling back to a default when the key is absent
+     * or holds a value that is not a {@link Number}.
+     *
+     * @param properties the edge or node properties to read from
+     * @param key the property key to look up
+     * @param defaultValue the value to return when the property is missing or not a number
+     * @return the property value truncated to {@code int}, or {@code defaultValue}
+     */
     private static int intProperty(Map<String, Object> properties, String key, int defaultValue) {
         Object value = properties.get(key);
         return value instanceof Number n ? n.intValue() : defaultValue;
     }
 
+    /**
+     * Normalizes an optional string field so that absent-or-empty values are represented uniformly
+     * as {@code null} rather than blank strings.
+     *
+     * @param value the value to normalize, may be {@code null}
+     * @return {@code null} if {@code value} is {@code null} or blank; {@code value} unchanged
+     *     otherwise
+     */
     private static String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value;
     }
@@ -326,9 +498,32 @@ public final class GraphDataProjection {
         }
     }
 
+    /**
+     * A pipeline chain's {@code HAS_SEGMENT} edge paired with its declared segment position.
+     *
+     * @param index the segment's zero-based position, from the edge's {@code segmentIndex}
+     *     property
+     * @param edge the underlying {@code HAS_SEGMENT} edge
+     */
     private record SegmentEdge(int index, GraphQuery.GraphEdge edge) {}
 
+    /**
+     * A graph edge paired with its position in the source snapshot's edge list, used to build
+     * stable {@link #edgeKey(GraphQuery.GraphEdge, int) edge keys} and to detect duplicate
+     * selections during slicing.
+     *
+     * @param index the edge's index in the snapshot's edge list
+     * @param edge the underlying edge
+     */
     private record IndexedEdge(int index, GraphQuery.GraphEdge edge) {}
 
+    /**
+     * A focused slice of the graph, naming the nodes and edges to include in a pipeline or segment
+     * view.
+     *
+     * @param nodeIds the serialized ids of the nodes in the slice
+     * @param edgeKeys the {@link #edgeKey(GraphQuery.GraphEdge, int) edge keys} of the edges in the
+     *     slice
+     */
     private record GraphSlice(List<String> nodeIds, List<String> edgeKeys) {}
 }
