@@ -65,6 +65,15 @@ public class TraceDataFlowTool {
         }
     }
 
+    /**
+     * Builds the structured (machine-readable) representation of the traced paths, one entry per
+     * path with its entrypoint label, tracked parameter, and non-null sink fields (including
+     * evidence, when present).
+     *
+     * @param paths data-flow paths to serialize
+     * @param graph graph used to resolve entrypoints and sinks
+     * @return one map per path, each sink map pruned of null-valued fields
+     */
     private List<Map<String, Object>> structured(List<DataFlowPathNode> paths, GraphQuery graph) {
         List<Map<String, Object>> result = new ArrayList<>();
         for (DataFlowPathNode path : paths) {
@@ -106,6 +115,14 @@ public class TraceDataFlowTool {
         return result;
     }
 
+    /**
+     * Keeps only paths whose entrypoint ID equals or contains the given filter. A {@code null}
+     * filter passes all paths through unchanged.
+     *
+     * @param paths data-flow paths to filter
+     * @param epFilter entrypoint ID (or substring) to match, or {@code null} to skip filtering
+     * @return the paths whose entrypoint ID matches, or {@code paths} unchanged if no filter given
+     */
     private static List<DataFlowPathNode> filterByEntrypointId(List<DataFlowPathNode> paths, String epFilter) {
         if (epFilter == null) return paths;
         return paths.stream()
@@ -115,6 +132,18 @@ public class TraceDataFlowTool {
                 .toList();
     }
 
+    /**
+     * Keeps only paths whose entrypoint matches the given reference, which may combine an HTTP
+     * method and a path/name fragment (e.g. {@code "GET /users"}). The method and path portions
+     * are split via {@link RuntimeFlowInferrer}, and the path portion is matched case-insensitively
+     * against the entrypoint name or via prefix against its route path. A {@code null} filter
+     * passes all paths through unchanged.
+     *
+     * @param paths data-flow paths to filter
+     * @param nameFilter entrypoint reference to match, or {@code null} to skip filtering
+     * @param graph graph used to resolve entrypoints
+     * @return the paths whose entrypoint matches, or {@code paths} unchanged if no filter given
+     */
     private static List<DataFlowPathNode> filterByEntrypointName(
             List<DataFlowPathNode> paths, String nameFilter, GraphQuery graph) {
         if (nameFilter == null) return paths;
@@ -126,6 +155,20 @@ public class TraceDataFlowTool {
                 .toList();
     }
 
+    /**
+     * Checks whether a path's entrypoint matches the given method and name/path filters. Returns
+     * {@code false} when the path has no entrypoint or the entrypoint cannot be resolved, or when
+     * an HTTP method filter is given and does not match (case-insensitively). Otherwise a match
+     * requires either the entrypoint name to contain {@code lower} or its route path to share the
+     * given prefix.
+     *
+     * @param p path whose entrypoint is checked
+     * @param graph graph used to resolve the entrypoint
+     * @param methodFilter HTTP method to require, or {@code null} to accept any method
+     * @param pathFilter route path prefix to match against the entrypoint's path
+     * @param lower lower-cased name fragment to match against the entrypoint's name
+     * @return {@code true} if the path's entrypoint matches all given filters
+     */
     private static boolean entrypointNameMatches(
             DataFlowPathNode p, GraphQuery graph, String methodFilter, String pathFilter, String lower) {
         if (p.entrypointId() == null) return false;
@@ -135,6 +178,16 @@ public class TraceDataFlowTool {
         return ep.name().toLowerCase().contains(lower) || RuntimeFlowInferrer.pathPrefixMatches(ep.path(), pathFilter);
     }
 
+    /**
+     * Keeps only paths whose tracked parameter equals or contains the given filter. A {@code null}
+     * filter passes all paths through unchanged.
+     *
+     * @param paths data-flow paths to filter
+     * @param paramFilter tracked-parameter name (or substring) to match, or {@code null} to skip
+     *     filtering
+     * @return the paths whose tracked parameter matches, or {@code paths} unchanged if no filter
+     *     given
+     */
     private static List<DataFlowPathNode> filterByParam(List<DataFlowPathNode> paths, String paramFilter) {
         if (paramFilter == null) return paths;
         return paths.stream()
@@ -144,6 +197,15 @@ public class TraceDataFlowTool {
                 .toList();
     }
 
+    /**
+     * Keeps only paths that have at least one sink whose kind equals the given filter
+     * (case-insensitively). A {@code null} filter passes all paths through unchanged.
+     *
+     * @param paths data-flow paths to filter
+     * @param sinkFilter sink kind to require, or {@code null} to skip filtering
+     * @param graph graph used to resolve each path's sinks
+     * @return the paths with a matching sink, or {@code paths} unchanged if no filter given
+     */
     private static List<DataFlowPathNode> filterBySinkKind(
             List<DataFlowPathNode> paths, String sinkFilter, GraphQuery graph) {
         if (sinkFilter == null) return paths;
@@ -155,6 +217,14 @@ public class TraceDataFlowTool {
                 .toList();
     }
 
+    /**
+     * Renders the human-readable text report: a leading path count followed by one formatted
+     * section per path.
+     *
+     * @param paths data-flow paths to render
+     * @param graph graph used to resolve entrypoints, topology, and sinks
+     * @return the rendered report text
+     */
     private String format(List<DataFlowPathNode> paths, GraphQuery graph) {
         StringBuilder sb = new StringBuilder();
         sb.append(paths.size()).append(" data-flow path(s):\n\n");
@@ -164,6 +234,15 @@ public class TraceDataFlowTool {
         return sb.toString();
     }
 
+    /**
+     * Appends one path's section to the report: header line with entrypoint and tracked parameter,
+     * path ID, its flow (rendered as a step list when no flow-node topology is recorded, otherwise
+     * as the full topology graph), and its sinks.
+     *
+     * @param sb buffer to append the rendered section to
+     * @param path data-flow path being rendered
+     * @param graph graph used to resolve entrypoint, topology, and sinks
+     */
     private void formatPath(StringBuilder sb, DataFlowPathNode path, GraphQuery graph) {
         sb.append("## ")
                 .append(entrypointLabel(path, graph))
@@ -182,6 +261,16 @@ public class TraceDataFlowTool {
         sb.append("\n");
     }
 
+    /**
+     * Builds a display label for a path's entrypoint: {@code "<HTTP method> <path>"} when the
+     * entrypoint resolves and has an HTTP method and path, falling back to just the path or name
+     * when either is missing, and to the raw entrypoint ID when the entrypoint cannot be resolved.
+     * Returns an empty string when the path has no entrypoint at all.
+     *
+     * @param path data-flow path whose entrypoint is labeled
+     * @param graph graph used to resolve the entrypoint
+     * @return the entrypoint label, or an empty string if the path has no entrypoint
+     */
     private static String entrypointLabel(DataFlowPathNode path, GraphQuery graph) {
         if (path.entrypointId() == null) return "";
         EntrypointNode ep = graph.entrypoint(path.entrypointId()) instanceof EntrypointNode en ? en : null;
@@ -191,6 +280,15 @@ public class TraceDataFlowTool {
         return path.entrypointId().serialize();
     }
 
+    /**
+     * Appends the legacy flat step list for a path (used when no flow-node topology was recorded).
+     * Appends nothing when the path has no data-flow steps; otherwise appends one numbered line per
+     * step showing the component, method, and local variable name.
+     *
+     * @param sb buffer to append the rendered steps to
+     * @param path data-flow path whose steps are rendered
+     * @param graph graph used to resolve the path's steps
+     */
     private static void formatSteps(StringBuilder sb, DataFlowPathNode path, GraphQuery graph) {
         List<DataFlowStepNode> steps = graph.pathDataFlowSteps(path.id());
         if (steps.isEmpty()) return;
@@ -208,6 +306,18 @@ public class TraceDataFlowTool {
         }
     }
 
+    /**
+     * Appends the full flow-graph rendering for a path: one {@code "N<i>"}-aliased line per flow
+     * node, followed by branches and topology edges. Flow nodes are aliased both by their original
+     * flow-node ID (for branch-arm lookups) and by their graph vertex ID (for edge lookups), both
+     * assigned in list order as {@code N0}, {@code N1}, etc.; branches are aliased the same way as
+     * {@code B0}, {@code B1}, etc.
+     *
+     * @param sb buffer to append the rendered topology to
+     * @param path data-flow path whose topology is rendered
+     * @param flowNodes ordered flow nodes to alias and render
+     * @param graph graph used to resolve branches and edges
+     */
     private void formatTopology(
             StringBuilder sb, DataFlowPathNode path, List<DataFlowNodeNode> flowNodes, GraphQuery graph) {
         // alias by original flowNodeId (e.g. "n0") for branch-arm lookups, AND by graph vertex ID for edge lookups
@@ -237,6 +347,13 @@ public class TraceDataFlowTool {
         formatTopologyEdges(sb, path, vertexIdAlias, branchAlias, graph);
     }
 
+    /**
+     * Builds a display label for a flow node: {@code "<component>.<method>"} when both are present,
+     * falling back to whichever of the two is non-blank, or an empty string if neither is set.
+     *
+     * @param node flow node to label
+     * @return the node label
+     */
     private static String nodeLabel(DataFlowNodeNode node) {
         String component = node.componentName() != null ? node.componentName() : "";
         String method = node.method() != null ? node.method() : "";
@@ -245,6 +362,19 @@ public class TraceDataFlowTool {
         return method;
     }
 
+    /**
+     * Appends the branches section of the topology rendering. Appends nothing when there are no
+     * branches; otherwise appends one line per branch (alias, upper-cased branch kind, and source
+     * location, when known) followed by one indented line per branch arm showing the arm label and
+     * the alias of the node it enters. Aliases fall back to the raw ID when not found in the given
+     * maps.
+     *
+     * @param sb buffer to append the rendered branches to
+     * @param branches path branches to render
+     * @param branchAlias branch ID to display-alias map
+     * @param nodeAlias flow-node ID to display-alias map, used for arm entry points
+     * @param graph graph used to resolve each branch's arms
+     */
     private static void formatBranches(
             StringBuilder sb,
             List<DataFlowBranchNode> branches,
@@ -270,6 +400,20 @@ public class TraceDataFlowTool {
         }
     }
 
+    /**
+     * Appends the edges section of the topology rendering. Appends nothing when the path has no
+     * flow edges; otherwise appends one line per edge as {@code "<from> -> <to> [<label>]"}, using
+     * vertex aliases (falling back to the raw vertex ID when not found), where the label is the
+     * edge's {@code "label"} property when non-blank, else its {@code "edgeKind"} property. When
+     * the edge carries a {@code "branchId"} property, the branch alias (and arm ID, when present)
+     * is appended in parentheses.
+     *
+     * @param sb buffer to append the rendered edges to
+     * @param path data-flow path whose edges are rendered
+     * @param vertexIdAlias graph vertex ID to display-alias map
+     * @param branchAlias branch ID to display-alias map
+     * @param graph graph used to resolve the path's flow edges
+     */
     private static void formatTopologyEdges(
             StringBuilder sb,
             DataFlowPathNode path,
@@ -308,6 +452,14 @@ public class TraceDataFlowTool {
         }
     }
 
+    /**
+     * Builds the trailing {@code " <file>:<line>"} source-location suffix for a branch, using only
+     * the file's base name. Returns an empty string when the branch's {@code "sourceFile"} property
+     * is missing or {@code "unknown"}.
+     *
+     * @param branch branch whose source location is labeled
+     * @return the source-location suffix, or an empty string if unknown
+     */
     private static String sourceLabel(DataFlowBranchNode branch) {
         Map<String, Object> props = branch.properties();
         Object file = props.get("sourceFile");
@@ -317,6 +469,16 @@ public class TraceDataFlowTool {
         return " " + (slash >= 0 ? f.substring(slash + 1) : f) + ":" + props.get("sourceLine");
     }
 
+    /**
+     * Appends the sinks section for a path. Appends nothing when the path has no sinks; otherwise
+     * appends one bullet line per sink showing its kind (or {@code "?"} when unknown), name, and
+     * method, plus the field name for {@code "store"} sinks that have one, the evidence confidence
+     * band when present, and the sink's source location (see {@link #appendSinkSource}).
+     *
+     * @param sb buffer to append the rendered sinks to
+     * @param path data-flow path whose sinks are rendered
+     * @param graph graph used to resolve the path's sinks
+     */
     private static void formatSinks(StringBuilder sb, DataFlowPathNode path, GraphQuery graph) {
         List<DataFlowSinkNode> sinks = graph.pathSinks(path.id());
         if (sinks.isEmpty()) return;
@@ -338,6 +500,14 @@ public class TraceDataFlowTool {
         }
     }
 
+    /**
+     * Appends the trailing {@code " (<file>:<line>)"} source-location suffix for a sink, using only
+     * the file's base name. Appends nothing when the sink has no source, or its file is missing or
+     * {@code "unknown"}.
+     *
+     * @param sb buffer to append the source-location suffix to
+     * @param sink sink whose source location is appended
+     */
     private static void appendSinkSource(StringBuilder sb, DataFlowSinkNode sink) {
         var source = sink.source();
         if (source == null || source.file == null || "unknown".equals(source.file)) return;
