@@ -12,18 +12,18 @@ import org.apache.commons.lang3.StringUtils;
 final class ArchitectureRelevanceScorer {
 
     /**
-     * Infrastructure-role label and name/package keyword for configuration-style components
-     * (settings holders, {@code @ConfigMapping}/properties classes).
+     * Infrastructure-role label and name keyword for configuration-style components (settings
+     * holders, {@code @ConfigMapping}/properties classes).
      */
     private static final String CONFIGURATION = "configuration";
 
     /** Infrastructure-role label and name keyword for output-formatting helpers. */
     private static final String FORMATTER = "formatter";
 
-    /** Infrastructure-role label and name/package keyword for logging support code. */
+    /** Infrastructure-role label and name keyword for logging support code. */
     private static final String LOGGING = "logging";
 
-    /** Infrastructure-role label and name/package keyword for object-mapping helpers. */
+    /** Infrastructure-role label and name keyword for object-mapping helpers. */
     private static final String MAPPER = "mapper";
 
     /** Infrastructure-role label and name keyword for parsing helpers. */
@@ -67,14 +67,14 @@ final class ArchitectureRelevanceScorer {
      * Scores how much a component looks like incidental plumbing rather than business logic, so
      * that fan-in/fan-out from utility-shaped code can be discounted in {@link #score}.
      *
-     * <p>Points accumulate from independent, additive signals: an unresolvable or generically
-     * classified type contributes the most (utility/unknown {@link ComponentType}), a name that
-     * matches a well-known infrastructure keyword (formatter, parser, mapper, logger, config)
-     * contributes a mid-weight signal, a name that matches a data-carrier/constant keyword (DTO,
-     * request, response, properties, constants) contributes a lower-weight signal, and a package
-     * that lives under a conventional infrastructure namespace (util, common, config, logging,
-     * dto, mapper) contributes one more point. A {@code null} component is treated as neutral
-     * (no noise) since there is no evidence either way.
+     * <p>Points accumulate from independent, additive signals: a {@link ComponentType#UTILITY}
+     * type contributes the most (3), a {@link ComponentType#UNKNOWN} type or a name that matches
+     * a well-known infrastructure keyword (formatter, parser, mapper, logger, config) each
+     * contribute the same mid weight (2), a name that matches a data-carrier/constant keyword
+     * (DTO, request, response, properties, constants) contributes a lower weight (1), and a
+     * package that lives under a conventional infrastructure namespace (util, common, config,
+     * logging, dto, mapper) contributes one more point (1). A {@code null} component is treated
+     * as neutral (no noise) since there is no evidence either way.
      *
      * @param component the component to inspect, or {@code null}
      * @return the accumulated noise score; higher means more likely to be non-business plumbing
