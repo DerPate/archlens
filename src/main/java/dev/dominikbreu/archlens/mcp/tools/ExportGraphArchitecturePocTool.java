@@ -17,19 +17,38 @@ import org.apache.commons.lang3.StringUtils;
  */
 public class ExportGraphArchitecturePocTool {
 
+    /** Graph property storing the noise-aware workflow score. */
     private static final String ARCHITECTURAL_WEIGHT = "architecturalWeight";
+
+    /** Graph property storing a component's package. */
     private static final String PACKAGE_NAME = "packageName";
+
+    /** Graph property storing an owning application module. */
     private static final String MODULE = "module";
+
+    /** Graph property storing incoming dependency count. */
     private static final String FAN_IN = "fanIn";
+
+    /** Graph property storing outgoing dependency count. */
     private static final String FAN_OUT = "fanOut";
+
+    /** Graph evidence property storing confidence. */
     private static final String CONFIDENCE = "confidence";
+
+    /** Vertex label used to query architecture components. */
     private static final String COMPONENT_LABEL = "Component";
+
+    /** Opening Markdown fence for JSON examples. */
     private static final String JSON_FENCE_OPEN = "```json\n";
+
+    /** Closing Markdown fence and paragraph break for JSON examples. */
     private static final String JSON_FENCE_CLOSE = "```\n\n";
 
+    /** Default path for the generated graph-centric architecture document. */
     private static final Path DEFAULT_OUTPUT = Path.of("docs", "SOURCE_ARCHITECTURE_POC.md");
 
     private final ModelCache cache;
+    /** Writes completed documents without exposing partially written output. */
     private final AtomicFileWriter atomicFileWriter = new AtomicFileWriter();
 
     /**
@@ -72,6 +91,7 @@ public class ExportGraphArchitecturePocTool {
         }
     }
 
+    /** Renders graph summary, catalog, samples, focus slice, and query examples as Markdown. */
     private String renderMarkdown(GraphQuery graph, String focusComponent) {
         GraphQuery.GraphSummary summary = graph.summary();
         StringBuilder sb = new StringBuilder();
@@ -145,6 +165,7 @@ public class ExportGraphArchitecturePocTool {
         return sb.toString();
     }
 
+    /** Appends the twelve most workflow-relevant, low-noise, architecturally weighted components. */
     private void appendHighSignalComponents(StringBuilder sb, GraphQuery graph) {
         sb.append("## High Signal Components\n\n");
         Comparator<GraphQuery.GraphNode> signalOrder = Comparator.comparingInt((GraphQuery.GraphNode node) ->
@@ -189,6 +210,7 @@ public class ExportGraphArchitecturePocTool {
         sb.append("\n");
     }
 
+    /** Appends the twenty highest-confidence dependencies crossing application modules. */
     private void appendCrossModuleDependencies(StringBuilder sb, GraphQuery graph) {
         sb.append("## Cross-Module Dependencies\n\n");
         graph.findEdges("DEPENDS_ON", Map.of("isCrossModule", "true"), 100).stream()
@@ -208,6 +230,7 @@ public class ExportGraphArchitecturePocTool {
         sb.append("\n");
     }
 
+    /** Appends a bounded sample of components reachable from entrypoints. */
     private void appendEntrypointReachability(StringBuilder sb, GraphQuery graph) {
         sb.append("## Entrypoint Reachability\n\n");
         graph.findNodes(COMPONENT_LABEL, null, Map.of("entrypointReachable", "true"), 100).stream()
@@ -228,6 +251,7 @@ public class ExportGraphArchitecturePocTool {
         sb.append("\n");
     }
 
+    /** Appends all persisted runtime flows and their ordered steps, or an explicit empty-state note. */
     private void appendRuntimeFlowSamples(StringBuilder sb, GraphQuery graph) {
         sb.append("## Runtime Flow Samples\n\n");
         List<GraphQuery.RuntimeFlowNode> flows = graph.allRuntimeFlows();
@@ -249,6 +273,7 @@ public class ExportGraphArchitecturePocTool {
         }
     }
 
+    /** Appends one numbered runtime-flow step with resolved component name and call evidence. */
     private void appendFlowStep(StringBuilder sb, GraphQuery.RuntimeFlowStepNode step, GraphQuery graph) {
         sb.append("- ")
                 .append(step.order())
@@ -266,6 +291,7 @@ public class ExportGraphArchitecturePocTool {
         sb.append("\n");
     }
 
+    /** Appends the first matching focus component and a bounded bidirectional neighborhood. */
     private void appendFocusSlice(StringBuilder sb, GraphQuery graph, String focusComponent) {
         sb.append("## Focus Slice\n\n");
         sb.append("Focus component: `").append(focusComponent).append("`\n\n");
@@ -300,6 +326,7 @@ public class ExportGraphArchitecturePocTool {
                 });
     }
 
+    /** Renders a labelled count map as a Markdown subsection with an explicit empty state. */
     private void renderCounts(StringBuilder sb, String title, Map<String, Integer> counts) {
         sb.append("### ").append(title).append("\n\n");
         if (counts.isEmpty()) {
@@ -311,6 +338,7 @@ public class ExportGraphArchitecturePocTool {
         sb.append("\n");
     }
 
+    /** Appends only requested properties present on a graph element in compact brace notation. */
     private void appendProperties(StringBuilder sb, Map<String, Object> properties, String... keys) {
         List<String> values = java.util.Arrays.stream(keys)
                 .filter(properties::containsKey)
@@ -321,6 +349,7 @@ public class ExportGraphArchitecturePocTool {
         }
     }
 
+    /** Converts numeric objects or integer strings to an integer, defaulting to zero. */
     private int numeric(Object value) {
         if (value == null) {
             return 0;
@@ -335,6 +364,7 @@ public class ExportGraphArchitecturePocTool {
         }
     }
 
+    /** Converts Boolean values and Boolean strings to a sortable zero-or-one rank. */
     private int booleanRank(Object value) {
         if (value instanceof Boolean bool) {
             if (bool) {
@@ -350,6 +380,7 @@ public class ExportGraphArchitecturePocTool {
         }
     }
 
+    /** Converts numeric objects or decimal strings to a double, defaulting to zero. */
     private double numericDouble(Object value) {
         if (value == null) {
             return 0.0d;
