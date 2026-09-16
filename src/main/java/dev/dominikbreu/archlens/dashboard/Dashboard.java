@@ -58,6 +58,7 @@ public final class Dashboard {
         }
         view.setBusy(true);
         try {
+            view.rememberCommand(view.command());
             DispatchResult result = engine.dispatch(view.command());
             if (result.quit()) runner.quit();
             else {

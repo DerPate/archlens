@@ -9,12 +9,14 @@ import dev.tamboui.tui.event.KeyEvent;
 import dev.tamboui.tui.event.PasteEvent;
 import dev.tamboui.widgets.input.TextInput;
 import dev.tamboui.widgets.paragraph.Paragraph;
+import java.util.ArrayList;
 import java.util.List;
 
 /** TamboUI-rendered dashboard and keyboard interaction model. */
 final class TambouiDashboardView {
     private final DashboardState state;
     private final List<String> commands;
+    private final List<String> history = new ArrayList<>();
     private final DashboardUiState ui = new DashboardUiState();
     private boolean busy;
 
@@ -49,11 +51,11 @@ final class TambouiDashboardView {
                 yield DashboardAction.NONE;
             }
             case UP -> {
-                ui.previousCommand(commands);
+                ui.previousCommand(history);
                 yield DashboardAction.NONE;
             }
             case DOWN -> {
-                ui.nextCommand(commands);
+                ui.nextCommand(history);
                 yield DashboardAction.NONE;
             }
             case PAGE_UP -> {
@@ -97,6 +99,7 @@ final class TambouiDashboardView {
     }
 
     String command() { return ui.input().text(); }
+    void rememberCommand(String command) { history.add(command); }
     void commandCompleted() { ui.submit(); ui.input().clear(); }
     void setBusy(boolean busy) { this.busy = busy; }
 
@@ -118,6 +121,13 @@ final class TambouiDashboardView {
                 .render(new Rect(leftWidth, main.y(), area.width() - leftWidth, main.height()), frame.buffer());
         TextInput.builder().placeholder("Enter an MCP command (Tab completes, F6 focus, Ctrl-C quits)").build()
                 .renderWithCursor(new Rect(0, inputY, area.width(), 1), frame.buffer(), ui.input(), frame);
-        Paragraph.from(busy ? "Running…" : "Ready").render(new Rect(0, inputY + 1, area.width(), 1), frame.buffer());
+        String focus = switch (ui.focus()) {
+            case 0 -> "input";
+            case 1 -> "activity";
+            default -> "result";
+        };
+        Paragraph.from((busy ? "Running…" : "Ready") + "  •  Focus: " + focus
+                        + "  •  F6 cycle focus")
+                .render(new Rect(0, inputY + 1, area.width(), 1), frame.buffer());
     }
 }
