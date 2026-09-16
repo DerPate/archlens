@@ -262,10 +262,11 @@ public class TraceDataFlowTool {
     }
 
     /**
-     * Builds a display label for a path's entrypoint: {@code "<HTTP method> <path>"} when the
-     * entrypoint resolves and has an HTTP method and path, falling back to just the path or name
-     * when either is missing, and to the raw entrypoint ID when the entrypoint cannot be resolved.
-     * Returns an empty string when the path has no entrypoint at all.
+     * Builds a display label for a path's entrypoint from two independent choices: an
+     * {@code "<HTTP method> "} prefix is prepended when the entrypoint has an HTTP method, and the
+     * entrypoint's path is used when present, else its name — regardless of whether the method
+     * prefix was added. Falls back to the raw entrypoint ID when the entrypoint cannot be resolved,
+     * and to an empty string when the path has no entrypoint at all.
      *
      * @param path data-flow path whose entrypoint is labeled
      * @param graph graph used to resolve the entrypoint
