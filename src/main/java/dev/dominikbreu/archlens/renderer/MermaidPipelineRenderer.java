@@ -435,8 +435,9 @@ public class MermaidPipelineRenderer {
      * Chooses the shape/style role for a boundary node from the kind of sink that produced the
      * value crossing into the next segment. {@code STORE} and {@code PERSISTENCE} both render as
      * a cylinder ({@link MermaidStyle.Role#STORE}) since both represent data at rest between
-     * segments; {@code MESSAGING} and {@code EVENT_BUS} get their own distinct shapes so the
-     * diagram visually distinguishes synchronous handoffs from broker-mediated ones. Any other
+     * segments; {@code MESSAGING} and {@code EVENT_BUS} each get their own distinct shape
+     * (stadium vs. double circle) so the diagram visually distinguishes queue/topic handoffs from
+     * event-bus handoffs, even though both are broker-mediated. Any other
      * kind falls back to {@code STORE} as a neutral boundary shape; in practice {@link Chain}
      * construction only ever assigns {@code STORE}, {@code PERSISTENCE}, {@code MESSAGING}, or
      * {@code EVENT_BUS} as an {@code incomingSink}, so the default case is unreachable in current
