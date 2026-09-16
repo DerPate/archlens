@@ -20,28 +20,26 @@ application using TamboUI's Panama backend. Preserve the existing command langua
 logic. This is intentionally a small, command-first interface rather than a graphical tool browser
 or parameter-form system.
 
-TamboUI is an experimental, snapshot-only dependency. That trade-off is acceptable because the
-standalone dashboard is a niche interface and the integration will be isolated behind one view
-boundary. The implementation must not use TamboUI's JLine 3 backend: ArchLens currently depends on
-JLine 4.4.3, and mixing the two major lines would create avoidable dependency and runtime risk.
+TamboUI still describes its API as experimental, but version `0.5.0` is available as an immutable
+release from Maven Central. That API-change risk is acceptable because the standalone dashboard is
+a niche interface and the integration will be isolated behind one view boundary. The implementation
+must not use TamboUI's JLine 3 backend: ArchLens currently depends on JLine 4.4.3, and mixing the two
+major lines would create avoidable dependency and runtime risk.
 
 ## Dependency Strategy
 
-- Add the Sonatype Central snapshots repository for TamboUI artifacts.
+- Pin TamboUI `0.5.0` from Maven Central; do not add a snapshot repository.
 - Use `tamboui-tui` and `tamboui-panama-backend`, plus only the direct TamboUI modules required by
   the selected APIs.
-- Resolve the available `0.5.0-SNAPSHOT` artifacts once during implementation and record the same
-  immutable timestamped snapshot version for every direct TamboUI dependency. Do not use `LATEST`
-  or a mutable `-SNAPSHOT` version in the finished `pom.xml`.
 - Verify the resolved dependency tree contains no TamboUI JLine 3 backend and no JLine 3 artifacts.
 - Remove ArchLens's direct JLine dependency if no production source uses it after migration.
 - Keep all TamboUI types inside the dashboard presentation package so replacing the experimental
   framework does not affect command dispatch, tool registration, or MCP mode.
 
-The first implementation step is a compile-and-render compatibility probe using Java 25 and the
-chosen timestamped artifacts. If the Panama backend cannot initialize on the supported terminal
-environment, stop before migrating dashboard code and reassess the backend choice. Do not silently
-fall back to the JLine 3 backend.
+The first implementation step is a compile-and-render compatibility probe using Java 25 and
+TamboUI `0.5.0`. If the Panama backend cannot initialize on the supported terminal environment,
+stop before migrating dashboard code and reassess the backend choice. Do not silently fall back to
+the JLine 3 backend.
 
 ## Architecture
 
@@ -180,5 +178,5 @@ of JLine 3.
   padding, substring clipping, ANSI cursor control, or full-screen clear/redraw loop.
 - Closing normally or after an unexpected failure restores the user's terminal.
 - MCP stdio mode behaves exactly as before.
-- The dependency tree contains one pinned family of TamboUI artifacts and no JLine 3 artifacts.
+- The dependency tree contains TamboUI `0.5.0` artifacts and no JLine 3 artifacts.
 - Focused tests and the full project verification suite pass.
