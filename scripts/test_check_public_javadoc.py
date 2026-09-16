@@ -6,13 +6,16 @@ validate_source). `GitIntegrationTests` drives the Git-diff/CLI layer
 end-to-end against real temporary Git repositories.
 """
 
+import contextlib
 import importlib.util
+import io
 import subprocess
 import sys
 import tempfile
 import unittest
 from dataclasses import FrozenInstanceError
 from pathlib import Path
+from unittest import mock
 
 spec = importlib.util.spec_from_file_location(
     "check_public_javadoc", Path(__file__).with_name("check-public-javadoc.py")
@@ -187,6 +190,145 @@ class GitIntegrationTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout.strip(), "Public Javadoc check passed: 0 violations"
+            )
+
+    def test_non_ascii_filename_is_reported_correctly(self):
+        # With core.quotePath=true (Git's default), a path containing
+        # non-ASCII characters is emitted C-style-quoted in diff headers
+        # (e.g. `"b/\303\234n..."`), not as a bare `b/...` path. Regression
+        # test for a bug where the `b/` prefix was stripped before
+        # unquoting, so the strip was skipped (the raw text starts with a
+        # quote, not `b/`) and a bogus literal `b/` ended up baked into the
+        # unquoted path, which then failed to resolve to the real file.
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            _init_repo(repo)
+            java_file = repo / "Ünïcödé Cläss.java"
+            java_file.write_text(
+                "/**\n"
+                " * Example type.\n"
+                " */\n"
+                "public class UnicodeClass {\n"
+                "}\n"
+            )
+            _git(["add", "Ünïcödé Cläss.java"], repo)
+            _git(["commit", "-m", "baseline"], repo)
+
+            java_file.write_text(
+                "/**\n"
+                " * Example type.\n"
+                " */\n"
+                "public class UnicodeClass {\n"
+                "    public String parse(String value) {\n"
+                "        return value;\n"
+                "    }\n"
+                "}\n"
+            )
+
+            result = _run_checker(repo, "--base", "HEAD")
+
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn(
+                "Ünïcödé Cläss.java:5: public method parse is missing Javadoc",
+                result.stdout,
+            )
+
+    def test_untracked_new_java_file_is_checked_in_working_tree_mode(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            _init_repo(repo)
+            (repo / "Example.java").write_text(_DOCUMENTED_BASELINE)
+            _git(["add", "Example.java"], repo)
+            _git(["commit", "-m", "baseline"], repo)
+
+            # Brand-new file, never `git add`-ed: invisible to `git diff`.
+            (repo / "NewThing.java").write_text(
+                _WITH_UNDOCUMENTED_METHOD.replace("Example", "NewThing")
+            )
+
+            result = _run_checker(repo, "--base", "HEAD")
+
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn(
+                "NewThing.java:5: public method parse is missing Javadoc",
+                result.stdout,
+            )
+
+    def test_untracked_new_java_file_is_ignored_in_explicit_head_mode(self):
+        # Untracked working-tree files aren't part of a base...head
+        # comparison, so --head mode must not pick them up.
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            _init_repo(repo)
+            (repo / "Example.java").write_text(_DOCUMENTED_BASELINE)
+            _git(["add", "Example.java"], repo)
+            _git(["commit", "-m", "baseline"], repo)
+            base_sha = _git(["rev-parse", "HEAD"], repo).strip()
+
+            (repo / "NewThing.java").write_text(
+                _WITH_UNDOCUMENTED_METHOD.replace("Example", "NewThing")
+            )
+
+            result = _run_checker(repo, "--base", base_sha, "--head", "HEAD")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_deleted_file_produces_no_unreadable_warning(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            _init_repo(repo)
+            java_file = repo / "Example.java"
+            java_file.write_text(_DOCUMENTED_BASELINE)
+            _git(["add", "Example.java"], repo)
+            _git(["commit", "-m", "baseline"], repo)
+
+            java_file.unlink()
+
+            result = _run_checker(repo, "--base", "HEAD")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotIn("warning", result.stderr)
+
+    def test_diffed_unreadable_non_deleted_file_warns_and_exits_2(self):
+        # A path that came out of the diff (not a `/dev/null` deletion) but
+        # that fails to read must not be silently treated as if it were
+        # deleted: it should produce a stderr warning and a non-zero,
+        # Git-failure exit code, distinguishing "couldn't read this" from
+        # "this genuinely doesn't exist any more". A real, portable
+        # repro of an unreadable-but-present file (e.g. permission denied)
+        # is unreliable across environments (may run as root), so this
+        # drives the actual read-dispatch code directly instead.
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            _init_repo(repo)
+            (repo / "Example.java").write_text(_DOCUMENTED_BASELINE)
+            _git(["add", "Example.java"], repo)
+            _git(["commit", "-m", "baseline"], repo)
+
+            (repo / "Example.java").write_text(_WITH_UNDOCUMENTED_METHOD)
+
+            real_read_source = check_public_javadoc._read_source
+
+            def flaky_read_source(path, head, repo_arg):
+                if path == Path("Example.java"):
+                    return None
+                return real_read_source(path, head, repo_arg)
+
+            stderr_capture = io.StringIO()
+            with contextlib.redirect_stderr(stderr_capture):
+                with mock.patch.object(
+                    check_public_javadoc,
+                    "_read_source",
+                    side_effect=flaky_read_source,
+                ):
+                    with self.assertRaises(check_public_javadoc.GitError) as ctx:
+                        check_public_javadoc.check_changed_javadoc(
+                            "HEAD", None, repo
+                        )
+
+            self.assertIn("Example.java", str(ctx.exception))
+            self.assertIn(
+                "warning: cannot read Example.java", stderr_capture.getvalue()
             )
 
     def test_invalid_base_ref_exits_with_code_2(self):
@@ -388,6 +530,89 @@ public class Example {
         )
         self.assertEqual(validate_source("Example.java", source, {2}), [])
         self.assertEqual([d.kind for d in find_public_declarations(source)], ["class"])
+
+    def test_implicit_public_interface_method_without_modifier_reports_missing_javadoc(self):
+        source = (
+            "public interface Detector {\n"
+            "    Optional<Thing> detect(File root);\n"
+            "}\n"
+        )
+        declarations = find_public_declarations(source)
+        methods = [d for d in declarations if d.kind == "method"]
+        self.assertEqual(len(methods), 1)
+        self.assertEqual(methods[0].name, "detect")
+        self.assertEqual(methods[0].parameters, ("root",))
+        self.assertTrue(methods[0].returns_value)
+        self.assertEqual(
+            validate_source("Detector.java", source, {2}),
+            ["Detector.java:2: public method detect is missing Javadoc"],
+        )
+
+    def test_implicit_public_interface_method_with_javadoc_has_no_violations(self):
+        source = (
+            "public interface Detector {\n"
+            "    /**\n"
+            "     * Detects a thing.\n"
+            "     * @param root the root\n"
+            "     * @return the thing, if found\n"
+            "     */\n"
+            "    Optional<Thing> detect(File root);\n"
+            "}\n"
+        )
+        self.assertEqual(validate_source("Detector.java", source, {7}), [])
+
+    def test_implicit_public_interface_default_method_without_public_is_checked(self):
+        source = (
+            "public interface Detector {\n"
+            "    default void run() {\n"
+            "    }\n"
+            "}\n"
+        )
+        self.assertEqual(
+            validate_source("Detector.java", source, {2}),
+            ["Detector.java:2: public method run is missing Javadoc"],
+        )
+
+    def test_private_interface_method_remains_ignored(self):
+        source = (
+            "public interface Detector {\n"
+            "    private void helper() {\n"
+            "    }\n"
+            "}\n"
+        )
+        self.assertEqual(validate_source("Detector.java", source, {2}), [])
+        self.assertEqual([d.kind for d in find_public_declarations(source)], ["interface"])
+
+    def test_package_private_class_method_remains_ignored(self):
+        # Regression guard: implicit-public detection is scoped to
+        # interface bodies only. A no-modifier method on a *class* is
+        # genuinely package-private and must stay unchecked.
+        source = (
+            "public class Example {\n"
+            "    String helper(String value) {\n"
+            "        return value;\n"
+            "    }\n"
+            "}\n"
+        )
+        self.assertEqual(validate_source("Example.java", source, {2}), [])
+        self.assertEqual([d.kind for d in find_public_declarations(source)], ["class"])
+
+    def test_documented_annotation_type_has_no_violations(self):
+        source = (
+            "/**\n"
+            " * Marks a thing.\n"
+            " */\n"
+            "public @interface Marker {\n"
+            "}\n"
+        )
+        self.assertEqual(validate_source("Marker.java", source, {4}), [])
+
+    def test_undocumented_annotation_type_reports_missing_javadoc(self):
+        source = "public @interface Marker {\n}\n"
+        self.assertEqual(
+            validate_source("Marker.java", source, {1}),
+            ["Marker.java:1: public @interface Marker is missing Javadoc"],
+        )
 
     def test_unchanged_public_method_is_ignored_even_when_undocumented(self):
         source = (

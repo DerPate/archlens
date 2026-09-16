@@ -1,8 +1,9 @@
 """Validate that changed public Java declarations carry proper Javadoc.
 
-This module implements the pure-parsing core only: it finds public
+This module has two parts: a pure-parsing core that finds public
 declarations (types, records, constructors, methods) in Java source text and
-checks them against ArchLens' Javadoc convention:
+checks them against ArchLens' Javadoc convention, and a Git-integration/CLI
+layer that scopes those checks to what a diff actually touched:
 
 - A public type requires a Javadoc block.
 - A public record additionally requires one ``@param`` tag per component.
@@ -10,16 +11,33 @@ checks them against ArchLens' Javadoc convention:
   tag per named parameter, and ``@return`` for non-void methods.
 - Annotations (and other comments) between a Javadoc block and the
   declaration it documents must not hide that Javadoc.
+- Interface methods are public even without an explicit ``public`` modifier
+  (including ``default``/``static`` interface methods); this checker treats
+  them as public declarations too. Interface methods explicitly marked
+  ``private`` are correctly left alone.
 
 The checker only inspects declarations that intersect a diff's added lines
-(computed via ``git diff --unified=0``, shelled out to the ``git`` CLI);
-untouched public backlog remains allowed. Run as a script:
+(computed via ``git diff --unified=0``, shelled out to the ``git`` CLI) plus,
+in working-tree mode, the entirety of any untracked ``.java`` file (which
+can't be diffed against ``--base`` since it doesn't exist there); untouched
+public backlog remains allowed. Run as a script:
 
     python3 scripts/check-public-javadoc.py --base REF [--head REF]
 
 Without ``--head``, the diff is taken against the working tree (so it picks
-up committed history since ``--base`` plus any uncommitted changes); with
-``--head``, the diff is taken over ``BASE...HEAD``.
+up committed history since ``--base``, any uncommitted changes, and any
+untracked ``.java`` files); with ``--head``, the diff is taken over
+``BASE...HEAD`` and untracked working-tree files are not considered (they
+aren't part of that comparison).
+
+Limitations (accepted, out of scope for this checker):
+
+- Annotation type (``@interface``) member declarations that are implicitly
+  public (declared without an explicit ``public`` modifier) are not
+  detected as declarations; only the ``@interface`` type itself is checked.
+- A record's compact canonical constructor (e.g. ``public Point { ... }``,
+  with no parameter list) is not recognized as a constructor declaration;
+  only the record type's own Javadoc (and its ``@param`` tags) is checked.
 """
 
 import argparse
@@ -127,6 +145,31 @@ def _skip_modifiers(s: str, j: int) -> int:
                 break
         if matched is None:
             return j
+        j += len(matched)
+
+
+_ACCESS_ONLY_MODIFIERS = ("private", "protected")
+
+
+def _skip_modifiers_collecting(s: str, j: int) -> tuple[frozenset[str], int]:
+    """Like `_skip_modifiers`, but also recognizes ``private``/``protected``
+    and reports which modifier keywords were actually consumed.
+
+    Used only when scanning for implicitly-public interface members, where
+    we must distinguish a genuinely ``private`` interface method (not
+    implicitly public) from one with no access modifier at all.
+    """
+    found: set[str] = set()
+    while True:
+        j = _skip_ws(s, j)
+        matched = None
+        for kw in _MODIFIERS + _ACCESS_ONLY_MODIFIERS:
+            if _match_keyword(s, j, kw):
+                matched = kw
+                break
+        if matched is None:
+            return frozenset(found), j
+        found.add(matched)
         j += len(matched)
 
 
@@ -279,7 +322,7 @@ def _blank_spans(text: str, spans: list[tuple[int, int, str]]) -> str:
     return "".join(chars)
 
 
-_ANNOTATION_RE = re.compile(r"@[A-Za-z_][\w]*(?:\.[A-Za-z_][\w]*)*")
+_ANNOTATION_RE = re.compile(r"@(?!interface\b)[A-Za-z_][\w]*(?:\.[A-Za-z_][\w]*)*")
 
 
 def _find_annotation_spans(masked: str) -> list[tuple[int, int, str]]:
@@ -315,7 +358,9 @@ def _find_declarations_with_javadoc(source: str) -> list[tuple[Declaration, str 
     regions = sorted(doc_kind_spans + annotation_spans, key=lambda r: r[0])
 
     results: list[tuple[Declaration, str | None]] = []
-    type_stack: list[tuple[int, str]] = []  # (brace depth at which type opened, name)
+    # (brace depth at which the type opened, name, type keyword e.g.
+    # "class"/"interface"/"enum"/"record"/"@interface")
+    type_stack: list[tuple[int, str, str]] = []
     depth = 0
     pending_javadoc: str | None = None
     region_idx = 0
@@ -356,19 +401,35 @@ def _find_declarations_with_javadoc(source: str) -> list[tuple[Declaration, str 
             i += 1
             continue
 
-        if _match_keyword(masked2, i, "public"):
+        is_explicit_public = _match_keyword(masked2, i, "public")
+        in_interface_top = (
+            bool(type_stack)
+            and type_stack[-1][2] == "interface"
+            and depth == type_stack[-1][0]
+        )
+
+        if is_explicit_public:
             decl_start = i
             decl_line = line
             j = _skip_modifiers(masked2, i + len("public"))
 
             type_kw = None
+            kw_len = 0
             for kw in _TYPE_KEYWORDS:
                 if _match_keyword(masked2, j, kw):
                     type_kw = kw
+                    kw_len = len(kw)
                     break
+            if (
+                type_kw is None
+                and masked2[j : j + 1] == "@"
+                and _match_keyword(masked2, j + 1, "interface")
+            ):
+                type_kw = "@interface"
+                kw_len = len("@interface")
 
             if type_kw is not None:
-                j += len(type_kw)
+                j += kw_len
                 j = _skip_ws(masked2, j)
                 name, j = _consume_identifier(masked2, j)
                 j = _skip_ws(masked2, j)
@@ -395,7 +456,7 @@ def _find_declarations_with_javadoc(source: str) -> list[tuple[Declaration, str 
                     record_components=record_components,
                 )
                 results.append((decl, current_pending))
-                type_stack.append((depth + 1, name))
+                type_stack.append((depth + 1, name, type_kw))
                 line += masked2.count("\n", i, brace_pos)
                 region_idx = _sync_region_idx(regions, region_idx, brace_pos)
                 i = brace_pos
@@ -447,6 +508,67 @@ def _find_declarations_with_javadoc(source: str) -> list[tuple[Declaration, str 
                 record_components=(),
             )
             results.append((decl, current_pending))
+            line += masked2.count("\n", i, end_offset)
+            region_idx = _sync_region_idx(regions, region_idx, end_offset)
+            i = end_offset
+            continue
+
+        elif (
+            in_interface_top
+            and _is_ident_char(c)
+            and not any(_match_keyword(masked2, i, kw) for kw in _TYPE_KEYWORDS)
+        ):
+            # Interface methods are implicitly public even without an
+            # explicit `public` modifier (this includes `default`/`static`
+            # interface methods, which also may omit `public`). Nested types
+            # and constants are implicitly public too, but scoped out here
+            # (see module docstring); a `private` interface method (allowed
+            # since Java 9) must NOT be treated as public.
+            decl_start = i
+            decl_line = line
+            modifiers_found, j = _skip_modifiers_collecting(masked2, i)
+            if j < n and masked2[j] == "<":
+                j = _skip_balanced(masked2, j, "<", ">")
+                j = _skip_ws(masked2, j)
+            tokens, j2 = _parse_name_before_parens(masked2, j)
+            if not tokens or len(tokens) < 2 or j2 >= n or masked2[j2] != "(":
+                # Not a recognizable method signature (a constant field, a
+                # nested type keyword we deliberately don't special-case
+                # here, etc.) -- resume ordinary scanning.
+                newpos = j2 if j2 > i else i + 1
+                line += masked2.count("\n", i, newpos)
+                region_idx = _sync_region_idx(regions, region_idx, newpos)
+                i = newpos
+                continue
+
+            name = tokens[-1]
+            type_tokens = tokens[:-1]
+            close = _find_matching_paren(masked2, j2)
+            params_text = masked2[j2 + 1 : close]
+            param_names = _extract_param_names(params_text)
+            k = _skip_ws(masked2, close + 1)
+            if _match_keyword(masked2, k, "throws"):
+                brace_idx = masked2.find("{", k)
+                semi_idx = masked2.find(";", k)
+                candidates = [x for x in (brace_idx, semi_idx) if x != -1]
+                k = min(candidates) if candidates else n - 1
+            end_offset = k
+            end_line = decl_line + masked2.count("\n", decl_start, end_offset)
+
+            if not (modifiers_found & set(_ACCESS_ONLY_MODIFIERS)):
+                return_type_text = type_tokens[-1]
+                returns_value = return_type_text != "void"
+                decl = Declaration(
+                    kind="method",
+                    name=name,
+                    line=decl_line,
+                    end_line=end_line,
+                    parameters=param_names,
+                    returns_value=returns_value,
+                    record_components=(),
+                )
+                results.append((decl, current_pending))
+
             line += masked2.count("\n", i, end_offset)
             region_idx = _sync_region_idx(regions, region_idx, end_offset)
             i = end_offset
@@ -549,15 +671,32 @@ def _unquote_git_path(raw: str) -> str:
 _HUNK_HEADER_RE = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 
 
+def _untracked_java_files(repo: Path) -> list[Path]:
+    """Return untracked ``.java`` files in the working tree (repo-relative).
+
+    Mirrors ``git status``'s notion of "untracked": never committed, and not
+    excluded by ``.gitignore`` or similar (``--exclude-standard``).
+    """
+    output = _run_git(
+        ["ls-files", "--others", "--exclude-standard", "--", "*.java"], repo
+    )
+    return [Path(line) for line in output.splitlines() if line]
+
+
 def changed_java_lines(base: str, head: str | None, repo: Path) -> dict[Path, set[int]]:
     """Return, per changed ``.java`` file, the set of added/modified line numbers.
 
     Without ``head``, this compares ``base`` to the working tree (so it
     picks up both committed history since ``base`` and any uncommitted
-    changes). With ``head``, it compares ``base...head`` (Git's
-    merge-base-relative range), i.e. what ``head`` added since it diverged
-    from ``base``. Only files ending in ``.java`` are considered; a deleted
-    file contributes no lines, since there is nothing left to validate.
+    changes), and additionally treats every line of any untracked ``.java``
+    file as changed: such a file doesn't exist at ``base`` at all, so it
+    can't be diffed against it, but it's exactly the kind of uncommitted
+    Java change this checker is meant to catch. With ``head``, it compares
+    ``base...head`` (Git's merge-base-relative range), i.e. what ``head``
+    added since it diverged from ``base``; untracked working-tree files are
+    not considered in this mode, since they aren't part of that comparison.
+    Only files ending in ``.java`` are considered; a deleted file
+    contributes no lines, since there is nothing left to validate.
     """
     diff_range = [base] if head is None else [f"{base}...{head}"]
     diff_output = _run_git(["diff", "--unified=0", "--no-color", *diff_range], repo)
@@ -575,9 +714,14 @@ def changed_java_lines(base: str, head: str | None, repo: Path) -> dict[Path, se
             if raw == "/dev/null":
                 current_path = None
                 continue
+            # Unquote FIRST: a quoted path (Git's C-style quoting, used for
+            # e.g. non-ASCII names under the default core.quotePath=true)
+            # starts with a literal `"`, not `b/`, so stripping the `b/`
+            # prefix before unquoting would miss it entirely and leave a
+            # bogus `b/` baked into the unquoted result.
+            raw = _unquote_git_path(raw)
             if raw.startswith("b/"):
                 raw = raw[2:]
-            raw = _unquote_git_path(raw)
             current_path = raw if raw.endswith(".java") else None
             continue
         if current_path is None or not line.startswith("@@"):
@@ -590,19 +734,47 @@ def changed_java_lines(base: str, head: str | None, repo: Path) -> dict[Path, se
         if count == 0:
             continue
         changed.setdefault(Path(current_path), set()).update(range(start, start + count))
+
+    if head is None:
+        for rel_path in _untracked_java_files(repo):
+            full = repo / rel_path
+            try:
+                text = full.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                # Can't count its lines to mark them changed; it will
+                # surface as an unreadable-diffed-file warning below if it
+                # ends up in `changed`, which it won't since we skip it
+                # here. Leaving it out (rather than crashing) is safe: a
+                # file we can't even open is not a silent false pass, it's
+                # simply invisible the same way a permission-denied file
+                # already outside any diff would be.
+                continue
+            line_count = text.count("\n") + (0 if text.endswith("\n") or not text else 1)
+            changed[rel_path] = set(range(1, max(line_count, 1) + 1))
+
     return changed
 
 
 def _read_source(path: Path, head: str | None, repo: Path) -> str | None:
     """Return the text of `path` at `head` (or on disk, when head is None).
 
-    Returns None if the file does not exist there, e.g. it was deleted.
+    Returns None if the file could not be read there -- e.g. it does not
+    exist (a permission error, a broken symlink, a race where it was
+    removed after the diff was computed, etc.). This is deliberately *not*
+    how a legitimate deletion is detected: a deleted file never reaches
+    here in the first place, since `changed_java_lines` already excludes it
+    (it sees the diff's own ``+++ /dev/null`` marker). So every None
+    returned from here, for a path that came out of the diff, indicates a
+    genuine read failure the caller must not silently ignore.
     """
     if head is None:
         full = repo / path
-        if not full.is_file():
+        try:
+            if not full.is_file():
+                return None
+            return full.read_text(encoding="utf-8", errors="replace")
+        except OSError:
             return None
-        return full.read_text(encoding="utf-8", errors="replace")
     try:
         return _run_git(["show", f"{head}:{path.as_posix()}"], repo)
     except GitError:
@@ -614,14 +786,30 @@ def check_changed_javadoc(base: str, head: str | None, repo: Path) -> list[str]:
 
     Files are visited in sorted path order, so the returned diagnostics are
     deterministic regardless of the order Git reports changed files in.
+
+    A path that came out of the diff (i.e. it is a key of
+    ``changed_java_lines``'s result) but that ``_read_source`` cannot read
+    is *not* a legitimate deletion -- deletions are already excluded before
+    reaching this point -- so it is treated as a Git/environment failure
+    this checker cannot reliably proceed past: a ``warning: cannot read
+    <path>`` is printed to stderr for each such path, and `GitError` is
+    raised (which the CLI turns into exit code 2), rather than silently
+    skipping the file as if it had been deleted.
     """
     changed = changed_java_lines(base, head, repo)
     diagnostics: list[str] = []
+    unreadable: list[Path] = []
     for path in sorted(changed, key=lambda p: p.as_posix()):
         source = _read_source(path, head, repo)
         if source is None:
+            unreadable.append(path)
             continue
         diagnostics.extend(validate_source(path.as_posix(), source, changed[path]))
+    if unreadable:
+        for path in unreadable:
+            print(f"warning: cannot read {path.as_posix()}", file=sys.stderr)
+        names = ", ".join(path.as_posix() for path in unreadable)
+        raise GitError(f"cannot read {len(unreadable)} file(s) touched by the diff: {names}")
     return diagnostics
 
 
