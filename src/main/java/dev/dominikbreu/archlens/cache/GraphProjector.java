@@ -58,7 +58,9 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
  */
 class GraphProjector {
 
+    /** Gremlin property keys and stable sink-identifier marker used during projection. */
     private static final String SOURCE = "source";
+
     private static final String TECHNOLOGY = "technology";
     private static final String BROKER = "broker";
     private static final String TOPIC = "topic";
@@ -73,7 +75,9 @@ class GraphProjector {
     private static final String VIA_FIELD = "viaField";
     private static final String VIA_CHANNEL = "viaChannel";
     private static final String CONFIDENCE = "confidence";
+    /** Gremlin relationship labels shared by projection passes. */
     private static final String REL_STARTS_AT = "STARTS_AT";
+
     private static final String REL_DEPENDS_ON = "DEPENDS_ON";
     private static final String REL_WRITES_STATE = "WRITES_STATE";
     private static final String REL_READS_STATE = "READS_STATE";
