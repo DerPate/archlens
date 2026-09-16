@@ -61,6 +61,9 @@ public final class Dashboard {
             DispatchResult result = engine.dispatch(view.command());
             if (result.quit()) runner.quit();
             else {
+                if ("index_workspace".equals(result.event().toolName()) && !result.event().isError()) {
+                    state.logSystemMessage(firstLine(result.event().resultText()));
+                }
                 state.recordEvent(result.event());
                 view.commandCompleted();
             }
@@ -72,5 +75,10 @@ public final class Dashboard {
 
     private List<String> commandNames() {
         return engine.tools().stream().map(spec -> spec.tool().name()).toList();
+    }
+
+    private static String firstLine(String text) {
+        int newline = text.indexOf('\n');
+        return newline < 0 ? text : text.substring(0, newline);
     }
 }
