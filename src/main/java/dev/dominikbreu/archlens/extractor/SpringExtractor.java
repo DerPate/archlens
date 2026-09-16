@@ -31,7 +31,9 @@ import spoon.reflect.reference.CtTypeReference;
 /** Extracts Spring-specific architecture components, entrypoints, and interfaces from a Spoon model. */
 public class SpringExtractor {
 
+    /** Shared annotation evidence, HTTP verb, and annotation-member literals. */
     private static final String ANNOTATION = "annotation";
+
     private static final String HTTP_DELETE = "DELETE";
     private static final String HTTP_PATCH = "PATCH";
     private static final String VALUE = "value";
@@ -326,6 +328,7 @@ public class SpringExtractor {
         extractOutboundCallSites(type, component, model);
     }
 
+    /** Builds a REST entrypoint identifier that distinguishes routes by HTTP method and full path. */
     private dev.dominikbreu.archlens.model.ids.EntrypointId restEndpointId(
             CtType<?> type, CtMethod<?> method, Mapping mapping, String fullPath) {
         return new dev.dominikbreu.archlens.model.ids.EntrypointId(
@@ -334,6 +337,7 @@ public class SpringExtractor {
                 mapping.method() + ":" + fullPath);
     }
 
+    /** Adds a deduplicated startup or entity-event entrypoint with annotation-derived evidence. */
     private void addSimpleEntrypoint(
             CtMethod<?> method,
             CtType<?> type,
@@ -355,6 +359,7 @@ public class SpringExtractor {
         model.entrypoints.add(ep);
     }
 
+    /** Adds a scheduled entrypoint and captures cron, fixed-rate, or fixed-delay trigger metadata. */
     private void addScheduledEntrypoint(
             CtMethod<?> method, CtType<?> type, Component component, ArchitectureModel model) {
         dev.dominikbreu.archlens.model.ids.EntrypointId id = new dev.dominikbreu.archlens.model.ids.EntrypointId(
@@ -384,6 +389,7 @@ public class SpringExtractor {
         model.entrypoints.add(ep);
     }
 
+    /** Adds a resolved Spring messaging listener entrypoint and its consumer interface. */
     private void addListenerEntrypoint(
             CtMethod<?> method,
             CtType<?> type,
@@ -419,6 +425,7 @@ public class SpringExtractor {
                 model);
     }
 
+    /** Adds a consumer interface and attaches its broker and topic metadata. */
     private void addMessagingInterface(
             CtElement element,
             Component component,
@@ -1040,6 +1047,7 @@ public class SpringExtractor {
         }
     }
 
+    /** Adds a messaging producer interface and attaches its broker and destination topic. */
     private void addProducerInterface(
             CtElement element,
             Component component,

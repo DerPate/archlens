@@ -58,7 +58,9 @@ public class GraphQuery {
     private static final PBiPredicate<Object, Object> CI_CONTAINS = (stored, expected) ->
             stored != null && stored.toString().toLowerCase(Locale.ROOT).contains(expected.toString());
 
+    /** Gremlin property-key names used by typed graph queries. */
     private static final String TECHNOLOGY = "technology";
+
     private static final String BROKER = "broker";
     private static final String TOPIC = "topic";
     private static final String COMPONENT_ID = "componentId";
