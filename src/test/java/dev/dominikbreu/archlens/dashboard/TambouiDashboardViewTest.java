@@ -11,7 +11,8 @@ import org.junit.jupiter.api.Test;
 class TambouiDashboardViewTest {
     @Test
     void rendersStatusAndHandlesInput() {
-        TambouiDashboardView view = new TambouiDashboardView(new DashboardState(), java.util.List.of("index_workspace"));
+        TambouiDashboardView view =
+                new TambouiDashboardView(new DashboardState(), java.util.List.of("index_workspace"));
         view.handle(KeyEvent.ofChar('h'));
         view.handle(KeyEvent.ofChar('i'));
         assertThat(view.command()).isEqualTo("hi");

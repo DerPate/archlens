@@ -37,8 +37,12 @@ public final class Dashboard {
      */
     public void run() throws IOException {
         TambouiDashboardView view = new TambouiDashboardView(state, commandNames());
-        try (TuiRunner runner = TuiRunner.create(TuiConfig.builder().backend(new PanamaBackend())
-                .mouseCapture(false).bracketedPaste(true).noTick().build())) {
+        try (TuiRunner runner = TuiRunner.create(TuiConfig.builder()
+                .backend(new PanamaBackend())
+                .mouseCapture(false)
+                .bracketedPaste(true)
+                .noTick()
+                .build())) {
             runner.run((event, ignored) -> handle(event, view, runner), view::render);
         } catch (IOException e) {
             throw e;
@@ -62,7 +66,8 @@ public final class Dashboard {
             DispatchResult result = engine.dispatch(view.command());
             if (result.quit()) runner.quit();
             else {
-                if ("index_workspace".equals(result.event().toolName()) && !result.event().isError()) {
+                if ("index_workspace".equals(result.event().toolName())
+                        && !result.event().isError()) {
                     state.logSystemMessage(firstLine(result.event().resultText()));
                 }
                 state.recordEvent(result.event());
