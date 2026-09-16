@@ -47,10 +47,12 @@ public final class GraphDataProjection {
 
     /**
      * Builds the viewer projection for a single pipeline chain: resolves its ordered
-     * {@code HAS_SEGMENT} edges into segment projections, unions each segment's own node/edge slice
-     * plus the segment and boundary-sink ids into a chain-wide {@link GraphSlice}, and derives the
-     * subtitle from the chain's link kinds and segment count (falling back to the resolved segment
-     * count when the chain does not report one).
+     * {@code HAS_SEGMENT} edges into segment projections, then collects each segment's node id and
+     * hand-off boundary-sink id across the whole chain and recomputes a fresh chain-wide
+     * {@link GraphSlice} over that combined set — independently of each segment's own per-segment
+     * slice, so the chain-wide slice can surface cross-segment closing edges no single segment's
+     * slice would include. The subtitle is derived from the chain's link kinds and segment count
+     * (falling back to the resolved segment count when the chain does not report one).
      *
      * @param snapshot the graph snapshot to project
      * @param nodeById all graph nodes indexed by id, used to resolve segment and sink nodes
@@ -178,8 +180,9 @@ public final class GraphDataProjection {
      * pass:
      *
      * <ol>
-     *   <li>Spine edges ({@link #isPipelineSpineEdge}) connecting the segment nodes to each other
-     *       and to the boundary sinks; their endpoints are added to the selected node set.
+     *   <li>{@code HAS_SEGMENT} edges are skipped outright; the rest are tested as spine edges
+     *       ({@link #isPipelineSpineEdge}) connecting the segment nodes to each other and to the
+     *       boundary sinks, and their endpoints are added to the selected node set.
      *   <li>Boundary-sink target edges ({@link #isBoundarySinkTargetEdge}), e.g. a data-flow sink's
      *       {@code AT_COMPONENT}/{@code ON_FIELD} edges, again adding their endpoints.
      *   <li>Any remaining non-{@code HAS_SEGMENT} edge whose endpoints are both already selected
