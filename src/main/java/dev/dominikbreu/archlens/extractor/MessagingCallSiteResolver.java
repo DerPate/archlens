@@ -246,13 +246,16 @@ public class MessagingCallSiteResolver {
     }
 
     /**
-     * Extracts the tracked field name that {@code target} refers to, if any. Accepts both a field
-     * read ({@code this.client} or {@code client}) and a variable read (a local alias resolving to
-     * the field), matching either against the supplied set of tracked names.
+     * Extracts the tracked field name that {@code target} refers to, if any, by name-based matching
+     * only: this compares the simple name of a field read ({@code this.client} or {@code client}) or
+     * a variable read against the supplied set of tracked names, with no check that a variable read
+     * was ever assigned from the tracked field itself. A local variable sharing a tracked field's
+     * name is therefore matched even if unrelated to that field.
      *
      * @param target        receiver expression to inspect
      * @param trackedNames  names of the fields being tracked
-     * @return the matching tracked field name, or null if {@code target} does not resolve to one
+     * @return the matching tracked field name, or null if {@code target}'s simple name does not match
+     *     any tracked name
      */
     private String receiverFieldName(CtExpression<?> target, Set<String> trackedNames) {
         if (target instanceof CtFieldRead<?> fr && fr.getVariable() != null) {
