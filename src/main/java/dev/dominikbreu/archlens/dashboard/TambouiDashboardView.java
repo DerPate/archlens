@@ -1,10 +1,8 @@
 package dev.dominikbreu.archlens.dashboard;
 
-import dev.tamboui.buffer.Buffer;
 import dev.tamboui.layout.Rect;
 import dev.tamboui.terminal.Frame;
 import dev.tamboui.tui.event.Event;
-import dev.tamboui.tui.event.KeyCode;
 import dev.tamboui.tui.event.KeyEvent;
 import dev.tamboui.tui.event.PasteEvent;
 import dev.tamboui.widgets.input.TextInput;
@@ -98,10 +96,22 @@ final class TambouiDashboardView {
         };
     }
 
-    String command() { return ui.input().text(); }
-    void rememberCommand(String command) { history.add(command); }
-    void commandCompleted() { ui.submit(); ui.input().clear(); }
-    void setBusy(boolean busy) { this.busy = busy; }
+    String command() {
+        return ui.input().text();
+    }
+
+    void rememberCommand(String command) {
+        history.add(command);
+    }
+
+    void commandCompleted() {
+        ui.submit();
+        ui.input().clear();
+    }
+
+    void setBusy(boolean busy) {
+        this.busy = busy;
+    }
 
     void render(Frame frame) {
         Rect area = frame.area();
@@ -114,20 +124,27 @@ final class TambouiDashboardView {
         Rect main = new Rect(0, 1, area.width(), inputY - 1);
         String log = String.join("\n", state.systemLog());
         DashboardEvent event = state.currentEvent();
-        String result = event == null ? "No command executed yet." : (event.isError() ? "ERROR: " + event.errorText() : event.resultText());
+        String result = event == null
+                ? "No command executed yet."
+                : (event.isError() ? "ERROR: " + event.errorText() : event.resultText());
         int leftWidth = area.width() >= 90 ? area.width() / 2 : area.width();
         Paragraph.from(log).render(new Rect(0, main.y(), leftWidth, main.height()), frame.buffer());
-        Paragraph.builder().text(result == null ? "" : result).scroll(ui.scrollOffset()).build()
+        Paragraph.builder()
+                .text(result == null ? "" : result)
+                .scroll(ui.scrollOffset())
+                .build()
                 .render(new Rect(leftWidth, main.y(), area.width() - leftWidth, main.height()), frame.buffer());
-        TextInput.builder().placeholder("Enter an MCP command (Tab completes, F6 focus, Ctrl-C quits)").build()
+        TextInput.builder()
+                .placeholder("Enter an MCP command (Tab completes, F6 focus, Ctrl-C quits)")
+                .build()
                 .renderWithCursor(new Rect(0, inputY, area.width(), 1), frame.buffer(), ui.input(), frame);
-        String focus = switch (ui.focus()) {
-            case 0 -> "input";
-            case 1 -> "activity";
-            default -> "result";
-        };
-        Paragraph.from((busy ? "Running…" : "Ready") + "  •  Focus: " + focus
-                        + "  •  F6 cycle focus")
+        String focus =
+                switch (ui.focus()) {
+                    case 0 -> "input";
+                    case 1 -> "activity";
+                    default -> "result";
+                };
+        Paragraph.from((busy ? "Running…" : "Ready") + "  •  Focus: " + focus + "  •  F6 cycle focus")
                 .render(new Rect(0, inputY + 1, area.width(), 1), frame.buffer());
     }
 }
