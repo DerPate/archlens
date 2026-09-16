@@ -24,6 +24,13 @@ one** — document each record component with `@param`, and each method's
 parameters and return value with `@param`/`@return`. You don't need to document
 public API you didn't touch, but don't leave something you touched undocumented.
 
+Before committing uncommitted Java changes, run
+`python3 scripts/check-public-javadoc.py --base HEAD` to verify public Javadoc
+on changed declarations. Before completing a branch, run
+`python3 scripts/check-public-javadoc.py --base main --head HEAD` (replace
+`main` with the actual base branch). The checker examines only changed public
+declarations and does not require backfilling documentation for untouched API.
+
 ## Code Style
 
 The project uses four-space indentation and LF line endings. The repository includes `.editorconfig` and `.gitattributes` so most editors and Git clients can apply those defaults automatically.

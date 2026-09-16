@@ -87,6 +87,11 @@ java -jar target/archlens.jar
   with `@param`, and method params/returns with `@param`/`@return`. Don't
   document public API you didn't touch; just don't leave what you touched bare.
   (Missing-doc warnings are non-fatal, so this is a convention, not a build gate.)
+- Before committing uncommitted Java changes, run
+  `python3 scripts/check-public-javadoc.py --base HEAD`.
+- Before completing a branch, run
+  `python3 scripts/check-public-javadoc.py --base main --head HEAD`
+  (replace `main` with the actual base branch).
 - Prefer entity/model changes that are covered by focused tests.
 - Do not skip Spotless or SpotBugs to make `verify` pass. Fix formatting with
   `mvn spotless:apply` and address or explicitly justify SpotBugs findings.
