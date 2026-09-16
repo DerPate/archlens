@@ -1,11 +1,15 @@
 """Unit tests for the public-Javadoc declaration parser and validator.
 
-These tests exercise only the pure-parsing core (Declaration,
-find_public_declarations, validate_source). Git/CLI integration is added in
-a later task and is intentionally not exercised here.
+The `ValidationTests` and `DeclarationImmutabilityTests` classes exercise
+only the pure-parsing core (Declaration, find_public_declarations,
+validate_source). `GitIntegrationTests` drives the Git-diff/CLI layer
+end-to-end against real temporary Git repositories.
 """
 
 import importlib.util
+import subprocess
+import sys
+import tempfile
 import unittest
 from dataclasses import FrozenInstanceError
 from pathlib import Path
@@ -19,6 +23,192 @@ spec.loader.exec_module(check_public_javadoc)
 Declaration = check_public_javadoc.Declaration
 find_public_declarations = check_public_javadoc.find_public_declarations
 validate_source = check_public_javadoc.validate_source
+
+SCRIPT_PATH = Path(__file__).with_name("check-public-javadoc.py")
+
+_DOCUMENTED_BASELINE = (
+    "/**\n"
+    " * Example type.\n"
+    " */\n"
+    "public class Example {\n"
+    "}\n"
+)
+
+_WITH_UNDOCUMENTED_METHOD = (
+    "/**\n"
+    " * Example type.\n"
+    " */\n"
+    "public class Example {\n"
+    "    public String parse(String value) {\n"
+    "        return value;\n"
+    "    }\n"
+    "}\n"
+)
+
+
+def _git(args: list[str], cwd: Path) -> str:
+    result = subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise AssertionError(f"git {args} failed: {result.stderr}")
+    return result.stdout
+
+
+def _init_repo(repo: Path) -> None:
+    _git(["init"], repo)
+    _git(["config", "user.email", "test@example.com"], repo)
+    _git(["config", "user.name", "Test"], repo)
+
+
+def _run_checker(repo: Path, *args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, str(SCRIPT_PATH), *args],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+    )
+
+
+class GitIntegrationTests(unittest.TestCase):
+    def test_clean_tree_passes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            _init_repo(repo)
+            (repo / "Example.java").write_text(_DOCUMENTED_BASELINE)
+            _git(["add", "Example.java"], repo)
+            _git(["commit", "-m", "baseline"], repo)
+
+            result = _run_checker(repo, "--base", "HEAD")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                result.stdout.strip(), "Public Javadoc check passed: 0 violations"
+            )
+
+    def test_working_tree_undocumented_added_method_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            _init_repo(repo)
+            (repo / "Example.java").write_text(_DOCUMENTED_BASELINE)
+            _git(["add", "Example.java"], repo)
+            _git(["commit", "-m", "baseline"], repo)
+
+            # Undocumented method added, but not committed.
+            (repo / "Example.java").write_text(_WITH_UNDOCUMENTED_METHOD)
+
+            result = _run_checker(repo, "--base", "HEAD")
+
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn(
+                "Example.java:5: public method parse is missing Javadoc",
+                result.stdout,
+            )
+            self.assertIn(
+                "Public Javadoc check failed: 1 violation(s)", result.stdout
+            )
+
+    def test_explicit_head_undocumented_added_method_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            _init_repo(repo)
+            (repo / "Example.java").write_text(_DOCUMENTED_BASELINE)
+            _git(["add", "Example.java"], repo)
+            _git(["commit", "-m", "baseline"], repo)
+            base_sha = _git(["rev-parse", "HEAD"], repo).strip()
+
+            (repo / "Example.java").write_text(_WITH_UNDOCUMENTED_METHOD)
+            _git(["add", "Example.java"], repo)
+            _git(["commit", "-m", "add parse"], repo)
+
+            result = _run_checker(repo, "--base", base_sha, "--head", "HEAD")
+
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn(
+                "Example.java:5: public method parse is missing Javadoc",
+                result.stdout,
+            )
+            self.assertIn(
+                "Public Javadoc check failed: 1 violation(s)", result.stdout
+            )
+
+    def test_path_with_spaces_is_reported_correctly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            _init_repo(repo)
+            sub = repo / "My Module"
+            sub.mkdir()
+            java_file = sub / "My Class.java"
+            java_file.write_text(
+                "/**\n"
+                " * Example type.\n"
+                " */\n"
+                "public class MyClass {\n"
+                "}\n"
+            )
+            _git(["add", "My Module/My Class.java"], repo)
+            _git(["commit", "-m", "baseline"], repo)
+
+            java_file.write_text(
+                "/**\n"
+                " * Example type.\n"
+                " */\n"
+                "public class MyClass {\n"
+                "    public String parse(String value) {\n"
+                "        return value;\n"
+                "    }\n"
+                "}\n"
+            )
+
+            result = _run_checker(repo, "--base", "HEAD")
+
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn(
+                "My Module/My Class.java:5: public method parse is missing Javadoc",
+                result.stdout,
+            )
+
+    def test_deleted_file_does_not_crash_or_report(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            _init_repo(repo)
+            java_file = repo / "Example.java"
+            java_file.write_text(_DOCUMENTED_BASELINE)
+            _git(["add", "Example.java"], repo)
+            _git(["commit", "-m", "baseline"], repo)
+
+            java_file.unlink()
+
+            result = _run_checker(repo, "--base", "HEAD")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                result.stdout.strip(), "Public Javadoc check passed: 0 violations"
+            )
+
+    def test_invalid_base_ref_exits_with_code_2(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            _init_repo(repo)
+            (repo / "Example.java").write_text(_DOCUMENTED_BASELINE)
+            _git(["add", "Example.java"], repo)
+            _git(["commit", "-m", "baseline"], repo)
+
+            result = _run_checker(repo, "--base", "not-a-real-ref")
+
+            self.assertEqual(result.returncode, 2, result.stdout)
+
+    def test_missing_base_argument_exits_with_code_2(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            _init_repo(repo)
+
+            result = _run_checker(repo)
+
+            self.assertEqual(result.returncode, 2, result.stdout)
 
 
 class ValidationTests(unittest.TestCase):
