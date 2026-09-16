@@ -1,19 +1,12 @@
 package dev.dominikbreu.archlens.dashboard;
 
+import dev.tamboui.backend.panama.PanamaBackend;
+import dev.tamboui.tui.TuiConfig;
+import dev.tamboui.tui.TuiRunner;
+import dev.tamboui.tui.event.Event;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
-import org.jline.reader.Candidate;
-import org.jline.reader.Completer;
-import org.jline.reader.EndOfFileException;
-import org.jline.reader.LineReader;
-import org.jline.reader.LineReaderBuilder;
-import org.jline.reader.ParsedLine;
-import org.jline.reader.UserInterruptException;
-import org.jline.terminal.Terminal;
-import org.jline.terminal.TerminalBuilder;
-import org.jline.utils.InfoCmp;
 
 /**
  * Standalone terminal dashboard + REPL, started instead of the stdio MCP server when the process
@@ -43,75 +36,41 @@ public final class Dashboard {
      * @throws IOException if terminal initialization fails
      */
     public void run() throws IOException {
-        try (Terminal terminal = TerminalBuilder.builder().system(true).build()) {
-            terminal.puts(InfoCmp.Capability.enter_ca_mode);
-            terminal.flush();
-            try {
-                runLoop(terminal);
-            } finally {
-                terminal.puts(InfoCmp.Capability.exit_ca_mode);
-                terminal.flush();
-            }
+        TambouiDashboardView view = new TambouiDashboardView(state, commandNames());
+        try (TuiRunner runner = TuiRunner.create(TuiConfig.builder().backend(new PanamaBackend())
+                .mouseCapture(false).bracketedPaste(true).noTick().build())) {
+            runner.run((event, ignored) -> handle(event, view, runner), view::render);
+        } catch (IOException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IOException("Unable to run dashboard", e);
         }
     }
 
-    private void runLoop(Terminal terminal) {
-        LineReader reader = LineReaderBuilder.builder()
-                .terminal(terminal)
-                .completer(toolNameCompleter())
-                .build();
-
-        redraw(terminal);
-        while (true) {
-            String line;
-            try {
-                line = reader.readLine("spoon> ");
-            } catch (UserInterruptException | EndOfFileException e) {
-                return;
-            }
-            if (line.isBlank()) {
-                continue;
-            }
-
-            DispatchResult result = engine.dispatch(line);
-            if (result.quit()) {
-                return;
-            }
-            if ("index_workspace".equals(result.event().toolName())
-                    && !result.event().isError()) {
-                state.logSystemMessage(firstLine(result.event().resultText()));
-            }
-            state.recordEvent(result.event());
-            redraw(terminal);
+    private boolean handle(Event event, TambouiDashboardView view, TuiRunner runner) {
+        DashboardAction action = view.handle(event);
+        if (action == DashboardAction.QUIT) {
+            runner.quit();
+            return false;
         }
-    }
-
-    private void redraw(Terminal terminal) {
-        terminal.puts(InfoCmp.Capability.clear_screen);
-        terminal.writer().print(DashboardRenderer.render(state, terminal.getWidth()));
-        terminal.flush();
-    }
-
-    private static String firstLine(String text) {
-        int newline = text.indexOf('\n');
-        return newline < 0 ? text : text.substring(0, newline);
-    }
-
-    private Completer toolNameCompleter() {
-        List<String> names = new ArrayList<>();
-        for (McpServerFeatures.SyncToolSpecification spec : engine.tools()) {
-            names.add(spec.tool().name());
+        if (action != DashboardAction.SUBMIT || view.command().isBlank()) {
+            return true;
         }
-        names.add(":help");
-        names.add(":tools");
-        names.add(":quit");
-
-        return (LineReader lineReader, ParsedLine parsedLine, List<Candidate> candidates) -> {
-            if (parsedLine.wordIndex() == 0) {
-                for (String name : names) {
-                    candidates.add(new Candidate(name));
-                }
+        view.setBusy(true);
+        try {
+            DispatchResult result = engine.dispatch(view.command());
+            if (result.quit()) runner.quit();
+            else {
+                state.recordEvent(result.event());
+                view.commandCompleted();
             }
-        };
+        } finally {
+            view.setBusy(false);
+        }
+        return true;
+    }
+
+    private List<String> commandNames() {
+        return engine.tools().stream().map(spec -> spec.tool().name()).toList();
     }
 }
