@@ -7,6 +7,11 @@ import java.util.Map;
 
 /** Static helpers for extracting typed values from SDK tool argument maps. */
 public final class ToolArgs {
+    /**
+     * Known evidence-field keys, in output order. Used by {@link #evidenceAsMap} to select which
+     * entries of a node/edge property map are copied into the structured-output {@code evidence}
+     * sub-map.
+     */
     private static final List<String> EVIDENCE_FIELDS =
             List.of("derivedFrom", "sourceFile", "sourceLine", "confidence", "confidenceBand", "ambiguous", "evidence");
 

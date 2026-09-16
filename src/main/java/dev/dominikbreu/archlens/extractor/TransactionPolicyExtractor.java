@@ -26,6 +26,12 @@ import java.util.Set;
 /** Extracts method-local JPA operations and effective framework transaction policies. */
 public class TransactionPolicyExtractor {
 
+    /**
+     * JPA {@code EntityManager} method names recognized as persistence operations. Used by {@link
+     * #extractPersistenceOperations} to decide, together with {@link #isEntityManagerInvocation},
+     * whether an invocation's executable name qualifies as an entity-manager call worth recording
+     * as a {@link PersistenceOperation}.
+     */
     private static final Set<String> ENTITY_MANAGER_OPERATIONS =
             Set.of("persist", "merge", "remove", "find", "getReference", "refresh", "flush");
 
