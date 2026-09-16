@@ -31,7 +31,9 @@ import spoon.reflect.reference.CtTypeReference;
 /** Extracts Spring-specific architecture components, entrypoints, and interfaces from a Spoon model. */
 public class SpringExtractor {
 
+    /** Shared annotation evidence, HTTP verb, and annotation-member literals. */
     private static final String ANNOTATION = "annotation";
+
     private static final String HTTP_DELETE = "DELETE";
     private static final String HTTP_PATCH = "PATCH";
     private static final String VALUE = "value";
@@ -40,23 +42,40 @@ public class SpringExtractor {
             Set.of("org.springframework.boot.autoconfigure.SpringBootApplication");
     private static final Set<String> REST_CONTROLLERS = Set.of(
             "org.springframework.web.bind.annotation.RestController", "org.springframework.stereotype.Controller");
+    /** Marks a service-layer bean ({@code @Service}) as a {@link ComponentType#SERVICE}. */
     private static final Set<String> SERVICE = Set.of("org.springframework.stereotype.Service");
+    /** Marks a persistence-layer bean ({@code @Repository}) as a {@link ComponentType#REPOSITORY}. */
     private static final Set<String> REPOSITORY = Set.of("org.springframework.stereotype.Repository");
+    /** Marks a generic managed bean ({@code @Component}) as a {@link ComponentType#SERVICE}; checked last, after the more specific stereotypes. */
     private static final Set<String> COMPONENT = Set.of("org.springframework.stereotype.Component");
+    /** Marks a bean-definition class ({@code @Configuration}) as a {@link ComponentType#SERVICE}. */
     private static final Set<String> CONFIGURATION = Set.of("org.springframework.context.annotation.Configuration");
+    /** Marks a JPA entity class ({@code javax}/{@code jakarta} {@code @Entity}) as a {@link ComponentType#ENTITY}. */
     private static final Set<String> ENTITY = Set.of("javax.persistence.Entity", "jakarta.persistence.Entity");
+    /** Generic Spring MVC route annotation ({@code @RequestMapping}); its {@code method} attribute picks the HTTP verb. */
     private static final Set<String> REQUEST_MAPPING = Set.of("org.springframework.web.bind.annotation.RequestMapping");
+    /** Shorthand {@code @GetMapping} route annotation. */
     private static final Set<String> GET_MAPPING = Set.of("org.springframework.web.bind.annotation.GetMapping");
+    /** Shorthand {@code @PostMapping} route annotation. */
     private static final Set<String> POST_MAPPING = Set.of("org.springframework.web.bind.annotation.PostMapping");
+    /** Shorthand {@code @PutMapping} route annotation. */
     private static final Set<String> PUT_MAPPING = Set.of("org.springframework.web.bind.annotation.PutMapping");
+    /** Shorthand {@code @DeleteMapping} route annotation. */
     private static final Set<String> DELETE_MAPPING = Set.of("org.springframework.web.bind.annotation.DeleteMapping");
+    /** Shorthand {@code @PatchMapping} route annotation. */
     private static final Set<String> PATCH_MAPPING = Set.of("org.springframework.web.bind.annotation.PatchMapping");
+    /** Marks a method as a {@link EntrypointType#SCHEDULER} entrypoint ({@code @Scheduled}). */
     private static final Set<String> SCHEDULED = Set.of("org.springframework.scheduling.annotation.Scheduled");
+    /** Marks a Kafka consumer method, or a whole class hosting {@code @KafkaHandler} methods ({@code @KafkaListener}). */
     private static final Set<String> KAFKA_LISTENER = Set.of("org.springframework.kafka.annotation.KafkaListener");
+    /** Marks one handler method inside a class-level {@code @KafkaListener} ({@code @KafkaHandler}). */
     private static final Set<String> KAFKA_HANDLER = Set.of("org.springframework.kafka.annotation.KafkaHandler");
+    /** Marks a RabbitMQ consumer method ({@code @RabbitListener}). */
     private static final Set<String> RABBIT_LISTENER =
             Set.of("org.springframework.amqp.rabbit.annotation.RabbitListener");
+    /** Marks a JMS consumer method ({@code @JmsListener}). */
     private static final Set<String> JMS_LISTENER = Set.of("org.springframework.jms.annotation.JmsListener");
+    /** Marks a declarative HTTP client interface ({@code @FeignClient}) as a {@link ComponentType#HTTP_CLIENT}. */
     private static final Set<String> FEIGN_CLIENT = Set.of("org.springframework.cloud.openfeign.FeignClient");
 
     private final SpringConfigResolver.Config config;
@@ -75,6 +94,11 @@ public class SpringExtractor {
         this.config = config;
     }
 
+    /**
+     * Returns the shared OpenTelemetry tracer used to span this extractor's work.
+     *
+     * @return the {@code dev.dominikbreu.archlens} tracer
+     */
     private static Tracer tracer() {
         return GlobalOpenTelemetry.getTracer("dev.dominikbreu.archlens");
     }
@@ -112,6 +136,14 @@ public class SpringExtractor {
         }
     }
 
+    /**
+     * Classifies the given type as a Spring-managed component, if it matches any recognized
+     * stereotype, entity, listener, or scheduler shape.
+     *
+     * @param type the Spoon type to classify
+     * @param appId the application id to assign to the extracted component
+     * @return the classified component, or {@code null} if the type matches no known Spring shape
+     */
     private Component tryExtractComponent(CtType<?> type, AppId appId) {
         ComponentType componentType = null;
         String technology = "spring";
@@ -164,6 +196,12 @@ public class SpringExtractor {
         return component;
     }
 
+    /**
+     * Returns true if any method on the given type is annotated {@code @Scheduled}.
+     *
+     * @param type the Spoon type to check
+     * @return true if the type has a scheduled method
+     */
     private boolean hasScheduledMethod(CtType<?> type) {
         return type.getMethods().stream().anyMatch(method -> hasAnnotation(method, SCHEDULED));
     }
@@ -185,6 +223,13 @@ public class SpringExtractor {
                 .anyMatch(i -> HIBERNATE_EVENT_LISTENER_INTERFACES.contains(i.getSimpleName()));
     }
 
+    /**
+     * Returns true if the type or any of its methods carries a Kafka, RabbitMQ, or JMS listener
+     * annotation.
+     *
+     * @param type the Spoon type to check
+     * @return true if the type is a messaging listener
+     */
     private boolean hasListenerMethod(CtType<?> type) {
         // Class-level @KafkaListener (multi-method listener with @KafkaHandler on methods)
         if (hasAnnotation(type, KAFKA_LISTENER)
@@ -198,6 +243,16 @@ public class SpringExtractor {
                         || hasAnnotation(method, JMS_LISTENER));
     }
 
+    /**
+     * Scans every method of the given type for REST routes, scheduled triggers, messaging
+     * listeners, main/runner methods, and Hibernate entity-event listener methods, adding a
+     * matching {@link Entrypoint} for each one found. Also extracts Feign client interfaces and
+     * outbound call sites for the type as a whole.
+     *
+     * @param type the Spoon type to scan
+     * @param component the component the entrypoints belong to
+     * @param model the architecture model to populate
+     */
     private void extractEntrypoints(CtType<?> type, Component component, ArchitectureModel model) {
         String classBase = firstMappingPath(type);
         String contextPath = config.value("server.servlet.context-path");
@@ -273,6 +328,7 @@ public class SpringExtractor {
         extractOutboundCallSites(type, component, model);
     }
 
+    /** Builds a REST entrypoint identifier that distinguishes routes by HTTP method and full path. */
     private dev.dominikbreu.archlens.model.ids.EntrypointId restEndpointId(
             CtType<?> type, CtMethod<?> method, Mapping mapping, String fullPath) {
         return new dev.dominikbreu.archlens.model.ids.EntrypointId(
@@ -281,6 +337,7 @@ public class SpringExtractor {
                 mapping.method() + ":" + fullPath);
     }
 
+    /** Adds a deduplicated startup or entity-event entrypoint with annotation-derived evidence. */
     private void addSimpleEntrypoint(
             CtMethod<?> method,
             CtType<?> type,
@@ -302,6 +359,7 @@ public class SpringExtractor {
         model.entrypoints.add(ep);
     }
 
+    /** Adds a scheduled entrypoint and captures cron, fixed-rate, or fixed-delay trigger metadata. */
     private void addScheduledEntrypoint(
             CtMethod<?> method, CtType<?> type, Component component, ArchitectureModel model) {
         dev.dominikbreu.archlens.model.ids.EntrypointId id = new dev.dominikbreu.archlens.model.ids.EntrypointId(
@@ -331,6 +389,7 @@ public class SpringExtractor {
         model.entrypoints.add(ep);
     }
 
+    /** Adds a resolved Spring messaging listener entrypoint and its consumer interface. */
     private void addListenerEntrypoint(
             CtMethod<?> method,
             CtType<?> type,
@@ -366,6 +425,7 @@ public class SpringExtractor {
                 model);
     }
 
+    /** Adds a consumer interface and attaches its broker and topic metadata. */
     private void addMessagingInterface(
             CtElement element,
             Component component,
@@ -380,6 +440,15 @@ public class SpringExtractor {
         }
     }
 
+    /**
+     * Reads the first attribute, falling back to the second if the first is absent or empty.
+     *
+     * @param element the AST element bearing the annotation
+     * @param annotation the fully-qualified annotation type names to match
+     * @param first the preferred attribute name
+     * @param second the fallback attribute name
+     * @return the first non-empty attribute value, or {@code ""} if both are absent
+     */
     private String firstNonEmptyAttribute(CtElement element, Set<String> annotation, String first, String second) {
         String value = annotationAttribute(element, annotation, first);
         if (value.isEmpty()) {
@@ -389,10 +458,24 @@ public class SpringExtractor {
         }
     }
 
+    /**
+     * Returns true if the method is a plain Java {@code static void main(String[])} entry point.
+     *
+     * @param method the method to check
+     * @return true if the method is a {@code main} method
+     */
     private boolean isMainMethod(CtMethod<?> method) {
         return "main".equals(method.getSimpleName()) && method.isStatic();
     }
 
+    /**
+     * Returns true if the method is the {@code run} method of a Spring Boot
+     * {@code ApplicationRunner} or {@code CommandLineRunner} implementation.
+     *
+     * @param method the method to check
+     * @param type the declaring type
+     * @return true if the method is a Spring Boot runner entry point
+     */
     private boolean isRunnerMethod(CtMethod<?> method, CtType<?> type) {
         if (!"run".equals(method.getSimpleName())) return false;
         for (CtTypeReference<?> ref : type.getSuperInterfaces()) {
@@ -407,6 +490,13 @@ public class SpringExtractor {
         return false;
     }
 
+    /**
+     * Resolves the HTTP method and path for a REST-mapped method, checking the shorthand
+     * mapping annotations before the generic {@code @RequestMapping}.
+     *
+     * @param method the method to inspect
+     * @return the resolved mapping, or {@code null} if the method carries no mapping annotation
+     */
     private Mapping mapping(CtMethod<?> method) {
         if (hasAnnotation(method, GET_MAPPING)) return new Mapping("GET", firstMappingPath(method));
         if (hasAnnotation(method, POST_MAPPING)) return new Mapping("POST", firstMappingPath(method));
@@ -420,6 +510,13 @@ public class SpringExtractor {
         return null;
     }
 
+    /**
+     * Reads the {@code method} attribute of a {@code @RequestMapping} and maps it to a single
+     * HTTP verb string.
+     *
+     * @param element the AST element bearing the annotation
+     * @return the HTTP verb, or {@code null} if none of GET/POST/PUT/DELETE/PATCH is present
+     */
     private String requestMappingMethod(CtElement element) {
         String method = annotationAttribute(element, REQUEST_MAPPING, "method");
         if (method.contains("GET")) return "GET";
@@ -430,6 +527,13 @@ public class SpringExtractor {
         return null;
     }
 
+    /**
+     * Resolves the route path from whichever mapping annotation is present on the element,
+     * expanding any Spring property placeholder via the extractor's config.
+     *
+     * @param element the AST element bearing the annotation
+     * @return the resolved route path, or {@code ""} if no mapping annotation carries a path
+     */
     private String firstMappingPath(CtElement element) {
         String path = annotationAttribute(element, REQUEST_MAPPING, VALUE);
         if (path.isEmpty()) path = annotationAttribute(element, REQUEST_MAPPING, "path");
@@ -519,6 +623,13 @@ public class SpringExtractor {
         }
     }
 
+    /**
+     * Resolves an annotation attribute expression to its string form, handling literals, arrays
+     * (using the first non-blank element), and reads of another class's static final field.
+     *
+     * @param value the attribute value expression
+     * @return the resolved string value
+     */
     private String resolveAnnotationValue(CtExpression<?> value) {
         if (value instanceof CtLiteral<?> literal) {
             return literalString(literal);
@@ -533,11 +644,24 @@ public class SpringExtractor {
         return value.toString().replace("\"", "");
     }
 
+    /**
+     * Returns the literal's value as a string, or {@code ""} if the literal's value is null.
+     *
+     * @param literal the literal expression
+     * @return the string form of the literal's value
+     */
     private static String literalString(CtLiteral<?> literal) {
         Object raw = literal.getValue();
         return raw == null ? "" : raw.toString();
     }
 
+    /**
+     * Returns the first non-blank resolved element of an array-valued annotation attribute
+     * (e.g. the first {@code topics} entry of a {@code @KafkaListener}).
+     *
+     * @param array the array expression
+     * @return the first non-blank resolved element, or {@code ""} if all elements are blank
+     */
     private String firstNonBlankElement(CtNewArray<?> array) {
         for (CtExpression<?> element : array.getElements()) {
             String resolved = resolveAnnotationValue(element);
@@ -546,6 +670,13 @@ public class SpringExtractor {
         return "";
     }
 
+    /**
+     * Reads the literal default value of a referenced static final field (e.g.
+     * {@code SomeConstants.TOPIC} used as an annotation attribute value).
+     *
+     * @param fieldRef the field reference
+     * @return the field's literal default value, or {@code null} if it isn't a resolvable literal
+     */
     private static String fieldDefaultLiteral(CtFieldReference<?> fieldRef) {
         try {
             CtField<?> field = fieldRef.getDeclaration();
@@ -557,6 +688,14 @@ public class SpringExtractor {
         return null;
     }
 
+    /**
+     * Returns true if the given annotation instance's type matches one of the given qualified or
+     * simple names.
+     *
+     * @param annotation the annotation instance to check
+     * @param names the fully-qualified annotation type names to match
+     * @return true if the annotation matches
+     */
     private boolean annotationMatches(CtAnnotation<?> annotation, Set<String> names) {
         return names.contains(annotation.getAnnotationType().getQualifiedName())
                 || simpleNames(names).contains(annotation.getAnnotationType().getSimpleName());
@@ -574,6 +713,13 @@ public class SpringExtractor {
                 .collect(java.util.stream.Collectors.toSet());
     }
 
+    /**
+     * Strips Java array braces from a resolved annotation value, but leaves a leading
+     * {@code {pathVariable}} untouched since that's meaningful path syntax, not array syntax.
+     *
+     * @param value the resolved attribute value
+     * @return the value with array braces removed, if applicable
+     */
     private String stripArray(String value) {
         String out;
         if (value == null) {
@@ -590,6 +736,12 @@ public class SpringExtractor {
         return out;
     }
 
+    /**
+     * Normalizes a route path: ensures a leading slash and collapses repeated slashes.
+     *
+     * @param path the raw path
+     * @return the normalized path, defaulting to {@code "/"} for a null or empty input
+     */
     private String normalizePath(String path) {
         if (path == null || path.isEmpty()) return "/";
         if (!path.startsWith("/")) path = "/" + path;
@@ -597,6 +749,13 @@ public class SpringExtractor {
         return path;
     }
 
+    /**
+     * Joins a class-level base path and a method-level child path into one normalized path.
+     *
+     * @param base the base (class-level or context) path
+     * @param child the child (method-level) path
+     * @return the combined, normalized path
+     */
     private String combinePaths(String base, String child) {
         if (base == null) base = "";
         if (child == null) child = "";
@@ -635,6 +794,14 @@ public class SpringExtractor {
         }
     }
 
+    /**
+     * Adds a {@code rest_client} interface for the Feign client type itself, plus one
+     * {@code rest_client_operation} interface per mapped method.
+     *
+     * @param type the {@code @FeignClient}-annotated interface
+     * @param component the HTTP client component the interfaces belong to
+     * @param model the architecture model to populate
+     */
     private void extractFeignInterfaces(CtType<?> type, Component component, ArchitectureModel model) {
         String name = annotationAttribute(type, FEIGN_CLIENT, "name");
         if (name.isEmpty()) name = annotationAttribute(type, FEIGN_CLIENT, VALUE);
@@ -655,11 +822,28 @@ public class SpringExtractor {
         }
     }
 
+    /**
+     * Scans every method invocation in the type for outbound HTTP and messaging call sites.
+     *
+     * @param type the Spoon type to scan
+     * @param component the component the call sites belong to
+     * @param model the architecture model to populate
+     */
     private void extractOutboundCallSites(CtType<?> type, Component component, ArchitectureModel model) {
         type.getElements(element -> element instanceof CtInvocation<?>)
                 .forEach(element -> processOutboundInvocation((CtInvocation<?>) element, component, model));
     }
 
+    /**
+     * Recognizes one invocation as an outbound REST call (RestTemplate/WebClient-style methods
+     * on a URL-shaped first argument) or messaging send ({@code send}/{@code convertAndSend}),
+     * adding the matching interface entry. Also checks the invocation for a Kafka outbound sink
+     * site independently of this classification.
+     *
+     * @param invocation the invocation to classify
+     * @param component the component the invocation belongs to
+     * @param model the architecture model to populate
+     */
     private void processOutboundInvocation(CtInvocation<?> invocation, Component component, ArchitectureModel model) {
         addKafkaOutboundSinkSite(invocation, component, model);
         String executable = invocation.getExecutable() == null
@@ -688,6 +872,14 @@ public class SpringExtractor {
         }
     }
 
+    /**
+     * Recognizes a {@code KafkaTemplate.send(...)} call and records it as an outbound sink site,
+     * classifying the topic argument and payload along the way.
+     *
+     * @param invocation the invocation to check
+     * @param component the component the call site belongs to
+     * @param model the architecture model to populate
+     */
     private void addKafkaOutboundSinkSite(CtInvocation<?> invocation, Component component, ArchitectureModel model) {
         if (invocation.getArguments().isEmpty()) return;
         String executable;
@@ -730,6 +922,15 @@ public class SpringExtractor {
         model.outboundSinkSites.add(site);
     }
 
+    /**
+     * Classifies the topic argument of a {@code KafkaTemplate.send(...)} call and, where
+     * possible, resolves it to a concrete topic name: a string/property-placeholder literal, a
+     * referenced static final field's literal default, a method parameter or local variable, or
+     * an opaque method-call expression.
+     *
+     * @param sendInv the {@code send} invocation
+     * @param site the sink site to populate with the classification
+     */
     private void classifyTopicArg(CtInvocation<?> sendInv, OutboundSinkSite site) {
         if (sendInv.getArguments().isEmpty()) {
             site.topicArgKind = TopicArgKind.UNKNOWN;
@@ -812,6 +1013,13 @@ public class SpringExtractor {
         site.topicArgKind = TopicArgKind.UNKNOWN;
     }
 
+    /**
+     * Returns the variable name of the second argument to a {@code send(topic, payload)} call,
+     * if that argument is a variable read.
+     *
+     * @param invocation the {@code send} invocation
+     * @return the payload variable's name, or {@code null} if not applicable
+     */
     private String payloadVarName(CtInvocation<?> invocation) {
         if (invocation.getArguments().size() < 2) return null;
         if (invocation.getArguments().get(1) instanceof CtVariableRead<?> variableRead
@@ -821,6 +1029,13 @@ public class SpringExtractor {
         return null;
     }
 
+    /**
+     * Returns the qualified type name of the second argument to a {@code send(topic, payload)}
+     * call.
+     *
+     * @param invocation the {@code send} invocation
+     * @return the payload's qualified type name, or {@code null} if not applicable
+     */
     private String payloadType(CtInvocation<?> invocation) {
         if (invocation.getArguments().size() < 2) return null;
         spoon.reflect.reference.CtTypeReference<?> type =
@@ -832,6 +1047,7 @@ public class SpringExtractor {
         }
     }
 
+    /** Adds a messaging producer interface and attaches its broker and destination topic. */
     private void addProducerInterface(
             CtElement element,
             Component component,
@@ -845,10 +1061,22 @@ public class SpringExtractor {
         }
     }
 
+    /**
+     * Returns true if the value looks like an absolute HTTP(S) URL.
+     *
+     * @param value the value to check
+     * @return true if the value starts with {@code http://} or {@code https://}
+     */
     private boolean looksLikeUrl(String value) {
         return value != null && (value.startsWith("http://") || value.startsWith("https://"));
     }
 
+    /**
+     * Strips a surrounding pair of double quotes from an argument's {@code toString()} rendering.
+     *
+     * @param value the raw value
+     * @return the value with surrounding quotes removed, or {@code ""} for a null input
+     */
     private String stripQuotes(String value) {
         if (value == null) return "";
         String out = value.trim();
@@ -856,5 +1084,11 @@ public class SpringExtractor {
         return out;
     }
 
+    /**
+     * A resolved REST mapping: HTTP method plus route path.
+     *
+     * @param method the HTTP verb (e.g. {@code "GET"})
+     * @param path the route path
+     */
     private record Mapping(String method, String path) {}
 }

@@ -21,7 +21,10 @@ import org.apache.commons.lang3.StringUtils;
  */
 public class MermaidFlowchartRenderer {
 
+    /** Application role omitted as a top-level module and rendered as a component-like child. */
     private static final String TECHNICAL_LIBRARY = "technical_library";
+
+    /** Indentation used for nodes inside one Mermaid subgraph. */
     private static final String INDENT8 = "        ";
 
     private final MermaidDialect dialect;
@@ -69,6 +72,7 @@ public class MermaidFlowchartRenderer {
 
     // ── module level ──────────────────────────────────────────────────────────
 
+    /** Renders deployment units, their internal modules, and deduplicated cross-module dependencies. */
     private String renderModuleLevel(List<GraphQuery.ApplicationNode> apps, GraphQuery graph) {
         List<MermaidDocument.Statement> statements = new ArrayList<>();
         MermaidStyle.Tracker tracker = new MermaidStyle.Tracker();
@@ -79,6 +83,7 @@ public class MermaidFlowchartRenderer {
         return MermaidTemplateAdapters.flowchart("TD", statements, tracker);
     }
 
+    /** Appends a standalone application node or a deployment-unit subgraph containing child modules. */
     private void appendModuleApp(
             List<MermaidDocument.Statement> statements,
             GraphQuery.ApplicationNode app,
@@ -110,6 +115,7 @@ public class MermaidFlowchartRenderer {
         }
     }
 
+    /** Adds one unlabelled dependency edge per distinct pair of owning applications. */
     private void appendCrossModuleDeps(
             List<MermaidDocument.Statement> statements, List<GraphQuery.ApplicationNode> apps, GraphQuery graph) {
         Map<String, String> compToApp = buildCompToAppMap(apps, graph);
@@ -128,6 +134,7 @@ public class MermaidFlowchartRenderer {
 
     // ── system level ──────────────────────────────────────────────────────────
 
+    /** Renders applications and only the external systems referenced by their visible dependencies. */
     private String renderSystemLevel(List<GraphQuery.ApplicationNode> apps, GraphQuery graph) {
         List<MermaidDocument.Statement> statements = new ArrayList<>();
         MermaidStyle.Tracker tracker = new MermaidStyle.Tracker();
@@ -169,6 +176,7 @@ public class MermaidFlowchartRenderer {
 
     // ── container level ──────────────────────────────────────────────────────
 
+    /** Renders application container subgraphs with aggregated internal and external dependencies. */
     private String renderContainerLevel(List<GraphQuery.ApplicationNode> apps, GraphQuery graph) {
         List<MermaidDocument.Statement> statements = new ArrayList<>();
         MermaidStyle.Tracker tracker = new MermaidStyle.Tracker();
@@ -189,6 +197,7 @@ public class MermaidFlowchartRenderer {
         return MermaidTemplateAdapters.flowchart("TD", statements, tracker);
     }
 
+    /** Appends an application's containers with component and entrypoint counts. */
     private void appendContainerSubgraph(
             List<MermaidDocument.Statement> statements,
             GraphQuery.ApplicationNode app,
@@ -213,6 +222,7 @@ public class MermaidFlowchartRenderer {
         statements.add(MermaidDocument.Statement.end("    "));
     }
 
+    /** Aggregates component dependencies by container pair while collecting referenced external systems. */
     private Map<String, Set<String>> aggregateContainerEdges(
             GraphQuery graph,
             Map<String, String> compToContainer,
@@ -241,6 +251,7 @@ public class MermaidFlowchartRenderer {
         return edgeKinds;
     }
 
+    /** Appends referenced external systems using roles derived from their external kind. */
     private void appendExternalNodes(
             List<MermaidDocument.Statement> statements,
             GraphQuery graph,
@@ -256,6 +267,7 @@ public class MermaidFlowchartRenderer {
         }
     }
 
+    /** Renders aggregated container edges, using dashed arrows only when every dependency kind is asynchronous. */
     private void appendLabelledEdges(List<MermaidDocument.Statement> statements, Map<String, Set<String>> edgeKinds) {
         for (Map.Entry<String, Set<String>> entry : edgeKinds.entrySet()) {
             String[] parts = entry.getKey().split("\0", 2);
@@ -269,6 +281,7 @@ public class MermaidFlowchartRenderer {
 
     // ── component level ──────────────────────────────────────────────────────
 
+    /** Renders components nested under applications and inferred containers with direct dependency edges. */
     private String renderComponentLevel(List<GraphQuery.ApplicationNode> apps, GraphQuery graph) {
         List<MermaidDocument.Statement> statements = new ArrayList<>();
         MermaidStyle.Tracker tracker = new MermaidStyle.Tracker();
@@ -279,6 +292,7 @@ public class MermaidFlowchartRenderer {
         return MermaidTemplateAdapters.flowchart("TD", statements, tracker);
     }
 
+    /** Appends components directly under an app or nested beneath its inferred containers. */
     private void appendComponentSubgraph(
             List<MermaidDocument.Statement> statements,
             GraphQuery.ApplicationNode app,
@@ -310,6 +324,7 @@ public class MermaidFlowchartRenderer {
         statements.add(MermaidDocument.Statement.end("    "));
     }
 
+    /** Adds dependency edges whose source and target components are both visible. */
     private void appendComponentEdges(
             List<MermaidDocument.Statement> statements, List<GraphQuery.ApplicationNode> apps, GraphQuery graph) {
         Set<String> visibleComps = apps.stream()
@@ -331,6 +346,7 @@ public class MermaidFlowchartRenderer {
         }
     }
 
+    /** Adds a styled component node when its graph identifier resolves in the component index. */
     private void renderComponentNode(
             List<MermaidDocument.Statement> statements,
             GraphNodeId cid,
@@ -347,6 +363,7 @@ public class MermaidFlowchartRenderer {
 
     // ── C4 system level ────────────────────────────────────────────────────────
 
+    /** Renders the system view with experimental C4 macros and referenced external systems. */
     private String renderSystemC4(List<GraphQuery.ApplicationNode> apps, GraphQuery graph) {
         List<MermaidDocument.C4Element> elements = new ArrayList<>();
         for (GraphQuery.ApplicationNode app : apps) {
@@ -396,6 +413,7 @@ public class MermaidFlowchartRenderer {
 
     // ── C4 container level ─────────────────────────────────────────────────────
 
+    /** Renders application boundaries, containers, external systems, and aggregated relations in C4 syntax. */
     private String renderContainerC4(List<GraphQuery.ApplicationNode> apps, GraphQuery graph) {
         List<MermaidDocument.C4Element> elements = new ArrayList<>();
         Map<String, String> compToContainer = buildCompToContainerMap(apps, graph);
@@ -451,6 +469,7 @@ public class MermaidFlowchartRenderer {
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
+    /** Maps every component owned by the selected applications to its application identifier. */
     private Map<String, String> buildCompToAppMap(List<GraphQuery.ApplicationNode> apps, GraphQuery graph) {
         Map<String, String> map = new HashMap<>();
         for (GraphQuery.ApplicationNode app : apps) {
@@ -461,6 +480,7 @@ public class MermaidFlowchartRenderer {
         return map;
     }
 
+    /** Maps components in selected applications to their inferred container identifiers. */
     private Map<String, String> buildCompToContainerMap(List<GraphQuery.ApplicationNode> apps, GraphQuery graph) {
         Map<String, String> map = new HashMap<>();
         for (GraphQuery.ApplicationNode app : apps) {
@@ -474,14 +494,17 @@ public class MermaidFlowchartRenderer {
         return map;
     }
 
+    /** Replaces a blank dependency kind with the generic {@code uses} label. */
     private String nullToEmpty(String s) {
         return StringUtils.isBlank(s) ? "uses" : s;
     }
 
+    /** Converts an architecture identifier to a Mermaid-safe node identifier. */
     private String nid(String id) {
         return MermaidStyle.nid(id);
     }
 
+    /** Escapes text for use in a Mermaid label. */
     private String escape(String s) {
         return Mermaid.escapeLabel(s);
     }

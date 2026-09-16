@@ -20,8 +20,10 @@ import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
 
 /** Stdio MCP server exposing architecture-analysis tools via the official MCP Java SDK. */
 public class McpServer {
+    /** Server version advertised during MCP initialization, or {@code unknown} when metadata cannot be read. */
     public static final String SERVER_VERSION = loadVersion();
 
+    /** Loads the version from packaged Maven metadata, bundled POM, or the working-directory POM. */
     private static String loadVersion() {
         // Packaged JAR: pom.properties written by Maven at package time
         try (InputStream in = McpServer.class.getResourceAsStream(
@@ -72,16 +74,37 @@ public class McpServer {
     private final ExportLikeC4ModelTool exportLikeC4ModelTool;
     private final StructuredOutputMode structuredOutputMode;
 
+    /** JSON Schema string type name. */
     private static final String TYPE_STRING = "string";
+
+    /** JSON Schema integer type name. */
     private static final String TYPE_INTEGER = "integer";
+
+    /** JSON Schema boolean type name. */
     private static final String TYPE_BOOLEAN = "boolean";
+
+    /** Shared application-filter argument name. */
     private static final String APP_ID = "appId";
+
+    /** Shared application-filter argument description. */
     private static final String APP_ID_DESCRIPTION = "Filter by app ID (partial match)";
+
+    /** Shared serialized-entrypoint argument name. */
     private static final String ENTRYPOINT_ID = "entrypointId";
+
+    /** Shared human-readable entrypoint selector name. */
     private static final String ENTRYPOINT_NAME = "entrypointName";
+
+    /** Shared traversal-depth argument name. */
     private static final String MAX_DEPTH = "maxDepth";
+
+    /** Shared component-focus argument name. */
     private static final String FOCUS_COMPONENT = "focusComponent";
+
+    /** Shared projection node-limit argument name. */
     private static final String MAX_NODES = "maxNodes";
+
+    /** Shared prompt description for an application selector. */
     private static final String APP_NAME_OR_ID = "Application name or id";
 
     /** Creates the server with the default extractor, cache, and tool registry. */
@@ -148,6 +171,11 @@ public class McpServer {
 
     // ── tool registration ─────────────────────────────────────────────────────
 
+    /**
+     * Builds the complete MCP tool registry with input schemas, negotiated output schemas, and handlers.
+     *
+     * @return tool specifications in the order advertised to MCP clients
+     */
     public List<McpServerFeatures.SyncToolSpecification> buildToolSpecifications() {
         List<McpServerFeatures.SyncToolSpecification> specs = new ArrayList<>();
 
@@ -755,6 +783,7 @@ public class McpServer {
         });
     }
 
+    /** Wraps collection output in its stable named object while preserving draft top-level arrays. */
     private McpServerFeatures.SyncToolSpecification collectionToolSpec(
             String name,
             String title,
@@ -776,6 +805,7 @@ public class McpServer {
         });
     }
 
+    /** Builds the graph-query tool specification with its action-dependent output normalization. */
     private McpServerFeatures.SyncToolSpecification graphToolSpec(
             String name, String title, String description, SchemaBuilder inputSchema) {
         return toolSpec(
@@ -787,6 +817,7 @@ public class McpServer {
                 args -> normalizeGraphResult(args, graphTool.execute(args)));
     }
 
+    /** Shapes summary and collection graph results according to action and negotiated structured-output mode. */
     private ToolResult normalizeGraphResult(Map<String, Object> args, ToolResult result) {
         String action = String.valueOf(args.getOrDefault("action", "summary"));
         if ("summary".equals(action)) {
@@ -811,6 +842,7 @@ public class McpServer {
         return new ToolResult(result.text(), Map.of("action", action, collectionKey, values), result.error());
     }
 
+    /** Maps graph actions to their stable response collection property. */
     private static String graphCollectionKey(String action) {
         return switch (action) {
             case "find_nodes", "impacted_by" -> "nodes";
@@ -820,6 +852,7 @@ public class McpServer {
         };
     }
 
+    /** Builds the union schema for graph summaries and action-specific graph collections. */
     private SchemaBuilder graphOutputSchema() {
         Map<String, Object> summarySchema = graphSummarySchema();
         if (structuredOutputMode == StructuredOutputMode.DRAFT) {
@@ -842,6 +875,7 @@ public class McpServer {
         return schema().raw(Map.of("type", "object", "properties", properties));
     }
 
+    /** Defines the object schema returned by the graph summary action. */
     private static Map<String, Object> graphSummarySchema() {
         Map<String, Object> properties = new LinkedHashMap<>();
         properties.put("action", Map.of("type", "string"));
@@ -852,10 +886,12 @@ public class McpServer {
         return Map.of("type", "object", "properties", properties);
     }
 
+    /** Defines a string-keyed object whose values are integer counts. */
     private static Map<String, Object> countMapSchema() {
         return Map.of("type", "object", "additionalProperties", Map.of("type", "integer"));
     }
 
+    /** Defines a graph path item containing ordered node identifiers and edge labels. */
     private static Map<String, Object> pathItemSchema() {
         return Map.of(
                 "type",
@@ -866,6 +902,7 @@ public class McpServer {
                         "edgeLabels", Map.of("type", "array", "items", Map.of("type", "string"))));
     }
 
+    /** Builds a prompt specification whose handler substitutes request arguments into its template. */
     private McpServerFeatures.SyncPromptSpecification promptSpec(
             String name, String description, List<McpSchema.PromptArgument> args, String template) {
         McpSchema.Prompt prompt = new McpSchema.Prompt(name, description, args);
@@ -883,6 +920,7 @@ public class McpServer {
         });
     }
 
+    /** Creates one MCP prompt argument declaration. */
     private static McpSchema.PromptArgument arg(String name, String description, boolean required) {
         return new McpSchema.PromptArgument(name, description, required);
     }
@@ -901,6 +939,7 @@ public class McpServer {
         return result.replaceAll("\\{[A-Za-z0-9_]+}", "");
     }
 
+    /** Starts an object-oriented JSON Schema builder. */
     private static SchemaBuilder schema() {
         return new SchemaBuilder();
     }
@@ -943,6 +982,7 @@ public class McpServer {
                         "evidence", evidenceSchema()));
     }
 
+    /** Defines the common source and confidence evidence object embedded in graph items. */
     private static Map<String, Object> evidenceSchema() {
         return Map.of(
                 "type",
@@ -958,9 +998,14 @@ public class McpServer {
                         "evidence", Map.of("type", "string")));
     }
 
+    /** Builds the small subset of JSON Schema used by MCP tool inputs and structured outputs. */
     private static final class SchemaBuilder {
+        /** Object properties accumulated in declaration order. */
         private final Map<String, Object> props = new LinkedHashMap<>();
+
+        /** Property names that must be present in an object instance. */
         private final List<String> required = new ArrayList<>();
+
         private Map<String, Object> arrayItems;
         private Map<String, Object> rawSchema;
 
