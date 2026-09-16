@@ -24,24 +24,76 @@ final class TambouiDashboardView {
     }
 
     DashboardAction handle(Event event) {
-        if (event instanceof PasteEvent paste) { ui.input().insert(paste.text()); return DashboardAction.NONE; }
-        if (!(event instanceof KeyEvent key)) return DashboardAction.NONE;
-        if (key.isCtrlC()) return DashboardAction.QUIT;
-        if (key.isKey(KeyCode.F6)) { ui.cycleFocus(); return DashboardAction.NONE; }
-        if (key.isKey(KeyCode.ENTER)) return DashboardAction.SUBMIT;
-        if (key.isKey(KeyCode.TAB)) { ui.complete(commands); return DashboardAction.NONE; }
-        if (key.isUp()) { ui.previousCommand(commands); return DashboardAction.NONE; }
-        if (key.isDown()) { ui.nextCommand(commands); return DashboardAction.NONE; }
-        if (key.isPageUp()) { ui.scrollUp(); return DashboardAction.NONE; }
-        if (key.isPageDown()) { ui.scrollDown(); return DashboardAction.NONE; }
-        if (key.isHome()) { ui.input().moveCursorToStart(); return DashboardAction.NONE; }
-        if (key.isEnd()) { ui.input().moveCursorToEnd(); return DashboardAction.NONE; }
-        if (key.isDeleteBackward()) { ui.input().deleteBackward(); return DashboardAction.NONE; }
-        if (key.isDeleteForward()) { ui.input().deleteForward(); return DashboardAction.NONE; }
-        if (key.isLeft()) { ui.input().moveCursorLeft(); return DashboardAction.NONE; }
-        if (key.isRight()) { ui.input().moveCursorRight(); return DashboardAction.NONE; }
-        if (key.code() == KeyCode.CHAR) ui.input().insert(key.character());
-        return DashboardAction.NONE;
+        return switch (event) {
+            case PasteEvent paste -> {
+                ui.input().insert(paste.text());
+                yield DashboardAction.NONE;
+            }
+            case KeyEvent key -> handleKey(key);
+            default -> DashboardAction.NONE;
+        };
+    }
+
+    private DashboardAction handleKey(KeyEvent key) {
+        if (key.isCtrlC()) {
+            return DashboardAction.QUIT;
+        }
+        return switch (key.code()) {
+            case F6 -> {
+                ui.cycleFocus();
+                yield DashboardAction.NONE;
+            }
+            case ENTER -> DashboardAction.SUBMIT;
+            case TAB -> {
+                ui.complete(commands);
+                yield DashboardAction.NONE;
+            }
+            case UP -> {
+                ui.previousCommand(commands);
+                yield DashboardAction.NONE;
+            }
+            case DOWN -> {
+                ui.nextCommand(commands);
+                yield DashboardAction.NONE;
+            }
+            case PAGE_UP -> {
+                ui.scrollUp();
+                yield DashboardAction.NONE;
+            }
+            case PAGE_DOWN -> {
+                ui.scrollDown();
+                yield DashboardAction.NONE;
+            }
+            case HOME -> {
+                ui.input().moveCursorToStart();
+                yield DashboardAction.NONE;
+            }
+            case END -> {
+                ui.input().moveCursorToEnd();
+                yield DashboardAction.NONE;
+            }
+            case BACKSPACE -> {
+                ui.input().deleteBackward();
+                yield DashboardAction.NONE;
+            }
+            case DELETE -> {
+                ui.input().deleteForward();
+                yield DashboardAction.NONE;
+            }
+            case LEFT -> {
+                ui.input().moveCursorLeft();
+                yield DashboardAction.NONE;
+            }
+            case RIGHT -> {
+                ui.input().moveCursorRight();
+                yield DashboardAction.NONE;
+            }
+            case CHAR -> {
+                ui.input().insert(key.character());
+                yield DashboardAction.NONE;
+            }
+            default -> DashboardAction.NONE;
+        };
     }
 
     String command() { return ui.input().text(); }
