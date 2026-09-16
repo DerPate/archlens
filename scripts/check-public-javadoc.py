@@ -11,13 +11,23 @@ checks them against ArchLens' Javadoc convention:
 - Annotations (and other comments) between a Javadoc block and the
   declaration it documents must not hide that Javadoc.
 
-The Git-diff/CLI layer that scopes this checker to a repository's changed
-lines is added separately; nothing here shells out to Git or any other
-subprocess, so tests can exercise the parser directly on in-memory strings.
+The checker only inspects declarations that intersect a diff's added lines
+(computed via ``git diff --unified=0``, shelled out to the ``git`` CLI);
+untouched public backlog remains allowed. Run as a script:
+
+    python3 scripts/check-public-javadoc.py --base REF [--head REF]
+
+Without ``--head``, the diff is taken against the working tree (so it picks
+up committed history since ``--base`` plus any uncommitted changes); with
+``--head``, the diff is taken over ``BASE...HEAD``.
 """
 
+import argparse
 import re
+import subprocess
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -498,3 +508,155 @@ def validate_source(path: str, source: str, changed_lines: set[int]) -> list[str
             continue
         diagnostics.extend(_validate_declaration(path, decl, javadoc))
     return diagnostics
+
+
+class GitError(RuntimeError):
+    """Raised when a Git command invoked on behalf of this checker fails."""
+
+
+def _run_git(args: list[str], repo: Path) -> str:
+    """Run ``git`` with ``args`` in ``repo`` and return its stdout.
+
+    Raises `GitError` (carrying the process's stderr) if git exits non-zero.
+    """
+    result = subprocess.run(
+        ["git", *args],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        message = (result.stderr or result.stdout).strip() or f"git {' '.join(args)} failed"
+        raise GitError(message)
+    return result.stdout
+
+
+def _unquote_git_path(raw: str) -> str:
+    """Undo Git's C-style quoting of a path containing unusual characters.
+
+    Git leaves ordinary paths (including ones with spaces) unquoted in diff
+    output, only wrapping a path in double quotes -- with C-style escapes
+    inside -- when it contains characters like embedded quotes or non-ASCII
+    bytes (subject to ``core.quotePath``).
+    """
+    if len(raw) >= 2 and raw[0] == '"' and raw[-1] == '"':
+        return raw[1:-1].encode("latin1").decode("unicode_escape").encode("latin1").decode(
+            "utf-8", "replace"
+        )
+    return raw
+
+
+_HUNK_HEADER_RE = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
+
+
+def changed_java_lines(base: str, head: str | None, repo: Path) -> dict[Path, set[int]]:
+    """Return, per changed ``.java`` file, the set of added/modified line numbers.
+
+    Without ``head``, this compares ``base`` to the working tree (so it
+    picks up both committed history since ``base`` and any uncommitted
+    changes). With ``head``, it compares ``base...head`` (Git's
+    merge-base-relative range), i.e. what ``head`` added since it diverged
+    from ``base``. Only files ending in ``.java`` are considered; a deleted
+    file contributes no lines, since there is nothing left to validate.
+    """
+    diff_range = [base] if head is None else [f"{base}...{head}"]
+    diff_output = _run_git(["diff", "--unified=0", "--no-color", *diff_range], repo)
+
+    changed: dict[Path, set[int]] = {}
+    current_path: str | None = None
+    for line in diff_output.splitlines():
+        if line.startswith("+++ "):
+            raw = line[len("+++ ") :]
+            # Git appends a single trailing tab to disambiguate paths that
+            # contain a space (or other unusual character) from the rest of
+            # the line; strip it before further parsing.
+            if raw.endswith("\t"):
+                raw = raw[:-1]
+            if raw == "/dev/null":
+                current_path = None
+                continue
+            if raw.startswith("b/"):
+                raw = raw[2:]
+            raw = _unquote_git_path(raw)
+            current_path = raw if raw.endswith(".java") else None
+            continue
+        if current_path is None or not line.startswith("@@"):
+            continue
+        match = _HUNK_HEADER_RE.match(line)
+        if not match:
+            continue
+        start = int(match.group(1))
+        count = int(match.group(2)) if match.group(2) is not None else 1
+        if count == 0:
+            continue
+        changed.setdefault(Path(current_path), set()).update(range(start, start + count))
+    return changed
+
+
+def _read_source(path: Path, head: str | None, repo: Path) -> str | None:
+    """Return the text of `path` at `head` (or on disk, when head is None).
+
+    Returns None if the file does not exist there, e.g. it was deleted.
+    """
+    if head is None:
+        full = repo / path
+        if not full.is_file():
+            return None
+        return full.read_text(encoding="utf-8", errors="replace")
+    try:
+        return _run_git(["show", f"{head}:{path.as_posix()}"], repo)
+    except GitError:
+        return None
+
+
+def check_changed_javadoc(base: str, head: str | None, repo: Path) -> list[str]:
+    """Validate Javadoc on every public declaration touched by the diff.
+
+    Files are visited in sorted path order, so the returned diagnostics are
+    deterministic regardless of the order Git reports changed files in.
+    """
+    changed = changed_java_lines(base, head, repo)
+    diagnostics: list[str] = []
+    for path in sorted(changed, key=lambda p: p.as_posix()):
+        source = _read_source(path, head, repo)
+        if source is None:
+            continue
+        diagnostics.extend(validate_source(path.as_posix(), source, changed[path]))
+    return diagnostics
+
+
+def _build_arg_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Check that public Java declarations touched by a diff carry Javadoc.",
+    )
+    parser.add_argument("--base", required=True, help="Git ref/commit to diff from.")
+    parser.add_argument(
+        "--head",
+        default=None,
+        help="Git ref/commit to diff to. Defaults to the working tree.",
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI entry point: parse args, run the check, and print the summary."""
+    args = _build_arg_parser().parse_args(argv)
+    repo = Path.cwd()
+
+    try:
+        diagnostics = check_changed_javadoc(args.base, args.head, repo)
+    except GitError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+    for diagnostic in diagnostics:
+        print(diagnostic)
+    if diagnostics:
+        print(f"Public Javadoc check failed: {len(diagnostics)} violation(s)")
+        return 1
+    print("Public Javadoc check passed: 0 violations")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
