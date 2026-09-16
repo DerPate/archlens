@@ -38,16 +38,31 @@ import spoon.reflect.declaration.CtVariable;
  */
 public class MessagingCallSiteResolver {
 
+    /** Sentinel topic value used whenever a topic argument cannot be statically resolved. */
     private static final String UNRESOLVED = "(unresolved)";
 
+    /** Direct-call method names, per broker, that identify a producer-side (send/publish) call site. */
     private static final Set<String> MQTT_PUBLISH_METHODS = Set.of("publish");
+    /**
+     * Direct-call method names that identify a consumer-side call site; both subscribe and
+     * unsubscribe are treated as consumer activity since either references the topic being consumed.
+     */
     private static final Set<String> MQTT_SUBSCRIBE_METHODS = Set.of("subscribe", "unsubscribe");
+    /** Kafka producer method name, matched only when the tracked field's role is {@code PRODUCER}. */
     private static final Set<String> KAFKA_SEND_METHODS = Set.of("send");
+    /** Kafka consumer method name, matched only when the tracked field's role is {@code CONSUMER}. */
     private static final Set<String> KAFKA_SUBSCRIBE_METHODS = Set.of("subscribe");
+
     private static final Set<String> COLLECTION_FACTORY_METHODS =
             Set.of("of", "asList", "singletonList", "singleton", "unmodifiableList");
+    /**
+     * HiveMQ fluent-builder method names that carry the topic argument; used as the anchor point for
+     * detecting and resolving a fluent publish/subscribe chain.
+     */
     private static final Set<String> FLUENT_TOPIC_SETTERS = Set.of("topic", "topicFilter");
+    /** Fluent-chain entry method name that marks the chain as a publish (producer) chain. */
     private static final String FLUENT_PUBLISH_ENTRY = "publishWith";
+    /** Fluent-chain entry method name that marks the chain as a subscribe (consumer) chain. */
     private static final String FLUENT_SUBSCRIBE_ENTRY = "subscribeWith";
 
     /** Creates a resolver. */
@@ -71,6 +86,15 @@ public class MessagingCallSiteResolver {
         return findings;
     }
 
+    /**
+     * Classifies one invocation as either a direct call on a tracked field or the topic-setting
+     * anchor of a fluent chain, and appends any resulting finding(s) to {@code findings}. Direct-call
+     * matches are tried first and, if found, short-circuit the fluent-chain check for this invocation.
+     *
+     * @param inv            invocation under inspection
+     * @param trackedFields  field name → broker/role descriptor
+     * @param findings       accumulator that findings are appended to
+     */
     private void collectFindings(CtInvocation<?> inv, Map<String, TrackedField> trackedFields, List<Finding> findings) {
         String name = inv.getExecutable() != null ? inv.getExecutable().getSimpleName() : null;
         if (name == null) return;
@@ -88,6 +112,20 @@ public class MessagingCallSiteResolver {
         }
     }
 
+    /**
+     * Tries both direct-call resolution strategies for one invocation, in order: the single-finding
+     * path ({@link #directCallFinding}) covering MQTT publish/subscribe and Kafka send, then the
+     * multi-finding path ({@link #directCallFindings}) covering Kafka subscribe with a topic
+     * collection. Matches from either path are appended to {@code findings}.
+     *
+     * @param inv        invocation under inspection
+     * @param name       simple name of the invoked method
+     * @param tf         broker/role descriptor of the receiver field
+     * @param fieldName  name of the receiver field
+     * @param findings   accumulator that any matched finding(s) are appended to
+     * @return true if either resolution path produced at least one finding, false if the invocation
+     *     did not match a known direct-call pattern
+     */
     private boolean addDirectCallFindings(
             CtInvocation<?> inv, String name, TrackedField tf, String fieldName, List<Finding> findings) {
         Finding direct = directCallFinding(inv, name, tf, fieldName);
@@ -103,6 +141,19 @@ public class MessagingCallSiteResolver {
         return false;
     }
 
+    /**
+     * Resolves a direct call that yields at most one finding: an MQTT {@code publish} (producer) or
+     * {@code subscribe}/{@code unsubscribe} (consumer) call, or a Kafka {@code send} call on a field
+     * whose tracked role is {@code PRODUCER} (topic taken from the {@code ProducerRecord} argument via
+     * {@link #resolveKafkaSendTopic}).
+     *
+     * @param inv         invocation under inspection
+     * @param methodName  simple name of the invoked method
+     * @param tf          broker/role descriptor of the receiver field
+     * @param fieldName   name of the receiver field
+     * @return the resolved finding, or null if the method name/broker/role combination does not
+     *     match any single-finding direct-call pattern
+     */
     private Finding directCallFinding(CtInvocation<?> inv, String methodName, TrackedField tf, String fieldName) {
         if (tf.broker() == MessagingBroker.MQTT) {
             if (MQTT_PUBLISH_METHODS.contains(methodName)) {
@@ -121,6 +172,20 @@ public class MessagingCallSiteResolver {
         return null;
     }
 
+    /**
+     * Resolves a direct call that can yield multiple findings: a Kafka {@code subscribe} call on a
+     * field whose tracked role is {@code CONSUMER}, with at least one argument. The first argument is
+     * resolved as a collection of topic strings via {@link #resolveCollectionOfStrings}; when none of
+     * its elements resolve, a single {@link #UNRESOLVED} finding is produced instead of none, so the
+     * call site is still reported.
+     *
+     * @param inv         invocation under inspection
+     * @param methodName  simple name of the invoked method
+     * @param tf          broker/role descriptor of the receiver field
+     * @param fieldName   name of the receiver field
+     * @return one finding per resolved topic (or a single unresolved finding), or an empty list if
+     *     the invocation does not match this pattern at all
+     */
     private List<Finding> directCallFindings(
             CtInvocation<?> inv, String methodName, TrackedField tf, String fieldName) {
         List<Finding> out = new ArrayList<>();
@@ -140,6 +205,20 @@ public class MessagingCallSiteResolver {
         return out;
     }
 
+    /**
+     * Resolves a HiveMQ fluent chain anchored at {@code inv}, a {@code topic()}/{@code topicFilter()}
+     * call. Walks inward through the chain's target invocations (which may include intermediate
+     * calls such as {@code toAsync()}/{@code toBlocking()}), recording {@code PRODUCER} if a
+     * {@link #FLUENT_PUBLISH_ENTRY} call is seen or {@code CONSUMER} if a
+     * {@link #FLUENT_SUBSCRIBE_ENTRY} call is seen, until it reaches a non-invocation receiver
+     * expression. That receiver must be a tracked MQTT field for the chain to be reported.
+     *
+     * @param inv            the {@code topic()}/{@code topicFilter()} invocation anchoring the chain
+     * @param trackedFields  field name → broker/role descriptor
+     * @return the resolved finding, or null if the topic call has no arguments, no publish/subscribe
+     *     entry method was found in the chain, the chain's receiver is not a tracked field, or the
+     *     tracked field's broker is not MQTT
+     */
     private Finding fluentFinding(CtInvocation<?> inv, Map<String, TrackedField> trackedFields) {
         if (inv.getArguments().isEmpty()) return null;
         Role role = null;
@@ -166,6 +245,15 @@ public class MessagingCallSiteResolver {
         return new Finding(fieldName, MessagingBroker.MQTT, role, topic, line(inv));
     }
 
+    /**
+     * Extracts the tracked field name that {@code target} refers to, if any. Accepts both a field
+     * read ({@code this.client} or {@code client}) and a variable read (a local alias resolving to
+     * the field), matching either against the supplied set of tracked names.
+     *
+     * @param target        receiver expression to inspect
+     * @param trackedNames  names of the fields being tracked
+     * @return the matching tracked field name, or null if {@code target} does not resolve to one
+     */
     private String receiverFieldName(CtExpression<?> target, Set<String> trackedNames) {
         if (target instanceof CtFieldRead<?> fr && fr.getVariable() != null) {
             String n = fr.getVariable().getSimpleName();
@@ -178,6 +266,14 @@ public class MessagingCallSiteResolver {
         return null;
     }
 
+    /**
+     * Resolves the invocation argument at {@code index} to a string via {@link #resolveString}.
+     *
+     * @param inv    invocation whose argument is being resolved
+     * @param index  zero-based argument index
+     * @return the resolved string, or {@link #UNRESOLVED} if there is no argument at that index or it
+     *     does not statically resolve to a string
+     */
     private String resolveStringArg(CtInvocation<?> inv, int index) {
         if (inv.getArguments().size() <= index) return UNRESOLVED;
         String resolved = resolveString(inv.getArguments().get(index));
@@ -188,6 +284,16 @@ public class MessagingCallSiteResolver {
         }
     }
 
+    /**
+     * Resolves the topic argument of a Kafka {@code producer.send(new ProducerRecord<>(topic, ...))}
+     * call by unwrapping the {@code send} call's first argument as a constructor call and resolving
+     * its own first argument as a string.
+     *
+     * @param sendInv the {@code send(...)} invocation
+     * @return the resolved topic, or {@link #UNRESOLVED} if {@code send} has no arguments, its first
+     *     argument is not a constructor call, that constructor call has no arguments, or its first
+     *     argument does not statically resolve to a string
+     */
     private String resolveKafkaSendTopic(CtInvocation<?> sendInv) {
         if (sendInv.getArguments().isEmpty()) return UNRESOLVED;
         CtExpression<?> arg = sendInv.getArguments().getFirst();
@@ -202,6 +308,17 @@ public class MessagingCallSiteResolver {
         return UNRESOLVED;
     }
 
+    /**
+     * Resolves {@code expr} as a collection literal built through one of the recognized factory
+     * methods ({@code List.of}, {@code Arrays.asList}, {@code Collections.singletonList},
+     * {@code Collections.singleton}, {@code Collections.unmodifiableList}), returning the string
+     * value of every argument. Resolution is all-or-nothing: if any argument fails to resolve to a
+     * string, the result is cleared and an empty list is returned rather than a partial one.
+     *
+     * @param expr expression expected to be a collection-factory call
+     * @return the resolved topic strings, or an empty list if {@code expr} is not a recognized
+     *     factory call or any of its arguments does not statically resolve to a string
+     */
     private List<String> resolveCollectionOfStrings(CtExpression<?> expr) {
         List<String> out = new ArrayList<>();
         if (expr instanceof CtInvocation<?> inv) {
@@ -225,6 +342,16 @@ public class MessagingCallSiteResolver {
         return out;
     }
 
+    /**
+     * Attempts to statically resolve {@code expr} to a string value: a string literal directly, a
+     * field read whose declaring field has a string literal initializer (covers
+     * {@code static final String TOPIC = "..."}), or a local variable read whose declaration has a
+     * string literal initializer.
+     *
+     * @param expr expression to resolve
+     * @return the resolved string, or null if {@code expr} is not backed by a literal in any of the
+     *     supported forms
+     */
     private String resolveString(CtExpression<?> expr) {
         if (expr instanceof CtLiteral<?> lit && lit.getValue() instanceof String s) return s;
         if (expr instanceof CtFieldRead<?> fr && fr.getVariable() != null) {
@@ -242,6 +369,12 @@ public class MessagingCallSiteResolver {
         return null;
     }
 
+    /**
+     * Returns the source line number of {@code el}.
+     *
+     * @param el element whose position is being read
+     * @return the 1-based source line, or 0 if the element has no valid position
+     */
     private int line(CtElement el) {
         var pos = el.getPosition();
         if (pos != null && pos.isValidPosition()) {
@@ -278,6 +411,15 @@ public class MessagingCallSiteResolver {
         CONSUMER
     }
 
+    /**
+     * Spoon element filter that matches every {@link CtInvocation} in a type, used by {@link
+     * #resolve} to enumerate all method call sites for scanning. The raw/unchecked cast to {@code
+     * Class<T>} is required because {@code spoon.reflect.visitor.filter.AbstractFilter} is
+     * constructed from a {@code Class} literal that cannot itself carry the wildcard-generic
+     * invocation type.
+     *
+     * @param <T> invocation type matched by this filter (always {@code CtInvocation<?>} in practice)
+     */
     private static final class TypeFilter<T extends CtInvocation<?>>
             extends spoon.reflect.visitor.filter.AbstractFilter<T> {
         @SuppressWarnings({"rawtypes", "unchecked"})
