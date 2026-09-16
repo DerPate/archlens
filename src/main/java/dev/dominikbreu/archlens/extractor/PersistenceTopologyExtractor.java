@@ -255,6 +255,7 @@ public class PersistenceTopologyExtractor {
         }
     }
 
+    /** Converts persistence-context, resource, and datasource-definition annotations into topology facts. */
     private void extractAnnotation(
             CtAnnotation<?> annotation,
             CtElement element,
@@ -344,6 +345,7 @@ public class PersistenceTopologyExtractor {
         }
     }
 
+    /** Creates an unresolved datasource placeholder when a reference has no matching declaration. */
     private static void ensureDataSource(
             ArchitectureModel model, AppId appId, String reference, SourceInfo referenceSource) {
         if (findDataSource(model, appId, reference) != null) return;
@@ -420,6 +422,7 @@ public class PersistenceTopologyExtractor {
                 .forEach(existing.aliases::add);
     }
 
+    /** Adds a component-to-persistence-unit usage unless the same app, component, and unit already exists. */
     private static void addPersistenceUsage(
             ArchitectureModel model, AppId appId, ComponentId componentId, String unitName, SourceInfo source) {
         boolean duplicate = model.persistenceUnitUsages.stream()
@@ -435,6 +438,7 @@ public class PersistenceTopologyExtractor {
         model.persistenceUnitUsages.add(usage);
     }
 
+    /** Adds a normalized component-to-datasource usage unless an equivalent reference already exists. */
     private static void addDataSourceUsage(
             ArchitectureModel model, AppId appId, ComponentId componentId, String name, SourceInfo source) {
         if (blank(name)) return;

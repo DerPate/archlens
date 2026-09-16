@@ -56,10 +56,16 @@ import spoon.reflect.visitor.filter.TypeFilter;
  */
 public class CallGraphExtractor {
 
+    /** Stable identifier prefix for extracted field-access facts. */
     private static final String FIELD_PREFIX = "field:";
 
+    /** Fallback source file marker for invalid Spoon positions. */
     private static final String UNKNOWN = "unknown";
+
+    /** Call kind used for ordinary synchronous invocation edges. */
     private static final String DIRECT = "direct";
+
+    /** Call kind used for reactive-messaging sends. */
     private static final String MESSAGING = "messaging";
 
     /** Simple type names recognized as a Vert.x-style event bus field, for call-kind and outbound classification. */
@@ -341,6 +347,7 @@ public class CallGraphExtractor {
         return false;
     }
 
+    /** Extracts cross-component accessor-chain accesses and direct shared-state reads and writes. */
     private void extractFieldAccesses(
             MethodScan scan,
             CtMethod<?> method,
@@ -356,6 +363,7 @@ public class CallGraphExtractor {
         extractFieldReadAccesses(scan, methodName, fromComp, sharedStateFields, model);
     }
 
+    /** Records assignments to recognized shared-state fields with their direct value source. */
     private void extractAssignmentFieldWrites(
             MethodScan scan,
             String methodName,
@@ -377,6 +385,7 @@ public class CallGraphExtractor {
         }
     }
 
+    /** Classifies method calls on shared-state fields as writes or reads and captures key/value sources. */
     private void extractInvocationFieldAccesses(
             MethodScan scan,
             String methodName,
@@ -411,6 +420,7 @@ public class CallGraphExtractor {
         }
     }
 
+    /** Records standalone shared-state field reads not already represented by a target invocation. */
     private void extractFieldReadAccesses(
             MethodScan scan,
             String methodName,
@@ -427,6 +437,7 @@ public class CallGraphExtractor {
         }
     }
 
+    /** Builds an own-field access without a separate key variable. */
     private FieldAccess buildAccess(
             FieldAccess.Kind kind,
             Component owner,
@@ -438,6 +449,7 @@ public class CallGraphExtractor {
         return buildAccess(kind, owner, method, fieldName, sourceVar, sourceField, null, pos);
     }
 
+    /** Builds an own-field access with stable identity and source evidence. */
     private FieldAccess buildAccess(
             FieldAccess.Kind kind,
             Component owner,
@@ -526,6 +538,7 @@ public class CallGraphExtractor {
         }
     }
 
+    /** Detects read/write calls on getter-returned shared state and resolves their owning component. */
     private void extractAccessorChainFieldAccesses(
             MethodScan scan, CtMethod<?> method, Component fromComp, ArchitectureModel model, ExtractionContext ctx) {
         String methodName = method.getSimpleName();
@@ -551,6 +564,7 @@ public class CallGraphExtractor {
         return null;
     }
 
+    /** Records deduplicated cross-component field accesses for each object-flow receiver target. */
     private void recordAccessorAccesses(
             CtInvocation<?> inv,
             FieldAccess.Kind kind,
@@ -570,6 +584,7 @@ public class CallGraphExtractor {
         }
     }
 
+    /** Builds a cross-component field access attributed to an object-flow-resolved owner. */
     private FieldAccess buildAccessorAccess(
             FieldAccess.Kind kind,
             Component fromComp,
@@ -658,6 +673,7 @@ public class CallGraphExtractor {
         }
     }
 
+    /** Maps injection facts and declared fields to unique architecture component targets. */
     private Map<String, Component> buildFieldMap(
             CtType<?> type, dev.dominikbreu.archlens.model.ids.ComponentId ownId, ExtractionContext ctx) {
         Map<String, Component> map = new HashMap<>();
@@ -666,6 +682,7 @@ public class CallGraphExtractor {
         return map;
     }
 
+    /** Adds source-fact injection fields whose target resolves outside the owning component. */
     private void addInjectionFieldTargets(
             Map<String, Component> map,
             CtType<?> type,
@@ -682,6 +699,7 @@ public class CallGraphExtractor {
         }
     }
 
+    /** Adds declared field targets using direct lookup or source-fact implementation resolution. */
     private void addDeclaredFieldTargets(
             Map<String, Component> map,
             CtType<?> type,
@@ -699,6 +717,7 @@ public class CallGraphExtractor {
         }
     }
 
+    /** Resolves a declared type directly or through its sole architecture-backed implementation. */
     private Component resolveSourceFactType(
             String qualifiedName, dev.dominikbreu.archlens.model.ids.ComponentId ownId, ExtractionContext ctx) {
         Component direct = ctx.components.find(qualifiedName, simpleName(qualifiedName));
@@ -738,6 +757,7 @@ public class CallGraphExtractor {
         }
     }
 
+    /** Emits cross-component call edges using object flow first and legacy field-read fallback second. */
     private void extractFromMethod(
             MethodScan scan,
             CtMethod<?> method,
@@ -793,6 +813,7 @@ public class CallGraphExtractor {
         }
     }
 
+    /** Emits an ordinary direct call edge for a resolved receiver. */
     private void emitCallEdge(
             CtInvocation<?> inv,
             Component fromComp,
@@ -820,6 +841,7 @@ public class CallGraphExtractor {
                 DIRECT);
     }
 
+    /** Emits a deduplicated call edge with branch, receiver, parameter, return, and kill metadata. */
     private void emitCallEdge(
             CtInvocation<?> inv,
             Component fromComp,
@@ -858,6 +880,7 @@ public class CallGraphExtractor {
         emitCallerSideFieldReadIfGetter(inv, fromComp, fromMethod, toComp, model, ctx);
     }
 
+    /** Builds a stable call-edge identifier, adding branch-arm identity when applicable. */
     private static String callEdgeId(
             Component fromComp, String fromMethod, Component toComp, String toMethod, BranchContext branch) {
         String edgeId =
@@ -1250,6 +1273,7 @@ public class CallGraphExtractor {
         return null;
     }
 
+    /** Records classified outbound invocations as uniquely identified data-flow sink sites. */
     private void extractOutboundSinkSites(
             MethodScan scan, CtMethod<?> method, Component fromComp, ArchitectureModel model, ExtractionContext ctx) {
         String methodName = method.getSimpleName();
@@ -1297,6 +1321,7 @@ public class CallGraphExtractor {
         return new OutboundClassification(resolved, kindAndChannel[1]);
     }
 
+    /** Builds an outbound sink site from its classification and invocation source location. */
     private OutboundSinkSite buildOutboundSite(
             String id,
             OutboundClassification classification,
@@ -1422,6 +1447,7 @@ public class CallGraphExtractor {
         return false;
     }
 
+    /** Records a caller-side cross-component read when the callee returns its own shared-state field. */
     private void emitCallerSideFieldReadIfGetter(
             CtInvocation<?> inv,
             Component fromComp,
@@ -1649,6 +1675,7 @@ public class CallGraphExtractor {
         return map;
     }
 
+    /** Copies Spoon method parameter names onto matching entrypoints that do not already have them. */
     private void enrichEntrypointParameters(
             CtMethod<?> method,
             dev.dominikbreu.archlens.model.ids.ComponentId compId,
