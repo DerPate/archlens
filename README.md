@@ -3,219 +3,208 @@
   <br/>
   <br/>
 
-  [![Maven Central](https://img.shields.io/badge/download-GitHub_Releases-blue?logo=github)](https://github.com/DerPate/archlens/releases)
+  [![Download](https://img.shields.io/badge/download-GitHub_Releases-blue?logo=github)](https://github.com/DerPate/archlens/releases)
   [![Website](https://img.shields.io/badge/website-archlens.dominikbreu.dev-7c3aed?logo=astro)](https://archlens.dominikbreu.dev/)
   [![Java 25](https://img.shields.io/badge/Java-25-orange?logo=openjdk)](https://openjdk.org/)
   [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-  [![Build](https://img.shields.io/badge/build-mvn_package-brightgreen?logo=apachemaven)](docs/INSTALL.md)
 </div>
 
 ---
 
-ArchLens helps you understand large Java systems from the code that actually runs them. It indexes Java workspaces with Spoon, projects the result into an architecture graph, and exposes MCP tools for exploring entrypoints, components, dependencies, runtime paths, data movement, workflow handoffs, and architecture views.
+ArchLens turns Java source code into a queryable architecture graph. Use it directly from its
+terminal dashboard or connect it to an AI coding agent through the Model Context Protocol (MCP).
 
-It is built for engineers and code agents working in real Java codebases: Spring, Quarkus, Java EE, messaging consumers, schedulers, repositories, outbound clients, deployment hints, and the awkward glue between them.
+It finds the parts of a Java system that matter during maintenance: applications, entrypoints,
+services, repositories, dependencies, runtime paths, data movement, async handoffs, configuration,
+persistence, and external integrations. Analysis is source-based and runs in Spoon's no-classpath
+mode, so the target project does not need to compile first.
 
-## What You Get
+## Highlights
 
-- **Application map**: recognized modules, packaging types, logical containers, and high-signal components.
-- **Entrypoint discovery**: REST endpoints, JMS and Reactive Messaging consumers/producers, schedulers, EJB methods, CDI event observers, Vert.x EventBus consumers, WebSocket/SSE/gRPC endpoints, and main methods.
-- **Runtime flow**: source-derived call paths from an entrypoint through services, repositories, clients, and async boundaries.
-- **Data-flow tracing**: parameter flow to persistence, messaging, HTTP outbound calls, event bus, file/object storage, and shared-state stores.
-- **Pipeline stitching**: cross-entrypoint workflows through messaging, event bus, shared fields, and persistence handoffs.
-- **Architecture graph**: queryable TinkerGraph-backed model with typed nodes, edges, properties, neighborhoods, paths, and impact slices.
-- **Question-oriented answers**: stable persistence-destination, consumer-context, impact, and
-  transaction-context contracts with explicit unresolved and ambiguous evidence.
-- **Persistence topology**: JPA persistence units, JNDI/Spring datasources, and project-local
-  WildFly descriptors connected to sanitized database endpoints with source evidence.
-- **Visual exports**: Mermaid diagrams, LikeC4 text, Markdown architecture docs, graph JSON, and a self-contained HTML graph viewer.
+- **Terminal dashboard** — explore a workspace interactively, invoke every ArchLens tool, inspect
+  results, and see the Gremlin traversals behind each query.
+- **MCP server** — give Claude, Codex, or another MCP-capable client structured architecture facts
+  instead of asking it to infer a large system from files alone.
+- **Entrypoints and runtime flows** — discover HTTP endpoints, message consumers and producers,
+  schedulers, EJB methods, CDI observers, Vert.x EventBus consumers, WebSocket/SSE/gRPC endpoints,
+  main methods, and the calls that continue from them.
+- **Data and workflow tracing** — follow values to databases, brokers, HTTP clients, event buses,
+  files, object stores, and shared state; stitch workflows across asynchronous boundaries.
+- **Architecture questions** — answer maintenance questions about persistence, transactions,
+  consumers, messaging, configuration, state, schedules, integrations, relationships, and impact
+  with explicit evidence and ambiguity reporting.
+- **Visual output** — render Mermaid views and timelines, export LikeC4, generate Markdown
+  architecture documentation, or open a self-contained HTML graph viewer.
+- **Agent workflow pack** — use the bundled
+  [`archlens-understand`](skills/archlens-understand) skill to guide an agent through a repeatable
+  architecture investigation.
 
-## Why ArchLens
+## Quick Start
 
-Generic code graph tools can tell you which files import each other. ArchLens tries to answer architecture questions that Java teams actually ask:
-
-- Which endpoints, consumers, and schedulers are the real ways into this system?
-- What services, repositories, clients, and external systems does a use case touch?
-- Where does a request parameter or message payload end up?
-- Which async chains continue through a broker, cache, event bus, or repository?
-- What components are impacted if this repository, service, or integration changes?
-
-The project is intentionally Java-specific. Spoon gives source-level structure; the MCP tools turn that structure into stable architecture facts that assistants and scripts can query without holding onto raw model internals.
-
-## First Tour
-
-Build the server:
+ArchLens requires Java 25 or newer and Maven 3.9 or newer.
 
 ```sh
-mvn test
-mvn package
-```
-
-Run it as a stdio MCP server:
-
-```sh
+git clone https://github.com/DerPate/archlens.git
+cd archlens
+mvn clean package
 java -jar target/archlens.jar
 ```
 
-From an MCP client, the usual first pass is:
+When the jar is launched from an interactive terminal, it opens the standalone dashboard. When an
+MCP client launches the same jar over stdio, it starts the MCP server automatically.
+
+### Terminal Dashboard
+
+The dashboard is a two-pane REPL: the left side shows graph traversals and the right side shows the
+command, duration, and result. Start by indexing a Java workspace, then call tools by name:
 
 ```text
-index_workspace -> list_apps -> find_entrypoints -> find_components -> render_architecture_view
+:help
+:tools
+index_workspace paths=["/absolute/path/to/your/java-project"]
+list_apps
+find_entrypoints type=REST_ENDPOINT
+call_flow entrypointName="GET /orders"
+render_architecture_view view=component maxNodes=18
 ```
 
-Then drill into a specific question:
+Arguments use `key=value` syntax. Arrays and objects are JSON; quoted values may contain spaces.
+Use `:help <tool>` for a tool's parameters and an example, `:tools` to list tools, and `:quit` to
+exit. Tool-name completion is available with Tab.
+
+### MCP Client
+
+Configure an MCP client to launch the same jar with an absolute path:
+
+```json
+{
+  "mcpServers": {
+    "archlens": {
+      "command": "java",
+      "args": ["-jar", "/absolute/path/to/archlens/target/archlens.jar"]
+    }
+  }
+}
+```
+
+Then ask the client to index the workspace before running queries. A typical first pass is:
 
 ```text
-call_flow                  # How does this endpoint execute?
-trace_data_flow            # Where does this parameter or message go?
-render_pipeline            # What async workflow continues after this step?
-query_architecture_graph   # What depends on this node, and what is impacted?
-answer_architecture_question # Give a complete evidence-bearing maintenance answer.
-export_graph_viewer        # Open a visual graph for review and debugging.
+index_workspace -> list_apps -> find_entrypoints -> find_components -> detect_use_cases
 ```
 
-For step-by-step client setup, see [docs/INSTALL.md](docs/INSTALL.md).
+See [the installation guide](docs/INSTALL.md) for Claude Desktop, Claude Code, generic stdio
+configuration, tracing, and troubleshooting.
 
-## Workflow Pack
+## What ArchLens Understands
 
-This repository includes a portable agent workflow under [skills/archlens-understand](skills/archlens-understand). It describes how to use the MCP tools as a coherent "understand this Java system" workflow, with small adapters for OpenAI/Codex, Claude, and Copilot.
+ArchLens combines Java source analysis with project and deployment metadata. Its architecture graph
+can represent:
 
-The workflow pack is optional. The MCP server and tools work directly from any MCP-capable client.
+- Maven and Gradle applications, modules, packaging, and logical containers
+- Spring, Quarkus, Java EE/Jakarta EE, CDI, EJB, JPA, JMS, and Reactive Messaging patterns
+- REST, messaging, scheduling, EventBus, WebSocket, SSE, gRPC, RMI, and main-method entrypoints
+- component dependencies, method calls, runtime flows, use cases, and cross-entrypoint workflows
+- persistence units, datasources, database endpoints, transactions, configuration properties, and
+  external systems
+- source evidence, resolved and unresolved relationships, graph neighborhoods, paths, and impact
+  slices
 
-## MCP Tools By Workflow
+After indexing, the TinkerGraph-backed graph is the runtime source of truth and is persisted as
+GraphSON under `.archlens-cache/`.
 
-**Discover**
+## Tool Catalog
 
-- `index_workspace`
-- `list_apps`
-- `find_entrypoints`
-- `find_components`
-- `infer_containers`
-- `detect_use_cases`
+Every tool is available through both MCP and the terminal dashboard.
 
-**Trace**
+### Discover
 
-- `call_flow`
-- `trace_data_flow`
-- `render_use_case_timeline`
-- `render_pipeline`
+- `index_workspace` — analyze one or more Java project roots
+- `list_apps` — list applications, modules, packaging, and graph counts
+- `find_entrypoints` — find architectural entrypoints with combinable filters
+- `find_components` — find services, repositories, entities, clients, and other components
+- `infer_containers` — group components into logical containers
+- `detect_use_cases` — identify entrypoint-driven use cases
 
-**Query**
+### Trace and answer
 
-- `get_component_dependencies`
-- `query_architecture_graph`
+- `call_flow` — return an entrypoint's ordered runtime steps and sequence diagram
+- `trace_data_flow` — follow input values to terminal sinks
+- `render_use_case_timeline` — show a use case across synchronous and asynchronous boundaries
+- `render_pipeline` — stitch related entrypoints into an end-to-end workflow
+- `answer_architecture_question` — answer a supported maintenance question with evidence
+- `compile_architecture_question_to_okf` — compile an answer into an OKF knowledge bundle
 
-**Render and export**
+### Query
 
-- `render_mermaid_flowchart`
-- `render_source_overview`
-- `render_dependency_map`
-- `render_component_dependency_diagram`
-- `render_architecture_view`
-- `export_architecture_docs`
-- `export_graph_architecture_poc`
-- `export_graph_data`
-- `export_graph_viewer`
-- `export_likec4_model`
+- `get_component_dependencies` — inspect dependencies around a component
+- `query_architecture_graph` — search nodes and edges or query neighborhoods, paths, summaries, and
+  impact slices
 
-See [docs/TOOLS.md](docs/TOOLS.md) for arguments, graph labels, properties, and example payloads.
+### Render and export
+
+- `render_mermaid_flowchart` — render system, container, module, or component views
+- `render_source_overview` — render a package-aware source overview
+- `render_dependency_map` — render dependencies grouped by source responsibility
+- `render_component_dependency_diagram` — render a focused component slice
+- `render_architecture_view` — render a bounded architecture projection
+- `export_architecture_docs` — generate Markdown architecture documentation
+- `export_graph_architecture_poc` — generate graph-centric architecture documentation
+- `export_graph_data` — export the graph as JSON
+- `export_graph_viewer` — generate a self-contained interactive HTML graph viewer
+- `export_likec4_model` — export a LikeC4 workspace model
+
+See [the tool reference](docs/TOOLS.md) for complete arguments, result shapes, graph labels,
+properties, and examples.
 
 ## MCP Prompts
 
-The server also exposes workflow prompts through `prompts/list` and `prompts/get`:
+MCP clients can also use the server's workflow prompts:
 
 - `analyze_workspace`
 - `generate_architecture_docs`
 - `investigate_component`
 - `trace_use_case`
-- `find_pipeline`
 - `architecture_view`
+- `find_pipeline`
+- `answer_maintenance_question`
+- `compile_architecture_question_knowledge`
 
-These prompts guide clients through multi-tool architecture workflows without duplicating every individual tool description.
+These prompts compose the lower-level tools into common architecture investigations.
 
-## Architecture Notes
+## Output and Compatibility
 
-`trace_data_flow` records writes to shared state as `store` sinks and links each `store` sink to downstream `DataFlowPath`s that read the same shared field via `linkedPathIds`. The same relation is exposed in the property graph as raw `LINKS_TO` sink edges and canonical `WORKFLOW_LINK` path-to-path edges, so clients can query workflow continuation directly instead of reconstructing it from helper fields.
+Most tools return both readable text and typed `structuredContent`. Stable mode wraps collections
+in named objects such as `components`, `entrypoints`, or `paths`; set
+`ARCHLENS_MCP_EXPERIMENTAL_DRAFT=true` to opt into draft top-level arrays. See
+[Structured Output](docs/STRUCTURED_OUTPUT.md) for client guidance.
 
-Messaging entrypoints carry `channelName`, `broker` (`KAFKA`, `MQTT`, `AMQP`, `RABBITMQ`, `PULSAR`, `IN_MEMORY`, or `UNKNOWN`), and `topic` resolved from broker-side destination config. `IN_MEMORY` is inferred for SmallRye in-memory channels that have no connector property but are referenced by both an `@Incoming` and an `@Outgoing` declaration in the same module.
+Mermaid rendering uses broadly compatible flowcharts by default. Set
+`ARCHLENS_MCP_EXPERIMENTAL_C4=true` to opt into Mermaid C4 syntax for system and container views.
 
-## Requirements
+Component, entrypoint, and dependency IDs are stable bare strings shared across all tools. Re-run
+`index_workspace` after source changes or when upgrading from an older cache format.
 
-- Java 25 or newer
-- Maven 3.9 or newer
-- An MCP-capable client for interactive use, **or** run the jar directly in a terminal for the standalone REPL dashboard
+## How It Works
 
-Java 25 is the runtime requirement for ArchLens itself, not for the workspace being
-analyzed. ArchLens parses source with Spoon in no-classpath mode, so the target system does
-not need to build or run on Java 25.
+1. `index_workspace` parses source and relevant configuration with Spoon and project-specific
+   extractors.
+2. ArchLens resolves components, calls, values, persistence, messaging, and workflow handoffs into
+   an extraction model.
+3. The model is projected once into TinkerGraph and discarded.
+4. Dashboard commands and MCP tools query the graph through typed graph APIs and return evidence,
+   structured data, or visualizations.
 
-## Build
-
-```sh
-mvn test
-mvn package
-```
-
-The packaged server jar is written to `target/archlens.jar`.
-
-## Run
-
-```sh
-java -jar target/archlens.jar
-```
-
-The server reads JSON-RPC over stdio and writes newline-delimited JSON-RPC responses to stdout. Configure your MCP client to launch the jar with the command above.
-
-For install instructions and example MCP client configurations for Claude Desktop, Claude Code, and generic stdio clients, see [docs/INSTALL.md](docs/INSTALL.md).
-
-## Cache Backend
-
-The cache stores the indexed architecture graph as GraphSON under `.archlens-cache/`. The active workspace pointer lives at `.archlens-cache/active-workspace.txt`, and each workspace snapshot stores `architecture-graph.v1.graphson` under `.archlens-cache/workspaces/`.
-
-The older JSON model backend has been removed. `SPOON_MCP_CACHE_BACKEND` and `spoonmcp.cache.backend` are no longer used; re-run `index_workspace` after upgrading from an older JSON-backed cache.
-
-## Identity Model
-
-Components, entrypoints, and dependencies use typed identifiers (`model/ids/`) that serialize as bare strings with no scheme prefix:
-
-- `ComponentId`: the fully-qualified class name, e.g. `com.example.BillingService`.
-- `EntrypointId`: `<qualifiedName>#<method>[:<suffix>]`, e.g. `com.example.OrderResource#create:POST:/orders`.
-- `DependencyId`: `<from>-><to>[:<qualifier>]`, e.g. `com.example.A->com.example.B`.
-
-This serialized form is what every tool emits and expects as input, including the `nodeId`, `fromId`, and `toId` arguments of `query_architecture_graph`. Caches written by an earlier prefixed convention are not migrated automatically; re-run `index_workspace` after upgrading.
-
-## Documentation
-
-- `docs/INSTALL.md`: install, MCP client wiring, and configuration.
-- `docs/TOOLS.md`: MCP tool and prompt reference.
-- `docs/STRUCTURED_OUTPUT.md`: why `structuredContent` saves tokens, and what agent
-  instructions need to say to actually use it.
-- `docs/ARCHITECTURE.md`: package responsibilities and data flow.
-- `docs/ROADMAP.md`: benchmark, evidence, persistence configuration, and transaction-analysis milestones.
-- `skills/archlens-understand/`: portable agent workflow pack.
-- `AGENTS.md`: repository guide for coding agents.
-- `examples/jsonrpc/`: example JSON-RPC requests.
-- `llms.txt`: compact index for LLM and agent ingestion.
+For the package-level design and runtime boundaries, see [Architecture](docs/ARCHITECTURE.md).
 
 ## Development
 
-Run the test suite before opening a pull request:
-
 ```sh
 mvn test
-```
-
-Run the deterministic architecture-question benchmark against the packaged MCP server:
-
-```sh
 mvn package
-python3 scripts/run-benchmark.py
 ```
 
-The benchmark checks structured architecture facts and evidence rather than LLM prose. See
-`benchmarks/README.md` for scenario and report details.
-
-Useful maintenance commands:
+Useful maintenance checks:
 
 ```sh
 mvn dependency:analyze
@@ -224,41 +213,29 @@ mvn versions:display-plugin-updates
 mvn dependency-check:check
 ```
 
-`dependency-check:check` runs the OWASP Dependency-Check and fails on CVEs with CVSS score >= 7. Set `NVD_API_KEY` or pass `-DnvdApiKey=<key>` for faster NVD data downloads. Add false positives to `dependency-check-suppressions.xml`.
-
-Generated files such as `target/`, `.archlens-cache/`, and `dependency-reduced-pom.xml` are intentionally ignored.
-
-## Releases
-
-Releases are tag-shaped from `main`. The version in `pom.xml` is the release version and must match the tag name exactly.
-
-**All working-tree changes must be committed before running the release.**
-
-Release:
+Run the deterministic architecture-question benchmark against the packaged server with:
 
 ```sh
-git switch main
-git pull --ff-only
-mvn versions:set -DnewVersion=1.3.0 -DgenerateBackupPoms=false
-mvn clean verify
-git add pom.xml
-git commit -m "chore: release 1.3.0"
-git tag archlens-1.3.0
-JRELEASER_GITHUB_TOKEN=<token> mvn jreleaser:full-release
-git push origin main archlens-1.3.0
+mvn package
+python3 scripts/run-benchmark.py
 ```
 
-This repository intentionally does not include GitHub Actions release automation. Keep the release tag and `pom.xml` version aligned manually.
+See [Contributing](CONTRIBUTING.md) before opening a pull request. Generated output from `target/`,
+`.archlens-cache/`, and `dependency-reduced-pom.xml` should not be committed.
 
-Local dry run without publishing:
+## Documentation
 
-```sh
-mvn clean verify
-JRELEASER_GITHUB_TOKEN=dummy mvn -Djreleaser.dry.run=true jreleaser:full-release
-```
+- [Install and usage](docs/INSTALL.md)
+- [Tool and prompt reference](docs/TOOLS.md)
+- [Structured output](docs/STRUCTURED_OUTPUT.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Workflow graphs](docs/WORKFLOW_GRAPHS.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Benchmarks](benchmarks/README.md)
+- [Changelog](CHANGELOG.md)
+- [Agent workflow pack](skills/archlens-understand)
+- [Website](https://archlens.dominikbreu.dev/)
 
-JReleaser is configured for GitHub releases under `DerPate/archlens`. It uses the existing `archlens-{{projectVersion}}` tag, publishes the shaded server jar as the runnable distribution artifact, attaches source and Javadoc jars as release files, and appends generated release notes to `CHANGELOG.md`.
+## License
 
-## Publishing Notes
-
-This repository includes GitHub community defaults and project hygiene files. It does not use pre-commit hooks.
+ArchLens is available under the [MIT License](LICENSE).
