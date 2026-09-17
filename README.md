@@ -55,8 +55,10 @@ MCP client launches the same jar over stdio, it starts the MCP server automatica
 
 ### Terminal Dashboard
 
-The dashboard is a two-pane REPL: the left side shows graph traversals and the right side shows the
-command, duration, and result. Start by indexing a Java workspace, then call tools by name:
+The dashboard is a responsive TamboUI REPL: it uses a widget-based two-pane layout on wide
+terminals and stacks the panes on narrow ones. Enter submits commands, Tab completes tool names,
+F6 cycles focus, Page Up/Down scrolls results, and Ctrl-C exits. Start by indexing a Java workspace,
+then call tools by name:
 
 ```text
 :help

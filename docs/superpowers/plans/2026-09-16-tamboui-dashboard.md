@@ -19,6 +19,7 @@
 - TamboUI types stay under `dev.dominikbreu.archlens.dashboard` and must not leak into MCP tools, cache, renderers, or extraction packages.
 - Do not add manual screen-sized string composition, padding, substring clipping, ANSI cursor control, or full-screen clear/redraw code.
 - Add Javadoc to every public type, method, or constructor touched by the implementation.
+- Treat Javadoc as an implementation deliverable: public record components require `@param`, public methods require `@param`/`@return` where applicable, and the completed plan must include a Javadoc build/audit step before claiming completion.
 - Preserve the user's pre-existing `README.md` work; merge the dashboard documentation into it without reverting unrelated lines.
 - Do not commit generated `target/`, `.archlens-cache/`, or `dependency-reduced-pom.xml` content.
 
@@ -739,6 +740,21 @@ git commit -m "feat: migrate dashboard runtime to Tamboui"
 **Interfaces:**
 - Consumes: completed dashboard behavior and key bindings.
 - Produces: accurate user and architecture documentation; fully verified build artifact.
+
+- [ ] **Step 0: Audit public API documentation before final verification**
+
+Run the Javadoc build and inspect every touched public declaration:
+
+```bash
+mvn -DskipTests javadoc:javadoc
+rg -n "public (final )?(class|record|interface)|public (static )?[A-Za-z].*\\(" \
+  src/main/java/dev/dominikbreu/archlens/dashboard
+```
+
+Expected: Javadoc generation succeeds without new errors, `Dashboard`'s existing public API
+documentation remains accurate, and any newly public declaration has a Javadoc block. Keep the new
+session, action, UI-state, and view types package-private unless a public API is genuinely required;
+package-private implementation types do not need public API documentation.
 
 - [ ] **Step 1: Update user documentation without overwriting existing edits**
 
