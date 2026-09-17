@@ -1,5 +1,9 @@
 # Generated Architecture
 
+The standalone dashboard is implemented with TamboUI (Panama backend). `Dashboard` owns the
+session lifecycle, `TambouiDashboardView` renders widgets and handles keyboard events, and
+`ReplEngine` remains the synchronous command dispatcher shared by the interactive shell.
+
 Generated from the indexed architecture model by the MCP tool `export_architecture_docs`.
 
 ## Summary
