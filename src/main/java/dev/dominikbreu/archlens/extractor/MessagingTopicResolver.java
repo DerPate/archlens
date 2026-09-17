@@ -58,6 +58,10 @@ public class MessagingTopicResolver {
      * Parameter-fed sites are expanded per caller call site with a caller restriction;
      * other non-literal sites are expanded unrestricted, one site per resolved literal;
      * if unresolvable, the site is kept with topic=null (suppresses spurious channel name).
+     *
+     * @param model the architecture model whose {@code outboundSinkSites} are resolved in place
+     * @param spoonModel the Spoon model used to locate originating send invocations
+     * @param fromIndex index into {@code model.outboundSinkSites} to start resolving from
      */
     public void resolve(ArchitectureModel model, CtModel spoonModel, int fromIndex) {
         if (fromIndex >= model.outboundSinkSites.size()) return;

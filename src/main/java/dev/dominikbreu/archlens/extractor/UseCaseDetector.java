@@ -28,7 +28,11 @@ public class UseCaseDetector {
         this(new WorkflowTraversalPolicy());
     }
 
-    /** Creates a use case detector using the given workflow traversal {@code policy}. */
+    /**
+     * Creates a use case detector using the given workflow traversal {@code policy}.
+     *
+     * @param traversalPolicy the traversal policy used to classify workflow roots and continuations
+     */
     public UseCaseDetector(WorkflowTraversalPolicy traversalPolicy) {
         this.traversalPolicy = traversalPolicy;
     }
