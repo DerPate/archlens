@@ -24,13 +24,23 @@ public final class WorkflowGraphBuilder {
         this(new WorkflowTraversalPolicy());
     }
 
-    /** Creates a builder using the given traversal {@code policy}. */
+    /**
+     * Creates a builder using the given traversal {@code policy}.
+     *
+     * @param policy the traversal policy used to classify workflow roots and continuations
+     */
     public WorkflowGraphBuilder(WorkflowTraversalPolicy policy) {
         this.policy = policy;
         this.linker = new WorkflowLinker(policy);
     }
 
-    /** Builds the canonical workflow graph for {@code model}; returns an empty graph when {@code model} is {@code null}. */
+    /**
+     * Builds the canonical workflow graph for {@code model}; returns an empty graph when {@code
+     * model} is {@code null}.
+     *
+     * @param model the architecture model to build a workflow graph from
+     * @return the canonical workflow graph
+     */
     public WorkflowGraph build(ArchitectureModel model) {
         if (model == null) {
             return new WorkflowGraph(List.of(), Map.of(), Map.of(), Map.of());
