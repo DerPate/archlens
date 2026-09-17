@@ -29,12 +29,23 @@ public final class WorkflowTraversalPolicy {
             EntrypointType.SSE_ENDPOINT,
             EntrypointType.GRPC_METHOD);
 
-    /** Returns true when an entrypoint should be considered a workflow root or segment. */
+    /**
+     * Returns true when an entrypoint should be considered a workflow root or segment.
+     *
+     * @param entrypoint the entrypoint to classify
+     * @return true unless {@code entrypoint} is null or a lifecycle entrypoint
+     */
     public boolean isWorkflowRoot(Entrypoint entrypoint) {
         return entrypoint != null && !isLifecycleEntrypoint(entrypoint);
     }
 
-    /** Detects framework lifecycle CDI observers that should not become user-facing workflow paths. */
+    /**
+     * Detects framework lifecycle CDI observers that should not become user-facing workflow paths.
+     *
+     * @param entrypoint the entrypoint to classify
+     * @return true if {@code entrypoint} is a CDI event observer whose name or path contains a
+     *     lifecycle keyword (shutdown, stop, destroy, close, halt, predestroy, cleanup)
+     */
     public boolean isLifecycleEntrypoint(Entrypoint entrypoint) {
         if (entrypoint == null || entrypoint.type != EntrypointType.CDI_EVENT_OBSERVER) {
             return false;
@@ -45,7 +56,12 @@ public final class WorkflowTraversalPolicy {
                 || LIFECYCLE_KEYWORDS.stream().anyMatch(path::contains);
     }
 
-    /** Returns true for calls that cross asynchronous segment boundaries. */
+    /**
+     * Returns true for calls that cross asynchronous segment boundaries.
+     *
+     * @param edge the call edge to classify
+     * @return true if {@code edge}'s call kind is {@code "messaging"} or {@code "event-bus"}
+     */
     public boolean isAsyncBoundary(CallEdge edge) {
         if (edge == null || edge.callKind == null) {
             return false;
@@ -53,7 +69,13 @@ public final class WorkflowTraversalPolicy {
         return "messaging".equals(edge.callKind) || "event-bus".equals(edge.callKind);
     }
 
-    /** Returns true when a call can be traversed as an in-process continuation. */
+    /**
+     * Returns true when a call can be traversed as an in-process continuation.
+     *
+     * @param edge the call edge to classify
+     * @return true if {@code edge} is not an async boundary, not capped by receiver expansion, and
+     *     not ambiguous
+     */
     public boolean canTraverseInline(CallEdge edge) {
         return edge != null && !isAsyncBoundary(edge) && !edge.receiverExpansionCapped && !edge.ambiguous;
     }
@@ -79,6 +101,8 @@ public final class WorkflowTraversalPolicy {
      * @param fromEntrypoint the entrypoint reaching the write
      * @param directOwnerWrittenFields store fields for which at least one same-component
      *                                 entrypoint has a direct write (pre-computed by the caller)
+     * @return true if the write is shadowed by a same-component writer of the same field and
+     *     should therefore be suppressed as a pipeline trigger
      */
     public boolean isShadowedCrossComponentStoreWrite(
             DataFlowSink sink, Entrypoint fromEntrypoint, Set<FieldRef> directOwnerWrittenFields) {
@@ -95,6 +119,12 @@ public final class WorkflowTraversalPolicy {
      * background data-feed rather than a pipeline trigger — i.e., a scheduler pre-loading reference
      * data into a store that a primary consumer happens to read. Such links must not disqualify the
      * consumer from being a pipeline root.
+     *
+     * @param from the link's source entrypoint
+     * @param to the link's target entrypoint
+     * @param kind the link's kind
+     * @return true if {@code kind} is {@code STATE_HANDOFF}, {@code from} is a scheduler, and
+     *     {@code to} is one of the primary consumer entrypoint types
      */
     public boolean isBackgroundDataFeedLink(Entrypoint from, Entrypoint to, WorkflowLink.Kind kind) {
         if (from == null || to == null || kind != WorkflowLink.Kind.STATE_HANDOFF) return false;
@@ -102,7 +132,13 @@ public final class WorkflowTraversalPolicy {
         return to.type != null && PRIMARY_CONSUMER_TYPES.contains(to.type);
     }
 
-    /** Returns true when a component should appear in human-facing workflow diagrams. */
+    /**
+     * Returns true when a component should appear in human-facing workflow diagrams.
+     *
+     * @param component the component to classify
+     * @return true unless {@code component} has no type, is a {@code UTILITY} component, or is a
+     *     raw messaging client
+     */
     public boolean isHumanVisible(Component component) {
         if (component == null || component.type == null) {
             return false;
@@ -113,7 +149,13 @@ public final class WorkflowTraversalPolicy {
         return !isRawMessagingClient(component);
     }
 
-    /** Detects transport clients represented as raw HTTP clients with messaging stereotypes. */
+    /**
+     * Detects transport clients represented as raw HTTP clients with messaging stereotypes.
+     *
+     * @param component the component to classify
+     * @return true if {@code component} is an {@code HTTP_CLIENT} with a {@code "messaging"}
+     *     stereotype
+     */
     public boolean isRawMessagingClient(Component component) {
         return component != null
                 && component.type == ComponentType.HTTP_CLIENT
