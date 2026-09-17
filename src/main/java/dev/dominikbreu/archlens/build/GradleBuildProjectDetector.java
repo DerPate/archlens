@@ -22,6 +22,15 @@ public class GradleBuildProjectDetector implements BuildProjectDetector {
     private static final Pattern GROOVY_PLUGIN = Pattern.compile("id\\s+[\"']([^\"']+)[\"']");
     private static final Pattern KOTLIN_PLUGIN = Pattern.compile("id\\([\"']([^\"']+)[\"']\\)");
 
+    /**
+     * Detects a Gradle project by the presence of a Groovy or Kotlin DSL settings/build script,
+     * resolving its {@code include} declarations into per-module source/resource roots and plugin
+     * lists.
+     *
+     * @param root the project root directory
+     * @return the detected Gradle project, or empty if no {@code settings.gradle(.kts)} or {@code
+     *     build.gradle(.kts)} file is present
+     */
     @Override
     public Optional<BuildProject> detect(File root) {
         boolean groovy = new File(root, "settings.gradle").isFile() || new File(root, "build.gradle").isFile();

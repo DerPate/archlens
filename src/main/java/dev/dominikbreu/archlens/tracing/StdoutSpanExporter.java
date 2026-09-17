@@ -15,6 +15,12 @@ import org.apache.commons.lang3.StringUtils;
  */
 public class StdoutSpanExporter implements SpanExporter {
 
+    /**
+     * Prints each span in {@code spans} to stdout via {@link #format(SpanData)}.
+     *
+     * @param spans the finished spans to export
+     * @return always a successful result; this exporter cannot fail
+     */
     @Override
     public CompletableResultCode export(Collection<SpanData> spans) {
         for (SpanData span : spans) {
@@ -23,11 +29,21 @@ public class StdoutSpanExporter implements SpanExporter {
         return CompletableResultCode.ofSuccess();
     }
 
+    /**
+     * No-op: every span is already printed synchronously by {@link #export}.
+     *
+     * @return always a successful, already-complete result
+     */
     @Override
     public CompletableResultCode flush() {
         return CompletableResultCode.ofSuccess();
     }
 
+    /**
+     * No-op: this exporter holds no resources that need releasing.
+     *
+     * @return always a successful, already-complete result
+     */
     @Override
     public CompletableResultCode shutdown() {
         return CompletableResultCode.ofSuccess();

@@ -53,6 +53,11 @@ public class MessagingCallSiteResolver {
     /** Kafka consumer method name, matched only when the tracked field's role is {@code CONSUMER}. */
     private static final Set<String> KAFKA_SUBSCRIBE_METHODS = Set.of("subscribe");
 
+    /**
+     * Collection-factory method names recognized when resolving a collection-of-strings argument
+     * (e.g. a Kafka {@code subscribe(List.of("topic", ...))} call); used by {@link
+     * #resolveCollectionOfStrings} to identify such a call and read its topic arguments.
+     */
     private static final Set<String> COLLECTION_FACTORY_METHODS =
             Set.of("of", "asList", "singletonList", "singleton", "unmodifiableList");
     /**

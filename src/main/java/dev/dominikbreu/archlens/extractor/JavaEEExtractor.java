@@ -12,24 +12,71 @@ import spoon.reflect.declaration.*;
  */
 public class JavaEEExtractor {
 
-    // Shared source-evidence and annotation-name literals, plus the javax/jakarta annotation
-    // catalog used to classify a type as an EJB, message-driven bean, or JAX-RS resource. Each
-    // set holds both the legacy javax.* and the Jakarta EE 9+ jakarta.* fully-qualified names so
-    // callers match either namespace via hasAnn/annMatches.
+    /**
+     * Evidence kind recorded on a {@link SourceInfo} for a component, entrypoint, or interface
+     * that was derived directly from an annotation on its declaration (as opposed to, e.g., a
+     * type relationship).
+     */
     private static final String ANNOTATION = "annotation";
+
+    /**
+     * Method name identifying a message-driven bean's JMS listener callback; matched to derive
+     * that method's {@link EntrypointType#JMS_CONSUMER} entrypoint.
+     */
     private static final String ON_MESSAGE = "onMessage";
 
+    /**
+     * Legacy {@code javax.ejb.Stateless} and Jakarta EE 9+ {@code jakarta.ejb.Stateless}
+     * annotation names, matched via {@link #hasAnn} to classify a type as a stateless session
+     * bean.
+     */
     private static final Set<String> EJB_STATELESS = Set.of("javax.ejb.Stateless", "jakarta.ejb.Stateless");
+
+    /**
+     * Legacy {@code javax.ejb.Stateful} and Jakarta EE 9+ {@code jakarta.ejb.Stateful} annotation
+     * names, matched via {@link #hasAnn} to classify a type as a stateful session bean.
+     */
     private static final Set<String> EJB_STATEFUL = Set.of("javax.ejb.Stateful", "jakarta.ejb.Stateful");
+
+    /**
+     * Legacy {@code javax.ejb.Singleton} and Jakarta EE 9+ {@code jakarta.ejb.Singleton}
+     * annotation names, matched via {@link #hasAnn} to classify a type as a singleton session
+     * bean.
+     */
     private static final Set<String> EJB_SINGLETON = Set.of("javax.ejb.Singleton", "jakarta.ejb.Singleton");
+
+    /**
+     * Legacy {@code javax.ejb.MessageDriven} and Jakarta EE 9+ {@code jakarta.ejb.MessageDriven}
+     * annotation names, matched via {@link #hasAnn} to classify a type as a message-driven bean.
+     */
     private static final Set<String> MESSAGE_DRIVEN = Set.of("javax.ejb.MessageDriven", "jakarta.ejb.MessageDriven");
+
+    /**
+     * Legacy {@code javax.ws.rs.Path} and Jakarta EE 9+ {@code jakarta.ws.rs.Path} annotation
+     * names, matched via {@link #hasAnn} to classify a type as a JAX-RS resource and, via {@link
+     * #getAnnotationStringValue}, to read the class- and method-level base paths used when
+     * building REST endpoint paths.
+     */
     private static final Set<String> JAX_RS_PATH = Set.of("javax.ws.rs.Path", "jakarta.ws.rs.Path");
+
+    /**
+     * Legacy {@code javax.ws.rs.*} and Jakarta EE 9+ {@code jakarta.ws.rs.*} HTTP-method
+     * annotation names ({@code @GET}, {@code @POST}, {@code @PUT}, {@code @DELETE}, {@code @PATCH}),
+     * matched via {@link #getHttpMethod} to identify a JAX-RS endpoint method and its HTTP verb.
+     */
     private static final Set<String> HTTP_METHODS = Set.of(
             "javax.ws.rs.GET", "jakarta.ws.rs.GET",
             "javax.ws.rs.POST", "jakarta.ws.rs.POST",
             "javax.ws.rs.PUT", "jakarta.ws.rs.PUT",
             "javax.ws.rs.DELETE", "jakarta.ws.rs.DELETE",
             "javax.ws.rs.PATCH", "jakarta.ws.rs.PATCH");
+
+    /**
+     * Legacy {@code javax.persistence.Entity} and Jakarta EE 9+ {@code jakarta.persistence.Entity}
+     * annotation names. Part of the shared annotation-name catalog for this extractor; JPA entity
+     * classification itself is currently delegated to {@link PersistenceEntityTypes#isEntity},
+     * which does not consult this set.
+     */
     private static final Set<String> ENTITY_ANNOTATIONS =
             Set.of("javax.persistence.Entity", "jakarta.persistence.Entity");
 
