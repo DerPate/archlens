@@ -25,12 +25,21 @@ public final class TraversalRecorder {
         BUFFER.remove();
     }
 
-    /** True when the current thread is capturing. */
+    /**
+     * True when the current thread is capturing.
+     *
+     * @return true if {@link #enable()} was called on this thread without a matching {@link
+     *     #disable()}
+     */
     public static boolean isActive() {
         return BUFFER.get() != null;
     }
 
-    /** Records the given traversal's step-chain text. No-op when not capturing. */
+    /**
+     * Records the given traversal's step-chain text. No-op when not capturing.
+     *
+     * @param traversal the traversal whose step-chain text is recorded
+     */
     public static void capture(Traversal<?, ?> traversal) {
         List<String> buffer = BUFFER.get();
         if (buffer != null) {
@@ -38,7 +47,11 @@ public final class TraversalRecorder {
         }
     }
 
-    /** Returns the traces captured since the last {@link #enable()}, without clearing them. */
+    /**
+     * Returns the traces captured since the last {@link #enable()}, without clearing them.
+     *
+     * @return the captured step-chain texts, or an empty list when not capturing
+     */
     public static List<String> captured() {
         List<String> buffer = BUFFER.get();
         return buffer == null ? List.of() : List.copyOf(buffer);

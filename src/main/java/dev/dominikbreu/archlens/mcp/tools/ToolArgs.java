@@ -7,12 +7,23 @@ import java.util.Map;
 
 /** Static helpers for extracting typed values from SDK tool argument maps. */
 public final class ToolArgs {
+    /**
+     * Known evidence-field keys, in output order. Used by {@link #evidenceAsMap} to select which
+     * entries of a node/edge property map are copied into the structured-output {@code evidence}
+     * sub-map.
+     */
     private static final List<String> EVIDENCE_FIELDS =
             List.of("derivedFrom", "sourceFile", "sourceLine", "confidence", "confidenceBand", "ambiguous", "evidence");
 
     private ToolArgs() {}
 
-    /** Projects a graph node into the shared {id, name, label, properties} structured-output shape. */
+    /**
+     * Projects a graph node into the shared {id, name, label, properties} structured-output shape.
+     *
+     * @param node the graph node to project
+     * @return the structured-output map, with an {@code evidence} sub-map added when {@code node}
+     *     carries any known evidence fields
+     */
     public static Map<String, Object> nodeAsMap(GraphQuery.GraphNode node) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("id", node.id().serialize());
@@ -24,7 +35,14 @@ public final class ToolArgs {
         return map;
     }
 
-    /** Projects a graph edge into the shared {fromId, toId, label, properties} structured-output shape. */
+    /**
+     * Projects a graph edge into the shared {fromId, toId, label, properties} structured-output
+     * shape.
+     *
+     * @param edge the graph edge to project
+     * @return the structured-output map, with an {@code evidence} sub-map added when {@code edge}
+     *     carries any known evidence fields
+     */
     public static Map<String, Object> edgeAsMap(GraphQuery.GraphEdge edge) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("fromId", edge.fromId().serialize());

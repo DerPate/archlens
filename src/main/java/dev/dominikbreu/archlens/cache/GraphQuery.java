@@ -2058,21 +2058,36 @@ public class GraphQuery {
                     DataFlowStepNode,
                     PipelineChainNode,
                     UnknownNode {
-        /** The node's stable graph id. */
+        /** The node's stable graph id.
+         *
+         * @return the node's stable graph id
+         */
         GraphNodeId id();
 
-        /** The node's display name (the domain object's own name, not a graph label). */
+        /** The node's display name (the domain object's own name, not a graph label).
+         *
+         * @return the node's display name
+         */
         String name();
 
-        /** The vertex label this node was materialized from (e.g. {@code "Component"}). */
+        /** The vertex label this node was materialized from (e.g. {@code "Component"}).
+         *
+         * @return the vertex label this node was materialized from
+         */
         String label();
 
-        /** The node's type-specific attributes, exposed to tools/renderers as a flat map. */
+        /** The node's type-specific attributes, exposed to tools/renderers as a flat map.
+         *
+         * @return the node's type-specific attributes as a flat map
+         */
         Map<String, Object> properties();
 
         /**
          * Returns whether this node satisfies a free-text search {@code query}, matched
          * case-insensitively against the node's id and its most relevant type-specific fields.
+         *
+         * @param query the free-text search query
+         * @return whether this node satisfies {@code query}
          */
         boolean matches(String query);
 
@@ -2121,13 +2136,19 @@ public class GraphQuery {
             String rootPath,
             AppId parentAppId)
             implements GraphNode {
-        /** Vertex label: {@code "Application"}. */
+        /** Vertex label: {@code "Application"}.
+         *
+         * @return the vertex label, {@code "Application"}
+         */
         @Override
         public String label() {
             return "Application";
         }
 
-        /** Exposes technology, packaging type, role, root path, and parent app id. */
+        /** Exposes technology, packaging type, role, root path, and parent app id.
+         *
+         * @return technology, packaging type, role, root path, and parent app id
+         */
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
@@ -2143,7 +2164,11 @@ public class GraphQuery {
                     parentAppId != null ? parentAppId.serialize() : null);
         }
 
-        /** Matches by id, name, technology, or role. */
+        /** Matches by id, name, technology, or role.
+         *
+         * @param query the free-text search query
+         * @return whether this node matches {@code query}, tested against id, name, technology, or role
+         */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -2207,13 +2232,19 @@ public class GraphQuery {
             String agentCategory,
             String classificationEvidence)
             implements GraphNode {
-        /** Vertex label: {@code "Component"}. */
+        /** Vertex label: {@code "Component"}.
+         *
+         * @return the vertex label, {@code "Component"}
+         */
         @Override
         public String label() {
             return "Component";
         }
 
-        /** Exposes this component's classification, metrics, and source evidence. */
+        /** Exposes this component's classification, metrics, and source evidence.
+         *
+         * @return this component's classification, metrics, and source evidence
+         */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -2247,7 +2278,11 @@ public class GraphQuery {
             return m;
         }
 
-        /** Matches by id, name, qualified name, technology, type, module, or role/category fields. */
+        /** Matches by id, name, qualified name, technology, type, module, or role/category fields.
+         *
+         * @param query the free-text search query
+         * @return whether this node matches {@code query}, tested against id, name, qualified name, technology, type, module, or role/category fields
+         */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -2298,13 +2333,19 @@ public class GraphQuery {
             ComponentId componentId,
             SourceInfo source)
             implements GraphNode {
-        /** Vertex label: {@code "Entrypoint"}. */
+        /** Vertex label: {@code "Entrypoint"}.
+         *
+         * @return the vertex label, {@code "Entrypoint"}
+         */
         @Override
         public String label() {
             return "Entrypoint";
         }
 
-        /** Exposes trigger type, HTTP/messaging routing fields, parameters, and source evidence. */
+        /** Exposes trigger type, HTTP/messaging routing fields, parameters, and source evidence.
+         *
+         * @return trigger type, HTTP/messaging routing fields, parameters, and source evidence
+         */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -2327,7 +2368,11 @@ public class GraphQuery {
             return m;
         }
 
-        /** Matches by id, name, path, channel, topic, or trigger type. */
+        /** Matches by id, name, path, channel, topic, or trigger type.
+         *
+         * @param query the free-text search query
+         * @return whether this node matches {@code query}, tested against id, name, path, channel, topic, or trigger type
+         */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -2367,13 +2412,19 @@ public class GraphQuery {
             String externalServiceName,
             SourceInfo source)
             implements GraphNode {
-        /** Vertex label: {@code "Interface"}. */
+        /** Vertex label: {@code "Interface"}.
+         *
+         * @return the vertex label, {@code "Interface"}
+         */
         @Override
         public String label() {
             return "Interface";
         }
 
-        /** Exposes interface type, path, owning component/module, technology, and messaging fields. */
+        /** Exposes interface type, path, owning component/module, technology, and messaging fields.
+         *
+         * @return interface type, path, owning component/module, technology, and messaging fields
+         */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> properties = GraphNode.propsOf(
@@ -2399,7 +2450,11 @@ public class GraphQuery {
             return properties;
         }
 
-        /** Matches by id, name, path, or interface type. */
+        /** Matches by id, name, path, or interface type.
+         *
+         * @param query the free-text search query
+         * @return whether this node matches {@code query}, tested against id, name, path, or interface type
+         */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -2420,13 +2475,19 @@ public class GraphQuery {
      */
     public record ContainerNode(GraphNodeId id, String name, AppId appId, String technology, String derivedFrom)
             implements GraphNode {
-        /** Vertex label: {@code "Container"}. */
+        /** Vertex label: {@code "Container"}.
+         *
+         * @return the vertex label, {@code "Container"}
+         */
         @Override
         public String label() {
             return "Container";
         }
 
-        /** Exposes owning app id, technology, and how the container was inferred. */
+        /** Exposes owning app id, technology, and how the container was inferred.
+         *
+         * @return owning app id, technology, and how the container was inferred
+         */
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
@@ -2438,7 +2499,11 @@ public class GraphQuery {
                     derivedFrom);
         }
 
-        /** Matches by id, name, or technology. */
+        /** Matches by id, name, or technology.
+         *
+         * @param query the free-text search query
+         * @return whether this node matches {@code query}, tested against id, name, or technology
+         */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name) || GraphNode.q(query, technology);
@@ -2466,13 +2531,19 @@ public class GraphQuery {
             List<String> roles,
             List<String> hosts)
             implements GraphNode {
-        /** Vertex label: {@code "Deployment"}. */
+        /** Vertex label: {@code "Deployment"}.
+         *
+         * @return the vertex label, {@code "Deployment"}
+         */
         @Override
         public String label() {
             return "Deployment";
         }
 
-        /** Exposes deployment type, ports, dependencies, roles, and hosts as comma-joined lists. */
+        /** Exposes deployment type, ports, dependencies, roles, and hosts as comma-joined lists.
+         *
+         * @return deployment type, ports, dependencies, roles, and hosts as comma-joined lists
+         */
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
@@ -2490,7 +2561,11 @@ public class GraphQuery {
                     hosts.isEmpty() ? null : String.join(",", hosts));
         }
 
-        /** Matches by id, name, or deployment type. */
+        /** Matches by id, name, or deployment type.
+         *
+         * @param query the free-text search query
+         * @return whether this node matches {@code query}, tested against id, name, or deployment type
+         */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name) || GraphNode.q(query, type);
@@ -2508,13 +2583,19 @@ public class GraphQuery {
      */
     public record ExternalSystemNode(GraphNodeId id, String name, String kind, String technology, SourceInfo source)
             implements GraphNode {
-        /** Vertex label: {@code "ExternalSystem"}. */
+        /** Vertex label: {@code "ExternalSystem"}.
+         *
+         * @return the vertex label, {@code "ExternalSystem"}
+         */
         @Override
         public String label() {
             return "ExternalSystem";
         }
 
-        /** Exposes external system kind, technology, and source evidence. */
+        /** Exposes external system kind, technology, and source evidence.
+         *
+         * @return external system kind, technology, and source evidence
+         */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> properties = GraphNode.propsOf(
@@ -2523,7 +2604,11 @@ public class GraphQuery {
             return properties;
         }
 
-        /** Matches by id, name, kind, or technology. */
+        /** Matches by id, name, kind, or technology.
+         *
+         * @param query the free-text search query
+         * @return whether this node matches {@code query}, tested against id, name, kind, or technology
+         */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -2555,13 +2640,19 @@ public class GraphQuery {
             String sourceFile,
             SourceInfo source)
             implements GraphNode {
-        /** Vertex label: {@code "ConfigProperty"}. */
+        /** Vertex label: {@code "ConfigProperty"}.
+         *
+         * @return the vertex label, {@code "ConfigProperty"}
+         */
         @Override
         public String label() {
             return "ConfigProperty";
         }
 
-        /** Exposes key, resolved value, resolution state, owning app, source file, and evidence. */
+        /** Exposes key, resolved value, resolution state, owning app, source file, and evidence.
+         *
+         * @return key, resolved value, resolution state, owning app, source file, and evidence
+         */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> properties = GraphNode.propsOf(
@@ -2579,7 +2670,11 @@ public class GraphQuery {
             return properties;
         }
 
-        /** Matches by id, key, or value. */
+        /** Matches by id, key, or value.
+         *
+         * @param query the free-text search query
+         * @return whether this node matches {@code query}, tested against id, key, or value
+         */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize()) || GraphNode.q(query, key) || GraphNode.q(query, value);
@@ -2616,13 +2711,19 @@ public class GraphQuery {
             boolean entrypointReachable,
             SourceInfo source)
             implements GraphNode {
-        /** Vertex label: {@code "PersistenceUnit"}. */
+        /** Vertex label: {@code "PersistenceUnit"}.
+         *
+         * @return the vertex label, {@code "PersistenceUnit"}
+         */
         @Override
         public String label() {
             return "PersistenceUnit";
         }
 
-        /** Exposes provider, transaction type, datasource bindings, managed classes, and evidence. */
+        /** Exposes provider, transaction type, datasource bindings, managed classes, and evidence.
+         *
+         * @return provider, transaction type, datasource bindings, managed classes, and evidence
+         */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> properties = GraphNode.propsOf(
@@ -2648,7 +2749,11 @@ public class GraphQuery {
             return properties;
         }
 
-        /** Matches by id, name, provider, transaction type, JTA/non-JTA datasource, or managed class. */
+        /** Matches by id, name, provider, transaction type, JTA/non-JTA datasource, or managed class.
+         *
+         * @param query the free-text search query
+         * @return whether this node matches {@code query}, tested against id, name, provider, transaction type, JTA/non-JTA datasource, or managed class
+         */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -2691,13 +2796,19 @@ public class GraphQuery {
             boolean entrypointReachable,
             SourceInfo source)
             implements GraphNode {
-        /** Vertex label: {@code "DataSource"}. */
+        /** Vertex label: {@code "DataSource"}.
+         *
+         * @return the vertex label, {@code "DataSource"}
+         */
         @Override
         public String label() {
             return "DataSource";
         }
 
-        /** Exposes JNDI/aliases, driver, endpoint, database kind, resolution state, and evidence. */
+        /** Exposes JNDI/aliases, driver, endpoint, database kind, resolution state, and evidence.
+         *
+         * @return JNDI/aliases, driver, endpoint, database kind, resolution state, and evidence
+         */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> properties = GraphNode.propsOf(
@@ -2723,7 +2834,11 @@ public class GraphQuery {
             return properties;
         }
 
-        /** Matches by id, name, JNDI name, driver, endpoint, database kind, or alias. */
+        /** Matches by id, name, JNDI name, driver, endpoint, database kind, or alias.
+         *
+         * @param query the free-text search query
+         * @return whether this node matches {@code query}, tested against id, name, JNDI name, driver, endpoint, database kind, or alias
+         */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -2764,13 +2879,19 @@ public class GraphQuery {
             String persistenceUnitName,
             SourceInfo source)
             implements GraphNode {
-        /** Vertex label: {@code "PersistenceOperation"}. */
+        /** Vertex label: {@code "PersistenceOperation"}.
+         *
+         * @return the vertex label, {@code "PersistenceOperation"}
+         */
         @Override
         public String label() {
             return "PersistenceOperation";
         }
 
-        /** Exposes the enclosing method, the EntityManager operation, entity type, and evidence. */
+        /** Exposes the enclosing method, the EntityManager operation, entity type, and evidence.
+         *
+         * @return the enclosing method, the EntityManager operation, entity type, and evidence
+         */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> p = GraphNode.propsOf(
@@ -2794,7 +2915,11 @@ public class GraphQuery {
             return p;
         }
 
-        /** Matches by id, method name, operation, entity type, argument name, or persistence unit. */
+        /** Matches by id, method name, operation, entity type, argument name, or persistence unit.
+         *
+         * @param query the free-text search query
+         * @return whether this node matches {@code query}, tested against id, method name, operation, entity type, argument name, or persistence unit
+         */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -2806,7 +2931,31 @@ public class GraphQuery {
         }
     }
 
-    /** Typed graph node for the effective transaction policy governing one method. */
+    /**
+     * Typed graph node for the effective transaction policy governing one method.
+     *
+     * @param id node identifier
+     * @param name node display name
+     * @param appId owning application/module
+     * @param componentId owning component
+     * @param methodName name of the method the policy applies to
+     * @param methodSignature full signature of the method the policy applies to
+     * @param framework transaction framework the policy originates from (e.g. {@code "spring"}, {@code
+     *     "ejb"})
+     * @param policy normalized propagation value (e.g. {@code "REQUIRES_NEW"})
+     * @param nativePolicy the raw, un-normalized propagation value as declared or defaulted
+     * @param readOnly whether the transaction is read-only, or {@code null} when not specified
+     * @param isolation declared isolation level, or {@code null} when not specified
+     * @param rollbackRules configured rollback-for/no-rollback-for rules
+     * @param declarationLevel declaration level the policy was resolved at (e.g. method or class)
+     * @param defaulted whether the policy is an implicit framework default rather than an explicit
+     *     declaration
+     * @param programmatic whether the policy represents programmatic (as opposed to declarative)
+     *     transaction management
+     * @param limitations known limitations or caveats of this policy's inference
+     * @param entrypointReachable whether this transaction boundary is reachable from an entrypoint
+     * @param source evidence describing where this policy was inferred from
+     */
     public record TransactionBoundaryNode(
             GraphNodeId id,
             String name,
@@ -2827,13 +2976,19 @@ public class GraphQuery {
             boolean entrypointReachable,
             SourceInfo source)
             implements GraphNode {
-        /** Vertex label: {@code "TransactionBoundary"}. */
+        /** Vertex label: {@code "TransactionBoundary"}.
+         *
+         * @return the vertex label, {@code "TransactionBoundary"}
+         */
         @Override
         public String label() {
             return "TransactionBoundary";
         }
 
-        /** Exposes the framework/policy classification, isolation, rollback rules, and limitations. */
+        /** Exposes the framework/policy classification, isolation, rollback rules, and limitations.
+         *
+         * @return the framework/policy classification, isolation, rollback rules, and limitations
+         */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> p = GraphNode.propsOf(
@@ -2871,7 +3026,11 @@ public class GraphQuery {
             return p;
         }
 
-        /** Matches by id, method name, framework, policy, or declaration level. */
+        /** Matches by id, method name, framework, policy, or declaration level.
+         *
+         * @param query the free-text search query
+         * @return whether this node matches {@code query}, tested against id, method name, framework, policy, or declaration level
+         */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -2892,20 +3051,30 @@ public class GraphQuery {
      */
     public record RuntimeFlowNode(GraphNodeId id, String name, EntrypointId entrypointId, int stepCount)
             implements GraphNode {
-        /** Vertex label: {@code "RuntimeFlow"}. */
+        /** Vertex label: {@code "RuntimeFlow"}.
+         *
+         * @return the vertex label, {@code "RuntimeFlow"}
+         */
         @Override
         public String label() {
             return "RuntimeFlow";
         }
 
-        /** Exposes the originating entrypoint id and the number of steps in the flow. */
+        /** Exposes the originating entrypoint id and the number of steps in the flow.
+         *
+         * @return the originating entrypoint id and the number of steps in the flow
+         */
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
                     "entrypointId", entrypointId != null ? entrypointId.serialize() : null, "stepCount", stepCount);
         }
 
-        /** Matches by id, name, or originating entrypoint id. */
+        /** Matches by id, name, or originating entrypoint id.
+         *
+         * @param query the free-text search query
+         * @return whether this node matches {@code query}, tested against id, name, or originating entrypoint id
+         */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -2946,7 +3115,17 @@ public class GraphQuery {
             double transactionConfidence,
             String transactionLimitations)
             implements GraphNode {
-        /** Backward-compatible constructor for steps without transaction metadata. */
+        /**
+         * Backward-compatible constructor for steps without transaction metadata.
+         *
+         * @param id node identifier
+         * @param name node display name
+         * @param flowId id of the owning runtime flow
+         * @param order this step's position within the flow
+         * @param componentId component the step executes in
+         * @param componentType kind of the component the step executes in
+         * @param via how this step was reached (call/injection/etc.)
+         */
         public RuntimeFlowStepNode(
                 GraphNodeId id,
                 String name,
@@ -2958,13 +3137,19 @@ public class GraphQuery {
             this(id, name, flowId, order, componentId, componentType, via, null, null, null, null, 0.0, null);
         }
 
-        /** Vertex label: {@code "RuntimeFlowStep"}. */
+        /** Vertex label: {@code "RuntimeFlowStep"}.
+         *
+         * @return the vertex label, {@code "RuntimeFlowStep"}
+         */
         @Override
         public String label() {
             return "RuntimeFlowStep";
         }
 
-        /** Exposes step order, component/via/method, and the inferred transaction transition. */
+        /** Exposes step order, component/via/method, and the inferred transaction transition.
+         *
+         * @return step order, component/via/method, and the inferred transaction transition
+         */
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
@@ -2992,7 +3177,11 @@ public class GraphQuery {
                     transactionLimitations);
         }
 
-        /** Matches by id, name, or component type. */
+        /** Matches by id, name, or component type.
+         *
+         * @param query the free-text search query
+         * @return whether this node matches {@code query}, tested against id, name, or component type
+         */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize()) || GraphNode.q(query, name) || GraphNode.q(query, componentType);
@@ -3013,13 +3202,19 @@ public class GraphQuery {
     public record DataFlowPathNode(
             GraphNodeId id, String name, EntrypointId entrypointId, String trackedParam, int stepCount, int sinkCount)
             implements GraphNode {
-        /** Vertex label: {@code "DataFlowPath"}. */
+        /** Vertex label: {@code "DataFlowPath"}.
+         *
+         * @return the vertex label, {@code "DataFlowPath"}
+         */
         @Override
         public String label() {
             return "DataFlowPath";
         }
 
-        /** Exposes the originating entrypoint id, tracked parameter, step count, and sink count. */
+        /** Exposes the originating entrypoint id, tracked parameter, step count, and sink count.
+         *
+         * @return the originating entrypoint id, tracked parameter, step count, and sink count
+         */
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
@@ -3033,7 +3228,11 @@ public class GraphQuery {
                     sinkCount);
         }
 
-        /** Matches by id or tracked parameter name. */
+        /** Matches by id or tracked parameter name.
+         *
+         * @param query the free-text search query
+         * @return whether this node matches {@code query}, tested against id or tracked parameter name
+         */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize()) || GraphNode.q(query, trackedParam);
@@ -3085,13 +3284,19 @@ public class GraphQuery {
             String calleeQualifiedName,
             SourceInfo source)
             implements GraphNode {
-        /** Vertex label: {@code "DataFlowSink"}. */
+        /** Vertex label: {@code "DataFlowSink"}.
+         *
+         * @return the vertex label, {@code "DataFlowSink"}
+         */
         @Override
         public String label() {
             return "DataFlowSink";
         }
 
-        /** Exposes the sink kind and every terminal-write field relevant to it (persistence, messaging, etc). */
+        /** Exposes the sink kind and every terminal-write field relevant to it (persistence, messaging, etc).
+         *
+         * @return the sink kind and every terminal-write field relevant to it (persistence, messaging, etc)
+         */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> properties = GraphNode.propsOf(
@@ -3131,7 +3336,11 @@ public class GraphQuery {
             return properties;
         }
 
-        /** Matches by id, name, sink kind, method, channel, or persistence unit. */
+        /** Matches by id, name, sink kind, method, channel, or persistence unit.
+         *
+         * @param query the free-text search query
+         * @return whether this node matches {@code query}, tested against id, name, sink kind, method, channel, or persistence unit
+         */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -3171,13 +3380,19 @@ public class GraphQuery {
             String localName,
             SourceInfo source)
             implements GraphNode {
-        /** Vertex label: {@code "DataFlowNode"}. */
+        /** Vertex label: {@code "DataFlowNode"}.
+         *
+         * @return the vertex label, {@code "DataFlowNode"}
+         */
         @Override
         public String label() {
             return "DataFlowNode";
         }
 
-        /** Exposes the node's position/kind within its path graph, owning component, and evidence. */
+        /** Exposes the node's position/kind within its path graph, owning component, and evidence.
+         *
+         * @return the node's position/kind within its path graph, owning component, and evidence
+         */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -3193,7 +3408,11 @@ public class GraphQuery {
             return m;
         }
 
-        /** Matches by id, name, path id, flow-node id, node kind, component name, method, or local name. */
+        /** Matches by id, name, path id, flow-node id, node kind, component name, method, or local name.
+         *
+         * @param query the free-text search query
+         * @return whether this node matches {@code query}, tested against id, name, path id, flow-node id, node kind, component name, method, or local name
+         */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -3220,13 +3439,19 @@ public class GraphQuery {
     public record DataFlowBranchNode(
             GraphNodeId id, String name, String pathId, String branchId, String branchKind, SourceInfo source)
             implements GraphNode {
-        /** Vertex label: {@code "DataFlowBranch"}. */
+        /** Vertex label: {@code "DataFlowBranch"}.
+         *
+         * @return the vertex label, {@code "DataFlowBranch"}
+         */
         @Override
         public String label() {
             return "DataFlowBranch";
         }
 
-        /** Exposes the owning path id, branch id, branch kind, and evidence. */
+        /** Exposes the owning path id, branch id, branch kind, and evidence.
+         *
+         * @return the owning path id, branch id, branch kind, and evidence
+         */
         @Override
         public Map<String, Object> properties() {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -3238,7 +3463,11 @@ public class GraphQuery {
             return m;
         }
 
-        /** Matches by id, name, path id, branch id, or branch kind. */
+        /** Matches by id, name, path id, branch id, or branch kind.
+         *
+         * @param query the free-text search query
+         * @return whether this node matches {@code query}, tested against id, name, path id, branch id, or branch kind
+         */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -3269,13 +3498,19 @@ public class GraphQuery {
             String armLabel,
             String entryNodeId)
             implements GraphNode {
-        /** Vertex label: {@code "DataFlowBranchArm"}. */
+        /** Vertex label: {@code "DataFlowBranchArm"}.
+         *
+         * @return the vertex label, {@code "DataFlowBranchArm"}
+         */
         @Override
         public String label() {
             return "DataFlowBranchArm";
         }
 
-        /** Exposes the owning path/branch ids, arm id, arm label, and its entry node id. */
+        /** Exposes the owning path/branch ids, arm id, arm label, and its entry node id.
+         *
+         * @return the owning path/branch ids, arm id, arm label, and its entry node id
+         */
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
@@ -3291,7 +3526,11 @@ public class GraphQuery {
                     entryNodeId);
         }
 
-        /** Matches by id, name, path/branch/arm ids, arm label, or entry node id. */
+        /** Matches by id, name, path/branch/arm ids, arm label, or entry node id.
+         *
+         * @param query the free-text search query
+         * @return whether this node matches {@code query}, tested against id, name, path/branch/arm ids, arm label, or entry node id
+         */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -3326,13 +3565,19 @@ public class GraphQuery {
             String method,
             String localName)
             implements GraphNode {
-        /** Vertex label: {@code "DataFlowStep"}. */
+        /** Vertex label: {@code "DataFlowStep"}.
+         *
+         * @return the vertex label, {@code "DataFlowStep"}
+         */
         @Override
         public String label() {
             return "DataFlowStep";
         }
 
-        /** Exposes the owning path id, step index, executing component, method, and local name. */
+        /** Exposes the owning path id, step index, executing component, method, and local name.
+         *
+         * @return the owning path id, step index, executing component, method, and local name
+         */
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
@@ -3350,7 +3595,11 @@ public class GraphQuery {
                     localName);
         }
 
-        /** Matches by id, name, path id, component name, or method. */
+        /** Matches by id, name, path id, component name, or method.
+         *
+         * @param query the free-text search query
+         * @return whether this node matches {@code query}, tested against id, name, path id, component name, or method
+         */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())
@@ -3373,13 +3622,19 @@ public class GraphQuery {
     public record PipelineChainNode(
             GraphNodeId id, String name, int segmentCount, String rootEntrypointId, List<String> linkKinds)
             implements GraphNode {
-        /** Vertex label: {@code "PipelineChain"}. */
+        /** Vertex label: {@code "PipelineChain"}.
+         *
+         * @return the vertex label, {@code "PipelineChain"}
+         */
         @Override
         public String label() {
             return "PipelineChain";
         }
 
-        /** Exposes segment count, the root entrypoint id, and the kinds of links joining segments. */
+        /** Exposes segment count, the root entrypoint id, and the kinds of links joining segments.
+         *
+         * @return segment count, the root entrypoint id, and the kinds of links joining segments
+         */
         @Override
         public Map<String, Object> properties() {
             return GraphNode.propsOf(
@@ -3391,7 +3646,11 @@ public class GraphQuery {
                     linkKinds.isEmpty() ? null : String.join(",", linkKinds));
         }
 
-        /** Matches by id or root entrypoint id. */
+        /** Matches by id or root entrypoint id.
+         *
+         * @param query the free-text search query
+         * @return whether this node matches {@code query}, tested against id or root entrypoint id
+         */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize()) || GraphNode.q(query, rootEntrypointId);
@@ -3408,13 +3667,20 @@ public class GraphQuery {
      */
     public record UnknownNode(GraphNodeId id, String label, String name, Map<String, Object> rawProperties)
             implements GraphNode {
-        /** Returns {@code rawProperties} unchanged — there's no typed schema to project. */
+        /** Returns {@code rawProperties} unchanged — there's no typed schema to project.
+         *
+         * @return the node's type-specific attributes as a flat map
+         */
         @Override
         public Map<String, Object> properties() {
             return rawProperties;
         }
 
-        /** Matches by id, raw label, name, or any raw property value. */
+        /** Matches by id, raw label, name, or any raw property value.
+         *
+         * @param query the free-text search query
+         * @return whether this node matches {@code query}, tested against id, raw label, name, or any raw property value
+         */
         @Override
         public boolean matches(String query) {
             return GraphNode.q(query, id.serialize())

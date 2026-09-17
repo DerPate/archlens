@@ -63,6 +63,11 @@ public class DataFlowSink {
             return UNKNOWN;
         }
 
+        /**
+         * Same as {@link #value()}.
+         *
+         * @return lower-case wire value
+         */
         @Override
         public String toString() {
             return wireValue;

@@ -40,6 +40,11 @@ public sealed interface FieldBinding permits FieldBinding.Own, FieldBinding.Cros
      * @param ref reference to the owning component and field name
      */
     record CrossComponent(FieldRef ref) implements FieldBinding {
+        /**
+         * Delegates to the owning field reference's name.
+         *
+         * @return the field name
+         */
         @Override
         public String fieldName() {
             return ref.fieldName();

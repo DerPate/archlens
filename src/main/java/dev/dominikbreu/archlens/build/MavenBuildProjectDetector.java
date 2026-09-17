@@ -23,6 +23,13 @@ public class MavenBuildProjectDetector implements BuildProjectDetector {
 
     private static final String POM_XML = "pom.xml";
 
+    /**
+     * Detects a Maven project by the presence of a {@code pom.xml}, recursively resolving declared
+     * {@code <modules>} into leaf modules with their packaging and plugin lists.
+     *
+     * @param root the project root directory
+     * @return the detected Maven project, or empty if no readable {@code pom.xml} is present
+     */
     @Override
     public Optional<BuildProject> detect(File root) {
         Model model = readModel(root).orElse(null);

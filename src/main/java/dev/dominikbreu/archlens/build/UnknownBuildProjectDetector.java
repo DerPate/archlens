@@ -11,6 +11,13 @@ import java.util.Optional;
  */
 public class UnknownBuildProjectDetector implements BuildProjectDetector {
 
+    /**
+     * Treats {@code root} as a single plain-Java module, always succeeding as long as the directory
+     * exists (this detector never inspects it for a recognized build system).
+     *
+     * @param root the project root directory
+     * @return the fallback project, or empty if {@code root} is {@code null} or does not exist
+     */
     @Override
     public Optional<BuildProject> detect(File root) {
         if (root == null || !root.exists()) return Optional.empty();
