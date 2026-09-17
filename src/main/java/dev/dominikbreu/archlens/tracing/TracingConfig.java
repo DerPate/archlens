@@ -26,6 +26,10 @@ public class TracingConfig {
      * Reads {@code -Darchlens.traces=none|console|otlp} and builds an OpenTelemetry instance.
      * The caller is responsible for registering it via {@code GlobalOpenTelemetry.set()}.
      * Falls back to noop if configuration fails.
+     *
+     * @param serviceName the {@code service.name} resource attribute to attach to exported spans
+     * @return the configured OpenTelemetry instance, or a noop instance if tracing is disabled or
+     *     configuration fails
      */
     public static OpenTelemetry configure(String serviceName) {
         String mode = System.getProperty("archlens.traces", "none");
