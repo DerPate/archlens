@@ -169,12 +169,13 @@ public final class WorkflowLinker {
     }
 
     private static WorkflowLink.Kind kindFor(DataFlowSink sink) {
-        if (sink.kind == DataFlowSink.Kind.MESSAGING) return WorkflowLink.Kind.MESSAGING;
-        if (sink.kind == DataFlowSink.Kind.EVENT_BUS) return WorkflowLink.Kind.EVENT_BUS;
-        if (sink.kind == DataFlowSink.Kind.STORE) return WorkflowLink.Kind.STATE_HANDOFF;
-        if (sink.kind == DataFlowSink.Kind.PERSISTENCE && sink.linkEvidence != null)
-            return WorkflowLink.Kind.PERSISTENCE_HANDOFF;
-        return null;
+        return switch (sink.kind) {
+            case MESSAGING -> WorkflowLink.Kind.MESSAGING;
+            case EVENT_BUS -> WorkflowLink.Kind.EVENT_BUS;
+            case STORE -> WorkflowLink.Kind.STATE_HANDOFF;
+            case PERSISTENCE -> sink.linkEvidence == null ? null : WorkflowLink.Kind.PERSISTENCE_HANDOFF;
+            default -> null;
+        };
     }
 
     /**
