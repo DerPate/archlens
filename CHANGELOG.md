@@ -2,6 +2,65 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.2.0](https://github.com/DerPate/archlens/compare/archlens-2.1.0...archlens-2.2.0) (2026-09-17)
+
+
+### Features
+
+* check changed public API javadoc ([7a11dad](https://github.com/DerPate/archlens/commit/7a11dadfee7e3199f3834332b601ee94a5b91c6e))
+* **site:** self-host fonts, add workflow-pack section, fix nav hash links ([057aa28](https://github.com/DerPate/archlens/commit/057aa2898b4054f973f69a3360271743678164cc))
+
+
+### Bug Fixes
+
+* address final review findings in public javadoc checker ([d761f2c](https://github.com/DerPate/archlens/commit/d761f2cb6e27d361507364cc34dd9ea05fef9f86))
+* refresh npm lockfiles to resolve dependabot alerts ([b93ba42](https://github.com/DerPate/archlens/commit/b93ba42fcac606121c31ede6d63ebce9c659db68))
+
+
+### Documentation
+
+* add javadoc to ArchitectureExtractor ([025a687](https://github.com/DerPate/archlens/commit/025a68737fb56a0921eecac2d88e14bbc5327ab8))
+* add javadoc to ArchitectureRelevanceScorer ([8245703](https://github.com/DerPate/archlens/commit/824570309b679c354f1aa88fa6aa9017c615670f))
+* add javadoc to build detectors, tracing, and DataFlowSink ([d9b83c5](https://github.com/DerPate/archlens/commit/d9b83c5ca55bc0d5795a995d0b7a36845c36558e))
+* add javadoc to DataFlowTracer ([d1071f7](https://github.com/DerPate/archlens/commit/d1071f719fa1fdb6901dda7b7656d5c17f9a0726))
+* add javadoc to ExportGraphArchitecturePocTool ([ff82270](https://github.com/DerPate/archlens/commit/ff82270ad56bf909d479420daf29ca08363651f3))
+* add javadoc to GraphDataProjection ([06bd83b](https://github.com/DerPate/archlens/commit/06bd83bf2e61e6932f38e58befac0368b163c693))
+* add javadoc to GraphQuery public API ([91486f4](https://github.com/DerPate/archlens/commit/91486f4132e58cac5eec438dc03a3a9fefac6b74))
+* add javadoc to JavaEEExtractor ([bf1242b](https://github.com/DerPate/archlens/commit/bf1242b46a0cf74981e7fb33656c0c4b8c30d4b3))
+* add javadoc to LikeC4WorkspaceProjector ([e02b5d6](https://github.com/DerPate/archlens/commit/e02b5d620b00b27146145ff25aa82eaed98f130d))
+* add javadoc to McpServer ([545e104](https://github.com/DerPate/archlens/commit/545e104c08b43d04aa4363054893548741a571d5))
+* add javadoc to MermaidDocument ([b086a3b](https://github.com/DerPate/archlens/commit/b086a3b68627a282d27fc62cf5d4e0323cc43291))
+* add javadoc to MermaidFlowchartRenderer ([69f9c5f](https://github.com/DerPate/archlens/commit/69f9c5f1f261cc4e29ed5fcf0714ff5874622af2))
+* add javadoc to MermaidPipelineRenderer ([30ba4c6](https://github.com/DerPate/archlens/commit/30ba4c61f100a4a6ae5a6b49f6018094536ccb42))
+* add javadoc to MessagingCallSiteResolver ([059ddf6](https://github.com/DerPate/archlens/commit/059ddf66ebb947768e6462043bade05ba0d7fdaa))
+* add javadoc to ObjectFlowIndexBuilder ([1fa47a9](https://github.com/DerPate/archlens/commit/1fa47a96c94c3174444b3e84b6b8e9ab1d4a9af0))
+* add javadoc to OkfBundleWriter ([b12ec3d](https://github.com/DerPate/archlens/commit/b12ec3de3d356dc1d21afd6f4c04e8052f649633))
+* add javadoc to QuarkusExtractor ([3813f14](https://github.com/DerPate/archlens/commit/3813f148328844dade1483132247a2c6e09af736))
+* add javadoc to QuestionOkfRenderer ([7354f6f](https://github.com/DerPate/archlens/commit/7354f6f705cafe0f80ee98af638ccf11f84391e4))
+* add javadoc to remaining public API gaps ([23b10c1](https://github.com/DerPate/archlens/commit/23b10c1ef2e4998bb807cfdc60f1dab9113e18f2))
+* add javadoc to SourceFactIndexBuilder ([0290001](https://github.com/DerPate/archlens/commit/0290001af6707c0ddb5773c6323c1deb33f6181c))
+* add javadoc to ToolArgs ([034d3fd](https://github.com/DerPate/archlens/commit/034d3fdc9030b799e3605e1f13297322e97b2dc3))
+* add javadoc to TraceDataFlowTool ([b96f1c7](https://github.com/DerPate/archlens/commit/b96f1c76168a4d446481cc092592424f90fb202a))
+* add javadoc to TransactionPolicyExtractor ([ebc172c](https://github.com/DerPate/archlens/commit/ebc172cb011d7ad6f0c2a65ce40954a8c852bfc9))
+* add javadoc to TransactionXmlPolicyResolver ([902778f](https://github.com/DerPate/archlens/commit/902778f5f52e10e0bcd95bf847c66d9bc6509a24))
+* add javadoc to undocumented members in largest cache/extractor classes ([3573d8b](https://github.com/DerPate/archlens/commit/3573d8b38392525579ecebee74882020eeff4ef2))
+* add javadoc to WorkflowTraversalPolicy and ToolArgs ([e787eb7](https://github.com/DerPate/archlens/commit/e787eb74f4dddaf9c1ac69f35c773a7478b3cb59))
+* add OKF architecture-knowledge bundle for ArchLens itself ([0e0a328](https://github.com/DerPate/archlens/commit/0e0a32845191539a87f15c667e01b3637fee6944))
+* add OKF architecture-knowledge bundle for ArchLens itself ([2a4b1d2](https://github.com/DerPate/archlens/commit/2a4b1d2d449f762ecb6babd95a64cb322cf1da8e))
+* block-comment trivial constant groups, document SpringExtractor gaps missed in batch 1 ([9a733ba](https://github.com/DerPate/archlens/commit/9a733ba6c8357106805049f441f1d05ce84099bd))
+* design Tamboui dashboard migration ([e4a1e84](https://github.com/DerPate/archlens/commit/e4a1e843e8979650800eac4b887f45e46712b314))
+* fix boundaryRole javadoc accuracy ([28b40b0](https://github.com/DerPate/archlens/commit/28b40b047a70957a2f182c3b580b7c18e4a291c1))
+* fix CONFIGURATION/LOGGING/MAPPER javadoc accuracy ([86994d2](https://github.com/DerPate/archlens/commit/86994d277f0b01f72e8e1f914e0a6e78423ccad8))
+* fix entrypointLabel javadoc accuracy ([4ab9d85](https://github.com/DerPate/archlens/commit/4ab9d85017ff2bb6e02ccdca95b87554afe8fb62))
+* fix pipelineProjection javadoc accuracy ([86c790e](https://github.com/DerPate/archlens/commit/86c790ead450bb533fa85103c6fee8dae8e79cdd))
+* fix receiverFieldName javadoc accuracy ([c2db4d9](https://github.com/DerPate/archlens/commit/c2db4d900b6b8e1f4cfd4140821fc05e91f44d7d))
+* fix remaining constant javadoc gaps found in final review ([8ed0e60](https://github.com/DerPate/archlens/commit/8ed0e60d51eb76b54dabf11b23e27933d8681fec))
+* make dashboard javadocs explicit in plan ([454cf2b](https://github.com/DerPate/archlens/commit/454cf2b24a63114359657d22928e46e8a5c07c57))
+* pin released Tamboui version ([3bcc9da](https://github.com/DerPate/archlens/commit/3bcc9da9b1e97cd7f0ea1ee8a4045b2726fde532))
+* plan Tamboui dashboard migration ([20668c5](https://github.com/DerPate/archlens/commit/20668c5d80ee5dfe1da5edc34b0339526b3be4b9))
+* require public javadoc regression check ([8d9a0ca](https://github.com/DerPate/archlens/commit/8d9a0ca5ac1c2a5a1a0bea25620ac1df1574c847))
+* sweep multi-line-signature methods missed in the first documentation pass ([e31aad0](https://github.com/DerPate/archlens/commit/e31aad04a76b5579105ccee14daddcee57f1ef1b))
+
 ## [2.1.0](https://github.com/DerPate/archlens/compare/archlens-2.0.0...archlens-2.1.0) (2026-09-15)
 
 
