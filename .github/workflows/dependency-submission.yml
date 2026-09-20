@@ -1,0 +1,100 @@
+name: Dependency Submission
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  java-sbom:
+    name: java-sbom
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Java 25
+        uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+        with:
+          java-version: '25'
+          distribution: temurin
+
+      - name: Install syft
+        uses: anchore/sbom-action/download-syft@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        id: syft
+        with:
+          syft-version: v1.52.0
+
+      # cyclonedx-maven-plugin resolves the full reactor dependency graph via
+      # Maven itself, which is more accurate for Java than syft's own
+      # filesystem-based jar discovery (verified: syft misses transitive
+      # deps not physically present as jars, and misattributes reactor
+      # modules as external dependencies).
+      - name: Generate CycloneDX SBOM
+        run: mvn -B -q cyclonedx:makeAggregateBom
+
+      - name: Convert to GitHub dependency snapshot format
+        run: ${{ steps.syft.outputs.cmd }} convert target/bom.json -o github-json=snapshot.json
+
+      - name: Submit dependency snapshot
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          jq --arg sha "$GITHUB_SHA" \
+             --arg ref "$GITHUB_REF" \
+             --arg correlator "java-maven" \
+             --arg id "$GITHUB_RUN_ID" \
+             '.sha = $sha | .ref = $ref | .job.correlator = $correlator | .job.id = $id
+              | .manifests = {"pom.xml": (.manifests[""] + {name: "pom.xml", file: {source_location: "pom.xml"}})}' \
+             snapshot.json > snapshot-final.json
+          curl -sSf -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/dependency-graph/snapshots" \
+            -d @snapshot-final.json
+
+  npm-sbom:
+    name: npm-sbom
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install syft
+        uses: anchore/sbom-action/download-syft@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        id: syft
+        with:
+          syft-version: v1.52.0
+
+      # Scoped to site/ only: viewer/ has its own package-lock.json and
+      # would otherwise be mixed in. -github-actions cataloger is dropped
+      # because it picks up .github/workflows/*.yml vendored inside
+      # node_modules/* and reports them as fake components.
+      - name: Generate GitHub dependency snapshot
+        env:
+          SYFT_JAVASCRIPT_INCLUDE_DEV_DEPENDENCIES: 'true'
+        run: >-
+          ${{ steps.syft.outputs.cmd }} scan dir:site
+          --select-catalogers "-github-actions"
+          -o github-json=snapshot.json
+          --source-name archlens-site --source-version 0.1.0
+
+      - name: Submit dependency snapshot
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          jq --arg sha "$GITHUB_SHA" \
+             --arg ref "$GITHUB_REF" \
+             --arg correlator "site-npm" \
+             --arg id "$GITHUB_RUN_ID" \
+             '.sha = $sha | .ref = $ref | .job.correlator = $correlator | .job.id = $id' \
+             snapshot.json > snapshot-final.json
+          curl -sSf -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/dependency-graph/snapshots" \
+            -d @snapshot-final.json
