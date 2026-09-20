@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.3.0](https://github.com/DerPate/archlens/compare/archlens-2.2.0...archlens-2.3.0) (2026-09-20)
+
+
+### Features
+
+* add cyclonedx-maven-plugin and GitHub dependency graph submission ([782356e](https://github.com/DerPate/archlens/commit/782356ef9da566649ac4cbaf21a8270eca59e0a3))
+* add cyclonedx-maven-plugin and GitHub dependency graph submission ([5057d46](https://github.com/DerPate/archlens/commit/5057d4676d4f5179539cb5dd60754476cfe7e179))
+
+
+### Bug Fixes
+
+* **ci:** set explicit build-mode for CodeQL Java analysis ([1a0298d](https://github.com/DerPate/archlens/commit/1a0298de3d9c1a276c47823faf79103711c78dad))
+* **ci:** set explicit build-mode for CodeQL Java analysis ([231d004](https://github.com/DerPate/archlens/commit/231d00476531b564fe4acc0d48a68d85939caafc))
+* **ci:** stop OWASP scan from re-downloading the NVD DB on every push ([cbe503d](https://github.com/DerPate/archlens/commit/cbe503d855300e25bb5451318456eacfd795e532))
+* **ci:** stop OWASP scan from re-downloading the NVD DB on every push ([3aacc07](https://github.com/DerPate/archlens/commit/3aacc07c41e9d1fed5294a0886b1d12cb2e05899))
+* **deps:** bump devalue to patch DoS vulnerability ([845ba02](https://github.com/DerPate/archlens/commit/845ba0239459f67b5b1750922c18e2a29cc0ee26))
+* **deps:** bump devalue to patch DoS vulnerability ([89d25f9](https://github.com/DerPate/archlens/commit/89d25f9f4f047ac900cdddca854f48b6599b3555))
+* **test:** shut down OTel SDK in otlpModeProducesValidSpans ([beb52c1](https://github.com/DerPate/archlens/commit/beb52c1e627b45c49ff3581685fccdce6bd6eb65))
+
 ## [2.2.0](https://github.com/DerPate/archlens/compare/archlens-2.1.0...archlens-2.2.0) (2026-09-17)
 
 
