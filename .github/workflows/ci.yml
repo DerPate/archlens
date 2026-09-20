@@ -14,10 +14,10 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Java 25
-        uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           java-version: '25'
           distribution: temurin
@@ -33,7 +33,7 @@ jobs:
       - name: Restore OWASP dependency-check data
         if: github.event_name == 'push'
         id: owasp-cache
-        uses: actions/cache/restore@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/dependency-check
           key: ${{ runner.os }}-dependency-check-${{ steps.cache-week.outputs.value }}
@@ -57,7 +57,7 @@ jobs:
           github.ref == 'refs/heads/main' &&
           steps.owasp-cache.outputs.cache-hit != 'true' &&
           steps.dependency-check.outcome == 'success'
-        uses: actions/cache/save@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/dependency-check
           key: ${{ runner.os }}-dependency-check-${{ steps.cache-week.outputs.value }}
