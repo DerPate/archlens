@@ -67,10 +67,19 @@ class TracingConfigTest {
         System.setProperty("archlens.otlp.endpoint", "http://localhost:4317");
 
         OpenTelemetry otel = TracingConfig.configure("test-service");
-
-        Span span = otel.getTracer("test").spanBuilder("my-span").startSpan();
-        assertThat(span.getSpanContext().isValid()).isTrue();
-        span.end();
+        try {
+            Span span = otel.getTracer("test").spanBuilder("my-span").startSpan();
+            assertThat(span.getSpanContext().isValid()).isTrue();
+            span.end();
+        } finally {
+            // Otherwise the BatchSpanProcessor's OkHttp dispatcher thread keeps
+            // retrying against localhost:4317 (nothing listens there in tests)
+            // and is still alive at JVM shutdown, racing class unloading and
+            // surfacing as a spurious NoClassDefFoundError in the runner logs.
+            if (otel instanceof OpenTelemetrySdk sdk) {
+                sdk.getSdkTracerProvider().shutdown();
+            }
+        }
     }
 
     @Test
