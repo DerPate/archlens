@@ -44,4 +44,20 @@
         <cve>CVE-2025-48734</cve>
     </suppress>
 
+    <!--
+        CVE-2026-53914 / GHSA-r937-wjx7-w2jp: "Unsafe Deserialization in Kotlin Build Cache".
+        The advisory's own vulnerable package is org.jetbrains.kotlin:kotlin-gradle-plugin
+        (a Gradle build-time plugin), not kotlin-stdlib — dependency-check's CPE matching
+        conflates the two because JetBrains ships all Kotlin artifacts under one version
+        train. This project builds with Maven and never invokes Gradle's build cache;
+        kotlin-stdlib is a transitive runtime dep of okhttp (via opentelemetry-exporter-otlp)
+        with no relation to the vulnerable code path. GitHub's reviewed severity for the
+        actual advisory is medium (CVSS 6.7), not the 9.8 NVD reports here.
+    -->
+    <suppress>
+        <notes>False positive: advisory applies to kotlin-gradle-plugin's build-cache deserialization, not kotlin-stdlib. Not used with Gradle. CVSS 6.7 per GitHub-reviewed advisory GHSA-r937-wjx7-w2jp.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.jetbrains\.kotlin/kotlin\-stdlib@.*$</packageUrl>
+        <cve>CVE-2026-53914</cve>
+    </suppress>
+
 </suppressions>
