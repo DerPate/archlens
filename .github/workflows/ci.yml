@@ -52,11 +52,17 @@ jobs:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         continue-on-error: true
 
+      # steps.dependency-check.outcome is 'failure' whenever a CVSS>=7 finding
+      # trips failBuildOnCVSS, even though the NVD data itself updated fine.
+      # Save on both success and failure so a legitimate vulnerability finding
+      # doesn't also discard the just-downloaded database and force every
+      # subsequent run back into a multi-hour full resync. Only skip the save
+      # on 'cancelled' (timeout, partial/corrupt data) or 'skipped'.
       - name: Save OWASP dependency-check data
         if: >-
           github.ref == 'refs/heads/main' &&
           steps.owasp-cache.outputs.cache-hit != 'true' &&
-          steps.dependency-check.outcome == 'success'
+          (steps.dependency-check.outcome == 'success' || steps.dependency-check.outcome == 'failure')
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/dependency-check
