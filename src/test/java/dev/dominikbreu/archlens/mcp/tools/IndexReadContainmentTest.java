@@ -136,6 +136,14 @@ class IndexReadContainmentTest {
                     write(target, "deploy/hosts", "[" + MARKER + "]\nexample\n");
                     link(project.resolve("deploy"), target.resolve("deploy"));
                 }),
+                layout("ansible inventory directory", (project, target) -> {
+                    write(target, "inv/hosts", "[" + MARKER + "]\nexample\n");
+                    link(project.resolve("ansible/inventory"), target.resolve("inv"));
+                }),
+                layout("ansible file inside an inventory directory", (project, target) -> {
+                    Files.createDirectories(project.resolve("inventory"));
+                    link(project.resolve("inventory/prod.ini"), write(target, "f", "[" + MARKER + "]\nexample\n"));
+                }),
                 layout(
                         "ansible playbook",
                         (project, target) -> link(
