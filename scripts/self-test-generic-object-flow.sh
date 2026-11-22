@@ -6,12 +6,13 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 mvn package -q
 
-python3 - <<'PY'
+python3 - "$ROOT" <<'PY'
 import json
 import os
 import subprocess
+import sys
 
-root = "/home/dominik/archlens"
+root = sys.argv[1]
 projects = [f"{root}/src/test/resources/testprojects/generic-object-flow"]
 worksample = "/home/dominik/Worksample_Stein_Schere_Papier/worksample"
 if os.path.isdir(worksample):
@@ -22,7 +23,7 @@ def run_project(project):
         ["java", "-jar", f"{root}/target/archlens.jar"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stderr=sys.stderr,
         text=True,
         bufsize=1,
     )
@@ -38,7 +39,7 @@ def run_project(project):
         proc.stdin.flush()
         line = proc.stdout.readline()
         if not line:
-            raise RuntimeError(proc.stderr.read())
+            raise RuntimeError("MCP server closed stdout")
         res = json.loads(line)
         if "error" in res:
             raise RuntimeError(res["error"])
@@ -46,6 +47,8 @@ def run_project(project):
 
     def tool(name, arguments):
         result = call("tools/call", {"name": name, "arguments": arguments})
+        if result.get("isError"):
+            raise RuntimeError(result["content"][0]["text"])
         return result["content"][0]["text"]
 
     try:
@@ -57,14 +60,13 @@ def run_project(project):
         proc.stdin.write(json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}}) + "\n")
         proc.stdin.flush()
         tool("index_workspace", {"paths": [project]})
-        runtime = tool("get_runtime_flow", {"entrypointName": "main", "maxDepth": 12})
-        call_flow = tool("render_call_flow", {"entrypointName": "main", "maxDepth": 12})
+        flow = tool("call_flow", {"entrypointName": "main"})
         graph = tool("query_architecture_graph", {
             "action": "find_edges",
             "label": "CALLS",
             "limit": 100
         })
-        return runtime + "\n" + call_flow + "\n" + graph
+        return flow + "\n" + graph
     finally:
         proc.terminate()
 

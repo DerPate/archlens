@@ -13,10 +13,15 @@ import dev.dominikbreu.archlens.model.RuntimeFlowStep;
 import dev.dominikbreu.archlens.model.ids.ComponentId;
 import dev.dominikbreu.archlens.model.ids.EntrypointId;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class RenderUseCaseTimelineToolTest {
+
+    @TempDir
+    Path tempDir;
 
     @Test
     void unfilteredRenderPicksDeepestUseCasesAndReportsTruncation() throws Exception {
@@ -93,8 +98,8 @@ class RenderUseCaseTimelineToolTest {
             }
             model.runtimeFlows.add(flow);
         }
-        ModelCache cache = new ModelCache(
-                Files.createTempDirectory("archlens-timeline-test-").toString());
+        ModelCache cache =
+                new ModelCache(Files.createTempDirectory(tempDir, "cache-").toString());
         cache.store(model);
         return cache;
     }
