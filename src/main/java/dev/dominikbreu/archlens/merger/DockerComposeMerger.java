@@ -1,5 +1,6 @@
 package dev.dominikbreu.archlens.merger;
 
+import dev.dominikbreu.archlens.io.ReadBoundary;
 import dev.dominikbreu.archlens.model.ArchitectureModel;
 import dev.dominikbreu.archlens.model.DeploymentEntry;
 import java.io.File;
@@ -27,7 +28,7 @@ public class DockerComposeMerger {
      */
     public void merge(File projectDir, ArchitectureModel model) {
         File composeFile = resolveComposeFile(projectDir);
-        if (composeFile == null) return;
+        if (composeFile == null || !ReadBoundary.allows(composeFile)) return;
 
         try (FileInputStream fis = new FileInputStream(composeFile)) {
             Object loaded = yaml.load(fis);

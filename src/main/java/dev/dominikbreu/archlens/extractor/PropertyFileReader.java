@@ -1,5 +1,6 @@
 package dev.dominikbreu.archlens.extractor;
 
+import dev.dominikbreu.archlens.io.ReadBoundary;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -39,7 +40,7 @@ final class PropertyFileReader {
         if (!resourcesDir.isDirectory()) return merged;
         for (String name : RESOURCE_FILES) {
             File file = new File(resourcesDir, name);
-            if (!file.isFile()) continue;
+            if (!file.isFile() || !ReadBoundary.allows(file)) continue;
             try {
                 Map<String, String> flat = name.endsWith(".properties") ? readProperties(file) : readYaml(file);
                 for (Map.Entry<String, String> entry : flat.entrySet()) {
