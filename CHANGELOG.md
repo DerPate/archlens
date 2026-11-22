@@ -2,6 +2,46 @@
 
 All notable changes to this project are documented in this file.
 
+## [3.0.0](https://github.com/DerPate/archlens/compare/archlens-2.3.0...archlens-3.0.0) (2026-11-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* **mcp:** ARCHLENS_MCP_EXPERIMENTAL_DRAFT is ignored; collection results always use named-object roots such as {"entrypoints": [...]}. See docs/MIGRATION_3.0.md.
+* **okf:** generated OKF concepts use x-archlens-* keys instead of archlens_*. ArchLens reads both, but 2.x cannot refresh concepts written by 3.x, and external readers of the old keys must be updated.
+* **cache:** .archlens-cache/ in the working directory is no longer read or written; run index_workspace again after upgrading. Set ARCHLENS_CACHE_DIR to an absolute path to choose another location.
+
+### Features
+
+* **mcp:** remove the experimental draft output mode ([0e97d83](https://github.com/DerPate/archlens/commit/0e97d83725a67ac519d3a22806204da3fac78303))
+* **mcp:** select a workspace by explicit id ([4921d57](https://github.com/DerPate/archlens/commit/4921d57690a61e28fae98d2287a70f6ae58297de))
+* **okf:** migrate to OKF v0.3 ([22e2742](https://github.com/DerPate/archlens/commit/22e274291e2373049c8a60d1b62fe9e6ef4da35a))
+* **okf:** write x-archlens frontmatter keys ([0f8664e](https://github.com/DerPate/archlens/commit/0f8664e5ee3be6cae9687f73b72b2f18d83f3aaf))
+
+
+### Bug Fixes
+
+* **cache:** move the cache to the per-user cache directory ([1eddee0](https://github.com/DerPate/archlens/commit/1eddee0a319348d14e94d63a35011db0fa98c08e))
+* **deps:** patch advisories and remove Jackson 2 ([90b9862](https://github.com/DerPate/archlens/commit/90b986269e4669a34dd4675137df4f223b37573d))
+* **deps:** patch advisories and remove Jackson 2 ([d5eceb6](https://github.com/DerPate/archlens/commit/d5eceb6570aa96e153fe65f085de26351b6f117d))
+* **export:** keep generated files inside the project ([3ab598b](https://github.com/DerPate/archlens/commit/3ab598b59e21e992a8d4ddd384ca9e37855c8742))
+* **export:** keep generated files inside the project ([1cd3af2](https://github.com/DerPate/archlens/commit/1cd3af2b71aa3fb8a6c1e6d69177c2114174f40c))
+* **extractor:** bind project calls when a library type is unresolved ([45e98a4](https://github.com/DerPate/archlens/commit/45e98a46a654271df262444222501dc412edaeef))
+* **mcp:** emit tool schemas in deterministic order ([e6bb960](https://github.com/DerPate/archlens/commit/e6bb96055d68b4be227eb2823e7ab0420ef52fdb))
+* **mcp:** emit tool schemas in the same order in every JVM ([b93e779](https://github.com/DerPate/archlens/commit/b93e779a724ce7dee2d88d92b51d61dd2abc10ff))
+* **mcp:** run tool calls in arrival order ([13c38cd](https://github.com/DerPate/archlens/commit/13c38cd6f4437fce881197ff64b528bb25ce8a02))
+* **mcp:** run tool calls in arrival order ([5e5c450](https://github.com/DerPate/archlens/commit/5e5c450bf2e4f4ebcdcbdb2d190f1913a0bc688d))
+* **okf:** preserve human review on refresh ([6fb98ab](https://github.com/DerPate/archlens/commit/6fb98ab8e9fa3ab4acd0aaaa2fb7e4d5a870ee26))
+* **okf:** preserve human review on refresh and repair log and link writing ([1457f27](https://github.com/DerPate/archlens/commit/1457f27af4a0d7177d7710c53b33ff7259d2fa72))
+* **test:** repair broken checks on main ([d9c3fe7](https://github.com/DerPate/archlens/commit/d9c3fe7687bd034f3da36c73db668d2ff10f0210))
+* **test:** repair broken self-tests, smoke tests and test isolation ([9219cb6](https://github.com/DerPate/archlens/commit/9219cb62f2a0a45b37e70b1f6bad8fa3a6f52b2f))
+
+
+### Documentation
+
+* **mcp:** propose dual-era protocol support ([50422e0](https://github.com/DerPate/archlens/commit/50422e005787e3d80febb50724a3a98601011112))
+* **mcp:** propose dual-era protocol support ([f0a2a62](https://github.com/DerPate/archlens/commit/f0a2a621b7c14996906482c71b8a5ca661e22d0f))
+
 ## [2.3.0](https://github.com/DerPate/archlens/compare/archlens-2.2.0...archlens-2.3.0) (2026-09-20)
 
 
