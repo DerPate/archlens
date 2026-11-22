@@ -3,6 +3,6 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.example.war</groupId>
     <artifactId>util-module</artifactId>
-    <version>3.0.0</version>
+    <version>3.0.1</version>
     <packaging>jar</packaging>
 </project>
