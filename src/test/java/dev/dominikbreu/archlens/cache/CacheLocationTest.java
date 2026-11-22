@@ -64,8 +64,9 @@ class CacheLocationTest {
     }
 
     @Test
-    void neverFallsBackToARelativePathWithoutAHome() {
+    void neverFallsBackToARelativePathWithoutAHome() throws Exception {
         Path cache = CacheLocation.resolve(Map.of(), "?", temp);
+        Files.delete(cache.getParent()); // the empty temporary root this fallback creates
 
         assertThat(cache.isAbsolute()).isTrue();
         assertThat(cache.startsWith(Path.of("").toAbsolutePath())).isFalse();
