@@ -163,6 +163,8 @@ Prompts are workflow templates for clients and agents; they do not replace tools
 
 ## Notes For Agents
 
+- `index_workspace` reads only inside the given roots and their Git checkouts. If linked sources
+  or `../` modules are missing from the result, pass their directories as additional paths.
 - `index_workspace` returns `workspaceId`; every query tool accepts it optionally (default: the
   workspace indexed last in this working directory). Pass it when tasks share a server.
 - Consume IDs and properties from `structuredContent` instead of parsing formatted text.

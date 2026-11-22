@@ -1,5 +1,6 @@
 package dev.dominikbreu.archlens.merger;
 
+import dev.dominikbreu.archlens.io.ReadBoundary;
 import dev.dominikbreu.archlens.model.ArchitectureModel;
 import java.io.File;
 import java.util.List;
@@ -22,6 +23,14 @@ public class DeploymentMerger {
      * @param model architecture model to update
      */
     public void merge(List<String> projectPaths, ArchitectureModel model) {
+        ReadBoundary.within(projectPaths, () -> {
+            mergeWithin(projectPaths, model);
+            return model;
+        });
+    }
+
+    /** Reads each root's deployment files inside the caller's read boundary. */
+    private void mergeWithin(List<String> projectPaths, ArchitectureModel model) {
         for (String path : projectPaths) {
             File root = new File(path);
             composeMerger.merge(root, model);

@@ -7,6 +7,7 @@ import dev.dominikbreu.archlens.extractor.objectflow.ObjectFlowIndex;
 import dev.dominikbreu.archlens.extractor.objectflow.ObjectFlowIndexBuilder;
 import dev.dominikbreu.archlens.extractor.sourcefacts.SourceFactIndex;
 import dev.dominikbreu.archlens.extractor.sourcefacts.SourceFactIndexBuilder;
+import dev.dominikbreu.archlens.io.ReadBoundary;
 import dev.dominikbreu.archlens.model.*;
 import dev.dominikbreu.archlens.model.ids.AppId;
 import dev.dominikbreu.archlens.scanner.SpoonScanner;
@@ -98,8 +99,15 @@ public class ArchitectureExtractor {
      *
      * @param projectPaths project or workspace roots to analyze
      * @return extracted architecture model
+     * @throws IllegalArgumentException if a root does not exist, or leaves its Git checkout through a
+     *     symbolic link
      */
     public ArchitectureModel extract(List<String> projectPaths) {
+        return ReadBoundary.within(projectPaths, () -> extractWithin(projectPaths));
+    }
+
+    /** Runs every extraction pass; all file reads happen inside the caller's read boundary. */
+    private ArchitectureModel extractWithin(List<String> projectPaths) {
         ArchitectureModel model = new ArchitectureModel(String.join(",", projectPaths));
         Spans.traced("extract", () -> {
             Span.current().setAttribute("workspace-path", model.workspacePath);
@@ -406,7 +414,7 @@ public class ArchitectureExtractor {
         if (pluginText.contains("org.springframework.boot")) return SPRING_BOOT;
 
         File pom = new File(module.root(), "pom.xml");
-        boolean hasMaven = pom.exists();
+        boolean hasMaven = pom.exists() && ReadBoundary.allows(pom);
         if (hasMaven) {
             try {
                 String content = Files.readString(pom.toPath()).toLowerCase();

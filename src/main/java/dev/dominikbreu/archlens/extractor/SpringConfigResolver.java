@@ -1,5 +1,6 @@
 package dev.dominikbreu.archlens.extractor;
 
+import dev.dominikbreu.archlens.io.ReadBoundary;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,7 +33,7 @@ public class SpringConfigResolver {
 
         for (String name : RESOURCE_FILES) {
             File file = new File(resources, name);
-            if (!file.isFile()) continue;
+            if (!file.isFile() || !ReadBoundary.allows(file)) continue;
             try {
                 Map<String, String> parsed;
                 if (name.endsWith(".properties")) {
