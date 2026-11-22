@@ -88,6 +88,9 @@ jobs:
           cache: npm
           cache-dependency-path: site/package-lock.json
 
+      - name: Test the deploy script
+        run: python3 ../scripts/test_site_deploy.py
+
       - name: Install dependencies
         run: npm ci
 
