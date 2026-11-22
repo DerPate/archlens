@@ -1,5 +1,6 @@
 package dev.dominikbreu.archlens.build;
 
+import dev.dominikbreu.archlens.io.ReadBoundary;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -50,6 +51,7 @@ public class GradleBuildProjectDetector implements BuildProjectDetector {
         } else {
             for (String include : includes) {
                 File moduleRoot = new File(root, include.replace(':', File.separatorChar));
+                if (moduleRoot.exists() && !ReadBoundary.allows(moduleRoot)) continue;
                 modules.add(toModule(moduleRoot, root.getName()));
             }
         }
@@ -109,8 +111,8 @@ public class GradleBuildProjectDetector implements BuildProjectDetector {
         File firstFile = new File(root, first);
         File secondFile = new File(root, second);
         try {
-            if (firstFile.isFile()) return Files.readString(firstFile.toPath());
-            if (secondFile.isFile()) return Files.readString(secondFile.toPath());
+            if (firstFile.isFile() && ReadBoundary.allows(firstFile)) return Files.readString(firstFile.toPath());
+            if (secondFile.isFile() && ReadBoundary.allows(secondFile)) return Files.readString(secondFile.toPath());
         } catch (Exception _) {
         }
         return "";

@@ -3,6 +3,7 @@ package dev.dominikbreu.archlens.scanner;
 import dev.dominikbreu.archlens.build.BuildMetadataService;
 import dev.dominikbreu.archlens.build.BuildModule;
 import dev.dominikbreu.archlens.build.MavenBuildProjectDetector;
+import dev.dominikbreu.archlens.io.ReadBoundary;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,12 +25,14 @@ public class SpoonScanner {
      * @return Spoon model containing all discovered source types
      */
     public CtModel scan(List<String> projectPaths) {
-        List<BuildModule> modules = new ArrayList<>();
-        BuildMetadataService metadataService = new BuildMetadataService();
-        for (String path : projectPaths) {
-            modules.addAll(metadataService.detect(new File(path)).modules());
-        }
-        return scanModules(modules);
+        return ReadBoundary.within(projectPaths, () -> {
+            List<BuildModule> modules = new ArrayList<>();
+            BuildMetadataService metadataService = new BuildMetadataService();
+            for (String path : projectPaths) {
+                modules.addAll(metadataService.detect(new File(path)).modules());
+            }
+            return scanModules(modules);
+        });
     }
 
     /**
@@ -76,9 +79,9 @@ public class SpoonScanner {
         // Single module: prefer src/main/java
         File srcMain = new File(root, "src/main/java");
         if (srcMain.exists()) {
-            launcher.addInputResource(srcMain.getAbsolutePath());
+            addInput(launcher, srcMain);
         } else {
-            launcher.addInputResource(root.getAbsolutePath());
+            addInput(launcher, root);
         }
     }
 
@@ -91,11 +94,21 @@ public class SpoonScanner {
     public void addSourceRoots(Launcher launcher, BuildModule module) {
         if (module == null) return;
         if (module.sourceRoots().isEmpty()) {
-            launcher.addInputResource(module.root().getAbsolutePath());
+            addInput(launcher, module.root());
             return;
         }
         for (File sourceRoot : module.sourceRoots()) {
-            if (sourceRoot.exists()) launcher.addInputResource(sourceRoot.getAbsolutePath());
+            if (sourceRoot.exists()) addInput(launcher, sourceRoot);
+        }
+    }
+
+    /** Adds a source path, leaving out whatever lies outside the read boundary. */
+    private static void addInput(Launcher launcher, File source) {
+        if (!ReadBoundary.allows(source)) return;
+        if (source.isDirectory()) {
+            launcher.addInputResource(new ContainedFolder(source));
+        } else {
+            launcher.addInputResource(source.getAbsolutePath());
         }
     }
 

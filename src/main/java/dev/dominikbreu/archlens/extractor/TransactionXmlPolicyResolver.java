@@ -4,6 +4,7 @@ import dev.dominikbreu.archlens.build.BuildModule;
 import dev.dominikbreu.archlens.extractor.sourcefacts.SourceFactIndex;
 import dev.dominikbreu.archlens.extractor.sourcefacts.SourceMethod;
 import dev.dominikbreu.archlens.extractor.sourcefacts.SourceType;
+import dev.dominikbreu.archlens.io.ReadBoundary;
 import dev.dominikbreu.archlens.model.ArchitectureModel;
 import dev.dominikbreu.archlens.model.Component;
 import dev.dominikbreu.archlens.model.SourceInfo;
@@ -239,7 +240,7 @@ final class TransactionXmlPolicyResolver {
     private static List<Path> xmlFiles(BuildModule module) {
         List<Path> result = new ArrayList<>();
         for (File root : module.resourceRoots()) {
-            if (!root.isDirectory()) continue;
+            if (!root.isDirectory() || !ReadBoundary.allows(root)) continue;
             try (var paths = Files.find(root.toPath(), 8, (path, attrs) -> attrs.isRegularFile())) {
                 paths.filter(path -> fileName(path).toLowerCase(Locale.ROOT).endsWith(".xml"))
                         .filter(path -> !"persistence.xml".equalsIgnoreCase(fileName(path)))

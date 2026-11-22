@@ -1,5 +1,6 @@
 package dev.dominikbreu.archlens.build;
 
+import dev.dominikbreu.archlens.io.ReadBoundary;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
@@ -105,7 +106,7 @@ public class MavenBuildProjectDetector implements BuildProjectDetector {
 
     private Optional<Model> readModel(File root) {
         File pom = new File(root, POM_XML);
-        if (!pom.isFile()) return Optional.empty();
+        if (!pom.isFile() || !ReadBoundary.allows(pom)) return Optional.empty();
         try (InputStreamReader reader = new InputStreamReader(new FileInputStream(pom), StandardCharsets.UTF_8)) {
             return Optional.of(new MavenXpp3Reader().read(reader));
         } catch (java.io.IOException | XmlPullParserException _) {
