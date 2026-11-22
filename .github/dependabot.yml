@@ -13,3 +13,33 @@ updates:
         update-types:
           - minor
           - patch
+
+  - package-ecosystem: npm
+    directories:
+      - /site
+      - /viewer
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      routine-npm:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      routine-actions:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
