@@ -33,11 +33,14 @@ public final class StateLifecycleAnswerer {
 
         Map<String, String> filters = Map.of("fieldName", field);
         recorder.record("findEdges", "label", "WRITES_STATE");
-        List<GraphEdge> writeEdges = graph.findEdges("WRITES_STATE", filters, QuestionSupport.DEFAULT_LIMIT);
+        List<GraphEdge> writeEdges =
+                QuestionSupport.bounded(result, "writers", limit -> graph.findEdges("WRITES_STATE", filters, limit));
         recorder.record("findEdges", "label", "READS_STATE");
-        List<GraphEdge> readEdges = graph.findEdges("READS_STATE", filters, QuestionSupport.DEFAULT_LIMIT);
+        List<GraphEdge> readEdges =
+                QuestionSupport.bounded(result, "readers", limit -> graph.findEdges("READS_STATE", filters, limit));
         recorder.record("findEdges", "label", "STATE_HANDOFF");
-        List<GraphEdge> handoffEdges = graph.findEdges("STATE_HANDOFF", filters, QuestionSupport.DEFAULT_LIMIT);
+        List<GraphEdge> handoffEdges =
+                QuestionSupport.bounded(result, "handoffs", limit -> graph.findEdges("STATE_HANDOFF", filters, limit));
 
         List<Map<String, Object>> writers = edgeSourceComponents(graph, writeEdges);
         List<Map<String, Object>> readers = edgeSourceComponents(graph, readEdges);

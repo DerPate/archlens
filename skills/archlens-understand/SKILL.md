@@ -98,7 +98,7 @@ Use `query_architecture_graph` when the question is structural, relational, or i
 
 Use exports when the user wants a durable artifact, visual review, or external-tool handoff.
 
-- `export_graph_viewer`: create a self-contained HTML graph viewer. This is the best "show me the architecture" artifact.
+- `export_graph_viewer`: create a single-file HTML graph viewer (needs internet access for its libraries). This is the best "show me the architecture" artifact.
 - `export_graph_data`: create JSON for a custom graph UI.
 - `export_architecture_docs`: generate Markdown architecture docs with Mermaid diagrams.
 - `export_graph_architecture_poc`: generate graph-centric docs with labels, properties, high-signal components, and query examples.

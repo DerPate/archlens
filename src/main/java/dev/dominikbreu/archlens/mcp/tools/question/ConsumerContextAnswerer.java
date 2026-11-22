@@ -44,7 +44,7 @@ public final class ConsumerContextAnswerer {
         List<Map<String, Object>> upstream = new ArrayList<>();
         List<Map<String, Object>> downstream = new ArrayList<>();
         for (DataFlowPathNode path : graph.pathsForEntrypoint(entrypoint.id())) {
-            for (GraphEdge edge : graph.neighborhood(path.id(), "in", QuestionSupport.DEFAULT_LIMIT)) {
+            for (GraphEdge edge : graph.neighborhood(path.id(), "in", QuestionSupport.ALL_EDGES)) {
                 if (!"WORKFLOW_LINK".equals(edge.label()) && !"LINKS_TO".equals(edge.label())) continue;
                 GraphNode sourcePath = graph.node(edge.fromId());
                 if (sourcePath instanceof DataFlowPathNode source && source.entrypointId() != null) {

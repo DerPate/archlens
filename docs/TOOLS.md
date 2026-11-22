@@ -685,8 +685,9 @@ Arguments:
   `"GET /account"` selects the GET handler, `"POST /account"` selects the POST handler.
 - `channel` string, optional. Filter chains that pass through a messaging link
   whose channel name contains this substring.
-- `maxDepth` integer, optional (default 8). Maximum number of pipeline segments
-  per chain.
+- `maxDepth` integer, optional, at least 1 (default: all). Maximum number of pipeline
+  segments shown per chain; indexing records up to 32. A cut chain is preceded by a
+  `%% truncated: N of M segments` comment.
 - `maxChains` integer, optional (default 5). Maximum number of distinct chains
   rendered in one response.
 
@@ -794,22 +795,24 @@ Arguments:
 - `toId` string, optional. Required for `paths`.
 - `direction` string, optional. One of `in`, `out`, or `both` for `neighborhood`.
 - `maxDepth` integer, optional. Traversal depth for `paths` or `impacted_by`.
-- `limit` integer, optional. Maximum returned rows. For `find_nodes`, omitting
-  `limit` returns all matching nodes; pass `limit` to cap large result sets.
+- `limit` integer, optional, at most 50000. Maximum returned rows. For `find_nodes`, omitting
+  `limit` returns all matching nodes; every other action defaults to 256. When a limit cuts the
+  result, the text ends with a `Truncated:` line and `structuredContent` has `truncated: true`.
 - Common shorthand filters are also accepted as top-level args:
   `type`, `technology`, `module`, `packageName`, `entrypointReachable`,
   `workflowRelevant`, `businessRelevant`, `infrastructureRole`, `primaryRole`,
   `supportRole`, `agentCategory`, `classificationEvidence`, `isCrossModule`,
   `isRuntimeRelevant`, and `isCondensable`.
 
-Structured result shapes depend on the action and active MCP structured-output mode:
+Structured result shapes depend on the action. Each collection shape also carries
+`truncated: true` when `limit` cut it:
 
-| Action | Stable `structuredContent` | Experimental draft `structuredContent` |
-| --- | --- | --- |
-| `summary` | object with `action`, counts, and label maps | same object |
-| `find_nodes`, `impacted_by` | `{ "action": "...", "nodes": [...] }` | node array |
-| `find_edges`, `neighborhood` | `{ "action": "...", "edges": [...] }` | edge array |
-| `paths` | `{ "action": "paths", "paths": [...] }` | path array |
+| Action | `structuredContent` |
+| --- | --- |
+| `summary` | object with `action`, counts, and label maps |
+| `find_nodes`, `impacted_by` | `{ "action": "...", "nodes": [...] }` |
+| `find_edges`, `neighborhood` | `{ "action": "...", "edges": [...] }` |
+| `paths` | `{ "action": "paths", "paths": [...] }` |
 
 Useful graph properties include:
 
@@ -1094,6 +1097,9 @@ Arguments:
 - `target`: second subject for `relationship` path questions.
 - `maxDepth`: impact/reverse-endpoint traversal depth, default `4`.
 
+Lists are cut at 256 entries. A cut answer is never `resolved`: `unresolved` then contains
+`result-limit-reached:<list>:256`; use `query_architecture_graph` with a larger `limit` for the rest.
+
 All families return the common structured envelope:
 
 ```json
@@ -1330,7 +1336,7 @@ Arguments:
 
 ## `export_graph_viewer`
 
-Write a self-contained HTML file for visually debugging the detected architecture
+Write a single HTML file (its rendering libraries load from CDNs) for visually debugging the detected architecture
 graph. The viewer embeds the same graph export payload as `export_graph_data`: the
 raw snapshot plus any viewer-ready projections. It shows nodes, edges, labels,
 filters, search, and raw property inspection. For richer interaction, prefer

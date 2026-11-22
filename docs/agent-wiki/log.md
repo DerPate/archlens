@@ -1,6 +1,9 @@
 # Update Log
 
 ## 2026-11-22
+- **Update**: Corrected [export_graph_viewer](tools/export-graph-viewer.md) (its libraries load from
+  CDNs) and [render_pipeline](tools/render-pipeline.md) (`maxDepth` default). Both are `status: draft`
+  and their 2026-09-17 verification is history until reviewed again.
 - **Verification**: `human:dominik` approved the corrected 3.0 wording of
   [MCP Server](modules/mcp-server.md): a wrong cross-reference is removed and `workspaceId` covers
   every tool except `index_workspace`. The concept is `stable` again.

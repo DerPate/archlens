@@ -12,6 +12,15 @@ import java.util.List;
 
 /** TamboUI-rendered dashboard and keyboard interaction model. */
 final class TambouiDashboardView {
+    /** Width from which the activity and the result sit side by side. */
+    private static final int WIDE = 90;
+
+    /** Lines of the system log shown when the panes are stacked. */
+    private static final int STACKED_LOG_LINES = 3;
+
+    /** Characters shown of one traversal, which can embed thousands of ids. */
+    private static final int MAX_TRACE_CHARS = 160;
+
     private final DashboardState state;
     private final List<String> commands;
     private final List<String> history = new ArrayList<>();
@@ -122,18 +131,30 @@ final class TambouiDashboardView {
         Paragraph.from("ARCHLENS  •  architecture dashboard").render(new Rect(0, 0, area.width(), 1), frame.buffer());
         int inputY = area.height() - 3;
         Rect main = new Rect(0, 1, area.width(), inputY - 1);
-        String log = String.join("\n", state.systemLog());
+        List<String> log = state.systemLog();
         DashboardEvent event = state.currentEvent();
         String result = event == null
                 ? "No command executed yet."
                 : (event.isError() ? "ERROR: " + event.errorText() : event.resultText());
-        int leftWidth = area.width() >= 90 ? area.width() / 2 : area.width();
-        Paragraph.from(log).render(new Rect(0, main.y(), leftWidth, main.height()), frame.buffer());
-        Paragraph.builder()
-                .text(result == null ? "" : result)
-                .scroll(ui.scrollOffset())
-                .build()
-                .render(new Rect(leftWidth, main.y(), area.width() - leftWidth, main.height()), frame.buffer());
+        String text = result == null ? "" : result;
+        String traversals = traversals(event);
+        Rect activityPane;
+        Rect resultPane;
+        String activity;
+        if (area.width() >= WIDE) {
+            int left = area.width() / 2;
+            activityPane = new Rect(0, main.y(), left, main.height());
+            resultPane = new Rect(left, main.y(), area.width() - left, main.height());
+            activity = String.join("\n", log) + traversals;
+        } else {
+            int top = Math.min(Math.min(log.size(), STACKED_LOG_LINES), main.height() / 3);
+            activityPane = new Rect(0, main.y(), area.width(), top);
+            resultPane = new Rect(0, main.y() + top, area.width(), main.height() - top);
+            activity = String.join("\n", log.subList(log.size() - top, log.size()));
+            text += traversals; // stacked, they scroll with the result
+        }
+        Paragraph.from(activity).render(activityPane, frame.buffer());
+        Paragraph.builder().text(text).scroll(ui.scrollOffset()).build().render(resultPane, frame.buffer());
         TextInput.builder()
                 .placeholder("Enter an MCP command (Tab completes, F6 focus, Ctrl-C quits)")
                 .build()
@@ -146,5 +167,20 @@ final class TambouiDashboardView {
                 };
         Paragraph.from((busy ? "Running…" : "Ready") + "  •  Focus: " + focus + "  •  F6 cycle focus")
                 .render(new Rect(0, inputY + 1, area.width(), 1), frame.buffer());
+    }
+
+    /** Formats the traversals the latest command ran, or nothing if it recorded none. */
+    private static String traversals(DashboardEvent event) {
+        if (event == null || event.traversalTraces().isEmpty()) return "";
+        StringBuilder text = new StringBuilder("\n\nTraversals (")
+                .append(event.traversalTraces().size())
+                .append(", ")
+                .append(event.durationMillis())
+                .append(" ms):");
+        for (String trace : event.traversalTraces()) {
+            text.append("\n")
+                    .append(trace.length() > MAX_TRACE_CHARS ? trace.substring(0, MAX_TRACE_CHARS) + "…" : trace);
+        }
+        return text.toString();
     }
 }

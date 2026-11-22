@@ -1,11 +1,11 @@
 ---
 type: MCP Tool
 title: export_graph_viewer
-description: Write a self-contained HTML file for visually debugging the detected architecture graph.
+description: Write a single HTML file for visually debugging the detected architecture graph.
 tags: [archlens, mcp-tool]
 resource: https://github.com/DerPate/archlens/blob/main/src/main/java/dev/dominikbreu/archlens/mcp/tools/ExportGraphViewerTool.java
-status: stable
-generated: { by: claude-code/claude-sonnet-5, at: 2026-09-17T00:00:00Z }
+status: draft
+generated: { by: claude-code/claude-opus-5-5, at: 2026-11-22T15:17:13Z }
 verified: { by: human:dominik, at: 2026-09-17T00:00:00Z }
 sources:
   - id: tools-md
@@ -15,7 +15,7 @@ sources:
 
 # `export_graph_viewer`
 
-Write a self-contained HTML file for visually debugging the detected architecture graph.
+Write a single HTML file for visually debugging the detected architecture graph. Its rendering libraries load from CDNs.
 
 **Arguments**: `outputPath` (default `docs/GRAPH_VIEWER.html`), `limit` (default 5000).
 

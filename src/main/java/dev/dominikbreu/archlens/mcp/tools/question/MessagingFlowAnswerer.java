@@ -44,7 +44,7 @@ public final class MessagingFlowAnswerer {
         }
         if (topicRef != null) {
             recorder.record("findNodes", "label", "Entrypoint");
-            for (GraphNode node : graph.findNodes("Entrypoint", topicRef, Map.of(), QuestionSupport.DEFAULT_LIMIT)) {
+            for (GraphNode node : graph.findNodes("Entrypoint", topicRef, Map.of(), QuestionSupport.ALL_NODES)) {
                 if (node instanceof EntrypointNode entrypoint
                         && (PRODUCER_TYPES.contains(entrypoint.type()) || CONSUMER_TYPES.contains(entrypoint.type()))) {
                     messagingEntrypoints.add(entrypoint);
@@ -72,7 +72,7 @@ public final class MessagingFlowAnswerer {
         if (searchTerm != null) {
             recorder.record("findNodes", "label", "DataFlowSink");
             for (GraphNode node : graph.findNodes(
-                    "DataFlowSink", searchTerm, Map.of("sinkKind", "messaging"), QuestionSupport.DEFAULT_LIMIT)) {
+                    "DataFlowSink", searchTerm, Map.of("sinkKind", "messaging"), QuestionSupport.ALL_NODES)) {
                 if (node instanceof DataFlowSinkNode sink) {
                     producerSinks.add(QuestionSupport.nodeMap(sink));
                     if (topic == null) topic = sink.topic();
@@ -85,7 +85,7 @@ public final class MessagingFlowAnswerer {
         String broker = null;
         if (brokerSearch != null) {
             recorder.record("findNodes", "label", "Interface");
-            for (GraphNode node : graph.findNodes("Interface", brokerSearch, Map.of(), QuestionSupport.DEFAULT_LIMIT)) {
+            for (GraphNode node : graph.findNodes("Interface", brokerSearch, Map.of(), QuestionSupport.ALL_NODES)) {
                 if (node instanceof InterfaceNode iface && iface.broker() != null) {
                     broker = iface.broker().name();
                     break;

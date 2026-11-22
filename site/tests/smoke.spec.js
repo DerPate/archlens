@@ -115,22 +115,23 @@ test("tool pages describe the implemented behavior", async ({ page }) => {
   const main = page.locator("main");
 
   await page.goto("/tools/query-architecture-graph");
-  await expect(main).toContainText("at most 100");
+  await expect(main).toContainText("truncated: true");
+  await expect(main).not.toContainText("at most 100");
   await expect(main).toContainText("case-insensitive substring");
   await expect(main).toContainText("edges one hop around");
   await expect(main).not.toContainText("shortest");
   await expect(main).not.toContainText("Omit to return all matches");
 
   await page.goto("/tools/render-pipeline");
-  await expect(main).toContainText("currently has no effect");
-  await expect(main.locator("pre")).not.toContainText("maxDepth");
+  await expect(main).toContainText("Maximum segments shown per chain");
+  await expect(main).not.toContainText("no effect");
 
   await page.goto("/tools/trace-data-flow");
   await expect(main).not.toContainText("linkedPathIds");
   await expect(main).not.toContainText("parameter renames");
 
   await page.goto("/");
-  await expect(main).not.toContainText("captured graph traversals");
+  await expect(main).toContainText("the graph traversals behind them");
 });
 
 test("release users get a command that works", async ({ page }) => {

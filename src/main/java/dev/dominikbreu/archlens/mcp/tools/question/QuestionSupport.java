@@ -11,11 +11,18 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.IntFunction;
 
 /** Graph-lookup and result-shaping helpers shared by every {@code answer_architecture_question} intent answerer. */
 final class QuestionSupport {
 
     static final int DEFAULT_LIMIT = 256;
+
+    /** For lookups that are filtered afterwards, where a limit would drop the wanted match. */
+    static final int ALL_EDGES = GraphQuery.MAX_RESULTS;
+
+    /** For {@link GraphQuery#findNodes}: no limit. */
+    static final int ALL_NODES = 0;
 
     private QuestionSupport() {}
 
@@ -31,7 +38,7 @@ final class QuestionSupport {
     static EntrypointNode entrypoint(GraphQuery graph, String ref, Answer result) {
         GraphNodeId id = graph.resolveEntrypoint(ref).orElse(null);
         if (id != null && graph.node(id) instanceof EntrypointNode entrypoint) return entrypoint;
-        List<EntrypointNode> candidates = graph.findNodes("Entrypoint", ref, Map.of(), DEFAULT_LIMIT).stream()
+        List<EntrypointNode> candidates = graph.findNodes("Entrypoint", ref, Map.of(), ALL_NODES).stream()
                 .filter(EntrypointNode.class::isInstance)
                 .map(EntrypointNode.class::cast)
                 .toList();
@@ -54,7 +61,7 @@ final class QuestionSupport {
      * @return the resolved component, or {@code null} if not uniquely resolved
      */
     static ComponentNode component(GraphQuery graph, String ref, Answer result) {
-        List<ComponentNode> candidates = graph.findNodes("Component", ref, Map.of(), DEFAULT_LIMIT).stream()
+        List<ComponentNode> candidates = graph.findNodes("Component", ref, Map.of(), ALL_NODES).stream()
                 .filter(ComponentNode.class::isInstance)
                 .map(ComponentNode.class::cast)
                 .toList();
@@ -80,12 +87,29 @@ final class QuestionSupport {
      */
     static List<GraphNode> outgoingNodes(GraphQuery graph, GraphNodeId from, String label) {
         List<GraphNode> nodes = new ArrayList<>();
-        for (GraphEdge edge : graph.neighborhood(from, "out", DEFAULT_LIMIT)) {
+        for (GraphEdge edge : graph.neighborhood(from, "out", ALL_EDGES)) {
             if (!label.equals(edge.label())) continue;
             GraphNode node = graph.node(edge.toId());
             if (node != null) nodes.add(node);
         }
         return nodes;
+    }
+
+    /**
+     * Returns at most {@link #DEFAULT_LIMIT} results, recording on {@code result} when there were
+     * more, so that a cut answer is {@code partial} and never {@code resolved}.
+     *
+     * @param result the in-progress answer to record on
+     * @param what name of the cut list
+     * @param query the query, given the number of results to fetch
+     * @param <T> result type
+     * @return the results to report
+     */
+    static <T> List<T> bounded(Answer result, String what, IntFunction<List<T>> query) {
+        List<T> found = query.apply(DEFAULT_LIMIT + 1);
+        if (found.size() <= DEFAULT_LIMIT) return found;
+        result.unresolved.add("result-limit-reached:" + what + ":" + DEFAULT_LIMIT);
+        return found.subList(0, DEFAULT_LIMIT);
     }
 
     /**
