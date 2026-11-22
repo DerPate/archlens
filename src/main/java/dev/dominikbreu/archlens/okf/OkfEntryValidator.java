@@ -6,10 +6,13 @@ import org.yaml.snakeyaml.Yaml;
 
 /** Validates newly generated OKF concept and bundle-entry snippets. */
 public final class OkfEntryValidator {
+    /** Markdown link text with backslash escapes; possessive, so long titles cannot overflow the stack. */
+    private static final String LINK_TEXT = "\\[(?=[^]])[^]\\\\]*+(?:\\\\.[^]\\\\]*+)*+]";
+
     private static final Pattern INDEX_ENTRY =
-            Pattern.compile("\\A<!-- archlens:[^\\s>]+ -->\\R- \\[[^]]+]\\([^)]+\\) - [^\\r\\n]+\\z");
-    private static final Pattern LOG_ENTRY =
-            Pattern.compile("\\A- \\*\\*(Creation|Refresh)\\*\\*: [^\\r\\n]*\\[[^]]+]\\([^)]+\\)[^\\r\\n]*\\z");
+            Pattern.compile("\\A<!-- archlens:[^\\s>]+ -->\\R- " + LINK_TEXT + "\\([^)]+\\) - [^\\r\\n]+\\z");
+    private static final Pattern LOG_ENTRY = Pattern.compile(
+            "\\A- \\*\\*(Creation|Refresh)\\*\\*: [^\\r\\n\\[]*" + LINK_TEXT + "\\([^)]+\\)[^\\r\\n]*\\z");
 
     /** Creates a validator for generated OKF snippets. */
     public OkfEntryValidator() {}
