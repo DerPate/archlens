@@ -113,7 +113,7 @@ can represent:
   slices
 
 After indexing, the TinkerGraph-backed graph is the runtime source of truth and is persisted as
-GraphSON under `.archlens-cache/`.
+GraphSON in your user cache directory (see `docs/INSTALL.md`).
 
 ## Tool Catalog
 
