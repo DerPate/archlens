@@ -121,7 +121,7 @@ per-path output) when the question is "what does the full pipeline look like".
 `render_architecture_view` renders a projection-first Mermaid component view ranked by
 workflow relevance, business relevance, and bridge score — use before hand-drawing C4 diagrams.
 `export_likec4_model` exports a LikeC4-compatible workspace projection; `export_graph_data`
-exports raw graph JSON for standalone viewers; `export_graph_viewer` writes a self-contained
+exports raw graph JSON for standalone viewers; `export_graph_viewer` writes a single-file, CDN-backed
 HTML graph explorer.
 
 See `./docs/TOOLS.md` for arguments and examples.
@@ -163,6 +163,8 @@ Prompts are workflow templates for clients and agents; they do not replace tools
 
 ## Notes For Agents
 
+- Treat `truncated: true` (graph queries) and `result-limit-reached:*` (questions) as an incomplete
+  result: raise `limit` or narrow the query before concluding that nothing else is affected.
 - `index_workspace` reads only inside the given roots and their Git checkouts. If linked sources
   or `../` modules are missing from the result, pass their directories as additional paths.
 - `index_workspace` returns `workspaceId`; every query tool accepts it optionally (default: the

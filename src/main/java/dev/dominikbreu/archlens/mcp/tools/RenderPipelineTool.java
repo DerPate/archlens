@@ -40,7 +40,8 @@ public class RenderPipelineTool {
     /**
      * Renders a Mermaid pipeline diagram for the requested entrypoint or all pipelines.
      *
-     * @param args tool arguments (optional {@code entrypointId})
+     * @param args tool arguments (optional {@code entrypointName}, {@code channel}, {@code maxDepth},
+     *     {@code maxChains} and {@code includeLifecycle})
      * @return Mermaid diagram text (or an error/diagnostic message), plus a {diagramType} marker
      */
     public ToolResult execute(Map<String, Object> args) {
@@ -53,6 +54,8 @@ public class RenderPipelineTool {
             }
 
             int maxChains = ToolArgs.getInt(args, "maxChains", 5);
+            int maxDepth = ToolArgs.getInt(args, "maxDepth", Integer.MAX_VALUE);
+            if (maxDepth < 1) return ToolResult.error("Error: 'maxDepth' must be at least 1.");
             boolean includeLifecycle = ToolArgs.getBool(args, "includeLifecycle", false);
             String epFilter = ToolArgs.getString(args, "entrypointName");
             String channelFilter = ToolArgs.getString(args, "channel");
@@ -68,7 +71,7 @@ public class RenderPipelineTool {
             if (filtered.isEmpty()) {
                 return ToolResult.textOnly("No pipeline chains matched the given filters.");
             }
-            return new ToolResult(renderChains(filtered, graph), Map.of("diagramType", "mermaid"));
+            return new ToolResult(renderChains(filtered, maxDepth, graph), Map.of("diagramType", "mermaid"));
         } catch (Exception e) {
             return ToolResult.error("Error rendering pipeline: " + e.getMessage());
         }
@@ -86,10 +89,11 @@ public class RenderPipelineTool {
         return candidates;
     }
 
-    private String renderChains(List<Chain> filtered, GraphQuery graph) {
+    private String renderChains(List<Chain> filtered, int maxDepth, GraphQuery graph) {
         StringBuilder out = new StringBuilder();
         for (int i = 0; i < filtered.size(); i++) {
-            Chain c = filtered.get(i);
+            Chain whole = filtered.get(i);
+            Chain c = firstSegments(whole, maxDepth);
             Segment root = c.segments.getFirst();
             String rootEpId;
             if (root.entrypoint != null) {
@@ -106,10 +110,25 @@ public class RenderPipelineTool {
                     .append(" segments=")
                     .append(c.segments.size())
                     .append("\n");
+            if (c.segments.size() < whole.segments.size()) {
+                out.append("%% truncated: ")
+                        .append(c.segments.size())
+                        .append(" of ")
+                        .append(whole.segments.size())
+                        .append(" segments; pass a larger maxDepth for the rest\n");
+            }
             out.append(renderer.render(c, graph));
             if (i < filtered.size() - 1) out.append("\n");
         }
         return out.toString();
+    }
+
+    /** Returns the chain's first {@code count} segments, or the chain itself when it has no more. */
+    private static Chain firstSegments(Chain chain, int count) {
+        if (chain.segments.size() <= count) return chain;
+        Chain first = new Chain();
+        first.segments.addAll(chain.segments.subList(0, count));
+        return first;
     }
 
     private boolean isLifecycleChain(Chain c) {

@@ -35,7 +35,7 @@ public final class ExternalIntegrationContextAnswerer {
         }
 
         List<ExternalSystemNode> matches =
-                graph.findNodes("ExternalSystem", ref, Map.of(), QuestionSupport.DEFAULT_LIMIT).stream()
+                graph.findNodes("ExternalSystem", ref, Map.of(), QuestionSupport.ALL_NODES).stream()
                         .filter(ExternalSystemNode.class::isInstance)
                         .map(ExternalSystemNode.class::cast)
                         .toList();
@@ -70,12 +70,12 @@ public final class ExternalIntegrationContextAnswerer {
         List<Map<String, Object>> callers = new ArrayList<>();
         List<Map<String, Object>> replacementImpact = new ArrayList<>();
         recorder.record("neighborhood", "id", system.id().serialize());
-        for (GraphEdge edge : graph.neighborhood(system.id(), "in", QuestionSupport.DEFAULT_LIMIT)) {
+        for (GraphEdge edge : graph.neighborhood(system.id(), "in", QuestionSupport.ALL_EDGES)) {
             if (!"DEPENDS_ON".equals(edge.label())) continue;
             GraphNode client = graph.node(edge.fromId());
             if (client == null) continue;
             recorder.record("impactedBy", "component", client.id().serialize());
-            for (GraphNode impacted : graph.impactedBy(client.id(), depth, QuestionSupport.DEFAULT_LIMIT)) {
+            for (GraphNode impacted : graph.impactedBy(client.id(), depth, GraphQuery.MAX_RESULTS)) {
                 if ("Entrypoint".equals(impacted.label())) callers.add(QuestionSupport.nodeMap(impacted));
                 else replacementImpact.add(QuestionSupport.nodeMap(impacted));
             }
@@ -85,8 +85,9 @@ public final class ExternalIntegrationContextAnswerer {
         Map<String, Object> answer = new LinkedHashMap<>();
         answer.put("configuredDestination", configuredDestination);
         answer.put("dataSentReceived", Map.of());
-        answer.put("callers", QuestionSupport.distinct(callers));
-        answer.put("replacementImpact", QuestionSupport.distinct(replacementImpact));
+        answer.put("callers", limited(result, "callers", QuestionSupport.distinct(callers)));
+        answer.put(
+                "replacementImpact", limited(result, "replacementImpact", QuestionSupport.distinct(replacementImpact)));
         result.answer(answer);
         result.unresolved.add("data-sent-received-not-modeled");
         return result;
@@ -100,7 +101,7 @@ public final class ExternalIntegrationContextAnswerer {
         recorder.record("impactedBy", "component", component.id().serialize());
         List<Map<String, Object>> callers = new ArrayList<>();
         List<Map<String, Object>> replacementImpact = new ArrayList<>();
-        for (GraphNode impacted : graph.impactedBy(component.id(), depth, QuestionSupport.DEFAULT_LIMIT)) {
+        for (GraphNode impacted : graph.impactedBy(component.id(), depth, GraphQuery.MAX_RESULTS)) {
             if ("Entrypoint".equals(impacted.label())) callers.add(QuestionSupport.nodeMap(impacted));
             else replacementImpact.add(QuestionSupport.nodeMap(impacted));
         }
@@ -108,12 +109,19 @@ public final class ExternalIntegrationContextAnswerer {
         Map<String, Object> answer = new LinkedHashMap<>();
         answer.put("configuredDestination", Map.of());
         answer.put("dataSentReceived", Map.of());
-        answer.put("callers", QuestionSupport.distinct(callers));
-        answer.put("replacementImpact", QuestionSupport.distinct(replacementImpact));
+        answer.put("callers", limited(result, "callers", QuestionSupport.distinct(callers)));
+        answer.put(
+                "replacementImpact", limited(result, "replacementImpact", QuestionSupport.distinct(replacementImpact)));
         result.answer(answer);
         result.unresolved.add("base-url-not-modeled");
         result.unresolved.add("data-sent-received-not-modeled");
         return result;
+    }
+
+    /** Limits an already filtered list, so callers are not crowded out by other impacted nodes. */
+    private static <T> List<T> limited(Answer result, String what, List<T> all) {
+        return QuestionSupport.bounded(
+                result, what, limit -> all.stream().limit(limit).toList());
     }
 
     private static Map<String, Object> emptyAnswer() {

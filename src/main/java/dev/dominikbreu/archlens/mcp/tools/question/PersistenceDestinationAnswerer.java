@@ -13,6 +13,7 @@ import dev.dominikbreu.archlens.mcp.tools.ToolArgs;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -67,8 +68,8 @@ public final class PersistenceDestinationAnswerer {
         }
 
         if (component != null || query != null) {
-            for (GraphNode node :
-                    graph.findNodes("PersistenceOperation", query, Map.of(), QuestionSupport.DEFAULT_LIMIT)) {
+            int found = operations.size();
+            for (GraphNode node : graph.findNodes("PersistenceOperation", query, Map.of(), QuestionSupport.ALL_NODES)) {
                 if (!(node instanceof PersistenceOperationNode operation)) continue;
                 if (component != null
                         && !Objects.equals(
@@ -78,6 +79,13 @@ public final class PersistenceDestinationAnswerer {
                                         : null)) continue;
                 operations.add(QuestionSupport.nodeMap(operation));
                 destinations.add(destinationFor(graph, operation.entityType(), operation, result));
+            }
+            // Spring Data and similar repositories are recorded only as data-flow sinks.
+            if (operations.size() == found) {
+                for (DataFlowSinkNode sink : persistenceSinks(graph, component, query)) {
+                    operations.add(QuestionSupport.nodeMap(sink));
+                    destinations.add(destinationFor(graph, sink.entityType(), sink, result));
+                }
             }
         }
 
@@ -91,6 +99,35 @@ public final class PersistenceDestinationAnswerer {
         return result;
     }
 
+    /**
+     * Finds persistence sinks of a component, or whose component or entity name contains the query.
+     * Sink ids are not searched, as they embed the whole path and would match any package segment.
+     */
+    private static List<DataFlowSinkNode> persistenceSinks(GraphQuery graph, ComponentNode component, String query) {
+        String term = query == null ? null : query.toLowerCase(Locale.ROOT);
+        return graph
+                .findNodes("DataFlowSink", null, Map.of("sinkKind", "persistence"), QuestionSupport.ALL_NODES)
+                .stream()
+                .filter(DataFlowSinkNode.class::isInstance)
+                .map(DataFlowSinkNode.class::cast)
+                .filter(sink -> component != null
+                        ? sink.componentId() != null
+                                && component
+                                        .id()
+                                        .serialize()
+                                        .equals(sink.componentId().serialize())
+                        : containsTerm(sink.name(), term) || containsTerm(simpleName(sink.entityType()), term))
+                .toList();
+    }
+
+    private static boolean containsTerm(String value, String term) {
+        return value != null && term != null && value.toLowerCase(Locale.ROOT).contains(term);
+    }
+
+    private static String simpleName(String type) {
+        return type == null ? null : type.substring(type.lastIndexOf('.') + 1);
+    }
+
     private static Map<String, Object> destinationFor(
             GraphQuery graph, String entityType, GraphNode operation, Answer result) {
         Map<String, Object> destination = new LinkedHashMap<>();
@@ -98,7 +135,7 @@ public final class PersistenceDestinationAnswerer {
         String persistenceUnitName = persistenceUnitName(operation);
         if (persistenceUnitName != null) destination.put("persistenceUnitName", persistenceUnitName);
         List<PersistenceUnitNode> allUnits =
-                graph.findNodes("PersistenceUnit", null, Map.of(), QuestionSupport.DEFAULT_LIMIT).stream()
+                graph.findNodes("PersistenceUnit", null, Map.of(), QuestionSupport.ALL_NODES).stream()
                         .filter(PersistenceUnitNode.class::isInstance)
                         .map(PersistenceUnitNode.class::cast)
                         .toList();

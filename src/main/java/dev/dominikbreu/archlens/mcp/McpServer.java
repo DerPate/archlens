@@ -307,14 +307,14 @@ public class McpServer {
         specs.add(toolSpec(
                 "call_flow",
                 "Call Flow",
-                "Return the runtime call flow for an entry point: ordered steps and a Mermaid flowchart. Component shapes reflect architectural role (cylinder=repository, parallelogram=http-client, etc.). Edge labels show the actual called method name.",
+                "Return the runtime call flow for an entry point: ordered steps and a Mermaid sequence diagram. Participants carry their architectural role; messages show the calls in order, with async and messaging hops dashed.",
                 schema().opt(ENTRYPOINT_ID, TYPE_STRING, "Entrypoint ID (from find_entrypoints)")
                         .opt(
                                 ENTRYPOINT_NAME,
                                 TYPE_STRING,
                                 "Entrypoint path, name, or 'METHOD /path' (e.g. 'GET /account') for HTTP-method disambiguation"),
                 schema().opt("steps", "array", "Ordered call-flow steps")
-                        .opt("diagram", TYPE_STRING, "Rendered Mermaid flowchart"),
+                        .opt("diagram", TYPE_STRING, "Rendered Mermaid sequence diagram"),
                 callFlowTool::execute));
 
         specs.add(toolSpec(
@@ -387,7 +387,7 @@ public class McpServer {
         specs.add(toolSpec(
                 "export_graph_viewer",
                 "Export Graph Viewer",
-                "Write a self-contained HTML viewer using the same graph export payload as export_graph_data.",
+                "Write a single-file HTML viewer using the same graph export payload as export_graph_data. It loads its rendering libraries from public CDNs.",
                 schema().opt("outputPath", TYPE_STRING, "Output HTML path (default docs/GRAPH_VIEWER.html)")
                         .opt("limit", TYPE_INTEGER, "Maximum graph nodes to export (default 5000)"),
                 schema().opt("outputPath", TYPE_STRING, "Written file path")
@@ -420,7 +420,7 @@ public class McpServer {
                         .opt(
                                 "limit",
                                 TYPE_INTEGER,
-                                "Maximum returned rows. find_nodes is unlimited by default; other actions default to 256")
+                                "Maximum returned rows, at most 50000. find_nodes is unlimited by default; other actions default to 256 and set truncated when they cut")
                         .opt("type", TYPE_STRING, "Shorthand filter: node or edge type property")
                         .opt("technology", TYPE_STRING, "Shorthand filter: technology property (e.g. quarkus, jpa)")
                         .opt("module", TYPE_STRING, "Shorthand filter: module/app ID property")
@@ -592,7 +592,10 @@ public class McpServer {
                                 "channel",
                                 TYPE_STRING,
                                 "Filter chains that pass through a messaging link whose channel name contains this substring")
-                        .opt(MAX_DEPTH, TYPE_INTEGER, "Maximum number of pipeline segments per chain (default 8)")
+                        .opt(
+                                MAX_DEPTH,
+                                TYPE_INTEGER,
+                                "Maximum pipeline segments to show per chain (default: all; indexing records up to 32)")
                         .opt("maxChains", TYPE_INTEGER, "Maximum number of chains to render (default 5)")
                         .opt(
                                 "includeLifecycle",
@@ -908,7 +911,11 @@ public class McpServer {
             return new ToolResult(result.text(), Map.of("action", action), result.error());
         }
         List<?> values = result.structured() instanceof List<?> list ? list : List.of();
-        return new ToolResult(result.text(), Map.of("action", action, collectionKey, values), result.error());
+        Map<String, Object> structured = new LinkedHashMap<>();
+        structured.put("action", action);
+        structured.put(collectionKey, values);
+        if (result.truncated()) structured.put("truncated", true);
+        return new ToolResult(result.text(), structured, result.error(), result.truncated());
     }
 
     /** Maps graph actions to their stable response collection property. */
@@ -933,6 +940,9 @@ public class McpServer {
                 "edges",
                 Map.of("oneOf", List.of(countMapSchema(), Map.of("type", "array", "items", edgeItemSchema()))));
         properties.put("paths", Map.of("type", "array", "items", pathItemSchema()));
+        properties.put(
+                "truncated",
+                Map.of("type", "boolean", "description", "Present and true when limit left out part of the result"));
         return schema().raw(Map.of("type", "object", "properties", properties));
     }
 

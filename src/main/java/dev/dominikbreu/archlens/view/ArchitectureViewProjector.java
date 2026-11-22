@@ -33,7 +33,7 @@ public final class ArchitectureViewProjector {
 
         Set<String> scopeIds = resolveScope(graph, scopeId);
 
-        List<ArchitectureViewProjection.Node> nodes = graph.findNodes("Component", null, Map.of(), 500).stream()
+        List<ArchitectureViewProjection.Node> nodes = graph.findNodes("Component", null, Map.of(), 0).stream()
                 .filter(node ->
                         scopeIds.isEmpty() || scopeIds.contains(node.id().serialize()))
                 .sorted(componentPriority())
@@ -71,7 +71,7 @@ public final class ArchitectureViewProjector {
         if (StringUtils.isBlank(scopeId)) {
             return Set.of();
         }
-        return graph.findEdges("OWNS", Map.of(), 100).stream()
+        return graph.findEdges("OWNS", Map.of(), GraphQuery.MAX_RESULTS).stream()
                 .filter(edge -> scopeId.equals(edge.fromId().serialize()))
                 .map(edge -> edge.toId().serialize())
                 .collect(Collectors.toSet());

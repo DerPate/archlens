@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 
@@ -16,6 +18,12 @@ import org.apache.commons.lang3.StringUtils;
 public class QueryArchitectureGraphTool {
 
     private static final String LIMIT = "limit";
+
+    /** Result limit of every action except {@code find_nodes}, which has none by default. */
+    private static final int DEFAULT_LIMIT = 256;
+
+    /** Highest limit a caller may ask for. */
+    private static final int MAX_LIMIT = GraphQuery.MAX_RESULTS - 1;
 
     private final ModelCache cache;
 
@@ -41,35 +49,57 @@ public class QueryArchitectureGraphTool {
             String action = text(args, "action", "summary");
             return switch (action) {
                 case "summary" -> renderSummary(graph.summary());
-                case "find_nodes" ->
-                    renderNodes(graph.findNodes(
-                            text(args, "label", null),
-                            text(args, "query", null),
-                            filters(args),
-                            integer(args, LIMIT, 0)));
+                case "find_nodes" -> {
+                    IntFunction<List<GraphQuery.GraphNode>> find = limit ->
+                            graph.findNodes(text(args, "label", null), text(args, "query", null), filters(args), limit);
+                    int limit = integer(args, LIMIT, 0);
+                    yield limit <= 0 ? renderNodes(find.apply(0)) : limited(args, find, this::renderNodes);
+                }
                 case "find_edges" ->
-                    renderEdges(graph.findEdges(text(args, "label", null), filters(args), integer(args, LIMIT, 256)));
+                    limited(
+                            args,
+                            limit -> graph.findEdges(text(args, "label", null), filters(args), limit),
+                            this::renderEdges);
                 case "neighborhood" ->
-                    renderEdges(graph.neighborhood(
-                            GraphNodeId.of(requiredText(args, "nodeId")),
-                            text(args, "direction", "both"),
-                            integer(args, LIMIT, 256)));
+                    limited(
+                            args,
+                            limit -> graph.neighborhood(
+                                    GraphNodeId.of(requiredText(args, "nodeId")),
+                                    text(args, "direction", "both"),
+                                    limit),
+                            this::renderEdges);
                 case "paths" ->
-                    renderPaths(graph.paths(
-                            GraphNodeId.of(requiredText(args, "fromId")),
-                            GraphNodeId.of(requiredText(args, "toId")),
-                            integer(args, "maxDepth", 5),
-                            integer(args, LIMIT, 256)));
+                    limited(
+                            args,
+                            limit -> graph.paths(
+                                    GraphNodeId.of(requiredText(args, "fromId")),
+                                    GraphNodeId.of(requiredText(args, "toId")),
+                                    integer(args, "maxDepth", 5),
+                                    limit),
+                            this::renderPaths);
                 case "impacted_by" ->
-                    renderNodes(graph.impactedBy(
-                            GraphNodeId.of(requiredText(args, "nodeId")),
-                            integer(args, "maxDepth", 3),
-                            integer(args, LIMIT, 256)));
+                    limited(
+                            args,
+                            limit -> graph.impactedBy(
+                                    GraphNodeId.of(requiredText(args, "nodeId")), integer(args, "maxDepth", 3), limit),
+                            this::renderNodes);
                 default -> ToolResult.error("Unknown graph action: " + action);
             };
         } catch (Exception e) {
             return ToolResult.error("Error querying architecture graph: " + e.getMessage());
         }
+    }
+
+    /** Renders at most the requested number of results, asking for one more to learn whether any were cut. */
+    private <T> ToolResult limited(
+            Map<String, Object> args, IntFunction<List<T>> query, Function<List<T>, ToolResult> render) {
+        int requested = integer(args, LIMIT, DEFAULT_LIMIT);
+        int limit = Math.min(requested > 0 ? requested : DEFAULT_LIMIT, MAX_LIMIT);
+        List<T> found = query.apply(limit + 1);
+        if (found.size() <= limit) return render.apply(found);
+        String advice = limit < MAX_LIMIT ? "pass a larger limit for more" : "narrow the query";
+        return render.apply(found.subList(0, limit))
+                .asTruncated("Truncated: showing the first " + limit + " results; " + advice + ".");
     }
 
     private ToolResult renderSummary(GraphQuery.GraphSummary summary) {

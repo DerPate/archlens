@@ -5,7 +5,7 @@ This guide walks through building ArchLens and wiring it into an MCP client.
 ## Prerequisites
 
 - Java 25 or newer (`java -version`)
-- Maven 3.9 or newer (`mvn -v`)
+- Maven 3.9 or newer (`mvn -v`), only to build from source
 - An MCP-capable client (Claude Desktop, Claude Code, or any client that can launch a stdio MCP server)
 
 Java 25 is required to run ArchLens, not the application being analyzed. The target
@@ -77,7 +77,17 @@ If `java -version` reports an older JDK, switch the default:
 - Arch: `sudo archlinux-java set java-25-openjdk`
 - SDKMAN!: `sdk default java 25-tem`
 
-## 1. Build
+## 1. Get the jar
+
+### From a release
+
+Download `archlens-<version>.jar` from the
+[latest release](https://github.com/DerPate/archlens/releases/latest), not the `-sources` or
+`-javadoc` jar. It needs only Java 25. Wherever this guide says `target/archlens.jar`, use the path of
+that file. The smoke test in step 2 needs the example request from a source checkout, so skip it or
+connect your client directly.
+
+### From source
 
 Clone the repo and build the shaded server jar:
 
@@ -220,7 +230,8 @@ These properties were named `spoon.traces` and `spoon.otlp.endpoint` before the 
 
 ## Upgrading
 
-Pull the latest changes and rebuild:
+With a release jar, download the new one and point your client at it. From source, pull the latest
+changes and rebuild:
 
 ```sh
 git pull
