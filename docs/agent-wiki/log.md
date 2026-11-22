@@ -1,5 +1,10 @@
 # Update Log
 
+## 2026-11-22
+- **Migration**: Moved the bundle to OKF v0.3. Path fields are now repository URLs, and three
+  descriptions that were invalid YAML are quoted. No concept body changed, so `generated` and
+  `verified` are unchanged.
+
 ## 2026-09-17
 - **Verification**: `human:dominik` reviewed the bundle, caught that Main#main's
   Dashboard branch was undocumented, and confirmed the fix. All concepts marked

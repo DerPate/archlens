@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.Test;
 
 class OkfEntryValidatorTest {
-    private static final String OKF_V02_FIELDS = """
+    private static final String OKF_TRUST_FIELDS = """
             generated:
               by: process:archlens
               at: '2026-07-19T12:00:00Z'
@@ -18,12 +18,12 @@ class OkfEntryValidatorTest {
         String concept = """
                 ---
                 type: Architecture Investigation
-                %sarchlens_generated: true
-                archlens_semantic_key: abc123
+                %sx-archlens-generated: true
+                x-archlens-semantic-key: abc123
                 ---
                 # Question
                 What changes?
-                """.formatted(OKF_V02_FIELDS);
+                """.formatted(OKF_TRUST_FIELDS);
         OkfEntryValidator validator = new OkfEntryValidator();
         validator.validateConcept(concept, "abc123");
         validator.validateIndexEntry(
@@ -38,14 +38,14 @@ class OkfEntryValidatorTest {
                         ---
                         type: Architecture Investigation
                         %s---
-                        """.formatted(OKF_V02_FIELDS), "abc"))
-                .hasMessageContaining("archlens_generated");
+                        """.formatted(OKF_TRUST_FIELDS), "abc"))
+                .hasMessageContaining("x-archlens-generated");
         assertThatThrownBy(() -> validator.validateIndexEntry("Title without link"))
                 .hasMessageContaining("index entry");
     }
 
     @Test
-    void rejectsMissingOkfV02ProvenanceFields() {
+    void rejectsMissingOkfProvenanceFields() {
         OkfEntryValidator validator = new OkfEntryValidator();
 
         assertThatThrownBy(() -> validator.validateConcept("""
@@ -53,8 +53,8 @@ class OkfEntryValidatorTest {
                         type: Architecture Investigation
                         status: draft
                         stale_after: '2026-10-17'
-                        archlens_generated: true
-                        archlens_semantic_key: abc123
+                        x-archlens-generated: true
+                        x-archlens-semantic-key: abc123
                         ---
                         """, "abc123")).hasMessageContaining("generated");
 
@@ -65,8 +65,8 @@ class OkfEntryValidatorTest {
                           by: process:archlens
                           at: '2026-07-19T12:00:00Z'
                         stale_after: '2026-10-17'
-                        archlens_generated: true
-                        archlens_semantic_key: abc123
+                        x-archlens-generated: true
+                        x-archlens-semantic-key: abc123
                         ---
                         """, "abc123")).hasMessageContaining("status");
 
@@ -77,8 +77,8 @@ class OkfEntryValidatorTest {
                           by: process:archlens
                         status: draft
                         stale_after: '2026-10-17'
-                        archlens_generated: true
-                        archlens_semantic_key: abc123
+                        x-archlens-generated: true
+                        x-archlens-semantic-key: abc123
                         ---
                         """, "abc123")).hasMessageContaining("generated.at");
     }
@@ -97,8 +97,8 @@ class OkfEntryValidatorTest {
         assertThatThrownBy(() -> validator.validateConcept("""
                         ---
                         type: Architecture Investigation
-                        archlens_generated: true
-                        archlens_semantic_key: abc123
+                        x-archlens-generated: true
+                        x-archlens-semantic-key: abc123
                         ---corrupted
                         # Question
                         """, "abc123")).hasMessageContaining("frontmatter");

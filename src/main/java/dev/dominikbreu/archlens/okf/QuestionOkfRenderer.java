@@ -188,11 +188,11 @@ public final class QuestionOkfRenderer {
                         .atZone(ZoneOffset.UTC)
                         .toLocalDate()
                         .toString());
-        values.put("archlens_family", result.family());
-        values.put("archlens_status", result.status());
-        values.put("archlens_semantic_key", identity.semanticKey());
-        values.put("archlens_project_path", projectPath.toString());
-        values.put("archlens_generated", true);
+        values.put(OkfKeys.FAMILY, result.family());
+        values.put(OkfKeys.STATUS, result.status());
+        values.put(OkfKeys.SEMANTIC_KEY, identity.semanticKey());
+        values.put(OkfKeys.PROJECT_PATH, projectPath.toString());
+        values.put(OkfKeys.GENERATED, true);
 
         DumperOptions options = new DumperOptions();
         options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
