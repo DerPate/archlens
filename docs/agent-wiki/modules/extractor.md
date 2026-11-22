@@ -3,7 +3,7 @@ type: Module
 title: Extractor
 description: The six-pass extraction pipeline that turns scanned sources into the architecture model.
 tags: [archlens, module]
-resource: src/main/java/dev/dominikbreu/archlens/extractor/
+resource: https://github.com/DerPate/archlens/tree/main/src/main/java/dev/dominikbreu/archlens/extractor
 status: stable
 generated: { by: claude-code/claude-sonnet-5, at: 2026-09-17T00:00:00Z }
 verified: { by: human:dominik, at: 2026-09-17T00:00:00Z }
