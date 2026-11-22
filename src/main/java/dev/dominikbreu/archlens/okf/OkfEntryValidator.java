@@ -30,11 +30,11 @@ public final class OkfEntryValidator {
         requireNonblank(frontmatter, "status");
         requireNonblank(frontmatter, "stale_after");
         requireGenerated(frontmatter);
-        Object generated = frontmatter.get("archlens_generated");
+        Object generated = frontmatter.get(OkfKeys.GENERATED);
         if (!Boolean.TRUE.equals(generated)) {
-            throw new IllegalArgumentException("Generated concept must set archlens_generated: true");
+            throw new IllegalArgumentException("Generated concept must set " + OkfKeys.GENERATED + ": true");
         }
-        Object actualKey = frontmatter.get("archlens_semantic_key");
+        Object actualKey = frontmatter.get(OkfKeys.SEMANTIC_KEY);
         if (!semanticKey.equals(actualKey)) {
             throw new IllegalArgumentException("Generated concept semantic key does not match");
         }
