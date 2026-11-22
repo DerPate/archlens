@@ -56,3 +56,35 @@ test("analytics waits for cookie consent", async ({ page }) => {
     }) ?? false;
   })).toBe(true);
 });
+
+const toolPages = ["index-workspace", "query-architecture-graph", "trace-data-flow", "render-pipeline", "answer-architecture-question"];
+
+// 681 is just above the breakpoint below which argument tables stack.
+for (const width of [390, 681, 1440]) {
+  test(`tool pages fit ${width === 390 ? "a phone" : `${width}px`}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    for (const tool of toolPages) {
+      await page.goto(`/tools/${tool}`);
+      // main clips its overflow, so the document never scrolls: measure the content itself.
+      const clipped = await page.evaluate(() => {
+        const container = document.querySelector(".tool-page .container").getBoundingClientRect();
+        return [...document.querySelectorAll(".arg-table, .arg-table td, .tool-page-intro, .tool-page-intro code, .tool-page-title")]
+          .filter((element) => element.getBoundingClientRect().right > container.right + 1 || element.scrollWidth > element.clientWidth + 1 && element.clientWidth > 0)
+          .map((element) => `${element.tagName}: ${element.textContent.trim().slice(0, 50)}`);
+      });
+      expect(clipped, tool).toEqual([]);
+    }
+  });
+}
+
+for (const width of [390, 681, 1440]) {
+  test(`navigation covers no page title at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    for (const path of ["/", ...toolPages.map((tool) => `/tools/${tool}`)]) {
+      await page.goto(path);
+      const nav = await page.locator("nav.nav").boundingBox();
+      const first = await page.locator(path === "/" ? ".hero-wordmark" : "main h1").boundingBox();
+      expect(first.y, path).toBeGreaterThanOrEqual(nav.y + nav.height);
+    }
+  });
+}

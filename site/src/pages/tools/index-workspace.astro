@@ -36,7 +36,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
             <td>paths</td>
             <td>array</td>
             <td><span class="required-badge">required</span></td>
-            <td>Absolute paths to Java project root directories. Each path must contain <code>.java</code> sources or a Maven/Gradle module.</td>
+            <td>Absolute paths to Java project root directories. Each path must contain <code>.java</code> sources or a Maven/Gradle module. Indexing reads only inside these roots and their Git checkouts. Pass linked sources or modules elsewhere as additional paths.</td>
           </tr>
         </tbody>
       </table>
@@ -57,12 +57,12 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
       <h2 class="tool-section-label">Output</h2>
       <p class="tool-page-intro">
-        A summary of what was indexed: number of applications found, components, entrypoints,
-        interfaces, injection edges, call edges, data-flow paths, and containers. The graph
-        is cached in your user cache directory, separately for each working directory.
-        Subsequent tool calls read from this cache without re-indexing. Alongside this text,
-        the response's <code>structuredContent</code> carries the same app/component/entrypoint
-        counts as JSON.
+        A summary with the number of applications, components, entrypoints, interfaces and
+        runtime flows, plus deployments when found, and a <code>workspaceId</code>. Pass that
+        id to other tools when several tasks share a server; calls run one at a time, in
+        arrival order. <code>structuredContent</code> carries the id and the application,
+        component and entrypoint counts. The graph is cached in your user cache directory,
+        separately for each working directory, so later calls don't re-index.
       </p>
 
       <h2 class="tool-section-label">Related tools</h2>

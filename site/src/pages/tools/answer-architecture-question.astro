@@ -14,22 +14,36 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       </div>
 
       <p class="tool-page-intro">
-        A question-oriented view over the indexed graph. It combines the relevant graph nodes and
-        edges into four stable contracts: persistence destination, consumer context, grouped
-        change impact, and transaction context. Missing runtime configuration is returned as an
-        unresolved fact instead of being guessed.
+        A question-oriented view over the indexed graph. Ask in natural language or pick one of
+        eleven families:
+        <code>persistence_destination</code>,
+        <code>consumer_context</code>,
+        <code>impact</code>,
+        <code>transaction_context</code>,
+        <code>endpoint_context</code>,
+        <code>messaging_flow</code>,
+        <code>state_lifecycle</code>,
+        <code>scheduled_workflow</code>,
+        <code>external_integration_context</code>,
+        <code>configuration_context</code> and
+        <code>relationship</code>.
+        Missing runtime configuration is returned as an unresolved fact instead of being guessed.
       </p>
 
       <h2 class="tool-section-label">Arguments</h2>
       <table class="arg-table">
         <thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td>family</td><td>string</td><td>yes</td><td><code>persistence_destination</code>, <code>consumer_context</code>, <code>impact</code>, or <code>transaction_context</code>.</td></tr>
+          <tr><td>family</td><td>string</td><td>one of</td><td>One of the eleven families above. Takes precedence over <code>question</code>.</td></tr>
+          <tr><td>question</td><td>string</td><td>one of</td><td>Natural-language question. Used to infer the family and subject.</td></tr>
           <tr><td>entrypoint</td><td>string</td><td>by family</td><td>Entrypoint ID, name, or <code>METHOD /path</code>.</td></tr>
           <tr><td>component</td><td>string</td><td>by family</td><td>Component simple name or qualified ID.</td></tr>
           <tr><td>query</td><td>string</td><td>—</td><td>Persistence operation, entity, or component query.</td></tr>
           <tr><td>param / method</td><td>string</td><td>—</td><td>Optional parameter or method selector.</td></tr>
-          <tr><td>maxDepth</td><td>integer</td><td>—</td><td>Impact depth. Default: <code>4</code>.</td></tr>
+          <tr><td>field</td><td>string</td><td>—</td><td>Shared-state field name for <code>state_lifecycle</code>.</td></tr>
+          <tr><td>target</td><td>string</td><td>—</td><td>Second subject for <code>relationship</code> path questions.</td></tr>
+          <tr><td>maxDepth</td><td>integer</td><td>—</td><td>Impact and reverse-endpoint traversal depth. Default: <code>4</code>.</td></tr>
+          <tr><td>workspaceId</td><td>string</td><td>—</td><td>Workspace to query, as returned by <code>index_workspace</code>. Default: the last one indexed.</td></tr>
         </tbody>
       </table>
 

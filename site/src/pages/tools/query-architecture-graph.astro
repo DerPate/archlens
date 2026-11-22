@@ -65,6 +65,12 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
             <td>Required for <code>paths</code>.</td>
           </tr>
           <tr>
+            <td>direction</td>
+            <td>string</td>
+            <td>—</td>
+            <td><code>in</code>, <code>out</code>, or <code>both</code>.</td>
+          </tr>
+          <tr>
             <td>maxDepth</td>
             <td>integer</td>
             <td>—</td>
@@ -75,6 +81,18 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
             <td>integer</td>
             <td>—</td>
             <td>Cap result set size. Omit to return all matches.</td>
+          </tr>
+          <tr>
+            <td>type / technology / module / packageName / entrypointReachable / workflowRelevant / businessRelevant / infrastructureRole / primaryRole / supportRole / agentCategory / classificationEvidence / isCrossModule / isRuntimeRelevant / isCondensable</td>
+            <td>string</td>
+            <td>—</td>
+            <td>Shorthand for the same key in <code>filters</code>.</td>
+          </tr>
+          <tr>
+            <td>workspaceId</td>
+            <td>string</td>
+            <td>—</td>
+            <td>Workspace to query, as returned by <code>index_workspace</code>. Default: the last one indexed.</td>
           </tr>
         </tbody>
       </table>
@@ -100,10 +118,9 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         Depends on <code>action</code>. <code>summary</code> returns counts and top-level
         stats. <code>find_nodes</code> returns matching node records with all properties.
         <code>neighborhood</code> returns the subgraph around a node. <code>impacted_by</code>
-        returns all nodes reachable from a given node — useful for change-impact analysis
-        before modifying a repository or service. The response's <code>structuredContent</code>
-        carries the same data as JSON (a summary object, or a node/edge/path array depending
-        on the action), so clients can parse it directly instead of the text block.
+        returns the nodes that reach the given node over incoming edges (default depth 3, at
+        most 8): what may be affected if it changes. <code>structuredContent</code> is always
+        an object, for example <code>{`{action, nodes}`}</code> for <code>find_nodes</code>.
       </p>
 
       <h2 class="tool-section-label">Related tools</h2>

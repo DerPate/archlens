@@ -53,6 +53,18 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
             <td>—</td>
             <td>Maximum distinct chains in one response. Default: <code>5</code>.</td>
           </tr>
+          <tr>
+            <td>includeLifecycle</td>
+            <td>boolean</td>
+            <td>—</td>
+            <td>Include CDI lifecycle observer, main-method, and RMI chains (default false)</td>
+          </tr>
+          <tr>
+            <td>workspaceId</td>
+            <td>string</td>
+            <td>—</td>
+            <td>Workspace to query, as returned by <code>index_workspace</code>. Default: the last one indexed.</td>
+          </tr>
         </tbody>
       </table>
 
