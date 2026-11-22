@@ -1,6 +1,7 @@
 package dev.dominikbreu.archlens.extractor;
 
 import dev.dominikbreu.archlens.build.BuildModule;
+import dev.dominikbreu.archlens.io.ReadBoundary;
 import dev.dominikbreu.archlens.model.ArchitectureModel;
 import dev.dominikbreu.archlens.model.DataSourceInfo;
 import dev.dominikbreu.archlens.model.DataSourceUsage;
@@ -484,7 +485,7 @@ public class PersistenceTopologyExtractor {
      * @param files accumulator collection
      */
     private static void collectFiles(Path root, int maxDepth, Set<Path> files) {
-        if (!Files.isDirectory(root)) return;
+        if (!Files.isDirectory(root) || !ReadBoundary.allows(root.toFile())) return;
         try (var paths = Files.find(root, maxDepth, (path, attrs) -> attrs.isRegularFile())) {
             paths.filter(path -> !isGeneratedPath(path)).forEach(files::add);
         } catch (IOException _) {
@@ -567,7 +568,7 @@ public class PersistenceTopologyExtractor {
         for (File root : module.resourceRoots()) {
             for (String name : List.of("application.properties", "application.yml", "application.yaml")) {
                 Path candidate = root.toPath().resolve(name);
-                if (Files.isRegularFile(candidate)) result.add(candidate);
+                if (Files.isRegularFile(candidate) && ReadBoundary.allows(candidate.toFile())) result.add(candidate);
             }
         }
         return result.stream().sorted().toList();

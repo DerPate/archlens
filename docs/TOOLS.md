@@ -87,6 +87,11 @@ Example:
 { "paths": ["/path/to/java/project"] }
 ```
 
+Indexing only reads inside the given roots and the Git checkout enclosing each of them (a checkout
+at or above your home directory does not count). Symbolic links, Maven modules and Gradle includes
+that resolve elsewhere are skipped with a warning on stderr. To include them, pass their directory
+as another path. A root that leaves its checkout through a symbolic link is rejected.
+
 ---
 
 ## `list_apps`

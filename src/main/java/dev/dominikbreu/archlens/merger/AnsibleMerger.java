@@ -1,5 +1,6 @@
 package dev.dominikbreu.archlens.merger;
 
+import dev.dominikbreu.archlens.io.ReadBoundary;
 import dev.dominikbreu.archlens.model.ArchitectureModel;
 import dev.dominikbreu.archlens.model.DeploymentEntry;
 import java.io.*;
@@ -27,7 +28,7 @@ public class AnsibleMerger {
      * @param model architecture model to update
      */
     public void merge(File ansibleDir, ArchitectureModel model) {
-        if (!ansibleDir.exists() || !ansibleDir.isDirectory()) return;
+        if (!ansibleDir.exists() || !ansibleDir.isDirectory() || !ReadBoundary.allows(ansibleDir)) return;
         mergeInventory(ansibleDir, model);
         mergePlaybooks(ansibleDir, model);
     }
@@ -57,6 +58,7 @@ public class AnsibleMerger {
     }
 
     private void parseIniInventory(File f, ArchitectureModel model) {
+        if (!ReadBoundary.allows(f)) return;
         try {
             List<String> lines = Files.readAllLines(f.toPath());
             String currentGroup = null;
@@ -101,6 +103,7 @@ public class AnsibleMerger {
     }
 
     private void parsePlaybook(File f, ArchitectureModel model) {
+        if (!ReadBoundary.allows(f)) return;
         try (FileInputStream fis = new FileInputStream(f)) {
             Object doc = yaml.load(fis);
             if (!(doc instanceof List<?> plays)) return;
