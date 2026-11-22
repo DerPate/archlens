@@ -3,6 +3,10 @@
 The server exposes these tools through `tools/list` and `tools/call`.
 It also exposes reusable workflow prompts through `prompts/list` and `prompts/get`.
 
+Tool calls run one at a time in the order they arrive. A client may send a query right after
+`index_workspace` without waiting: the query sees the new index. `ping` and list requests are
+answered while a tool runs.
+
 ## Response Shape
 
 Every `tools/call` response carries the same human-readable text shown in the "Sample output"
@@ -463,6 +467,10 @@ When the argument expression is non-trivial — a constructor call, nested invoc
 ternary that wraps a tracked variable — the mapping is still recorded, and the callee
 parameter is listed in `syntheticParamMappings` on the call edge so consumers know the
 hop relied on a heuristic descent rather than a direct variable reference.
+Analysis runs without the project's classpath, so one unknown library type can leave a
+call to the project's own method unbound (typically inside a lambda). For calls on `this`
+or on a field, the callee is then matched by receiver type, name, and arity; the mapping
+is left empty when more than one method fits.
 
 **Two-phase pipeline support (store sinks):** writes to shared in-memory state fields
 (e.g. `ConcurrentHashMap` caches) inside a `MESSAGING_CONSUMER` entrypoint are reported

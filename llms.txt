@@ -225,6 +225,8 @@ Prompts are workflow templates for clients and agents; they do not replace tools
   nested invocations, and ternaries (`new Foo(x)`, `wrap(x)`, `cond ? x : y`); callee
   parameter names whose mapping was synthesised this way are listed in the new
   `syntheticParamMappings` set on the edge.
+- `trace_data_flow`: calls left unbound by unknown library types are matched to project
+  methods by receiver type, name, and arity (`this`/field receivers, unique match only).
 - `trace_data_flow`: `MESSAGING_PRODUCER` and `SCHEDULER` entrypoints also seed tracking
   from transitively read shared-state fields even when they declare parameters of their
   own, and writes whose RHS is a field read on the same bean record `sourceFieldName` so
