@@ -3,6 +3,10 @@
 The server exposes these tools through `tools/list` and `tools/call`.
 It also exposes reusable workflow prompts through `prompts/list` and `prompts/get`.
 
+Tool calls run one at a time in the order they arrive. A client may send a query right after
+`index_workspace` without waiting: the query sees the new index. `ping` and list requests are
+answered while a tool runs.
+
 ## Response Shape
 
 Every `tools/call` response carries the same human-readable text shown in the "Sample output"

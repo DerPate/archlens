@@ -6,6 +6,7 @@ import dev.dominikbreu.archlens.mcp.tools.*;
 import dev.dominikbreu.archlens.renderer.MermaidDialect;
 import io.modelcontextprotocol.json.McpJsonDefaults;
 import io.modelcontextprotocol.server.McpServerFeatures;
+import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.io.IOException;
@@ -17,6 +18,9 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.function.Function;
 import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 /** Stdio MCP server exposing architecture-analysis tools via the official MCP Java SDK. */
 public class McpServer {
@@ -154,19 +158,48 @@ public class McpServer {
 
     /**
      * Starts the MCP server on stdio.
+     *
+     * <p>Tool calls run one at a time, in arrival order, so a query sent after {@code index_workspace}
+     * sees its result and no two tools touch the cache or an output bundle at once. They run off the
+     * transport's reader thread, which keeps {@code ping} responsive during a long index.
      */
     public void run() {
         StdioServerTransportProvider transport = new StdioServerTransportProvider(McpJsonDefaults.getMapper());
+        // The SDK's sync server hands calls to a thread pool, which loses their order.
+        Scheduler toolThread = Schedulers.newSingle("archlens-tools", true);
 
-        io.modelcontextprotocol.server.McpServer.sync(transport)
+        io.modelcontextprotocol.server.McpServer.async(transport)
                 .serverInfo("archlens", SERVER_VERSION)
                 .capabilities(McpSchema.ServerCapabilities.builder()
                         .prompts(false)
                         .tools(false)
                         .build())
-                .tools(buildToolSpecifications())
-                .prompts(buildPromptSpecifications())
+                .tools(buildToolSpecifications().stream()
+                        .map(spec -> runOn(toolThread, spec))
+                        .toList())
+                .prompts(buildPromptSpecifications().stream()
+                        .map(McpServer::immediate)
+                        .toList())
                 .build();
+    }
+
+    /** Queues a tool's calls on the given single-threaded scheduler. */
+    private static McpServerFeatures.AsyncToolSpecification runOn(
+            Scheduler scheduler, McpServerFeatures.SyncToolSpecification spec) {
+        return new McpServerFeatures.AsyncToolSpecification(
+                spec.tool(),
+                (exchange, request) -> Mono.fromCallable(
+                                () -> spec.callHandler().apply(new McpSyncServerExchange(exchange), request))
+                        .subscribeOn(scheduler));
+    }
+
+    /** Serves a prompt directly; prompts only fill in a template. */
+    private static McpServerFeatures.AsyncPromptSpecification immediate(
+            McpServerFeatures.SyncPromptSpecification spec) {
+        return new McpServerFeatures.AsyncPromptSpecification(
+                spec.prompt(),
+                (exchange, request) -> Mono.fromCallable(
+                        () -> spec.promptHandler().apply(new McpSyncServerExchange(exchange), request)));
     }
 
     // ── tool registration ─────────────────────────────────────────────────────
