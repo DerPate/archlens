@@ -10,7 +10,10 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.Test;
@@ -115,6 +118,66 @@ class McpStructuredOutputWireTest {
         }
     }
 
+    @Test
+    void pipelinedQuerySeesTheIndexSentBeforeIt(@TempDir Path tempDir) throws Exception {
+        try (ServerProcess server = ServerProcess.start(false, tempDir.resolve("pipeline-stderr.log"))) {
+            String fixture = Path.of("src/test/resources/testprojects/spring-pipeline-sample")
+                    .toAbsolutePath()
+                    .toString();
+            server.send(101, "tools/call", toolCall("index_workspace", Map.of("paths", List.of(fixture))));
+            server.send(102, "tools/call", toolCall("list_apps", Map.of()));
+
+            JsonNode first = server.receive();
+            JsonNode second = server.receive();
+
+            assertThat(first.path("id").asInt()).isEqualTo(101);
+            assertThat(second.path("id").asInt()).isEqualTo(102);
+            assertThat(second.path("result").path("isError").asBoolean())
+                    .as(second.toString())
+                    .isFalse();
+        }
+    }
+
+    @Test
+    void pingIsAnsweredWhileAToolIsRunning(@TempDir Path tempDir) throws Exception {
+        try (ServerProcess server = ServerProcess.start(false, tempDir.resolve("ping-stderr.log"))) {
+            String fixture = Path.of("src/test/resources/testprojects/scheduler-hub")
+                    .toAbsolutePath()
+                    .toString();
+            server.send(201, "tools/call", toolCall("index_workspace", Map.of("paths", List.of(fixture))));
+            server.send(202, "ping", Map.of());
+
+            assertThat(server.receive().path("id").asInt()).isEqualTo(202);
+            assertThat(server.receive().path("id").asInt()).isEqualTo(201);
+        }
+    }
+
+    private static Map<String, Object> toolCall(String name, Map<String, Object> arguments) {
+        return Map.of("name", name, "arguments", arguments);
+    }
+
+    @Test
+    void stableMode_listsByteIdenticalToolsAndPromptsInEveryJvm(@TempDir Path tempDir) throws Exception {
+        assertListsIdenticalAcrossJvms(false, tempDir);
+    }
+
+    @Test
+    void draftMode_listsByteIdenticalToolsAndPromptsInEveryJvm(@TempDir Path tempDir) throws Exception {
+        assertListsIdenticalAcrossJvms(true, tempDir);
+    }
+
+    /** Map.of iteration order is salted per JVM, so only separate processes can expose it. */
+    private static void assertListsIdenticalAcrossJvms(boolean draft, Path tempDir) throws Exception {
+        Set<String> payloads = new HashSet<>();
+        for (int run = 0; run < 4; run++) {
+            try (ServerProcess server = ServerProcess.start(draft, tempDir.resolve("run-" + run + ".log"))) {
+                payloads.add(
+                        server.request("tools/list", Map.of()).toString() + server.request("prompts/list", Map.of()));
+            }
+        }
+        assertThat(payloads).as("distinct list payloads across JVMs").hasSize(1);
+    }
+
     private static final class ServerProcess implements Closeable {
         private final Process process;
         private final BufferedWriter input;
@@ -186,6 +249,16 @@ class McpStructuredOutputWireTest {
                     .as(response.toString())
                     .isTrue();
             return response.path("result");
+        }
+
+        void send(int requestId, String method, Map<String, Object> params) throws Exception {
+            write(Map.of("jsonrpc", "2.0", "id", requestId, "method", method, "params", params));
+        }
+
+        JsonNode receive() throws Exception {
+            String line = output.readLine();
+            if (line == null) throw new IOException("MCP server exited before responding");
+            return JSON.readTree(line);
         }
 
         private void notify(String method, Map<String, Object> params) throws Exception {
