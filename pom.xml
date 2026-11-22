@@ -190,6 +190,12 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.6.1</version>
+                <configuration>
+                    <environmentVariables>
+                        <!-- Keep tests out of the developer's real cache. -->
+                        <ARCHLENS_CACHE_DIR>${project.build.directory}/test-cache</ARCHLENS_CACHE_DIR>
+                    </environmentVariables>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>
