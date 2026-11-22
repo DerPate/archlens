@@ -2,6 +2,31 @@
 
 All notable changes to this project are documented in this file.
 
+## [3.0.1](https://github.com/DerPate/archlens/compare/archlens-3.0.0...archlens-3.0.1) (2026-11-22)
+
+
+### Bug Fixes
+
+* **index:** keep indexing inside the indexed projects ([b693171](https://github.com/DerPate/archlens/commit/b693171946fa327c851645dc720663947f5efa29))
+* **index:** keep indexing inside the indexed projects ([d968caf](https://github.com/DerPate/archlens/commit/d968cafcef0dace179ee0f9023c8eed9f2ab966d))
+* **mcp:** stop truncating results silently and honor documented arguments ([a24e05a](https://github.com/DerPate/archlens/commit/a24e05a74171bbfbf7b0e6752a67eb913821dff1))
+* **mcp:** stop truncating results silently and honor documented arguments ([83ca0cc](https://github.com/DerPate/archlens/commit/83ca0ccffc2515347c55fc53a353883d2fc21843))
+* **merger:** read Ansible inventory directories ([9f0adc1](https://github.com/DerPate/archlens/commit/9f0adc18fcd2929ce35118941d99bdeaa493262a))
+* **merger:** read Ansible inventory directories ([c8fa328](https://github.com/DerPate/archlens/commit/c8fa328fa48bb9067e562bdb79f19c04d5c14f15))
+* **site:** correct landing page claims ([ca8b0f0](https://github.com/DerPate/archlens/commit/ca8b0f018c5f9f886c745ffa5f7936a60437c88a))
+* **site:** correct tool behavior, install steps and narrow layouts ([ba5c401](https://github.com/DerPate/archlens/commit/ba5c40131911be09d3bed0aa9ae7643426b9cba1))
+* **site:** document the 3.0 tool arguments and results ([28e7cdc](https://github.com/DerPate/archlens/commit/28e7cdcdf7e6daaa0c466a6740e9c00b91542a18))
+* **site:** never deploy without a fresh API reference ([6017413](https://github.com/DerPate/archlens/commit/6017413273b0dc3b12b95d71bbaa43e69b1b6f0e))
+* **site:** update the website for 3.0 and make deploys safe ([85eb6b8](https://github.com/DerPate/archlens/commit/85eb6b891b0f8d5cf88fa0161e000fecfecb05fb))
+
+
+### Documentation
+
+* **api:** describe the current package boundaries ([a8f6f9a](https://github.com/DerPate/archlens/commit/a8f6f9a6a209a9e9869c00800b4ba7284d15ed9b))
+* **site:** link releases and the 3.0 migration guide ([64454ce](https://github.com/DerPate/archlens/commit/64454cee7190c5c9e8ac4865ac4d5b866dcb5c2d))
+* **wiki:** record the review of the MCP server concept ([09e685f](https://github.com/DerPate/archlens/commit/09e685faf84c3d6c12d2e89f69b8255326369029))
+* **wiki:** record the review of the MCP server concept ([3bd2ad1](https://github.com/DerPate/archlens/commit/3bd2ad1476ca49c2d4610a224bb230ad4dfa8964))
+
 ## [3.0.0](https://github.com/DerPate/archlens/compare/archlens-2.3.0...archlens-3.0.0) (2026-11-22)
 
 
