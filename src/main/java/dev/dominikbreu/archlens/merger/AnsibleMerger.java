@@ -38,32 +38,40 @@ public class AnsibleMerger {
     private void mergeInventory(File dir, ArchitectureModel model) {
         for (String name : List.of("inventory", HOSTS, "inventory.ini", "hosts.ini")) {
             File f = new File(dir, name);
-            if (f.exists()) {
-                parseIniInventory(f, model);
+            if (f.isFile()) {
+                parseIniInventories(List.of(f), model);
                 return;
             }
         }
         // Try inventory/ subdirectory
         File inventoryDir = new File(dir, "inventory");
         if (inventoryDir.isDirectory()) {
-            File[] files = inventoryDir.listFiles();
+            File[] files = inventoryDir.listFiles(
+                    f -> f.isFile() && (f.getName().endsWith(".ini") || HOSTS.equals(f.getName())));
             if (files != null) {
-                for (File f : files) {
-                    if (f.getName().endsWith(".ini") || HOSTS.equals(f.getName())) {
-                        parseIniInventory(f, model);
-                    }
-                }
+                Arrays.sort(files);
+                parseIniInventories(List.of(files), model);
             }
         }
     }
 
-    private void parseIniInventory(File f, ArchitectureModel model) {
+    /**
+     * Parses inventory files as one inventory, as Ansible does: a group named in several files is one
+     * deployment, with the hosts of all of them.
+     */
+    private void parseIniInventories(List<File> files, ArchitectureModel model) {
+        Map<String, DeploymentEntry> groups = new LinkedHashMap<>();
+        for (File file : files) {
+            parseIniInventory(file, groups);
+        }
+        model.deployments.addAll(groups.values());
+    }
+
+    private void parseIniInventory(File f, Map<String, DeploymentEntry> groups) {
         if (!ReadBoundary.allows(f)) return;
         try {
             List<String> lines = Files.readAllLines(f.toPath());
             String currentGroup = null;
-            Map<String, DeploymentEntry> groups = new LinkedHashMap<>();
-
             for (String raw : lines) {
                 String line = raw.trim();
                 if (line.isEmpty() || line.charAt(0) == '#' || line.startsWith(";")) continue;
@@ -82,11 +90,10 @@ public class AnsibleMerger {
                     });
                 } else if (currentGroup != null) {
                     String host = line.split("\\s+")[0];
-                    groups.get(currentGroup).hosts.add(host);
+                    List<String> hosts = groups.get(currentGroup).hosts;
+                    if (!hosts.contains(host)) hosts.add(host);
                 }
             }
-
-            model.deployments.addAll(groups.values());
         } catch (Exception _) {
         }
     }
