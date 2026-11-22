@@ -6,8 +6,11 @@ import dev.dominikbreu.archlens.model.ArchitectureModel;
 import dev.dominikbreu.archlens.model.DeploymentEntry;
 import java.io.File;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class AnsibleMergerTest {
 
@@ -64,6 +67,45 @@ class AnsibleMergerTest {
         ArchitectureModel model = new ArchitectureModel("test");
         merger.merge(new File("/tmp/no-ansible-xyz"), model);
         assertThat(model.deployments).isEmpty();
+    }
+
+    @Test
+    void readsAnInventoryDirectory(@TempDir Path dir) throws Exception {
+        Path inventory = Files.createDirectory(dir.resolve("inventory"));
+        Files.writeString(inventory.resolve("production.ini"), "[web]\nweb1\n");
+        Files.writeString(inventory.resolve("hosts"), "[db]\ndb1\n");
+        Files.writeString(inventory.resolve("notes.txt"), "[ignored]\nnope\n");
+        ArchitectureModel model = new ArchitectureModel("test");
+
+        merger.merge(dir.toFile(), model);
+
+        assertThat(model.deployments).extracting(d -> d.name).containsExactlyInAnyOrder("web", "db");
+    }
+
+    @Test
+    void aGroupInSeveralInventoryFilesIsOneDeploymentWithAllHosts(@TempDir Path dir) throws Exception {
+        Path inventory = Files.createDirectory(dir.resolve("inventory"));
+        Files.writeString(inventory.resolve("staging.ini"), "[web]\nweb-staging\nshared\n");
+        Files.writeString(inventory.resolve("production.ini"), "[web]\nweb-production\nshared\n");
+        ArchitectureModel model = new ArchitectureModel("test");
+
+        merger.merge(dir.toFile(), model);
+
+        assertThat(model.deployments).singleElement().satisfies(web -> {
+            assertThat(web.hosts).containsExactly("web-production", "shared", "web-staging");
+            assertThat(web.source).endsWith("production.ini");
+        });
+    }
+
+    @Test
+    void aHostsDirectoryDoesNotHideTheInventoryFileAfterIt(@TempDir Path dir) throws Exception {
+        Files.createDirectory(dir.resolve("hosts"));
+        Files.writeString(dir.resolve("inventory.ini"), "[web]\nweb1\n");
+        ArchitectureModel model = new ArchitectureModel("test");
+
+        merger.merge(dir.toFile(), model);
+
+        assertThat(model.deployments).extracting(d -> d.name).containsExactly("web");
     }
 
     private File ansibleSampleDir() throws Exception {
