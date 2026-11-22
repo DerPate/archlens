@@ -49,5 +49,8 @@ set the flag see no change.
 - Tool calls run one at a time, in arrival order.
 - Call graphs can contain more edges and data-flow steps, because calls next to unresolved library
   types are now bound. Expect differences when comparing exports with 2.x.
+- Export tools and the OKF writer refuse output paths where a symbolic link leads out of the
+  project or bundle. If you link `docs/` elsewhere on purpose, pass an `outputPath` outside the
+  project.
 - Refreshing an OKF concept keeps human review and foreign keys.
 - `index_workspace` returns a `workspaceId` that query tools accept optionally.

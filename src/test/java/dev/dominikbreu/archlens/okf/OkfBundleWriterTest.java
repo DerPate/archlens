@@ -36,6 +36,34 @@ class OkfBundleWriterTest {
     Path tempDir;
 
     @Test
+    void refusesAnInvestigationsDirectoryLinkedOutOfTheBundle() throws Exception {
+        Path bundle = Files.createDirectory(tempDir.resolve("bundle"));
+        Path outside = Files.createDirectory(tempDir.resolve("outside"));
+        Files.createSymbolicLink(bundle.resolve("investigations"), outside);
+
+        assertThatThrownBy(() -> writer().write(requestIn(bundle))).hasMessageContaining("symbolic link");
+        assertThat(outside).isEmptyDirectory();
+    }
+
+    @Test
+    void refusesToReadAnIndexLinkedOutOfTheBundle() throws Exception {
+        Path bundle = Files.createDirectory(tempDir.resolve("bundle"));
+        Path secret = Files.writeString(tempDir.resolve("secret"), "secret");
+        Files.createSymbolicLink(bundle.resolve("index.md"), secret);
+
+        assertThatThrownBy(() -> writer().write(requestIn(bundle))).hasMessageContaining("symbolic link");
+    }
+
+    @Test
+    void refusesToReadALogLinkedOutOfTheBundle() throws Exception {
+        Path bundle = Files.createDirectory(tempDir.resolve("bundle"));
+        Path secret = Files.writeString(tempDir.resolve("secret"), "secret");
+        Files.createSymbolicLink(bundle.resolve("log.md"), secret);
+
+        assertThatThrownBy(() -> writer().write(requestIn(bundle))).hasMessageContaining("symbolic link");
+    }
+
+    @Test
     void createsConceptIndexAndLog() throws Exception {
         OkfBundleWriter.WriteOutcome outcome = writer().write(request(false));
 
@@ -357,6 +385,20 @@ class OkfBundleWriterTest {
                 CONCEPT,
                 LocalDate.parse("2026-07-20"),
                 allowOverwrite);
+    }
+
+    private OkfBundleWriter.WriteRequest requestIn(Path bundle) {
+        OkfBundleWriter.WriteRequest base = request(false);
+        return new OkfBundleWriter.WriteRequest(
+                bundle,
+                base.relativeConceptPath(),
+                base.semanticKey(),
+                base.familySlug(),
+                base.title(),
+                base.description(),
+                base.conceptMarkdown(),
+                base.logDate(),
+                base.allowOverwrite());
     }
 
     private Path conceptPath() {
