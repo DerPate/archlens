@@ -1,6 +1,9 @@
 # Update Log
 
 ## 2026-11-22
+- **Verification**: `human:dominik` approved the corrected 3.0 wording of
+  [MCP Server](modules/mcp-server.md): a wrong cross-reference is removed and `workspaceId` covers
+  every tool except `index_workspace`. The concept is `stable` again.
 - **Migration**: Moved the bundle to OKF v0.3. Path fields are now repository URLs, and three
   descriptions that were invalid YAML are quoted. No concept body changed, so `generated` and
   `verified` are unchanged.
