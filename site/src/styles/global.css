@@ -607,9 +607,12 @@ pre {
     font-size: 0.8rem;
   }
 
+  /* The wrapped menu's height varies, so it takes its own space instead of covering the page. */
+  .nav { position: sticky; }
+
   .hero {
     min-height: auto;
-    padding-top: 112px;
+    padding-top: 2rem;
   }
 
   h1 {
@@ -851,7 +854,8 @@ pre {
 .arg-table td:first-child {
   font-family: var(--font-mono);
   color: var(--text);
-  white-space: nowrap;
+  max-width: 24rem;
+  overflow-wrap: break-word;
 }
 
 .arg-table td:nth-child(2) {
@@ -927,7 +931,13 @@ pre {
     display: block;
     padding: 0.3rem 0;
     border-bottom: none;
+    overflow-wrap: anywhere;
   }
+  .arg-table,
+  .arg-table tbody { display: block; }
+  .tool-page { padding-top: 2rem; }
+  .tool-page-title,
+  .tool-page-intro code { overflow-wrap: anywhere; }
   .arg-table tr {
     display: block;
     padding: 0.75rem 0;
