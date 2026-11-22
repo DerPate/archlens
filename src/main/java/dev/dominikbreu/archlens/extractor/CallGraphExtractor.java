@@ -35,6 +35,7 @@ import spoon.reflect.code.CtTry;
 import spoon.reflect.code.CtVariableRead;
 import spoon.reflect.code.CtVariableWrite;
 import spoon.reflect.declaration.CtElement;
+import spoon.reflect.declaration.CtExecutable;
 import spoon.reflect.declaration.CtField;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtParameter;
@@ -616,7 +617,7 @@ public class CallGraphExtractor {
      * @return the returned field's name, or {@code null} if the accessor doesn't resolve to one
      */
     private String accessorReturnedSharedFieldName(CtInvocation<?> accessor, ExtractionContext ctx) {
-        var executable = accessor.getExecutable().getDeclaration();
+        var executable = declarationOf(accessor);
         if (!(executable instanceof CtMethod<?> accessorMethod)) {
             return null;
         }
@@ -1424,7 +1425,7 @@ public class CallGraphExtractor {
      * @return {@code true} if the callee's return value is traceable to tracked state
      */
     private boolean calleeReturnsTracked(CtInvocation<?> inv, ExtractionContext ctx) {
-        var executable = inv.getExecutable().getDeclaration();
+        var executable = declarationOf(inv);
         if (!(executable instanceof CtMethod<?> calleeMethod)) return false;
         if (calleeMethod.getBody() == null) return false;
         Set<String> paramNames = calleeMethod.getParameters().stream()
@@ -1455,7 +1456,7 @@ public class CallGraphExtractor {
             Component toComp,
             ArchitectureModel model,
             ExtractionContext ctx) {
-        var executable = inv.getExecutable().getDeclaration();
+        var executable = declarationOf(inv);
         if (!(executable instanceof CtMethod<?> calleeMethod)) return;
         if (calleeMethod.getBody() == null) return;
         CtType<?> calleeType = calleeMethod.getDeclaringType();
@@ -1524,6 +1525,40 @@ public class CallGraphExtractor {
     }
 
     /**
+     * Finds the source declaration an invocation calls. Without the analysed project's classpath, a
+     * single unknown library type can stop JDT inferring argument types (typically inside lambdas),
+     * which leaves calls to the project's own methods unbound. Those are matched by receiver type,
+     * name, and arity, and only when exactly one method fits.
+     *
+     * @param inv the call site
+     * @return the called source declaration, or {@code null} if it is unknown or ambiguous
+     */
+    private static CtExecutable<?> declarationOf(CtInvocation<?> inv) {
+        CtExecutable<?> bound = inv.getExecutable().getDeclaration();
+        if (bound != null) return bound;
+
+        CtExpression<?> target = inv.getTarget();
+        CtType<?> receiver;
+        if (target == null || target instanceof spoon.reflect.code.CtThisAccess<?>) {
+            receiver = inv.getParent(CtType.class);
+        } else if (target instanceof CtFieldRead<?> read) {
+            CtField<?> field = read.getVariable().getDeclaration();
+            receiver = field == null ? null : field.getType().getDeclaration();
+        } else {
+            return null;
+        }
+        if (receiver == null) return null;
+
+        List<CtMethod<?>> candidates = receiver
+                .getMethodsByName(inv.getExecutable().getSimpleName())
+                .stream()
+                .filter(method ->
+                        method.getParameters().size() == inv.getArguments().size())
+                .toList();
+        return candidates.size() == 1 ? candidates.getFirst() : null;
+    }
+
+    /**
      * Maps each positional argument at the call site to the callee's parameter name, so the
      * {@code DataFlowTracer} can follow tracked values across the call boundary: direct variable
      * arguments map 1:1, literal arguments are recorded in {@code edge.resolvedLiteralArgs}, and
@@ -1534,7 +1569,7 @@ public class CallGraphExtractor {
      * @param edge the call edge to populate with parameter mappings
      */
     private void buildParamMapping(CtInvocation<?> inv, CallEdge edge) {
-        var executable = inv.getExecutable().getDeclaration();
+        var executable = declarationOf(inv);
         if (executable == null) return;
         List<CtParameter<?>> calleeParams = executable.getParameters();
         var args = inv.getArguments();
