@@ -1190,6 +1190,13 @@ The structured result has `status` `created`, `updated`, or `overwrite-required`
 with `allowOverwrite: true`. Existing non-generated concepts, or generated concepts with a
 different semantic key, are never overwritten.
 
+Output follows [OKF v0.3](https://github.com/open-knowledge-format/open-knowledge-format/blob/main/SPEC.md).
+ArchLens's own frontmatter keys are `x-archlens-family`, `x-archlens-status`,
+`x-archlens-semantic-key`, `x-archlens-project-path`, and `x-archlens-generated`. The older
+`archlens_*` names are still read and are renamed on refresh. A new bundle declares
+`okf_version: "0.3"`; an existing bundle keeps its declaration, and one without any declares `0.2`
+so its root-relative paths keep their fallback.
+
 A refresh merges into the existing concept:
 
 - Keys ArchLens does not own (`verified`, `sources`, your own keys, comments) are kept verbatim,
