@@ -11,6 +11,9 @@ import java.util.Map;
 /** Answers the {@code impact} intent: nodes grouped by architecture concern, with evidence chains. */
 public final class ImpactAnswerer {
 
+    /** Most impacted nodes an answer explains with an evidence chain. */
+    private static final int MAX_EVIDENCE_CHAINS = 50;
+
     private ImpactAnswerer() {}
 
     /**
@@ -54,7 +57,11 @@ public final class ImpactAnswerer {
             groups.get(group).add(QuestionSupport.nodeMap(node));
         }
         List<Map<String, Object>> evidenceChains = new ArrayList<>();
-        for (GraphNode node : impacted.stream().limit(50).toList()) {
+        // A chain repeats every node's properties, so they are capped well below the node lists.
+        if (impacted.size() > MAX_EVIDENCE_CHAINS) {
+            result.unresolved.add("result-limit-reached:evidenceChains:" + MAX_EVIDENCE_CHAINS);
+        }
+        for (GraphNode node : impacted.stream().limit(MAX_EVIDENCE_CHAINS).toList()) {
             graph.paths(node.id(), target.id(), depth, 1).stream()
                     .map(QuestionSupport::pathMap)
                     .forEach(evidenceChains::add);
