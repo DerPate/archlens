@@ -349,7 +349,7 @@ public final class QuestionOkfRenderer {
      * @return concept title
      */
     private static String title(ArchitectureQuestionResult result) {
-        return humanize(result.family()) + " - " + subject(result.request());
+        return humanize(result.family()) + " - " + oneLine(subject(result.request()));
     }
 
     /**

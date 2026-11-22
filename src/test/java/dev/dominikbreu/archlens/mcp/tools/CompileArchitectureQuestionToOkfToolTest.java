@@ -96,6 +96,19 @@ class CompileArchitectureQuestionToOkfToolTest {
         assertThat((Map<String, Object>) compiled.structured()).containsEntry("status", "created");
     }
 
+    @Test
+    void compilesASubjectContainingBrackets() throws Exception {
+        TestContext context = compiledContext();
+        Map<String, Object> result = new java.util.LinkedHashMap<>(context.result());
+        result.put("request", Map.of("component", "byte[]"));
+
+        ToolResult compiled = context.tool()
+                .execute(Map.of(
+                        "result", result, "projectPath", context.project().toString()));
+
+        assertThat(compiled.error()).as(compiled.text()).isFalse();
+    }
+
     private TestContext compiledContext() throws Exception {
         Path project = copyFixture("spring-pipeline-sample", tempDir.resolve("project"));
         ArchitectureModel model = new ArchitectureExtractor().extract(List.of(project.toString()));
