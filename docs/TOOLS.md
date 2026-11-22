@@ -1097,8 +1097,9 @@ Arguments:
 - `target`: second subject for `relationship` path questions.
 - `maxDepth`: impact/reverse-endpoint traversal depth, default `4`.
 
-Lists are cut at 256 entries. A cut answer is never `resolved`: `unresolved` then contains
-`result-limit-reached:<list>:256`; use `query_architecture_graph` with a larger `limit` for the rest.
+Lists are cut at 256 entries, and impact `evidenceChains` at 50. A cut answer is never `resolved`:
+`unresolved` then contains `result-limit-reached:<list>:<count>`; use `query_architecture_graph` with
+a larger `limit`, or its `paths` action for further evidence, to get the rest.
 
 All families return the common structured envelope:
 

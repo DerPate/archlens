@@ -141,7 +141,7 @@ class ResultLimitsTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"150, resolved, 150", "300, partial, 256"})
+    @CsvSource({"40, resolved, 40", "150, partial, 150", "300, partial, 256"})
     void impactAnswersAreCompleteOrPartial(int dependers, String status, int returned) {
         Map<?, ?> result = (Map<?, ?>) new AnswerArchitectureQuestionTool(hub(dependers))
                 .execute(Map.of("family", "impact", "component", "Hub"))
@@ -150,6 +150,19 @@ class ResultLimitsTest {
         assertThat(result.get("status")).isEqualTo(status);
         assertThat((List<?>) ((Map<?, ?>) result.get("answer")).get("components"))
                 .hasSize(returned);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"49, false", "50, false", "51, true"})
+    void impactSaysWhenEvidenceChainsAreLeftOut(int dependers, boolean cut) {
+        Map<?, ?> result = (Map<?, ?>) new AnswerArchitectureQuestionTool(hub(dependers))
+                .execute(Map.of("family", "impact", "component", "Hub"))
+                .structured();
+
+        assertThat(((List<?>) result.get("unresolved")).contains("result-limit-reached:evidenceChains:50"))
+                .isEqualTo(cut);
+        assertThat((List<?>) ((Map<?, ?>) result.get("answer")).get("evidenceChains"))
+                .hasSize(Math.min(dependers, 50));
     }
 
     @ParameterizedTest
