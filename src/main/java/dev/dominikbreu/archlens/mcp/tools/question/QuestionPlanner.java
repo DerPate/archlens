@@ -65,10 +65,12 @@ public final class QuestionPlanner {
         table.put(
                 "impact",
                 List.of(
-                        Trigger.regex("\\bbreaks?\\b", 3),
+                        // "affected" is as clear a cue as "breaks"; alone, the weaker trigger below
+                        // would stay under the floor.
+                        Trigger.regex("\\bbreaks?\\b|\\baffect(s|ed)?\\b", 3),
                         Trigger.regex("\\bimpact\\b", 3),
                         Trigger.regex("\\breplace[ds]?\\b", 2),
-                        Trigger.regex("\\baffects?\\b", 2),
+                        Trigger.regex("\\baffect(s|ed)?\\b", 2),
                         Trigger.literal("what may", 1)));
         table.put(
                 "transaction_context",

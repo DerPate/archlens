@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class QuestionPlannerTest {
 
@@ -52,6 +53,24 @@ class QuestionPlannerTest {
     void recognizesImpactQuestions() {
         Interpretation result = planner.interpret("What may break if OrderRepository is replaced?");
         assertThat(result.intent()).isEqualTo("impact");
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "What is affected if OrderRepository changes?",
+                "What does OrderRepository affect?",
+                "Who is affected by OrderRepository?",
+                "Which endpoints are affected by OrderRepository?",
+                "What affects OrderRepository?"
+            })
+    void recognizesAffectedQuestions(String question) {
+        Interpretation result = planner.interpret(question);
+
+        assertThat(result.intent()).isEqualTo("impact");
+        assertThat(result.subjectCandidates())
+                .extracting(candidate -> candidate.ref())
+                .contains("OrderRepository");
     }
 
     @Test
