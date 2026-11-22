@@ -3,14 +3,19 @@ package dev.dominikbreu.archlens.mcp.tools;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.dominikbreu.archlens.cache.ModelCache;
+import java.nio.file.Path;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class ExportLikeC4ModelToolTest {
 
+    @TempDir
+    Path tempDir;
+
     @Test
     void defaultsToWorkspaceViewWithStandardLikeC4Views() throws Exception {
-        ModelCache cache = ToolTestFixtures.indexFixtureProject("state-handoff");
+        ModelCache cache = ToolTestFixtures.indexFixtureProject("state-handoff", tempDir);
         ExportLikeC4ModelTool tool = new ExportLikeC4ModelTool(cache);
 
         String result =
@@ -26,7 +31,7 @@ class ExportLikeC4ModelToolTest {
 
     @Test
     void componentViewExportsFocusedComponentOutput() throws Exception {
-        ModelCache cache = ToolTestFixtures.indexFixtureProject("state-handoff");
+        ModelCache cache = ToolTestFixtures.indexFixtureProject("state-handoff", tempDir);
         ExportLikeC4ModelTool tool = new ExportLikeC4ModelTool(cache);
 
         String result = tool.call(Map.of(
@@ -44,7 +49,7 @@ class ExportLikeC4ModelToolTest {
 
     @Test
     void unsupportedViewNamesSupportedViews() throws Exception {
-        ModelCache cache = ToolTestFixtures.indexFixtureProject("state-handoff");
+        ModelCache cache = ToolTestFixtures.indexFixtureProject("state-handoff", tempDir);
         ExportLikeC4ModelTool tool = new ExportLikeC4ModelTool(cache);
 
         String result = tool.call(Map.of("view", "deployment")).text();

@@ -23,16 +23,16 @@ class QuestionOkfRendererTest {
         assertThat(rendered.markdown())
                 .startsWith("---\n")
                 .contains("type: Architecture Investigation")
-                .contains("archlens_status: partial")
-                .contains("archlens_semantic_key: " + identity.semanticKey())
-                .contains("archlens_project_path: /project")
+                .contains("x-archlens-status: partial")
+                .contains("x-archlens-semantic-key: " + identity.semanticKey())
+                .contains("x-archlens-project-path: /project")
                 .contains("# Uncertainty")
                 .contains("security-not-modeled")
                 .contains("# Evidence");
     }
 
     @Test
-    void rendersOkfV02ProvenanceAndTrustFields() throws Exception {
+    void rendersOkfProvenanceAndTrustFields() throws Exception {
         ArchitectureQuestionResult result = Fixtures.partialImpactResult();
         QuestionConceptIdentity.ConceptIdentity identity = new QuestionConceptIdentity().derive(result);
 
@@ -47,7 +47,7 @@ class QuestionOkfRendererTest {
                 .contains("status: draft")
                 .contains("stale_after:")
                 .contains("2026-10-17")
-                .doesNotContain("timestamp:");
+                .doesNotContain("timestamp:", "archlens_");
     }
 
     @Test
@@ -62,7 +62,7 @@ class QuestionOkfRendererTest {
                             null,
                             Instant.EPOCH)
                     .markdown();
-            assertThat(markdown).contains("# Findings").contains("archlens_family: " + family);
+            assertThat(markdown).contains("# Findings").contains("x-archlens-family: " + family);
         }
     }
 
@@ -79,6 +79,22 @@ class QuestionOkfRendererTest {
                 .contains(
                         "# Question\nInvestigate impact for component=com.example.Orders, maxDepth=4, method=line one line two.")
                 .doesNotContain("line one\nline two");
+    }
+
+    @Test
+    void titleStaysOnOneLine() throws Exception {
+        ArchitectureQuestionResult result =
+                Fixtures.resultWithoutRawQuestion(Map.of("component", "com.example.Orders\nsecond line"));
+
+        assertThat(new QuestionOkfRenderer()
+                        .render(
+                                result,
+                                new QuestionConceptIdentity().derive(result),
+                                Path.of("/project"),
+                                null,
+                                Instant.EPOCH)
+                        .title())
+                .isEqualTo("Impact - com.example.Orders second line");
     }
 
     @Test

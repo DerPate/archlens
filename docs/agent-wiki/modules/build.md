@@ -3,7 +3,7 @@ type: Module
 title: Build
 description: Detects the build system (Maven/Gradle) and module layout of an indexed project.
 tags: [archlens, module]
-resource: src/main/java/dev/dominikbreu/archlens/build/
+resource: https://github.com/DerPate/archlens/tree/main/src/main/java/dev/dominikbreu/archlens/build
 status: stable
 generated: { by: claude-code/claude-sonnet-5, at: 2026-09-17T00:00:00Z }
 verified: { by: human:dominik, at: 2026-09-17T00:00:00Z }
