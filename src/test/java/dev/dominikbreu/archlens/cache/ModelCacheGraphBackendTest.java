@@ -67,6 +67,41 @@ class ModelCacheGraphBackendTest {
                 .hasSize(1);
     }
 
+    @Test
+    void ignoresMalformedActiveWorkspaceKeys(@TempDir Path tempDir) throws Exception {
+        Path cacheDir = tempDir.resolve("cache");
+        ModelCache cache = new ModelCache(cacheDir.toString());
+        cache.store(model());
+        Path stored;
+        try (var files = Files.walk(cacheDir)) {
+            stored = files.filter(path -> path.toString().endsWith(".graphson"))
+                    .findFirst()
+                    .orElseThrow();
+        }
+        Files.createDirectories(tempDir.resolve("elsewhere"));
+        Files.copy(stored, tempDir.resolve("elsewhere").resolve(stored.getFileName()));
+
+        for (String key :
+                new String[] {"../../elsewhere", tempDir.resolve("elsewhere").toString()}) {
+            Files.writeString(cacheDir.resolve("active-workspace.txt"), key);
+            assertThat(new ModelCache(cacheDir.toString()).graph().isIndexed())
+                    .as(key)
+                    .isFalse();
+        }
+    }
+
+    @Test
+    void createsTheCacheReadableOnlyByItsOwner(@TempDir Path tempDir) throws Exception {
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+                tempDir.getFileSystem().supportedFileAttributeViews().contains("posix"));
+        Path cacheDir = tempDir.resolve("cache");
+
+        new ModelCache(cacheDir.toString()).store(model());
+
+        assertThat(java.nio.file.attribute.PosixFilePermissions.toString(Files.getPosixFilePermissions(cacheDir)))
+                .isEqualTo("rwx------");
+    }
+
     private ArchitectureModel model() {
         return model("test", "BillingService");
     }

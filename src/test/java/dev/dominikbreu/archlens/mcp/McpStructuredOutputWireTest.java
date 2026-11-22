@@ -102,6 +102,23 @@ class McpStructuredOutputWireTest {
     }
 
     @Test
+    void doesNotReadACacheFromTheWorkingDirectory(@TempDir Path tempDir) throws Exception {
+        var model = new dev.dominikbreu.archlens.model.ArchitectureModel("checked-in");
+        var app = new dev.dominikbreu.archlens.model.AppEntry();
+        app.id = dev.dominikbreu.archlens.model.ids.AppId.of("checked-in");
+        app.name = "checked-in";
+        model.applications.add(app);
+        new dev.dominikbreu.archlens.cache.ModelCache(
+                        tempDir.resolve(".archlens-cache").toString())
+                .store(model);
+
+        try (ServerProcess server = ServerProcess.start(false, tempDir.resolve("cwd-stderr.log"))) {
+            JsonNode apps = server.callTool("list_apps");
+            assertThat(apps.path("isError").asBoolean()).as(apps.toString()).isTrue();
+        }
+    }
+
+    @Test
     void pipelinedQuerySeesTheIndexSentBeforeIt(@TempDir Path tempDir) throws Exception {
         try (ServerProcess server = ServerProcess.start(false, tempDir.resolve("pipeline-stderr.log"))) {
             String fixture = Path.of("src/test/resources/testprojects/spring-pipeline-sample")
