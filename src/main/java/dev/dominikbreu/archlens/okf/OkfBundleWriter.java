@@ -10,10 +10,14 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import org.yaml.snakeyaml.Yaml;
 
 /** Safely creates and refreshes OKF investigation bundle files. */
 public final class OkfBundleWriter {
+    /** A log section heading in the ISO date form OKF requires. */
+    private static final Pattern DATE_HEADING = Pattern.compile("## \\d{4}-\\d{2}-\\d{2}");
+
     /** Promotes the concept, index, and log files as one atomic, all-or-nothing filesystem write. */
     private final AtomicFileWriter atomicFileWriter = new AtomicFileWriter();
 
@@ -61,17 +65,30 @@ public final class OkfBundleWriter {
         String indexEntry = indexEntry(request);
         String logEntry = logEntry(request, existing.exists());
         validator.validateConcept(request.conceptMarkdown(), request.semanticKey());
+        String concept = request.conceptMarkdown();
+        List<String> warnings = new ArrayList<>();
+        if (existing.exists()) {
+            OkfConceptMerger.Merged merged = OkfConceptMerger.merge(read(conceptPath), concept);
+            concept = merged.markdown();
+            validator.validateConcept(concept, request.semanticKey());
+            if (merged.verificationOutdated()) {
+                warnings.add("Content changed: the existing verification is kept as history but is no longer"
+                        + " current; review the concept again");
+            }
+        }
         validator.validateIndexEntry(indexEntry);
         validator.validateLogEntry(logEntry);
 
         Map<Path, byte[]> finalContent = new LinkedHashMap<>();
-        finalContent.put(conceptPath, bytes(request.conceptMarkdown()));
+        finalContent.put(conceptPath, bytes(concept));
+        String index = read(indexPath);
         finalContent.put(
-                indexPath, bytes(ensureOkfVersion(updateIndex(read(indexPath), request.familySlug(), indexEntry))));
+                indexPath,
+                bytes(ensureOkfVersion(updateIndex(index, request.familySlug(), indexEntry), index.isBlank())));
         finalContent.put(logPath, bytes(updateLog(read(logPath), request.logDate(), logEntry)));
 
         atomicFileWriter.writeAll(finalContent);
-        return new WriteOutcome(status, conceptPath, indexPath, logPath, List.of());
+        return new WriteOutcome(status, conceptPath, indexPath, logPath, warnings);
     }
 
     /**
@@ -127,8 +144,8 @@ public final class OkfBundleWriter {
             return new ExistingConcept(false, false, null);
         }
         Map<String, Object> frontmatter = frontmatter(Files.readString(conceptPath));
-        boolean generated = Boolean.TRUE.equals(frontmatter.get("archlens_generated"));
-        Object key = frontmatter.get("archlens_semantic_key");
+        boolean generated = Boolean.TRUE.equals(OkfKeys.read(frontmatter, OkfKeys.GENERATED));
+        Object key = OkfKeys.read(frontmatter, OkfKeys.SEMANTIC_KEY);
         return new ExistingConcept(true, generated, key instanceof String semanticKey ? semanticKey : null);
     }
 
@@ -160,7 +177,7 @@ public final class OkfBundleWriter {
      * @return marker comment followed by the Markdown list entry
      */
     private static String indexEntry(WriteRequest request) {
-        return "<!-- archlens:" + request.semanticKey() + " -->\n" + "- [" + request.title() + "]("
+        return "<!-- archlens:" + request.semanticKey() + " -->\n" + "- [" + linkText(request.title()) + "]("
                 + slash(request.relativeConceptPath()) + ") - " + request.description();
     }
 
@@ -174,8 +191,8 @@ public final class OkfBundleWriter {
     private static String logEntry(WriteRequest request, boolean refresh) {
         String action = refresh ? "Refresh" : "Creation";
         String verb = refresh ? "Refreshed" : "Added";
-        return "- **" + action + "**: " + verb + " [" + request.title() + "](" + slash(request.relativeConceptPath())
-                + ").";
+        return "- **" + action + "**: " + verb + " [" + linkText(request.title()) + "]("
+                + slash(request.relativeConceptPath()) + ").";
     }
 
     /**
@@ -236,14 +253,18 @@ public final class OkfBundleWriter {
     }
 
     /**
-     * Adds a default {@code okf_version} frontmatter block to index content that doesn't already
-     * start with a frontmatter delimiter, leaving content that already has one untouched.
+     * Adds an {@code okf_version} frontmatter block to index content that doesn't already start with
+     * one. A new bundle declares v0.3. An existing undeclared bundle declares v0.2, because claiming
+     * v0.3 would switch off the fallback consumers use for its root-relative paths.
      *
      * @param content updated index content
+     * @param newBundle whether the index was created by this write
      * @return content with {@code okf_version} frontmatter guaranteed to be present
      */
-    private static String ensureOkfVersion(String content) {
-        return content.startsWith("---\n") ? content : "---\nokf_version: \"0.2\"\n---\n\n" + content;
+    private static String ensureOkfVersion(String content, boolean newBundle) {
+        if (content.startsWith("---\n")) return content;
+        String version = newBundle ? "0.3" : "0.2";
+        return "---\nokf_version: \"" + version + "\"\n---\n\n" + content;
     }
 
     /**
@@ -251,8 +272,9 @@ public final class OkfBundleWriter {
      *
      * <p>If the log is blank, a fresh log is created with the date heading and the entry. If the date
      * heading already exists, the entry is inserted as the first line after it (skipping any blank
-     * lines directly under the heading). Otherwise a new date heading is inserted right after the log
-     * title, with the entry beneath it.
+     * lines directly under the heading). Otherwise a new section is inserted before the first older
+     * date section, keeping the log newest first, or appended when there is none. The log's title and
+     * introduction are never matched on, so logs ArchLens did not create keep their shape.
      *
      * @param existing current log content, or blank/empty for a new log
      * @param date date for the log entry's heading
@@ -275,13 +297,26 @@ public final class OkfBundleWriter {
             lines.add(insert, entry);
             return String.join("\n", lines) + "\n";
         }
-        int insert = lines.indexOf("# Architecture Investigation Log");
-        insert = insert < 0 ? 0 : insert + 1;
-        lines.add(insert++, "");
-        lines.add(insert++, heading);
-        lines.add(insert++, "");
-        lines.add(insert, entry);
+        for (int index = 0; index < lines.size(); index++) {
+            String line = lines.get(index);
+            // ISO dates order correctly as text.
+            if (DATE_HEADING.matcher(line).matches() && line.compareTo(heading) < 0) {
+                lines.addAll(index, List.of(heading, "", entry, ""));
+                return String.join("\n", lines) + "\n";
+            }
+        }
+        lines.addAll(List.of("", heading, "", entry));
         return String.join("\n", lines) + "\n";
+    }
+
+    /**
+     * Escapes text for use inside a Markdown link's square brackets.
+     *
+     * @param value plain text
+     * @return escaped link text
+     */
+    private static String linkText(String value) {
+        return value.replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]");
     }
 
     /**
@@ -343,9 +378,9 @@ public final class OkfBundleWriter {
      * State of a concept file at a target path, before a write.
      *
      * @param exists whether a file already exists at the target path
-     * @param generated whether the existing file carries {@code archlens_generated: true}
+     * @param generated whether the existing file carries {@code x-archlens-generated: true}
      *     frontmatter; meaningless when {@code exists} is {@code false}
-     * @param semanticKey existing file's {@code archlens_semantic_key} frontmatter value, or {@code
+     * @param semanticKey existing file's {@code x-archlens-semantic-key} frontmatter value, or {@code
      *     null} when it does not exist, isn't set, or isn't a string
      */
     private record ExistingConcept(boolean exists, boolean generated, String semanticKey) {}
