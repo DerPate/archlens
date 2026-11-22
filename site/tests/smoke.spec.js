@@ -98,3 +98,15 @@ test("landing claims match the product", async ({ page }) => {
   await expect(main).not.toContainText("Where is order data stored?");
   await expect(main).not.toContainText("self-contained");
 });
+
+test("install offers the release and the migration guide", async ({ page }) => {
+  await page.goto("/");
+
+  const install = page.locator("#install");
+  await expect(install.getByRole("link", { name: "Download the latest release" }))
+    .toHaveAttribute("href", "https://github.com/DerPate/archlens/releases/latest");
+  await expect(install.getByRole("link", { name: "migration guide" }))
+    .toHaveAttribute("href", "https://github.com/DerPate/archlens/blob/main/docs/MIGRATION_3.0.md");
+  await expect(page.locator('meta[property="og:image"]'))
+    .toHaveAttribute("content", "https://archlens.dominikbreu.dev/og-image.png");
+});

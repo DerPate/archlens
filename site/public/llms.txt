@@ -11,6 +11,8 @@ Java 25, Spoon, MCP stdio, TinkerGraph, Mermaid, LikeC4
 - [Tool reference](https://github.com/DerPate/archlens/blob/main/docs/TOOLS.md): MCP tool and prompt reference with arguments and examples
 - [Architecture](https://github.com/DerPate/archlens/blob/main/docs/ARCHITECTURE.md): Package responsibilities and data flow
 - [Java API Reference](https://archlens.dominikbreu.dev/api/): Doxygen-generated internal Java API docs
+- [Releases](https://github.com/DerPate/archlens/releases/latest): Runnable jar downloads
+- [Migrating to 3.0](https://github.com/DerPate/archlens/blob/main/docs/MIGRATION_3.0.md): Incompatible changes since 2.x
 - [Changelog](https://github.com/DerPate/archlens/blob/main/CHANGELOG.md)
 
 ## Source
