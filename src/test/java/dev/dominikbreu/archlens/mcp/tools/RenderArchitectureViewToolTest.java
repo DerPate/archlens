@@ -3,14 +3,19 @@ package dev.dominikbreu.archlens.mcp.tools;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.dominikbreu.archlens.cache.ModelCache;
+import java.nio.file.Path;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class RenderArchitectureViewToolTest {
 
+    @TempDir
+    Path tempDir;
+
     @Test
     void returnsMermaidForIndexedApplication() throws Exception {
-        ModelCache cache = ToolTestFixtures.indexFixtureProject("state-handoff");
+        ModelCache cache = ToolTestFixtures.indexFixtureProject("state-handoff", tempDir);
         RenderArchitectureViewTool tool = new RenderArchitectureViewTool(cache);
 
         String result = tool.call(Map.of(

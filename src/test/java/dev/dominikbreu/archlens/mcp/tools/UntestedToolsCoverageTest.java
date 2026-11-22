@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Objects;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Happy-path + guard coverage for the MCP tools that previously had no dedicated tests. A single
@@ -129,8 +130,8 @@ class UntestedToolsCoverageTest {
     }
 
     @Test
-    void exportArchitectureDocs_writesToOutputPath() throws Exception {
-        Path out = Files.createTempDirectory("archlens-docs-").resolve("architecture.md");
+    void exportArchitectureDocs_writesToOutputPath(@TempDir Path tempDir) {
+        Path out = tempDir.resolve("architecture.md");
         String result = new ExportArchitectureDocsTool(cache)
                 .execute(Map.of("outputPath", out.toString()))
                 .text();

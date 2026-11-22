@@ -6,17 +6,18 @@ cd "$ROOT"
 
 mvn package -q
 
-python3 - <<'PY'
+python3 - "$ROOT" <<'PY'
 import json
 import subprocess
+import sys
 
-root = "/home/dominik/archlens"
+root = sys.argv[1]
 fixture = f"{root}/src/test/resources/testprojects/quarkus-sample"
 proc = subprocess.Popen(
     ["java", "-jar", f"{root}/target/archlens.jar"],
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
-    stderr=subprocess.PIPE,
+    stderr=sys.stderr,
     text=True,
     bufsize=1,
 )

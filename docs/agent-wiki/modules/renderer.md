@@ -3,13 +3,13 @@ type: Module
 title: Renderer
 description: Turns graph projections into Mermaid and LikeC4 diagram text via JStachio/Mustache templates.
 tags: [archlens, module]
-resource: src/main/java/dev/dominikbreu/archlens/renderer/
+resource: https://github.com/DerPate/archlens/tree/main/src/main/java/dev/dominikbreu/archlens/renderer
 status: stable
 generated: { by: claude-code/claude-sonnet-5, at: 2026-09-17T00:00:00Z }
 verified: { by: human:dominik, at: 2026-09-17T00:00:00Z }
 sources:
   - id: generated-architecture-md
-    resource: docs/GENERATED_ARCHITECTURE.md
+    resource: output of scripts/self-doc.py (generated locally, not committed)
     title: Generated Architecture (self-doc)
 ---
 
