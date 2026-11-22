@@ -23,8 +23,6 @@ final class OkfConceptMerger {
     private static final String STATUS = "status";
     private static final String STALE_AFTER = "stale_after";
     private static final String TAGS = "tags";
-    private static final String ANSWER_STATUS = "archlens_status";
-    private static final String OWN_KEY_PREFIX = "archlens_";
 
     private OkfConceptMerger() {}
 
@@ -48,15 +46,17 @@ final class OkfConceptMerger {
         Document before = Document.parse(existing);
         Document after = Document.parse(regenerated);
         boolean changed = !before.body().stripTrailing().equals(after.body().stripTrailing())
-                || !Objects.equals(before.value(ANSWER_STATUS), after.value(ANSWER_STATUS));
+                || !Objects.equals(
+                        OkfKeys.read(before.values(), OkfKeys.STATUS), OkfKeys.read(after.values(), OkfKeys.STATUS));
 
         Map<String, String> merged = new LinkedHashMap<>(before.blocks());
         after.blocks().forEach((key, block) -> {
             boolean replace = !merged.containsKey(key)
                     || STALE_AFTER.equals(key)
-                    || key.startsWith(OWN_KEY_PREFIX)
+                    || key.startsWith(OkfKeys.PREFIX)
                     || (changed && "generated".equals(key))
                     || (changed && STATUS.equals(key) && !"deprecated".equals(before.value(STATUS)));
+            if (key.startsWith(OkfKeys.PREFIX)) merged.remove(OkfKeys.legacyName(key));
             if (replace) merged.put(key, block);
         });
         replaceAnswerStatusTag(before, after, merged);
@@ -68,8 +68,8 @@ final class OkfConceptMerger {
 
     /** Swaps the answer-status tag while keeping any tags added by hand. */
     private static void replaceAnswerStatusTag(Document before, Document after, Map<String, String> merged) {
-        Object oldStatus = before.value(ANSWER_STATUS);
-        Object newStatus = after.value(ANSWER_STATUS);
+        Object oldStatus = OkfKeys.read(before.values(), OkfKeys.STATUS);
+        Object newStatus = OkfKeys.read(after.values(), OkfKeys.STATUS);
         if (Objects.equals(oldStatus, newStatus) || !(before.value(TAGS) instanceof List<?> tags)) return;
 
         List<Object> updated = new ArrayList<>(tags);

@@ -81,8 +81,10 @@ public final class OkfBundleWriter {
 
         Map<Path, byte[]> finalContent = new LinkedHashMap<>();
         finalContent.put(conceptPath, bytes(concept));
+        String index = read(indexPath);
         finalContent.put(
-                indexPath, bytes(ensureOkfVersion(updateIndex(read(indexPath), request.familySlug(), indexEntry))));
+                indexPath,
+                bytes(ensureOkfVersion(updateIndex(index, request.familySlug(), indexEntry), index.isBlank())));
         finalContent.put(logPath, bytes(updateLog(read(logPath), request.logDate(), logEntry)));
 
         atomicFileWriter.writeAll(finalContent);
@@ -142,8 +144,8 @@ public final class OkfBundleWriter {
             return new ExistingConcept(false, false, null);
         }
         Map<String, Object> frontmatter = frontmatter(Files.readString(conceptPath));
-        boolean generated = Boolean.TRUE.equals(frontmatter.get("archlens_generated"));
-        Object key = frontmatter.get("archlens_semantic_key");
+        boolean generated = Boolean.TRUE.equals(OkfKeys.read(frontmatter, OkfKeys.GENERATED));
+        Object key = OkfKeys.read(frontmatter, OkfKeys.SEMANTIC_KEY);
         return new ExistingConcept(true, generated, key instanceof String semanticKey ? semanticKey : null);
     }
 
@@ -251,14 +253,18 @@ public final class OkfBundleWriter {
     }
 
     /**
-     * Adds a default {@code okf_version} frontmatter block to index content that doesn't already
-     * start with a frontmatter delimiter, leaving content that already has one untouched.
+     * Adds an {@code okf_version} frontmatter block to index content that doesn't already start with
+     * one. A new bundle declares v0.3. An existing undeclared bundle declares v0.2, because claiming
+     * v0.3 would switch off the fallback consumers use for its root-relative paths.
      *
      * @param content updated index content
+     * @param newBundle whether the index was created by this write
      * @return content with {@code okf_version} frontmatter guaranteed to be present
      */
-    private static String ensureOkfVersion(String content) {
-        return content.startsWith("---\n") ? content : "---\nokf_version: \"0.2\"\n---\n\n" + content;
+    private static String ensureOkfVersion(String content, boolean newBundle) {
+        if (content.startsWith("---\n")) return content;
+        String version = newBundle ? "0.3" : "0.2";
+        return "---\nokf_version: \"" + version + "\"\n---\n\n" + content;
     }
 
     /**
@@ -372,9 +378,9 @@ public final class OkfBundleWriter {
      * State of a concept file at a target path, before a write.
      *
      * @param exists whether a file already exists at the target path
-     * @param generated whether the existing file carries {@code archlens_generated: true}
+     * @param generated whether the existing file carries {@code x-archlens-generated: true}
      *     frontmatter; meaningless when {@code exists} is {@code false}
-     * @param semanticKey existing file's {@code archlens_semantic_key} frontmatter value, or {@code
+     * @param semanticKey existing file's {@code x-archlens-semantic-key} frontmatter value, or {@code
      *     null} when it does not exist, isn't set, or isn't a string
      */
     private record ExistingConcept(boolean exists, boolean generated, String semanticKey) {}

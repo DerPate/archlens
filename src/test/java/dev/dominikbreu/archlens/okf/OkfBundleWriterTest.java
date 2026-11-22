@@ -19,8 +19,8 @@ class OkfBundleWriterTest {
               at: '2026-07-19T12:00:00Z'
             status: draft
             stale_after: '2026-10-17'
-            archlens_generated: true
-            archlens_semantic_key: %s
+            x-archlens-generated: true
+            x-archlens-semantic-key: %s
             ---
             # Question
             What changes?
@@ -51,7 +51,7 @@ class OkfBundleWriterTest {
 
         assertThat(outcome.indexPath())
                 .content()
-                .startsWith("---\nokf_version: \"0.2\"\n---\n\n# Architecture Investigations");
+                .startsWith("---\nokf_version: \"0.3\"\n---\n\n# Architecture Investigations");
     }
 
     @Test
@@ -183,7 +183,7 @@ class OkfBundleWriterTest {
 
         assertThat(conceptPath())
                 .content()
-                .contains("at: '2026-09-02T12:00:00Z'", "status: draft", "archlens_status: partial")
+                .contains("at: '2026-09-02T12:00:00Z'", "status: draft", "x-archlens-status: partial")
                 .doesNotContain("status: stable");
     }
 
@@ -276,6 +276,35 @@ class OkfBundleWriterTest {
         assertThat(tempDir.resolve("log.md")).content().contains(link);
     }
 
+    @Test
+    void refreshMigratesLegacyKeysWithoutTreatingThemAsChangedContent() throws Exception {
+        String current = reviewed(withAnswerStatus(CONCEPT, "resolved"));
+        seedConcept(legacyKeys(current));
+
+        OkfBundleWriter.WriteOutcome outcome = writer().write(refresh(withAnswerStatus(laterRun(CONCEPT), "resolved")));
+
+        assertThat(outcome.status()).isEqualTo("updated");
+        assertThat(outcome.warnings()).isEmpty();
+        assertThat(conceptPath())
+                .content()
+                .contains("x-archlens-generated: true", "x-archlens-status: resolved", "status: stable")
+                .contains("at: '2026-07-19T12:00:00Z'", REVIEW_KEYS)
+                .doesNotContain("archlens_");
+    }
+
+    @Test
+    void recognizesLegacyConceptsWhenPreviewingARefresh() throws Exception {
+        seedConcept(legacyKeys(CONCEPT));
+
+        assertThat(writer().write(request(false)).status()).isEqualTo("overwrite-required");
+    }
+
+    private static String legacyKeys(String concept) {
+        return concept.replace("x-archlens-generated", "archlens_generated")
+                .replace("x-archlens-semantic-key", "archlens_semantic_key")
+                .replace("x-archlens-status", "archlens_status");
+    }
+
     private static String reviewed(String concept) {
         return concept.replace("status: draft", "status: stable")
                 .replace("\n---\n# Question", "\n" + REVIEW_KEYS + "---\n# Question");
@@ -286,7 +315,8 @@ class OkfBundleWriterTest {
     }
 
     private static String withAnswerStatus(String concept, String status) {
-        return concept.replace("archlens_generated: true", "archlens_status: " + status + "\narchlens_generated: true");
+        return concept.replace(
+                "x-archlens-generated: true", "x-archlens-status: " + status + "\nx-archlens-generated: true");
     }
 
     private void seedConcept(String markdown) throws Exception {
