@@ -23,7 +23,7 @@ test("tools are grouped into ordered phase sections", async ({ page }) => {
   await expect(groups).toHaveCount(4);
   await expect(groups.locator(".tool-group-heading")).toHaveText(["Index", "Query", "Render", "Export"]);
   await expect(groups.nth(0).locator(".tool-card-phase")).toHaveText(["Index"]);
-  await expect(groups.nth(1).locator(".tool-card-phase")).toHaveText(Array(10).fill("Query"));
+  await expect(groups.nth(1).locator(".tool-card-phase")).toHaveText(Array(11).fill("Query"));
   await expect(groups.nth(2).locator(".tool-card-phase")).toHaveText(Array(7).fill("Render"));
   await expect(groups.nth(3).locator(".tool-card-phase")).toHaveText(Array(5).fill("Export"));
 });

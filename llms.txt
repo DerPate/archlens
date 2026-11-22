@@ -224,6 +224,8 @@ Prompts are workflow templates for clients and agents; they do not replace tools
   nested invocations, and ternaries (`new Foo(x)`, `wrap(x)`, `cond ? x : y`); callee
   parameter names whose mapping was synthesised this way are listed in the new
   `syntheticParamMappings` set on the edge.
+- `trace_data_flow`: calls left unbound by unknown library types are matched to project
+  methods by receiver type, name, and arity (`this`/field receivers, unique match only).
 - `trace_data_flow`: `MESSAGING_PRODUCER` and `SCHEDULER` entrypoints also seed tracking
   from transitively read shared-state fields even when they declare parameters of their
   own, and writes whose RHS is a field read on the same bean record `sourceFieldName` so
@@ -283,6 +285,7 @@ Prompts are workflow templates for clients and agents; they do not replace tools
   instead of a typed `family` to route through a deterministic keyword-based planner — no
   embedded LLM is used, so unrecognized wording returns `unsupported` rather than a guess.
 - Durable knowledge is always explicit: first call `answer_architecture_question`, review its structured result, then pass that exact result to `compile_architecture_question_to_okf`.
+- OKF output is v0.3: ArchLens keys are `x-archlens-*` (legacy `archlens_*` is still read). A refresh keeps `verified` and foreign keys, and resets `status` to draft only when content changes.
 - Never compile `unsupported` or `needs-clarification`; preserve `partial` and `ambiguous` warnings.
 - An existing concept requires a separate retry with `allowOverwrite=true`; never assume overwrite authorization.
 - Non-secret configuration properties (`application.properties`/`.yaml`/`.yml`) are projected as

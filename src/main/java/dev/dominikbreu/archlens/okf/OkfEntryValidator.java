@@ -6,10 +6,13 @@ import org.yaml.snakeyaml.Yaml;
 
 /** Validates newly generated OKF concept and bundle-entry snippets. */
 public final class OkfEntryValidator {
+    /** Markdown link text with backslash escapes; possessive, so long titles cannot overflow the stack. */
+    private static final String LINK_TEXT = "\\[(?=[^]])[^]\\\\]*+(?:\\\\.[^]\\\\]*+)*+]";
+
     private static final Pattern INDEX_ENTRY =
-            Pattern.compile("\\A<!-- archlens:[^\\s>]+ -->\\R- \\[[^]]+]\\([^)]+\\) - [^\\r\\n]+\\z");
-    private static final Pattern LOG_ENTRY =
-            Pattern.compile("\\A- \\*\\*(Creation|Refresh)\\*\\*: [^\\r\\n]*\\[[^]]+]\\([^)]+\\)[^\\r\\n]*\\z");
+            Pattern.compile("\\A<!-- archlens:[^\\s>]+ -->\\R- " + LINK_TEXT + "\\([^)]+\\) - [^\\r\\n]+\\z");
+    private static final Pattern LOG_ENTRY = Pattern.compile(
+            "\\A- \\*\\*(Creation|Refresh)\\*\\*: [^\\r\\n\\[]*" + LINK_TEXT + "\\([^)]+\\)[^\\r\\n]*\\z");
 
     /** Creates a validator for generated OKF snippets. */
     public OkfEntryValidator() {}
@@ -27,11 +30,11 @@ public final class OkfEntryValidator {
         requireNonblank(frontmatter, "status");
         requireNonblank(frontmatter, "stale_after");
         requireGenerated(frontmatter);
-        Object generated = frontmatter.get("archlens_generated");
+        Object generated = frontmatter.get(OkfKeys.GENERATED);
         if (!Boolean.TRUE.equals(generated)) {
-            throw new IllegalArgumentException("Generated concept must set archlens_generated: true");
+            throw new IllegalArgumentException("Generated concept must set " + OkfKeys.GENERATED + ": true");
         }
-        Object actualKey = frontmatter.get("archlens_semantic_key");
+        Object actualKey = frontmatter.get(OkfKeys.SEMANTIC_KEY);
         if (!semanticKey.equals(actualKey)) {
             throw new IllegalArgumentException("Generated concept semantic key does not match");
         }
