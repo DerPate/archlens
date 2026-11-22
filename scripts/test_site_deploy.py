@@ -16,6 +16,7 @@ echo "doxygen cwd=$PWD version=${ARCHLENS_VERSION:-}" >> "$CALLS"
 [ -n "${EMPTY_API:-}" ] && exit 0
 mkdir -p site/public/api
 echo api > site/public/api/index.html
+[ -z "${FAIL_DOXYGEN:-}" ] || exit 1
 """
 NPM = """#!/bin/sh
 echo "npm $*" >> "$CALLS"
@@ -25,6 +26,7 @@ cp -R public/. dist/
 """
 RSYNC = """#!/bin/sh
 echo "rsync $*" >> "$CALLS"
+case "$*" in *"${FAIL_RSYNC:-no such upload}"*) exit 23 ;; esac
 """
 
 
@@ -54,9 +56,9 @@ class SiteDeployTests(unittest.TestCase):
         self.env.pop("DOXYGEN", None)
         self.env.pop("ARCHLENS_VERSION", None)
 
-    def deploy(self, script="site/deploy.sh", cwd=None, **env):
+    def deploy(self, script="site/deploy.sh", cwd=None, host="nobody@invalid", path="/srv/site", **env):
         result = subprocess.run(
-            ["bash", script, "nobody@invalid", "/nowhere"],
+            ["bash", script, host, path],
             cwd=cwd or self.repo,
             env={**self.env, **env},
             capture_output=True,
@@ -112,6 +114,39 @@ class SiteDeployTests(unittest.TestCase):
         _, calls = self.deploy("./deploy.sh", cwd=self.repo / "site")
         self.assertIn(f"version={version}\n", calls)
         self.assertRegex((REPO / "Doxyfile").read_text(), r"(?m)^PROJECT_NUMBER\s*=\s*\$\(ARCHLENS_VERSION\)")
+
+    def test_syncs_exactly_the_built_site(self):
+        code, calls = self.deploy("./deploy.sh", cwd=self.repo / "site")
+        self.assertEqual(code, 0)
+        self.assertEqual(
+            [line for line in calls.splitlines() if line.startswith("rsync")],
+            [
+                "rsync -avz --delete --exclude=.git --exclude=node_modules dist/ nobody@invalid:/srv/site/",
+                "rsync -avz robots.txt nobody@invalid:/srv/site/robots.txt",
+            ],
+        )
+
+    def test_failed_doxygen_never_rsyncs(self):
+        self.assert_not_deployed(self.deploy("./deploy.sh", cwd=self.repo / "site", FAIL_DOXYGEN="1"))
+
+    def test_failed_uploads_are_reported(self):
+        for upload in ("--delete", "robots.txt"):
+            with self.subTest(upload=upload):
+                code, _ = self.deploy("./deploy.sh", cwd=self.repo / "site", FAIL_RSYNC=upload)
+                self.assertNotEqual(code, 0)
+
+    def test_dangerous_destinations_never_rsync(self):
+        for path in ("/", "//", ".", "~", "site", "/srv", "/srv/", "/./srv", "/srv/../..", "/srv/site/..",
+                     "/home/deploy", "/home/deploy/", "//home//deploy", "/Users/deploy", "/srv/site /", "/srv/*"):
+            with self.subTest(path=path):
+                self.calls.write_text("")
+                self.assert_not_deployed(self.deploy("./deploy.sh", cwd=self.repo / "site", path=path))
+
+    def test_usual_destinations_are_accepted(self):
+        for path in ("/var/www", "/var/www/archlens/", "/home/deploy/site", "/srv/archlens.dominikbreu.dev"):
+            with self.subTest(path=path):
+                code, _ = self.deploy("./deploy.sh", cwd=self.repo / "site", path=path)
+                self.assertEqual(code, 0)
 
 
 if __name__ == "__main__":

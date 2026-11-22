@@ -13,6 +13,28 @@ fi
 VPS_USER_HOST="$1"
 REMOTE_PATH="$2"
 
+# rsync --delete empties the destination, so it must name a site directory, not a root or a home.
+refuse_destination() {
+    echo "❌ Refusing remote path '$REMOTE_PATH': $1. Nothing was deployed."
+    exit 1
+}
+[[ "$REMOTE_PATH" =~ ^/[A-Za-z0-9._/-]+$ ]] || refuse_destination "use an absolute path without spaces or wildcards"
+PARTS=()
+IFS=/ read -ra SEGMENTS <<< "$REMOTE_PATH"
+for segment in "${SEGMENTS[@]}"; do
+    case "$segment" in
+        "") ;;
+        .|..) refuse_destination "'.' and '..' are not allowed" ;;
+        *) PARTS+=("$segment") ;;
+    esac
+done
+[ "${#PARTS[@]}" -ge 2 ] || refuse_destination "it is a top-level directory"
+if [ "${#PARTS[@]}" -eq 2 ]; then
+    case "${PARTS[0]}" in
+        home|Users) refuse_destination "it is a home directory" ;;
+    esac
+fi
+
 # Resolved before any cd, so the script works from every directory.
 SITE_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(dirname "$SITE_DIR")"
