@@ -6,17 +6,18 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 mvn package -q
 
-python3 - <<'PY'
+python3 - "$ROOT" <<'PY'
 import json
 import subprocess
+import sys
 
-root = "/home/dominik/archlens"
+root = sys.argv[1]
 jar = f"{root}/target/archlens.jar"
 proc = subprocess.Popen(
     ["java", "-jar", jar],
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
-    stderr=subprocess.PIPE,
+    stderr=sys.stderr,
     text=True,
     bufsize=1,
 )

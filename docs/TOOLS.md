@@ -463,6 +463,10 @@ When the argument expression is non-trivial — a constructor call, nested invoc
 ternary that wraps a tracked variable — the mapping is still recorded, and the callee
 parameter is listed in `syntheticParamMappings` on the call edge so consumers know the
 hop relied on a heuristic descent rather than a direct variable reference.
+Analysis runs without the project's classpath, so one unknown library type can leave a
+call to the project's own method unbound (typically inside a lambda). For calls on `this`
+or on a field, the callee is then matched by receiver type, name, and arity; the mapping
+is left empty when more than one method fits.
 
 **Two-phase pipeline support (store sinks):** writes to shared in-memory state fields
 (e.g. `ConcurrentHashMap` caches) inside a `MESSAGING_CONSUMER` entrypoint are reported

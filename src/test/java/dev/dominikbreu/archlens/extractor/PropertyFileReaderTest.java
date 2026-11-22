@@ -7,12 +7,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class PropertyFileReaderTest {
 
+    @TempDir
+    Path resources;
+
     @Test
     void lastFileWinsWhenTheSameKeyAppearsInMultipleFiles() throws IOException {
-        Path resources = Files.createTempDirectory("archlens-property-file-reader-");
         Files.writeString(
                 resources.resolve("application.properties"), "mp.messaging.outgoing.orders.connector=smallrye-kafka\n");
         Files.writeString(
@@ -28,7 +31,6 @@ class PropertyFileReaderTest {
 
     @Test
     void yamlNullValueIsOmittedRatherThanStringified() throws IOException {
-        Path resources = Files.createTempDirectory("archlens-property-file-reader-");
         Files.writeString(
                 resources.resolve("application.yaml"),
                 "integration:\n  timeout:\n  base-url: https://example.internal\n");
@@ -41,7 +43,6 @@ class PropertyFileReaderTest {
 
     @Test
     void tracksWhichFileEachKeyWasReadFrom() throws IOException {
-        Path resources = Files.createTempDirectory("archlens-property-file-reader-");
         Files.writeString(
                 resources.resolve("application.properties"), "billing.client.base-url=https://billing.internal/api\n");
 
