@@ -27,10 +27,10 @@ Start by indexing the workspace:
 
 Then use the appropriate workflow:
 
-- Overview: `list_apps`, `find_entrypoints`, `find_components`, `explain_architecture`
+- Overview: `list_apps`, `find_entrypoints`, `find_components`, `answer_architecture_question`
 - Component focus: `find_components`, `get_component_dependencies`,
   `render_component_dependency_diagram`, `query_architecture_graph`
-- Entrypoint/use case: `find_entrypoints`, `get_runtime_flow`, `render_call_flow`,
+- Entrypoint/use case: `find_entrypoints`, `call_flow`,
   `trace_data_flow`, `render_use_case_timeline`
 - Pipeline: `trace_data_flow`, `render_pipeline`, `query_architecture_graph`
 

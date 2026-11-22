@@ -23,10 +23,10 @@ on text search.
 Use these workflows:
 
 - Workspace overview: `index_workspace` -> `list_apps` -> `find_entrypoints` ->
-  `find_components` -> `explain_architecture`.
+  `find_components` -> `answer_architecture_question`.
 - Component investigation: `find_components` -> `get_component_dependencies` ->
   `query_architecture_graph` with `neighborhood` or `impacted_by`.
-- Use-case tracing: `find_entrypoints` -> `get_runtime_flow` -> `render_call_flow` ->
+- Use-case tracing: `find_entrypoints` -> `call_flow` ->
   `trace_data_flow` -> `render_use_case_timeline`.
 - Pipeline analysis: `trace_data_flow` -> `render_pipeline` ->
   `query_architecture_graph` for `WORKFLOW_LINK`, `PipelineChain`, and `STATE_HANDOFF`.
