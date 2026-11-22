@@ -11,14 +11,13 @@ import dev.dominikbreu.archlens.model.ids.ComponentId;
 import dev.dominikbreu.archlens.model.ids.FieldAccessId;
 import dev.dominikbreu.archlens.model.ids.FieldBinding;
 import dev.dominikbreu.archlens.model.ids.FieldRef;
-import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 /** Programmatic model fixtures for tool-level tests. */
 class ToolTestFixtures {
 
-    static ModelCache indexFixtureProject(String name) throws Exception {
-        var tempDir = Files.createTempDirectory("archlens-tool-test-");
+    static ModelCache indexFixtureProject(String name, Path tempDir) throws Exception {
         ModelCache cache = new ModelCache(tempDir.toString());
         if ("state-handoff".equals(name)) {
             cache.store(stateHandoffModel());

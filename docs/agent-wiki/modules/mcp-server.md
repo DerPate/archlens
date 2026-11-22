@@ -3,7 +3,7 @@ type: Module
 title: MCP Server
 description: Wires and starts the MCP server; registers every tool.
 tags: [archlens, module]
-resource: src/main/java/dev/dominikbreu/archlens/mcp/
+resource: https://github.com/DerPate/archlens/tree/main/src/main/java/dev/dominikbreu/archlens/mcp
 status: stable
 generated: { by: claude-code/claude-sonnet-5, at: 2026-09-17T00:00:00Z }
 verified: { by: human:dominik, at: 2026-09-17T00:00:00Z }

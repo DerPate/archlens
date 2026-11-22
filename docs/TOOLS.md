@@ -1198,6 +1198,25 @@ The structured result has `status` `created`, `updated`, or `overwrite-required`
 with `allowOverwrite: true`. Existing non-generated concepts, or generated concepts with a
 different semantic key, are never overwritten.
 
+Output follows [OKF v0.3](https://github.com/open-knowledge-format/open-knowledge-format/blob/main/SPEC.md).
+ArchLens's own frontmatter keys are `x-archlens-family`, `x-archlens-status`,
+`x-archlens-semantic-key`, `x-archlens-project-path`, and `x-archlens-generated`. The older
+`archlens_*` names are still read and are renamed on refresh. A new bundle declares
+`okf_version: "0.3"`; an existing bundle keeps its declaration, and one without any declares `0.2`
+so its root-relative paths keep their fallback.
+This is a one-way change: ArchLens 2.x does not recognize concepts written with the new keys and
+refuses to refresh them.
+
+A refresh merges into the existing concept:
+
+- Keys ArchLens does not own (`verified`, `sources`, your own keys, comments) are kept verbatim,
+  as are curated `type`, `title`, `description`, `resource`, and `tags`.
+- If the body and answer status are unchanged, `generated` and `status` are kept too; only
+  `stale_after` and ArchLens's own metadata move.
+- If either changed, the body is replaced, `generated` is updated, and `status` returns to `draft`
+  (a `deprecated` concept stays deprecated). An earlier verification then remains as history and
+  a warning asks for a new review. The body is generated: hand edits to it are replaced.
+
 Example — pass the prior tool's reviewed `structuredContent` verbatim as `result`:
 
 ```json

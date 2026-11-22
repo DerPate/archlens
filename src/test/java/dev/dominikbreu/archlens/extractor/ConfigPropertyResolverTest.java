@@ -9,12 +9,15 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class ConfigPropertyResolverTest {
 
+    @TempDir
+    Path module;
+
     @Test
     void resolvesNonSecretPropertiesAndSkipsSecretKeys() throws IOException {
-        Path module = Files.createTempDirectory("archlens-config-resolver-");
         Path resources = module.resolve("src/main/resources");
         Files.createDirectories(resources);
         Files.writeString(resources.resolve("application.yml"), """
@@ -45,7 +48,6 @@ class ConfigPropertyResolverTest {
 
     @Test
     void marksUnexpandedPlaceholdersAsUnresolved() throws IOException {
-        Path module = Files.createTempDirectory("archlens-config-resolver-");
         Path resources = module.resolve("src/main/resources");
         Files.createDirectories(resources);
         Files.writeString(resources.resolve("application.properties"), "billing.client.base-url=${BILLING_URL}\n");

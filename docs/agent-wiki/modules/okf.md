@@ -3,13 +3,13 @@ type: Module
 title: OKF Compiler
 description: Graph-independent layer that compiles a reviewed answer_architecture_question result into an OKF concept.
 tags: [archlens, module]
-resource: src/main/java/dev/dominikbreu/archlens/okf/
+resource: https://github.com/DerPate/archlens/tree/main/src/main/java/dev/dominikbreu/archlens/okf
 status: stable
 generated: { by: claude-code/claude-sonnet-5, at: 2026-09-17T00:00:00Z }
 verified: { by: human:dominik, at: 2026-09-17T00:00:00Z }
 sources:
   - id: generated-architecture-md
-    resource: docs/GENERATED_ARCHITECTURE.md
+    resource: output of scripts/self-doc.py (generated locally, not committed)
     title: Generated Architecture (self-doc)
 ---
 
