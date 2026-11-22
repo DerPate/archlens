@@ -88,3 +88,13 @@ for (const width of [390, 681, 1440]) {
     }
   });
 }
+
+test("landing claims match the product", async ({ page }) => {
+  await page.goto("/");
+
+  const main = page.locator("main");
+  await expect(main).toContainText("What is the impact of changing OrderRepository?");
+  await expect(main).toContainText("eleven question families");
+  await expect(main).not.toContainText("Where is order data stored?");
+  await expect(main).not.toContainText("self-contained");
+});

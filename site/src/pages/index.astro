@@ -26,11 +26,11 @@ const capabilities = [
   },
   {
     title: "Maintenance answers",
-    text: "Ask for persistence destinations, consumer context, grouped impact, or transaction context with unresolved and ambiguous evidence kept visible.",
+    text: "Ask in plain language or pick one of eleven question families, from persistence and messaging to state, schedules, configuration and impact. Unresolved and ambiguous evidence stays visible.",
   },
   {
     title: "Visual exports",
-    text: "Export Mermaid diagrams, LikeC4 text, Markdown architecture docs, graph JSON, and a self-contained HTML graph viewer.",
+    text: "Export Mermaid diagrams, LikeC4 text, Markdown architecture docs, graph JSON, and a single-file HTML graph viewer.",
   },
   {
     title: "Standalone dashboard",
@@ -185,7 +185,7 @@ export_graph_viewer</code></pre>
 ArchLens — standalone dashboard
 archlens&gt; index_workspace paths=["/path/to/project"]
 archlens&gt; list_apps
-archlens&gt; answer_architecture_question question="Where is order data stored?"</code></pre>
+archlens&gt; answer_architecture_question question="What is the impact of changing OrderRepository?"</code></pre>
       </div>
     </div>
   </section>
@@ -357,7 +357,7 @@ mvn clean package</code></pre>
         <article class="tool-card tool-card--query tool-card--promoted">
           <span class="tool-card-phase">Query</span>
           <span class="tool-card-name">answer_architecture_question</span>
-          <p class="tool-card-desc">Return stable persistence, consumer, impact, and transaction answers with explicit uncertainty.</p>
+          <p class="tool-card-desc">Answer maintenance questions in eleven families, with explicit uncertainty.</p>
           <a href="/tools/answer-architecture-question" class="tool-card-link">Deep dive →</a>
         </article>
 
@@ -447,7 +447,7 @@ mvn clean package</code></pre>
         <article class="tool-card tool-card--export">
           <span class="tool-card-phase">Export</span>
           <span class="tool-card-name">export_graph_viewer</span>
-          <p class="tool-card-desc">Write a self-contained HTML graph explorer for the indexed architecture.</p>
+          <p class="tool-card-desc">Write a single-file HTML graph explorer. It loads its rendering libraries from public CDNs.</p>
         </article>
 
         <article class="tool-card tool-card--export">
