@@ -1196,6 +1196,8 @@ ArchLens's own frontmatter keys are `x-archlens-family`, `x-archlens-status`,
 `archlens_*` names are still read and are renamed on refresh. A new bundle declares
 `okf_version: "0.3"`; an existing bundle keeps its declaration, and one without any declares `0.2`
 so its root-relative paths keep their fallback.
+This is a one-way change: ArchLens 2.x does not recognize concepts written with the new keys and
+refuses to refresh them.
 
 A refresh merges into the existing concept:
 
