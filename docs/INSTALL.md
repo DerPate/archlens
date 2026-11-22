@@ -187,7 +187,14 @@ After indexing, every other tool (`list_apps`, `find_components`, `render_mermai
 
 ## Configuration
 
-There is no selectable cache backend. The server stores the indexed architecture graph as GraphSON under `.archlens-cache/` in the working directory.
+There is no selectable cache backend. The server stores the indexed architecture graph as GraphSON in a per-user cache, with one subdirectory per working directory. The root is the first of:
+
+1. `$ARCHLENS_CACHE_DIR` (must be absolute)
+2. `$XDG_CACHE_HOME/archlens`
+3. `%LOCALAPPDATA%\archlens`
+4. `~/.cache/archlens`
+
+Versions before 3.0 wrote `.archlens-cache/` into the working directory. That directory is no longer read: run `index_workspace` again, then delete it. If your client runs the server without write access to the home directory, set `ARCHLENS_CACHE_DIR`.
 
 Older releases exposed `SPOON_MCP_CACHE_BACKEND` / `spoonmcp.cache.backend` while the graph cache was being introduced. Those settings are deprecated and no longer read by the server. If you are upgrading from a JSON-backed cache, run `index_workspace` again to create a fresh GraphSON snapshot.
 
