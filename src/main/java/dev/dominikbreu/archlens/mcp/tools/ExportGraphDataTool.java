@@ -38,7 +38,7 @@ public class ExportGraphDataTool {
             GraphQuery graph = cache.graph();
             if (graph.isEmpty()) return ToolResult.error("No workspace indexed yet. Call index_workspace first.");
 
-            Path output = Path.of(ToolArgs.getString(args, "outputPath", DEFAULT_OUTPUT.toString()));
+            Path output = ExportTarget.resolve(args, DEFAULT_OUTPUT, graph);
             int limit = ToolArgs.getInt(args, "limit", DEFAULT_LIMIT);
             GraphQuery.GraphSnapshot snapshot = graph.snapshot(limit);
             String json = GraphExportJson.write(snapshot, Instant.now());

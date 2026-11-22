@@ -50,7 +50,7 @@ public class ExportArchitectureDocsTool {
             GraphQuery graph = cache.graph();
             if (!graph.isIndexed()) return ToolResult.error("No workspace indexed yet. Call index_workspace first.");
 
-            Path output = Path.of(ToolArgs.getString(args, "outputPath", DEFAULT_OUTPUT.toString()));
+            Path output = ExportTarget.resolve(args, DEFAULT_OUTPUT, graph);
             String focus = ToolArgs.getString(args, "focusComponent", "McpServer");
             String markdown = renderMarkdown(graph, focus);
 

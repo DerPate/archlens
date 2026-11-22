@@ -1185,7 +1185,8 @@ Arguments:
   `answer_architecture_question`, including its normalized `request` object.
 - `projectPath`: optional indexed project root. It is inferred when exactly one project root was
   indexed; it is required when multiple roots were indexed and must exactly match one of them.
-- `bundlePath`: optional project-relative output directory; default `docs/agent-wiki`.
+- `bundlePath`: optional project-relative output directory; default `docs/agent-wiki`. Symbolic
+  links inside it may not lead out of it.
 - `templatePath`: optional project-relative custom template. It must be an existing regular file
   contained in the selected project; absolute paths, traversal outside the project, and symlinks
   escaping the project are rejected. When omitted, the compiler uses its built-in template.
@@ -1261,6 +1262,8 @@ being mistaken for a C4 diagram declaration.
 Arguments:
 
 - `outputPath` string, optional. Default `docs/GENERATED_ARCHITECTURE.md`.
+  A symbolic link may not lead out of the working directory, an indexed application or a Git
+  checkout that the path passes through.
 - `focusComponent` string, optional. Component used for the dependency slice.
   Default `McpServer`.
 
@@ -1275,6 +1278,8 @@ query examples.
 Arguments:
 
 - `outputPath` string, optional. Default `docs/SOURCE_ARCHITECTURE_POC.md`.
+  A symbolic link may not lead out of the working directory, an indexed application or a Git
+  checkout that the path passes through.
 - `focusComponent` string, optional. Component used for the graph focus slice.
   Default `McpServer`.
 
@@ -1312,6 +1317,8 @@ The JSON shape is:
 Arguments:
 
 - `outputPath` string, optional. Default `docs/GRAPH_DATA.json`.
+  A symbolic link may not lead out of the working directory, an indexed application or a Git
+  checkout that the path passes through.
 - `limit` integer, optional. Maximum graph nodes to export. Default `5000`.
 
 ---
@@ -1327,6 +1334,8 @@ filters, search, and raw property inspection. For richer interaction, prefer
 Arguments:
 
 - `outputPath` string, optional. Default `docs/GRAPH_VIEWER.html`.
+  A symbolic link may not lead out of the working directory, an indexed application or a Git
+  checkout that the path passes through.
 - `limit` integer, optional. Maximum graph nodes to export. Default `5000`.
 
 ---
