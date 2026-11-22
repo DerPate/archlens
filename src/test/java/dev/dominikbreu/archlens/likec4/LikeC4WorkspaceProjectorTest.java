@@ -20,16 +20,21 @@ import dev.dominikbreu.archlens.model.ids.ComponentId;
 import dev.dominikbreu.archlens.model.ids.DependencyId;
 import dev.dominikbreu.archlens.model.ids.EntrypointId;
 import java.lang.reflect.Method;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class LikeC4WorkspaceProjectorTest {
 
+    @TempDir
+    Path tempDir;
+
     @Test
     void projectsWorkspaceDocumentWithSystemComponentsAndStandardViews() throws Exception {
-        ModelCache cache = indexFixtureProject("state-handoff");
+        ModelCache cache = indexFixtureProject("state-handoff", tempDir);
         GraphQuery graph = cache.graph();
         GraphQuery.ApplicationNode app = graph.allApplicationNodes().getFirst();
 
@@ -222,7 +227,7 @@ class LikeC4WorkspaceProjectorTest {
 
     @Test
     void relationshipEndpointsReferToDocumentElementsWhenRelationshipsExist() throws Exception {
-        ModelCache cache = indexFixtureProject("state-handoff");
+        ModelCache cache = indexFixtureProject("state-handoff", tempDir);
         GraphQuery graph = cache.graph();
         GraphQuery.ApplicationNode app = graph.allApplicationNodes().getFirst();
 
@@ -320,11 +325,11 @@ class LikeC4WorkspaceProjectorTest {
         return view;
     }
 
-    private static ModelCache indexFixtureProject(String name) throws Exception {
+    private static ModelCache indexFixtureProject(String name, Path tempDir) throws Exception {
         Class<?> fixtures = Class.forName("dev.dominikbreu.archlens.mcp.tools.ToolTestFixtures");
-        Method method = fixtures.getDeclaredMethod("indexFixtureProject", String.class);
+        Method method = fixtures.getDeclaredMethod("indexFixtureProject", String.class, Path.class);
         method.setAccessible(true);
-        return (ModelCache) method.invoke(null, name);
+        return (ModelCache) method.invoke(null, name, tempDir);
     }
 
     private static Component component(String name, ComponentType type) {
