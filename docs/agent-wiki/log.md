@@ -1,6 +1,12 @@
 # Update Log
 
 ## 2026-11-22
+- **Verification**: `human:dominik` approved the corrected
+  [export_graph_viewer](tools/export-graph-viewer.md), which is `stable` again.
+- **Update**: `human:dominik` approved the `maxDepth` wording of
+  [render_pipeline](tools/render-pipeline.md). Two other claims there were then found wrong and
+  corrected (messaging shape, diagnostics when filters match nothing), so it stays `draft` until
+  those are reviewed.
 - **Update**: Corrected [export_graph_viewer](tools/export-graph-viewer.md) (its libraries load from
   CDNs) and [render_pipeline](tools/render-pipeline.md) (`maxDepth` default). Both are `status: draft`
   and their 2026-09-17 verification is history until reviewed again.

@@ -4,9 +4,11 @@ title: export_graph_viewer
 description: Write a single HTML file for visually debugging the detected architecture graph.
 tags: [archlens, mcp-tool]
 resource: https://github.com/DerPate/archlens/blob/main/src/main/java/dev/dominikbreu/archlens/mcp/tools/ExportGraphViewerTool.java
-status: draft
+status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-11-22T15:17:13Z }
-verified: { by: human:dominik, at: 2026-09-17T00:00:00Z }
+verified:
+  - { by: human:dominik, at: 2026-09-17T00:00:00Z }
+  - { by: human:dominik, at: 2026-11-22T16:50:12Z }
 sources:
   - id: tools-md
     resource: https://github.com/DerPate/archlens/blob/main/docs/TOOLS.md
