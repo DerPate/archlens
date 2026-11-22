@@ -1,6 +1,7 @@
 package dev.dominikbreu.archlens.okf;
 
 import dev.dominikbreu.archlens.io.AtomicFileWriter;
+import dev.dominikbreu.archlens.io.OutputBoundary;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -32,7 +33,8 @@ public final class OkfBundleWriter {
      *
      * @param request write request
      * @return write outcome with touched paths and warnings
-     * @throws IOException when staged promotion or restoration fails
+     * @throws IOException when a symbolic link leads out of the bundle, or staged promotion or
+     *     restoration fails
      */
     public WriteOutcome write(WriteRequest request) throws IOException {
         Path bundlePath = request.bundlePath().normalize();
@@ -43,6 +45,9 @@ public final class OkfBundleWriter {
 
         Path indexPath = bundlePath.resolve("index.md");
         Path logPath = bundlePath.resolve("log.md");
+        for (Path file : List.of(conceptPath, indexPath, logPath)) {
+            OutputBoundary.requireInside(bundlePath, file);
+        }
         ExistingConcept existing = existingConcept(conceptPath);
         if (existing.exists()) {
             if (!existing.generated()) {
