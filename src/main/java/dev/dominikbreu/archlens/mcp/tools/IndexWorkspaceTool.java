@@ -33,7 +33,7 @@ public class IndexWorkspaceTool {
      * Executes workspace indexing.
      *
      * @param args JSON arguments containing a paths array
-     * @return indexing summary text (or an error message), plus a structured app/component/entrypoint count
+     * @return indexing summary text (or an error message), plus the workspace id and a structured app/component/entrypoint count
      */
     public ToolResult execute(Map<String, Object> args) {
         try {
@@ -43,7 +43,7 @@ public class IndexWorkspaceTool {
             cache.clearActive();
             ArchitectureModel model = extractor.extract(paths);
             deploymentMerger.merge(paths, model);
-            cache.store(model);
+            String workspaceId = cache.store(model);
 
             StringBuilder sb = new StringBuilder();
             sb.append("Indexed ").append(paths.size()).append(" project(s).\n");
@@ -55,7 +55,8 @@ public class IndexWorkspaceTool {
             if (!model.deployments.isEmpty()) {
                 sb.append(", ").append(model.deployments.size()).append(" deployment(s)");
             }
-            sb.append(".\n\n");
+            sb.append(".\n");
+            sb.append("Workspace ID: ").append(workspaceId).append("\n\n");
 
             for (AppEntry app : model.applications) {
                 sb.append("App: ")
@@ -70,6 +71,7 @@ public class IndexWorkspaceTool {
             }
 
             Map<String, Object> structured = new LinkedHashMap<>();
+            structured.put("workspaceId", workspaceId);
             structured.put("appCount", model.applications.size());
             structured.put("componentCount", model.components.size());
             structured.put("entrypointCount", model.entrypoints.size());

@@ -37,9 +37,7 @@ class McpServerTest {
                     .containsEntry("type", "object")
                     .doesNotContainKey("$schema");
             assertThat(spec.tool().outputSchema()).isNotNull();
-            assertThat(spec.tool().outputSchema().containsKey("type")
-                            || spec.tool().outputSchema().containsKey("oneOf"))
-                    .isTrue();
+            assertThat(spec.tool().outputSchema()).containsEntry("type", "object");
         });
         assertThat(specs.stream().map(s -> s.tool().name()))
                 .contains(
@@ -55,7 +53,7 @@ class McpServerTest {
 
     @Test
     void stableMode_wrapsCollectionSchemasInNamedObjects() {
-        McpSchema.Tool entrypoints = tool(new McpServer(StructuredOutputMode.STABLE), "find_entrypoints");
+        McpSchema.Tool entrypoints = tool(new McpServer(), "find_entrypoints");
 
         assertThat(entrypoints.outputSchema())
                 .containsEntry("type", "object")
@@ -114,13 +112,6 @@ class McpServerTest {
     }
 
     @Test
-    void draftMode_keepsCollectionSchemasAsTopLevelArrays() {
-        McpSchema.Tool entrypoints = tool(new McpServer(StructuredOutputMode.DRAFT), "find_entrypoints");
-
-        assertThat(entrypoints.outputSchema()).containsEntry("type", "array").containsKey("items");
-    }
-
-    @Test
     void buildPromptSpecifications_registersPrompts() {
         List<McpServerFeatures.SyncPromptSpecification> prompts = new McpServer().buildPromptSpecifications();
 
@@ -134,8 +125,7 @@ class McpServerTest {
 
     @Test
     void stableCollectionHandler_returnsSchemaValidError_forUnindexedWorkspace() {
-        McpServerFeatures.SyncToolSpecification entrypoints =
-                specification(emptyServer(StructuredOutputMode.STABLE), "find_entrypoints");
+        McpServerFeatures.SyncToolSpecification entrypoints = specification(emptyServer(), "find_entrypoints");
 
         var result = entrypoints.callHandler().apply(null, new McpSchema.CallToolRequest("find_entrypoints", Map.of()));
 
@@ -145,20 +135,8 @@ class McpServerTest {
     }
 
     @Test
-    void draftCollectionHandler_returnsSchemaValidError_forUnindexedWorkspace() {
-        McpServerFeatures.SyncToolSpecification entrypoints =
-                specification(emptyServer(StructuredOutputMode.DRAFT), "find_entrypoints");
-
-        var result = entrypoints.callHandler().apply(null, new McpSchema.CallToolRequest("find_entrypoints", Map.of()));
-
-        assertThat(result.content()).isNotEmpty();
-        assertThat(result.structuredContent()).isEqualTo(List.of());
-        assertThat(result.isError()).isTrue();
-    }
-
-    @Test
     void stableGraphSchema_andHandler_useActionSpecificObjectWrappers() {
-        McpServer server = emptyServer(StructuredOutputMode.STABLE);
+        McpServer server = emptyServer();
         McpSchema.Tool graphTool = tool(server, "query_architecture_graph");
 
         assertThat(graphTool.outputSchema()).containsEntry("type", "object");
@@ -169,21 +147,6 @@ class McpServerTest {
                 .apply(null, new McpSchema.CallToolRequest("query_architecture_graph", Map.of("action", "find_nodes")));
 
         assertThat(result.structuredContent()).isEqualTo(Map.of("action", "find_nodes", "nodes", List.of()));
-        assertThat(result.isError()).isFalse();
-    }
-
-    @Test
-    void draftGraphSchema_andHandler_preserveCollectionArrays() {
-        McpServer server = emptyServer(StructuredOutputMode.DRAFT);
-        McpSchema.Tool graphTool = tool(server, "query_architecture_graph");
-
-        assertThat(graphTool.outputSchema()).containsKey("oneOf").doesNotContainKey("type");
-
-        var result = specification(server, "query_architecture_graph")
-                .callHandler()
-                .apply(null, new McpSchema.CallToolRequest("query_architecture_graph", Map.of("action", "find_edges")));
-
-        assertThat(result.structuredContent()).isEqualTo(List.of());
         assertThat(result.isError()).isFalse();
     }
 
@@ -200,12 +163,47 @@ class McpServerTest {
         assertThat(McpServer.fillTemplate("x={v}", args)).isEqualTo("x=");
     }
 
+    @Test
+    void everyQueryToolAcceptsAnOptionalWorkspaceId() {
+        for (var spec : new McpServer().buildToolSpecifications()) {
+            if ("index_workspace".equals(spec.tool().name())) {
+                assertThat((Map<String, Object>) spec.tool().outputSchema().get("properties"))
+                        .containsKey("workspaceId");
+                continue;
+            }
+            assertThat((Map<String, Object>) spec.tool().inputSchema().get("properties"))
+                    .as(spec.tool().name())
+                    .containsKey("workspaceId");
+            Object required = spec.tool().inputSchema().getOrDefault("required", List.of());
+            assertThat((List<String>) required).as(spec.tool().name()).doesNotContain("workspaceId");
+        }
+    }
+
+    @Test
+    void everyQueryToolRejectsAnUnknownWorkspaceId() {
+        for (String id : List.of("0000000000000000-unknown", "../../elsewhere", "")) {
+            for (var spec : emptyServer().buildToolSpecifications()) {
+                String name = spec.tool().name();
+                if ("index_workspace".equals(name)) continue;
+
+                var result =
+                        spec.callHandler().apply(null, new McpSchema.CallToolRequest(name, Map.of("workspaceId", id)));
+
+                assertThat(result.isError()).as(name).isTrue();
+                assertThat(((McpSchema.TextContent) result.content().getFirst()).text())
+                        .as(name)
+                        .contains("Unknown workspaceId");
+                assertThat(result.structuredContent()).as(name).isInstanceOf(Map.class);
+            }
+        }
+    }
+
     private static McpSchema.Tool tool(McpServer server, String name) {
         return specification(server, name).tool();
     }
 
-    private McpServer emptyServer(StructuredOutputMode mode) {
-        return new McpServer(mode, new ModelCache(tempDir.resolve(mode.name()).toString()));
+    private McpServer emptyServer() {
+        return new McpServer(new ModelCache(tempDir.resolve("cache").toString()));
     }
 
     private static McpServerFeatures.SyncToolSpecification specification(McpServer server, String name) {

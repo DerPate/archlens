@@ -54,6 +54,7 @@ public class McpServer {
         return "unknown";
     }
 
+    private final ModelCache cache;
     private final IndexWorkspaceTool indexTool;
     private final ListAppsTool listAppsTool;
     private final FindEntrypointsTool entrypointsTool;
@@ -78,7 +79,6 @@ public class McpServer {
     private final RenderPipelineTool pipelineTool;
     private final RenderArchitectureViewTool renderArchitectureViewTool;
     private final ExportLikeC4ModelTool exportLikeC4ModelTool;
-    private final StructuredOutputMode structuredOutputMode;
 
     /** JSON Schema string type name. */
     private static final String TYPE_STRING = "string";
@@ -101,6 +101,9 @@ public class McpServer {
     /** Shared human-readable entrypoint selector name. */
     private static final String ENTRYPOINT_NAME = "entrypointName";
 
+    /** Shared workspace-selector argument name. */
+    private static final String WORKSPACE_ID = "workspaceId";
+
     /** Shared traversal-depth argument name. */
     private static final String MAX_DEPTH = "maxDepth";
 
@@ -115,18 +118,11 @@ public class McpServer {
 
     /** Creates the server with the default extractor, cache, and tool registry. */
     public McpServer() {
-        this(
-                Boolean.parseBoolean(System.getenv("ARCHLENS_MCP_EXPERIMENTAL_DRAFT"))
-                        ? StructuredOutputMode.DRAFT
-                        : StructuredOutputMode.STABLE);
+        this(new ModelCache());
     }
 
-    McpServer(StructuredOutputMode structuredOutputMode) {
-        this(structuredOutputMode, new ModelCache());
-    }
-
-    McpServer(StructuredOutputMode structuredOutputMode, ModelCache cache) {
-        this.structuredOutputMode = structuredOutputMode;
+    McpServer(ModelCache cache) {
+        this.cache = cache;
         ArchitectureExtractor extractor = new ArchitectureExtractor();
 
         this.indexTool = new IndexWorkspaceTool(extractor, cache);
@@ -214,12 +210,13 @@ public class McpServer {
     public List<McpServerFeatures.SyncToolSpecification> buildToolSpecifications() {
         List<McpServerFeatures.SyncToolSpecification> specs = new ArrayList<>();
 
-        specs.add(toolSpec(
+        specs.add(specification(
                 "index_workspace",
                 "Index Workspace",
                 "Analyze one or more Java project roots and build the internal architecture model.",
                 schema().reqArray("paths", TYPE_STRING, "Project root directory paths to analyze"),
-                schema().opt("appCount", TYPE_INTEGER, "Indexed application count")
+                schema().opt(WORKSPACE_ID, TYPE_STRING, "Id of the indexed workspace; pass it to query tools")
+                        .opt("appCount", TYPE_INTEGER, "Indexed application count")
                         .opt("componentCount", TYPE_INTEGER, "Indexed component count")
                         .opt("entrypointCount", TYPE_INTEGER, "Indexed entrypoint count"),
                 indexTool::execute));
@@ -795,6 +792,17 @@ public class McpServer {
             SchemaBuilder schema,
             SchemaBuilder outputSchema,
             Function<Map<String, Object>, ToolResult> handler) {
+        return specification(name, title, description, selectable(schema), outputSchema, inRequestedWorkspace(handler));
+    }
+
+    /** Builds a tool specification exactly as declared, without workspace selection. */
+    private McpServerFeatures.SyncToolSpecification specification(
+            String name,
+            String title,
+            String description,
+            SchemaBuilder schema,
+            SchemaBuilder outputSchema,
+            Function<Map<String, Object>, ToolResult> handler) {
 
         McpSchema.Tool tool = McpSchema.Tool.builder(name, schema.build())
                 .title(title)
@@ -818,7 +826,7 @@ public class McpServer {
         });
     }
 
-    /** Wraps collection output in its stable named object while preserving draft top-level arrays. */
+    /** Wraps collection output in a named object, as MCP 2025-11-25 requires an object root. */
     private McpServerFeatures.SyncToolSpecification collectionToolSpec(
             String name,
             String title,
@@ -827,32 +835,61 @@ public class McpServer {
             String collectionKey,
             Map<String, Object> itemSchema,
             Function<Map<String, Object>, ToolResult> handler) {
-        SchemaBuilder outputSchema = structuredOutputMode == StructuredOutputMode.DRAFT
-                ? arrayOutput(itemSchema)
-                : schema().reqArraySchema(collectionKey, itemSchema);
-        return toolSpec(name, title, description, inputSchema, outputSchema, args -> {
-            ToolResult result = handler.apply(args);
+        SchemaBuilder outputSchema = schema().reqArraySchema(collectionKey, itemSchema);
+        // Selection sits inside the wrapper, so its error gets the collection's shape too.
+        Function<Map<String, Object>, ToolResult> scoped = inRequestedWorkspace(handler);
+        return specification(name, title, description, selectable(inputSchema), outputSchema, args -> {
+            ToolResult result = scoped.apply(args);
             Object structured = result.structured() == null ? List.of() : result.structured();
-            if (structuredOutputMode == StructuredOutputMode.STABLE) {
-                structured = Map.of(collectionKey, structured);
-            }
-            return new ToolResult(result.text(), structured, result.error());
+            return new ToolResult(result.text(), Map.of(collectionKey, structured), result.error());
         });
+    }
+
+    /** Declares the optional workspace selector every query tool accepts. */
+    private static SchemaBuilder selectable(SchemaBuilder inputSchema) {
+        return inputSchema.opt(
+                WORKSPACE_ID,
+                TYPE_STRING,
+                "Workspace to query, as returned by index_workspace (default: the last one indexed)");
+    }
+
+    /**
+     * Runs a handler against the workspace its arguments select. The selector is removed first, so
+     * it cannot end up in results that echo or hash their request.
+     */
+    private Function<Map<String, Object>, ToolResult> inRequestedWorkspace(
+            Function<Map<String, Object>, ToolResult> handler) {
+        return args -> {
+            Object requested = args.get(WORKSPACE_ID);
+            if (requested == null) {
+                return handler.apply(args);
+            }
+            Map<String, Object> remaining = new LinkedHashMap<>(args);
+            remaining.remove(WORKSPACE_ID);
+            try {
+                return cache.inWorkspace(requested.toString(), () -> handler.apply(remaining))
+                        .orElseGet(() -> ToolResult.error("Unknown workspaceId '" + requested
+                                + "'. Call index_workspace and use the workspaceId it returns."));
+            } catch (IOException error) {
+                return ToolResult.error("Error loading workspace: " + error.getMessage());
+            }
+        };
     }
 
     /** Builds the graph-query tool specification with its action-dependent output normalization. */
     private McpServerFeatures.SyncToolSpecification graphToolSpec(
             String name, String title, String description, SchemaBuilder inputSchema) {
-        return toolSpec(
+        Function<Map<String, Object>, ToolResult> scoped = inRequestedWorkspace(graphTool::execute);
+        return specification(
                 name,
                 title,
                 description,
-                inputSchema,
+                selectable(inputSchema),
                 graphOutputSchema(),
-                args -> normalizeGraphResult(args, graphTool.execute(args)));
+                args -> normalizeGraphResult(args, scoped.apply(args)));
     }
 
-    /** Shapes summary and collection graph results according to action and negotiated structured-output mode. */
+    /** Shapes summary and collection graph results according to action. */
     private ToolResult normalizeGraphResult(Map<String, Object> args, ToolResult result) {
         String action = String.valueOf(args.getOrDefault("action", "summary"));
         if ("summary".equals(action)) {
@@ -871,9 +908,6 @@ public class McpServer {
             return new ToolResult(result.text(), Map.of("action", action), result.error());
         }
         List<?> values = result.structured() instanceof List<?> list ? list : List.of();
-        if (structuredOutputMode == StructuredOutputMode.DRAFT) {
-            return new ToolResult(result.text(), values, result.error());
-        }
         return new ToolResult(result.text(), Map.of("action", action, collectionKey, values), result.error());
     }
 
@@ -889,14 +923,6 @@ public class McpServer {
 
     /** Builds the union schema for graph summaries and action-specific graph collections. */
     private SchemaBuilder graphOutputSchema() {
-        Map<String, Object> summarySchema = graphSummarySchema();
-        if (structuredOutputMode == StructuredOutputMode.DRAFT) {
-            Map<String, Object> collectionItemSchema =
-                    Map.of("anyOf", List.of(nodeItemSchema(), edgeItemSchema(), pathItemSchema()));
-            return schema().raw(Map.of(
-                    "oneOf", List.of(summarySchema, Map.of("type", "array", "items", collectionItemSchema))));
-        }
-
         Map<String, Object> properties = new LinkedHashMap<>();
         properties.put("action", Map.of("type", "string"));
         properties.put("nodeCount", Map.of("type", "integer"));
@@ -908,17 +934,6 @@ public class McpServer {
                 Map.of("oneOf", List.of(countMapSchema(), Map.of("type", "array", "items", edgeItemSchema()))));
         properties.put("paths", Map.of("type", "array", "items", pathItemSchema()));
         return schema().raw(Map.of("type", "object", "properties", properties));
-    }
-
-    /** Defines the object schema returned by the graph summary action. */
-    private static Map<String, Object> graphSummarySchema() {
-        Map<String, Object> properties = new LinkedHashMap<>();
-        properties.put("action", Map.of("type", "string"));
-        properties.put("nodeCount", Map.of("type", "integer"));
-        properties.put("edgeCount", Map.of("type", "integer"));
-        properties.put("labels", countMapSchema());
-        properties.put("edges", countMapSchema());
-        return Map.of("type", "object", "properties", properties);
     }
 
     /** Defines a string-keyed object whose values are integer counts. */
@@ -979,11 +994,6 @@ public class McpServer {
         return new SchemaBuilder();
     }
 
-    /** Output schema for a top-level array whose items match the given property map. */
-    private static SchemaBuilder arrayOutput(Map<String, Object> itemProperties) {
-        return new SchemaBuilder().asArray(itemProperties);
-    }
-
     /** Minimal output schema for diagram-rendering tools whose real payload is the text content, not structured data. */
     private static SchemaBuilder diagramOutput() {
         return new SchemaBuilder().opt("diagramType", TYPE_STRING, "Rendered diagram format, e.g. mermaid or likec4");
@@ -1041,7 +1051,6 @@ public class McpServer {
         /** Property names that must be present in an object instance. */
         private final List<String> required = new ArrayList<>();
 
-        private Map<String, Object> arrayItems;
         private Map<String, Object> rawSchema;
 
         SchemaBuilder opt(String name, String type, String description) {
@@ -1064,12 +1073,6 @@ public class McpServer {
         SchemaBuilder reqArraySchema(String name, Map<String, Object> itemSchema) {
             props.put(name, Map.of("type", "array", "items", itemSchema));
             required.add(name);
-            return this;
-        }
-
-        /** Marks this schema as a top-level array (used for output schemas) instead of an object. */
-        SchemaBuilder asArray(Map<String, Object> itemSchema) {
-            this.arrayItems = itemSchema;
             return this;
         }
 
@@ -1105,16 +1108,10 @@ public class McpServer {
             return copy;
         }
 
-        /** Assembles the schema in whichever of the raw, array, or object forms was configured. */
+        /** Assembles the schema in whichever of the raw or object forms was configured. */
         private Map<String, Object> assemble() {
             if (rawSchema != null) {
                 return rawSchema;
-            }
-            if (arrayItems != null) {
-                Map<String, Object> schema = new LinkedHashMap<>();
-                schema.put("type", "array");
-                schema.put("items", arrayItems);
-                return schema;
             }
             Map<String, Object> schema = new LinkedHashMap<>();
             schema.put("type", "object");

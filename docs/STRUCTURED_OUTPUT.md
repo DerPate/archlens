@@ -19,7 +19,7 @@ when it has to reason character-by-character to pull a field like `componentId` 
 other list-shaped tools now return the same data twice:
 
 - `content[0].text` — unchanged. Formatted for a human (or a model) to read directly.
-- `structuredContent` — new. The same data as a JSON array/object, validated against the
+- `structuredContent` — new. The same data as a JSON object, validated against the
   tool's declared `outputSchema` (visible via `tools/list`).
 
 A model that's told to act on the data (filter it, pass an ID to another tool call, count
@@ -27,23 +27,20 @@ items) can use `structuredContent` directly instead of re-parsing text. A model 
 summarizing for a person can still read the text and ignore `structuredContent` entirely —
 nothing about existing text behavior changed.
 
-By default ArchLens targets stable MCP `2025-11-25`. Collection results therefore use an
-object root with a named array, such as `{"entrypoints": [...]}`. Set
-`ARCHLENS_MCP_EXPERIMENTAL_DRAFT=true` when starting the server to opt into the upcoming
-draft's arbitrary JSON roots; the same result is then a top-level array. The tool's
-`outputSchema` always declares the active shape.
+Collection results use an object root with a named array, such as `{"entrypoints": [...]}`, as
+MCP `2025-11-25` requires. The tool's `outputSchema` declares the shape.
 
 Valid queries with no matches return a successful, schema-valid empty value. Missing indexes,
 invalid arguments, unresolved requested entities, unsupported values, and internal failures
 return `isError: true` while preserving the human-readable diagnostic and schema-valid
 structured content.
 
-`query_architecture_graph` is action-dependent, so its stable object uses a named collection:
+`query_architecture_graph` is action-dependent, so its object uses a named collection:
 `find_nodes` and `impacted_by` return `{ "action": "...", "nodes": [...] }`;
 `find_edges` and `neighborhood` return `{ "action": "...", "edges": [...] }`; and `paths`
 returns `{ "action": "paths", "paths": [...] }`. `summary` returns its counts and label maps
-with `action: "summary"`. In experimental draft mode the collection actions remain top-level
-arrays, while the intrinsically object-shaped summary remains an object. The declared schema
+with `action: "summary"`.
+The declared schema
 accepts exactly these action families, so SDK output validation does not discard successful
 graph query results.
 

@@ -4,6 +4,8 @@
 - **Migration**: Moved the bundle to OKF v0.3. Path fields are now repository URLs, and three
   descriptions that were invalid YAML are quoted. No concept body changed, so `generated` and
   `verified` are unchanged.
+- **Update**: Rewrote [MCP Server](modules/mcp-server.md) for 3.0. Its content changed, so it is
+  back to `status: draft` and its 2026-09-17 verification is history until reviewed again.
 
 ## 2026-09-17
 - **Verification**: `human:dominik` reviewed the bundle, caught that Main#main's

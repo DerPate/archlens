@@ -28,9 +28,11 @@ Prefer `structuredContent` for IDs, properties, filtering, calculations, and fol
 arguments. Use `content[0].text` when presenting findings to a person. Avoid consuming both
 representations when one is sufficient.
 
-Stable MCP mode wraps collection arrays in named objects (`entrypoints`, `components`,
-`dependencies`, `containers`, `paths`, or `useCases`). When the server starts with
-`ARCHLENS_MCP_EXPERIMENTAL_DRAFT=true`, those results use draft top-level arrays instead.
+`index_workspace` returns a `workspaceId`. Pass it to the query tools whenever more than one
+workspace is indexed or other tasks share the server.
+
+Collection arrays are wrapped in named objects (`entrypoints`, `components`,
+`dependencies`, `containers`, `paths`, or `useCases`).
 Read each tool's `outputSchema` from `tools/list` and follow the declared shape. Treat
 `isError: true` as a failed tool outcome; a successful empty array means the query matched
 nothing.
