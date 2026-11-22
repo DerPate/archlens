@@ -7,6 +7,15 @@ Tool calls run one at a time in the order they arrive. A client may send a query
 `index_workspace` without waiting: the query sees the new index. `ping` and list requests are
 answered while a tool runs.
 
+`index_workspace` returns a `workspaceId`. Every other tool accepts it as an optional argument:
+
+- Omitted: the workspace indexed last in this working directory.
+- Given: that workspace, without changing which one is active. Ids survive a server restart in the
+  same working directory. An unknown id is an error.
+
+Pass it whenever several agents or tasks share one server, and pass the same id to
+`answer_architecture_question` and `compile_architecture_question_to_okf`.
+
 ## Response Shape
 
 Every `tools/call` response carries the same human-readable text shown in the "Sample output"

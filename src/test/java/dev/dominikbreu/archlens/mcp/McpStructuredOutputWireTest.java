@@ -155,6 +155,42 @@ class McpStructuredOutputWireTest {
         }
     }
 
+    @Test
+    void workspaceIdSelectsAWorkspaceWithoutChangingTheActiveOne(@TempDir Path tempDir) throws Exception {
+        String first;
+        String second;
+        try (ServerProcess server = ServerProcess.start(false, tempDir.resolve("ids-stderr.log"))) {
+            first = server.index("quarkus-sample");
+            second = server.index("plain-java-sample");
+            assertThat(first).isNotBlank().isNotEqualTo(second);
+
+            assertThat(server.appsIn(Map.of("workspaceId", first)))
+                    .contains("quarkus-sample")
+                    .doesNotContain("plain-java");
+            assertThat(server.appsIn(Map.of())).contains("plain-java").doesNotContain("quarkus-sample");
+            assertThat(server.appsIn(Map.of("workspaceId", second))).contains("plain-java");
+        }
+        try (ServerProcess restarted = ServerProcess.start(false, tempDir.resolve("ids-restart-stderr.log"))) {
+            assertThat(restarted.appsIn(Map.of("workspaceId", first))).contains("quarkus-sample");
+            assertThat(restarted.appsIn(Map.of())).contains("plain-java");
+        }
+    }
+
+    @Test
+    void workspaceIdDoesNotLeakIntoQuestionRequests(@TempDir Path tempDir) throws Exception {
+        try (ServerProcess server = ServerProcess.start(false, tempDir.resolve("question-stderr.log"))) {
+            String id = server.index("spring-pipeline-sample");
+            Map<String, Object> question = Map.of("family", "impact", "component", "OrderRepository");
+            Map<String, Object> selected =
+                    Map.of("family", "impact", "component", "OrderRepository", "workspaceId", id);
+
+            // The request is hashed into the OKF concept identity, so it must not depend on the handle.
+            assertThat(server.callTool("answer_architecture_question", selected).path("structuredContent"))
+                    .isEqualTo(server.callTool("answer_architecture_question", question)
+                            .path("structuredContent"));
+        }
+    }
+
     private static final class ServerProcess implements Closeable {
         private final Process process;
         private final BufferedWriter input;
@@ -226,6 +262,23 @@ class McpStructuredOutputWireTest {
                     .as(response.toString())
                     .isTrue();
             return response.path("result");
+        }
+
+        String index(String fixture) throws Exception {
+            String path = Path.of("src/test/resources/testprojects", fixture)
+                    .toAbsolutePath()
+                    .toString();
+            JsonNode result = callTool("index_workspace", Map.of("paths", List.of(path)));
+            assertThat(result.path("structuredContent").has("workspaceId"))
+                    .as(result.toString())
+                    .isTrue();
+            return result.path("structuredContent").path("workspaceId").asString();
+        }
+
+        String appsIn(Map<String, Object> arguments) throws Exception {
+            JsonNode result = callTool("list_apps", arguments);
+            assertThat(result.path("isError").asBoolean()).as(result.toString()).isFalse();
+            return result.path("content").get(0).path("text").asString();
         }
 
         void send(int requestId, String method, Map<String, Object> params) throws Exception {

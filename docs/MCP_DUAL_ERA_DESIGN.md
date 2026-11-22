@@ -1,7 +1,7 @@
 # Design: Dual-Era MCP Support
 
-Status: **proposed**. Nothing described here is implemented. Verified on 2026-11-22 against MCP
-2026-07-28 and Java SDK 2.2.0.
+Status: **accepted on 2026-11-22**. The prerequisites (A, B, E) ship in 3.0. The router (C, D)
+follows in a 3.x minor and is not implemented. Verified against MCP 2026-07-28 and Java SDK 2.2.0.
 
 ## Problem
 
@@ -27,18 +27,16 @@ Non-goals: HTTP, tasks, subscriptions, multi round-trip requests.
 
 ## What has to be solved first
 
-### 1. Tool calls race
+### 1. Tool calls race (solved in 3.0)
 
-Both SDK servers run handlers on a thread pool, while `ModelCache` and `GraphStore` are mutable and
-unsynchronized. This already happens on 2.3.0: send `index_workspace` and then `list_apps` without
-waiting, and `list_apps` answers first with "No workspace indexed yet". A query that overlaps
-`store.clear()` can also observe a partial graph.
+The SDK runs handlers on a thread pool, while `ModelCache` and `GraphStore` are mutable and
+unsynchronized. In 2.3.0 a `list_apps` sent right after `index_workspace` answered first with "No
+workspace indexed yet".
 
-Proposal: build into a fresh `GraphStore` and publish it with one atomic swap, so a reader always
-holds a complete graph. Serialize writers. This fixes torn reads. It does not order pipelined
-requests, which is what the explicit handle below is for.
+Tool calls now share one FIFO thread. An atomic graph swap was considered first, but it prevents
+only torn reads and not overtaking. The router must dispatch both eras onto that same thread.
 
-### 2. The workspace is implicit state
+### 2. The workspace is implicit state (handle shipped in 3.0)
 
 The modern spec says state that spans requests MUST be referenced by an explicit identifier passed
 on each request. ArchLens tools read "the active workspace" left behind by an earlier
@@ -96,21 +94,21 @@ A throwaway spike of the router with both SDK 2.2.0 servers on one stdio pair re
 
 ## Structured output and the draft flag
 
-`ARCHLENS_MCP_EXPERIMENTAL_DRAFT` sends top-level arrays, which are valid in 2026-07-28 and invalid
-in 2025-11-25, the version it negotiates today.
+`ARCHLENS_MCP_EXPERIMENTAL_DRAFT` sent top-level arrays, which are valid in 2026-07-28 and invalid
+in 2025-11-25, the version it negotiated.
 
-Proposal: deprecate the flag, then remove it in the next major. Keep the named-object shape in both
-eras, so a client gets the same shape whichever era it negotiates.
+The flag is removed in 3.0. Both eras keep the named-object shape, so a client gets the same shape
+whichever era it negotiates.
 
 ## Delivery
 
 | PR | Change | Breaking | Size |
 | --- | --- | --- | --- |
-| A | Atomic graph publication and serialized writers | no | S |
-| B | `workspaceId` returned and optionally accepted | no | L |
+| A | Tool calls in arrival order (3.0) | no | S |
+| B | `workspaceId` returned and optionally accepted (3.0) | no | M |
 | C | Era-neutral registry | no | M |
 | D | Router, modern adapter, required `workspaceId` for modern requests | no | M |
-| E | Deprecate, later remove, the draft flag | at removal | S |
+| E | Remove the draft flag (3.0) | yes | S |
 
 A is worth doing even if the rest is not.
 
@@ -130,12 +128,11 @@ A is worth doing even if the rest is not.
 - The modern server generates a random `requestState` key and warns on startup. It is harmless
   without multi round-trip requests.
 
-## Decisions needed
+## Decisions
 
-1. Require `workspaceId` in the modern era (recommended, follows the MUST), or keep the implicit
-   workspace and document the deviation?
-2. Keep named-object output in both eras (recommended), or use top-level arrays for modern clients?
-3. Build D now, or after A and B while the SDK's modern API settles (recommended)?
+1. `workspaceId` is required in the modern era and optional in the legacy era.
+2. Both eras use named-object output.
+3. The router is built after the prerequisites, while the SDK's modern API settles.
 
 ## References
 

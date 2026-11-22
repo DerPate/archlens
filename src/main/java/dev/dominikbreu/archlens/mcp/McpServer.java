@@ -54,6 +54,7 @@ public class McpServer {
         return "unknown";
     }
 
+    private final ModelCache cache;
     private final IndexWorkspaceTool indexTool;
     private final ListAppsTool listAppsTool;
     private final FindEntrypointsTool entrypointsTool;
@@ -100,6 +101,9 @@ public class McpServer {
     /** Shared human-readable entrypoint selector name. */
     private static final String ENTRYPOINT_NAME = "entrypointName";
 
+    /** Shared workspace-selector argument name. */
+    private static final String WORKSPACE_ID = "workspaceId";
+
     /** Shared traversal-depth argument name. */
     private static final String MAX_DEPTH = "maxDepth";
 
@@ -118,6 +122,7 @@ public class McpServer {
     }
 
     McpServer(ModelCache cache) {
+        this.cache = cache;
         ArchitectureExtractor extractor = new ArchitectureExtractor();
 
         this.indexTool = new IndexWorkspaceTool(extractor, cache);
@@ -205,12 +210,13 @@ public class McpServer {
     public List<McpServerFeatures.SyncToolSpecification> buildToolSpecifications() {
         List<McpServerFeatures.SyncToolSpecification> specs = new ArrayList<>();
 
-        specs.add(toolSpec(
+        specs.add(specification(
                 "index_workspace",
                 "Index Workspace",
                 "Analyze one or more Java project roots and build the internal architecture model.",
                 schema().reqArray("paths", TYPE_STRING, "Project root directory paths to analyze"),
-                schema().opt("appCount", TYPE_INTEGER, "Indexed application count")
+                schema().opt(WORKSPACE_ID, TYPE_STRING, "Id of the indexed workspace; pass it to query tools")
+                        .opt("appCount", TYPE_INTEGER, "Indexed application count")
                         .opt("componentCount", TYPE_INTEGER, "Indexed component count")
                         .opt("entrypointCount", TYPE_INTEGER, "Indexed entrypoint count"),
                 indexTool::execute));
@@ -786,6 +792,17 @@ public class McpServer {
             SchemaBuilder schema,
             SchemaBuilder outputSchema,
             Function<Map<String, Object>, ToolResult> handler) {
+        return specification(name, title, description, selectable(schema), outputSchema, inRequestedWorkspace(handler));
+    }
+
+    /** Builds a tool specification exactly as declared, without workspace selection. */
+    private McpServerFeatures.SyncToolSpecification specification(
+            String name,
+            String title,
+            String description,
+            SchemaBuilder schema,
+            SchemaBuilder outputSchema,
+            Function<Map<String, Object>, ToolResult> handler) {
 
         McpSchema.Tool tool = McpSchema.Tool.builder(name, schema.build())
                 .title(title)
@@ -819,23 +836,57 @@ public class McpServer {
             Map<String, Object> itemSchema,
             Function<Map<String, Object>, ToolResult> handler) {
         SchemaBuilder outputSchema = schema().reqArraySchema(collectionKey, itemSchema);
-        return toolSpec(name, title, description, inputSchema, outputSchema, args -> {
-            ToolResult result = handler.apply(args);
+        // Selection sits inside the wrapper, so its error gets the collection's shape too.
+        Function<Map<String, Object>, ToolResult> scoped = inRequestedWorkspace(handler);
+        return specification(name, title, description, selectable(inputSchema), outputSchema, args -> {
+            ToolResult result = scoped.apply(args);
             Object structured = result.structured() == null ? List.of() : result.structured();
             return new ToolResult(result.text(), Map.of(collectionKey, structured), result.error());
         });
     }
 
+    /** Declares the optional workspace selector every query tool accepts. */
+    private static SchemaBuilder selectable(SchemaBuilder inputSchema) {
+        return inputSchema.opt(
+                WORKSPACE_ID,
+                TYPE_STRING,
+                "Workspace to query, as returned by index_workspace (default: the last one indexed)");
+    }
+
+    /**
+     * Runs a handler against the workspace its arguments select. The selector is removed first, so
+     * it cannot end up in results that echo or hash their request.
+     */
+    private Function<Map<String, Object>, ToolResult> inRequestedWorkspace(
+            Function<Map<String, Object>, ToolResult> handler) {
+        return args -> {
+            Object requested = args.get(WORKSPACE_ID);
+            if (requested == null) {
+                return handler.apply(args);
+            }
+            Map<String, Object> remaining = new LinkedHashMap<>(args);
+            remaining.remove(WORKSPACE_ID);
+            try {
+                return cache.inWorkspace(requested.toString(), () -> handler.apply(remaining))
+                        .orElseGet(() -> ToolResult.error("Unknown workspaceId '" + requested
+                                + "'. Call index_workspace and use the workspaceId it returns."));
+            } catch (IOException error) {
+                return ToolResult.error("Error loading workspace: " + error.getMessage());
+            }
+        };
+    }
+
     /** Builds the graph-query tool specification with its action-dependent output normalization. */
     private McpServerFeatures.SyncToolSpecification graphToolSpec(
             String name, String title, String description, SchemaBuilder inputSchema) {
-        return toolSpec(
+        Function<Map<String, Object>, ToolResult> scoped = inRequestedWorkspace(graphTool::execute);
+        return specification(
                 name,
                 title,
                 description,
-                inputSchema,
+                selectable(inputSchema),
                 graphOutputSchema(),
-                args -> normalizeGraphResult(args, graphTool.execute(args)));
+                args -> normalizeGraphResult(args, scoped.apply(args)));
     }
 
     /** Shapes summary and collection graph results according to action. */

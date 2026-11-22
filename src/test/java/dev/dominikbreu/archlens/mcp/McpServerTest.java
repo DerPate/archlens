@@ -163,6 +163,41 @@ class McpServerTest {
         assertThat(McpServer.fillTemplate("x={v}", args)).isEqualTo("x=");
     }
 
+    @Test
+    void everyQueryToolAcceptsAnOptionalWorkspaceId() {
+        for (var spec : new McpServer().buildToolSpecifications()) {
+            if ("index_workspace".equals(spec.tool().name())) {
+                assertThat((Map<String, Object>) spec.tool().outputSchema().get("properties"))
+                        .containsKey("workspaceId");
+                continue;
+            }
+            assertThat((Map<String, Object>) spec.tool().inputSchema().get("properties"))
+                    .as(spec.tool().name())
+                    .containsKey("workspaceId");
+            Object required = spec.tool().inputSchema().getOrDefault("required", List.of());
+            assertThat((List<String>) required).as(spec.tool().name()).doesNotContain("workspaceId");
+        }
+    }
+
+    @Test
+    void everyQueryToolRejectsAnUnknownWorkspaceId() {
+        for (String id : List.of("0000000000000000-unknown", "../../elsewhere", "")) {
+            for (var spec : emptyServer().buildToolSpecifications()) {
+                String name = spec.tool().name();
+                if ("index_workspace".equals(name)) continue;
+
+                var result =
+                        spec.callHandler().apply(null, new McpSchema.CallToolRequest(name, Map.of("workspaceId", id)));
+
+                assertThat(result.isError()).as(name).isTrue();
+                assertThat(((McpSchema.TextContent) result.content().getFirst()).text())
+                        .as(name)
+                        .contains("Unknown workspaceId");
+                assertThat(result.structuredContent()).as(name).isInstanceOf(Map.class);
+            }
+        }
+    }
+
     private static McpSchema.Tool tool(McpServer server, String name) {
         return specification(server, name).tool();
     }
