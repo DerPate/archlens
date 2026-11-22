@@ -163,6 +163,8 @@ Prompts are workflow templates for clients and agents; they do not replace tools
 
 ## Notes For Agents
 
+- `index_workspace` returns `workspaceId`; every query tool accepts it optionally (default: the
+  workspace indexed last in this working directory). Pass it when tasks share a server.
 - Consume IDs and properties from `structuredContent` instead of parsing formatted text.
   Empty matches are successful empty values; invalid requests and missing prerequisites set
   `isError`. Do not place both text and equivalent structured data in model context unless the

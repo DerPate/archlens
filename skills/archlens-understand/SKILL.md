@@ -28,6 +28,9 @@ Prefer `structuredContent` for IDs, properties, filtering, calculations, and fol
 arguments. Use `content[0].text` when presenting findings to a person. Avoid consuming both
 representations when one is sufficient.
 
+`index_workspace` returns a `workspaceId`. Pass it to the query tools whenever more than one
+workspace is indexed or other tasks share the server.
+
 Collection arrays are wrapped in named objects (`entrypoints`, `components`,
 `dependencies`, `containers`, `paths`, or `useCases`).
 Read each tool's `outputSchema` from `tools/list` and follow the declared shape. Treat

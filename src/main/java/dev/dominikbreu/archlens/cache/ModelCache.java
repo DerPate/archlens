@@ -10,6 +10,8 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 /**
@@ -30,6 +32,19 @@ public class ModelCache {
 
     private final String cacheDir;
     private final GraphStore store = new GraphStore();
+
+    /** The graph a call selected through {@link #inWorkspace}, visible only inside that call. */
+    private final ScopedValue<GraphStore> selected = ScopedValue.newInstance();
+
+    /** Key of the workspace held in {@link #store}, or {@code null}. */
+    private String loadedKey;
+
+    /** Key of the workspace held in {@link #otherStore}, or {@code null}. */
+    private String otherKey;
+
+    /** The last explicitly selected non-active workspace, kept to avoid parsing it on every call. */
+    private GraphStore otherStore;
+
     private ArchitectureModel current;
     private boolean inMemoryOnly = false;
 
@@ -53,11 +68,15 @@ public class ModelCache {
      * Projects the model into the in-memory graph and writes the GraphSON file.
      *
      * @param model architecture model to store
+     * @return workspace id, usable with {@link #inWorkspace}
      * @throws IOException if the graph cannot be written
      */
-    public void store(ArchitectureModel model) throws IOException {
+    public String store(ArchitectureModel model) throws IOException {
         this.current = model;
         this.inMemoryOnly = false;
+        loadedKey = null;
+        otherKey = null;
+        otherStore = null;
         store.clear();
         new GraphProjector().project(model, store);
         File dir = workspaceDir(model);
@@ -67,7 +86,10 @@ public class ModelCache {
         } catch (Exception e) {
             throw new IOException("Failed to serialize graph: " + e.getMessage(), e);
         }
-        writeActiveWorkspace(workspaceKey(model));
+        String key = workspaceKey(model);
+        writeActiveWorkspace(key);
+        loadedKey = key;
+        return key;
     }
 
     /**
@@ -80,6 +102,7 @@ public class ModelCache {
     public void indexInMemory(ArchitectureModel model) {
         this.current = model;
         this.inMemoryOnly = true;
+        loadedKey = null;
         store.clear();
         if (model != null) new GraphProjector().project(model, store);
     }
@@ -92,6 +115,7 @@ public class ModelCache {
     public void clearActive() throws IOException {
         this.current = null;
         this.inMemoryOnly = false;
+        loadedKey = null;
         store.clear();
         Files.deleteIfExists(activeWorkspaceFile().toPath());
     }
@@ -108,27 +132,69 @@ public class ModelCache {
     /**
      * Returns a read-only graph query handle.
      *
-     * <p>If the in-memory store is empty, loads the graph from the active workspace's GraphSON
+     * <p>Inside {@link #inWorkspace} this is the selected workspace. Otherwise it is the active one:
+     * if the in-memory store is empty, loads the graph from the active workspace's GraphSON
      * file. Tools should always access the workspace through this method.</p>
      *
      * @return graph query over the current architecture model
      * @throws IOException if the GraphSON file cannot be read
      */
     public GraphQuery graph() throws IOException {
+        if (selected.isBound()) {
+            return new GraphQuery(selected.get());
+        }
         if (store.isEmpty() && !inMemoryOnly) {
             String key = readActiveWorkspace();
-            if (key != null) {
-                File f = new File(new File(new File(cacheDir, WORKSPACES_DIR), key), GRAPH_FILE);
-                if (f.exists()) {
-                    try {
-                        store.loadFrom(Files.readString(f.toPath(), StandardCharsets.UTF_8));
-                    } catch (Exception e) {
-                        throw new IOException("Failed to load graph: " + e.getMessage(), e);
-                    }
-                }
+            if (key != null && load(key, store)) {
+                loadedKey = key;
             }
         }
         return new GraphQuery(store);
+    }
+
+    /**
+     * Runs an action with {@link #graph()} bound to one indexed workspace. The active workspace is
+     * not changed.
+     *
+     * @param workspaceId id returned by {@link #store}
+     * @param action action to run; must not return {@code null}
+     * @param <T> action result type
+     * @return the action's result, or empty when no such workspace is cached for this directory
+     * @throws IOException if the workspace cannot be read
+     */
+    public <T> Optional<T> inWorkspace(String workspaceId, Supplier<T> action) throws IOException {
+        // The id reaches the file system, so only keys this class could have produced are accepted.
+        if (!WORKSPACE_KEY.matcher(workspaceId).matches()) {
+            return Optional.empty();
+        }
+        GraphStore target;
+        if (workspaceId.equals(loadedKey)) {
+            target = store;
+        } else if (workspaceId.equals(otherKey)) {
+            target = otherStore;
+        } else {
+            target = new GraphStore();
+            if (!load(workspaceId, target)) {
+                return Optional.empty();
+            }
+            otherKey = workspaceId;
+            otherStore = target;
+        }
+        return Optional.of(ScopedValue.where(selected, target).call(action::get));
+    }
+
+    /** Loads a workspace's graph file into a store, returning whether the file exists. */
+    private boolean load(String key, GraphStore target) throws IOException {
+        File file = new File(new File(new File(cacheDir, WORKSPACES_DIR), key), GRAPH_FILE);
+        if (!file.exists()) {
+            return false;
+        }
+        try {
+            target.loadFrom(Files.readString(file.toPath(), StandardCharsets.UTF_8));
+            return true;
+        } catch (Exception e) {
+            throw new IOException("Failed to load graph: " + e.getMessage(), e);
+        }
     }
 
     /**
