@@ -26,11 +26,11 @@ const capabilities = [
   },
   {
     title: "Maintenance answers",
-    text: "Ask for persistence destinations, consumer context, grouped impact, or transaction context with unresolved and ambiguous evidence kept visible.",
+    text: "Ask in plain language or pick one of eleven question families, from persistence and messaging to state, schedules, configuration and impact. Unresolved and ambiguous evidence stays visible.",
   },
   {
     title: "Visual exports",
-    text: "Export Mermaid diagrams, LikeC4 text, Markdown architecture docs, graph JSON, and a self-contained HTML graph viewer.",
+    text: "Export Mermaid diagrams, LikeC4 text, Markdown architecture docs, graph JSON, and a single-file HTML graph viewer.",
   },
   {
     title: "Standalone dashboard",
@@ -172,7 +172,7 @@ export_graph_viewer</code></pre>
         <h2 class="section-title">Explore ArchLens without wiring an MCP client.</h2>
         <p class="section-copy">
           Run the packaged jar directly in an interactive terminal to open the built-in dashboard and REPL. Browse the same
-          tool registry exposed over MCP, execute queries, and inspect results and captured graph traversals in one place.
+          tool registry exposed over MCP, execute queries, and inspect the results in one place.
         </p>
       </div>
       <div class="terminal-card dashboard-card" aria-label="Standalone dashboard example">
@@ -185,7 +185,7 @@ export_graph_viewer</code></pre>
 ArchLens — standalone dashboard
 archlens&gt; index_workspace paths=["/path/to/project"]
 archlens&gt; list_apps
-archlens&gt; answer_architecture_question question="Where is order data stored?"</code></pre>
+archlens&gt; answer_architecture_question question="What is the impact of changing OrderRepository?"</code></pre>
       </div>
     </div>
   </section>
@@ -221,6 +221,11 @@ agents/
 
   <section id="install" class="section install-section">
     <div class="container install-grid">
+      <p class="section-copy install-note">
+        Upgrading from 2.x? Read the
+        <a href="https://github.com/DerPate/archlens/blob/main/docs/MIGRATION_3.0.md" target="_blank" rel="noopener noreferrer">migration guide</a>:
+        the cache moved, OKF keys were renamed and the experimental draft output is gone.
+      </p>
       <div>
         <span class="section-kicker">Install</span>
         <h2 class="section-title">Build the server, then let your MCP client ask better questions.</h2>
@@ -229,9 +234,17 @@ agents/
           list applications, find entrypoints and components, then render or query focused architecture views.
           Java 25 is required for ArchLens itself, not for the Java system being analyzed.
         </p>
+        <p class="section-copy">
+          <a href="https://github.com/DerPate/archlens/releases/latest" target="_blank" rel="noopener noreferrer">Download the latest release</a>
+          or build from source. From a release you need <code>archlens-&lt;version&gt;.jar</code>,
+          not <code>-sources</code> or <code>-javadoc</code>.
+        </p>
       </div>
       <div class="code-stack">
-        <pre><code>mvn test
+        <pre><code># from a release
+java -jar /path/to/archlens-&lt;version&gt;.jar
+
+# from a source checkout
 mvn package
 java -jar target/archlens.jar</code></pre>
         <pre><code>index_workspace -> list_apps -> find_entrypoints
@@ -255,7 +268,7 @@ export_graph_viewer</code></pre>
         <div class="terminal-card quickstart-card">
           <div class="terminal-top">
             <span></span><span></span><span></span>
-            <strong>build</strong>
+            <strong>build from source</strong>
           </div>
           <pre><code>git clone https://github.com/DerPate/archlens.git
 cd archlens
@@ -264,7 +277,7 @@ mvn clean package</code></pre>
         <div class="terminal-card quickstart-card">
           <div class="terminal-top">
             <span></span><span></span><span></span>
-            <strong>smoke test</strong>
+            <strong>smoke test a checkout</strong>
           </div>
           <pre><code>java -jar target/archlens.jar \
   &lt; examples/jsonrpc/initialize.json</code></pre>
@@ -357,7 +370,7 @@ mvn clean package</code></pre>
         <article class="tool-card tool-card--query tool-card--promoted">
           <span class="tool-card-phase">Query</span>
           <span class="tool-card-name">answer_architecture_question</span>
-          <p class="tool-card-desc">Return stable persistence, consumer, impact, and transaction answers with explicit uncertainty.</p>
+          <p class="tool-card-desc">Answer maintenance questions in eleven families, with explicit uncertainty.</p>
           <a href="/tools/answer-architecture-question" class="tool-card-link">Deep dive →</a>
         </article>
 
@@ -447,7 +460,7 @@ mvn clean package</code></pre>
         <article class="tool-card tool-card--export">
           <span class="tool-card-phase">Export</span>
           <span class="tool-card-name">export_graph_viewer</span>
-          <p class="tool-card-desc">Write a self-contained HTML graph explorer for the indexed architecture.</p>
+          <p class="tool-card-desc">Write a single-file HTML graph explorer. It loads its rendering libraries from public CDNs.</p>
         </article>
 
         <article class="tool-card tool-card--export">

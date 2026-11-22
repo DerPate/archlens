@@ -52,6 +52,12 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
             <td>—</td>
             <td>Filter by sink kind: <code>persistence</code>, <code>messaging</code>, <code>http-outbound</code>, <code>event-bus</code>, <code>store</code>, <code>file-outbound</code>, <code>object-storage</code>, or <code>unknown</code>.</td>
           </tr>
+          <tr>
+            <td>workspaceId</td>
+            <td>string</td>
+            <td>—</td>
+            <td>Workspace to query, as returned by <code>index_workspace</code>. Default: the last one indexed.</td>
+          </tr>
         </tbody>
       </table>
 
@@ -72,10 +78,10 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
       <h2 class="tool-section-label">Output</h2>
       <p class="tool-page-intro">
-        A list of data-flow paths, each showing the entrypoint, tracked parameter, hop-by-hop
-        call chain with parameter renames, and classified sinks. Store sinks carry
-        <code>linkedPathIds</code> pointing to downstream paths that read the same shared
-        field — use <code>render_pipeline</code> to visualise those cross-entrypoint chains.
+        A list of data-flow paths, each showing the entrypoint, tracked parameter, call
+        chain, and classified sinks with their evidence. Links between paths are not part of
+        this output: use <code>render_pipeline</code> to see cross-entrypoint chains, or query
+        <code>LINKS_TO</code> edges with <code>query_architecture_graph</code>.
         The response's <code>structuredContent</code> carries the same path list as JSON
         (id, entrypoint, tracked parameter, and sinks per path).
       </p>
