@@ -16,6 +16,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.SequencedMap;
+import java.util.TreeMap;
 import java.util.function.Function;
 import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
 import reactor.core.publisher.Mono;
@@ -1072,11 +1074,39 @@ public class McpServer {
         }
 
         SchemaBuilder raw(Map<String, Object> value) {
-            this.rawSchema = new LinkedHashMap<>(value);
+            this.rawSchema = new LinkedHashMap<>(value instanceof SequencedMap<?, ?> ? value : new TreeMap<>(value));
             return this;
         }
 
+        /**
+         * Builds the schema with a key order that is the same in every JVM, so clients can cache
+         * {@code tools/list} and the prompts built from it.
+         */
         Map<String, Object> build() {
+            Map<String, Object> stable = new LinkedHashMap<>();
+            assemble().forEach((key, value) -> stable.put(key, withStableOrder(value)));
+            return stable;
+        }
+
+        /**
+         * Copies a schema value, keeping the order of sequenced maps (declared properties) and
+         * sorting the others, because {@code Map.of} iterates differently in each JVM.
+         */
+        private static Object withStableOrder(Object value) {
+            if (value instanceof List<?> list) {
+                return list.stream().map(SchemaBuilder::withStableOrder).toList();
+            }
+            if (!(value instanceof Map<?, ?> map)) {
+                return value;
+            }
+            Map<?, ?> ordered = map instanceof SequencedMap<?, ?> ? map : new TreeMap<>(map);
+            Map<String, Object> copy = new LinkedHashMap<>();
+            ordered.forEach((key, nested) -> copy.put(String.valueOf(key), withStableOrder(nested)));
+            return copy;
+        }
+
+        /** Assembles the schema in whichever of the raw, array, or object forms was configured. */
+        private Map<String, Object> assemble() {
             if (rawSchema != null) {
                 return rawSchema;
             }
