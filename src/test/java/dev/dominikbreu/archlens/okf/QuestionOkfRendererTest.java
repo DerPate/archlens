@@ -82,6 +82,22 @@ class QuestionOkfRendererTest {
     }
 
     @Test
+    void titleStaysOnOneLine() throws Exception {
+        ArchitectureQuestionResult result =
+                Fixtures.resultWithoutRawQuestion(Map.of("component", "com.example.Orders\nsecond line"));
+
+        assertThat(new QuestionOkfRenderer()
+                        .render(
+                                result,
+                                new QuestionConceptIdentity().derive(result),
+                                Path.of("/project"),
+                                null,
+                                Instant.EPOCH)
+                        .title())
+                .isEqualTo("Impact - com.example.Orders second line");
+    }
+
+    @Test
     void customTemplateRequiresEveryKnownBlockExactlyOnce(@TempDir Path tempDir) throws Exception {
         Path valid = tempDir.resolve("valid.md");
         Files.writeString(

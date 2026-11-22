@@ -10,10 +10,14 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import org.yaml.snakeyaml.Yaml;
 
 /** Safely creates and refreshes OKF investigation bundle files. */
 public final class OkfBundleWriter {
+    /** A log section heading in the ISO date form OKF requires. */
+    private static final Pattern DATE_HEADING = Pattern.compile("## \\d{4}-\\d{2}-\\d{2}");
+
     /** Promotes the concept, index, and log files as one atomic, all-or-nothing filesystem write. */
     private final AtomicFileWriter atomicFileWriter = new AtomicFileWriter();
 
@@ -61,17 +65,28 @@ public final class OkfBundleWriter {
         String indexEntry = indexEntry(request);
         String logEntry = logEntry(request, existing.exists());
         validator.validateConcept(request.conceptMarkdown(), request.semanticKey());
+        String concept = request.conceptMarkdown();
+        List<String> warnings = new ArrayList<>();
+        if (existing.exists()) {
+            OkfConceptMerger.Merged merged = OkfConceptMerger.merge(read(conceptPath), concept);
+            concept = merged.markdown();
+            validator.validateConcept(concept, request.semanticKey());
+            if (merged.verificationOutdated()) {
+                warnings.add("Content changed: the existing verification is kept as history but is no longer"
+                        + " current; review the concept again");
+            }
+        }
         validator.validateIndexEntry(indexEntry);
         validator.validateLogEntry(logEntry);
 
         Map<Path, byte[]> finalContent = new LinkedHashMap<>();
-        finalContent.put(conceptPath, bytes(request.conceptMarkdown()));
+        finalContent.put(conceptPath, bytes(concept));
         finalContent.put(
                 indexPath, bytes(ensureOkfVersion(updateIndex(read(indexPath), request.familySlug(), indexEntry))));
         finalContent.put(logPath, bytes(updateLog(read(logPath), request.logDate(), logEntry)));
 
         atomicFileWriter.writeAll(finalContent);
-        return new WriteOutcome(status, conceptPath, indexPath, logPath, List.of());
+        return new WriteOutcome(status, conceptPath, indexPath, logPath, warnings);
     }
 
     /**
@@ -160,7 +175,7 @@ public final class OkfBundleWriter {
      * @return marker comment followed by the Markdown list entry
      */
     private static String indexEntry(WriteRequest request) {
-        return "<!-- archlens:" + request.semanticKey() + " -->\n" + "- [" + request.title() + "]("
+        return "<!-- archlens:" + request.semanticKey() + " -->\n" + "- [" + linkText(request.title()) + "]("
                 + slash(request.relativeConceptPath()) + ") - " + request.description();
     }
 
@@ -174,8 +189,8 @@ public final class OkfBundleWriter {
     private static String logEntry(WriteRequest request, boolean refresh) {
         String action = refresh ? "Refresh" : "Creation";
         String verb = refresh ? "Refreshed" : "Added";
-        return "- **" + action + "**: " + verb + " [" + request.title() + "](" + slash(request.relativeConceptPath())
-                + ").";
+        return "- **" + action + "**: " + verb + " [" + linkText(request.title()) + "]("
+                + slash(request.relativeConceptPath()) + ").";
     }
 
     /**
@@ -251,8 +266,9 @@ public final class OkfBundleWriter {
      *
      * <p>If the log is blank, a fresh log is created with the date heading and the entry. If the date
      * heading already exists, the entry is inserted as the first line after it (skipping any blank
-     * lines directly under the heading). Otherwise a new date heading is inserted right after the log
-     * title, with the entry beneath it.
+     * lines directly under the heading). Otherwise a new section is inserted before the first older
+     * date section, keeping the log newest first, or appended when there is none. The log's title and
+     * introduction are never matched on, so logs ArchLens did not create keep their shape.
      *
      * @param existing current log content, or blank/empty for a new log
      * @param date date for the log entry's heading
@@ -275,13 +291,26 @@ public final class OkfBundleWriter {
             lines.add(insert, entry);
             return String.join("\n", lines) + "\n";
         }
-        int insert = lines.indexOf("# Architecture Investigation Log");
-        insert = insert < 0 ? 0 : insert + 1;
-        lines.add(insert++, "");
-        lines.add(insert++, heading);
-        lines.add(insert++, "");
-        lines.add(insert, entry);
+        for (int index = 0; index < lines.size(); index++) {
+            String line = lines.get(index);
+            // ISO dates order correctly as text.
+            if (DATE_HEADING.matcher(line).matches() && line.compareTo(heading) < 0) {
+                lines.addAll(index, List.of(heading, "", entry, ""));
+                return String.join("\n", lines) + "\n";
+            }
+        }
+        lines.addAll(List.of("", heading, "", entry));
         return String.join("\n", lines) + "\n";
+    }
+
+    /**
+     * Escapes text for use inside a Markdown link's square brackets.
+     *
+     * @param value plain text
+     * @return escaped link text
+     */
+    private static String linkText(String value) {
+        return value.replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]");
     }
 
     /**
