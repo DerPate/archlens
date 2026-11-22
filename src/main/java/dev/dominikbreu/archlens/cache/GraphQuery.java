@@ -18,6 +18,7 @@ import dev.dominikbreu.archlens.model.ids.EntrypointId;
 import dev.dominikbreu.archlens.model.ids.GraphNodeId;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -1354,10 +1355,18 @@ public class GraphQuery {
             }
             int depthLimit = Math.clamp(maxDepth <= 0 ? 5 : maxDepth, 1, 8);
             int resultLimit = normalizeLimit(limit);
+            Vertex start = store.verticesById.get(fromId);
+            Map<Object, Integer> hopsToTarget = hopsTo(store.verticesById.get(toId), start, depthLimit);
 
             var traversal = store.g
                     .V(fromId.value())
-                    .repeat(__.outE().inV().simplePath())
+                    // Follow only steps from which the target is still within reach. Without this,
+                    // every walk of up to eight hops is enumerated just to find that none arrives.
+                    .repeat(__.outE().inV().simplePath().filter(step -> {
+                        Integer remaining = hopsToTarget.get(step.get().id());
+                        // loops() counts the completed iterations, so this step is one more.
+                        return remaining != null && step.loops() + 1 + remaining <= depthLimit;
+                    }))
                     .until(__.hasId(toId.value()).or().loops().is(P.gte(depthLimit)))
                     .hasId(toId.value())
                     .path()
@@ -1367,6 +1376,31 @@ public class GraphQuery {
         } finally {
             lock.unlock();
         }
+    }
+
+    /**
+     * Maps each vertex to its fewest hops to {@code target}, for those within {@code depth} hops.
+     * {@code excluded}, the start of the path being searched, is never passed through: a simple path
+     * cannot return to it.
+     */
+    private static Map<Object, Integer> hopsTo(Vertex target, Vertex excluded, int depth) {
+        Map<Object, Integer> hops = new HashMap<>();
+        if (target.id().equals(excluded.id())) return hops;
+        hops.put(target.id(), 0);
+        List<Vertex> frontier = List.of(target);
+        for (int hop = 1; hop < depth && !frontier.isEmpty(); hop++) {
+            List<Vertex> next = new ArrayList<>();
+            for (Vertex vertex : frontier) {
+                Iterator<Vertex> predecessors = vertex.vertices(Direction.IN);
+                while (predecessors.hasNext()) {
+                    Vertex predecessor = predecessors.next();
+                    if (predecessor.id().equals(excluded.id())) continue;
+                    if (hops.putIfAbsent(predecessor.id(), hop) == null) next.add(predecessor);
+                }
+            }
+            frontier = next;
+        }
+        return hops;
     }
 
     /**
