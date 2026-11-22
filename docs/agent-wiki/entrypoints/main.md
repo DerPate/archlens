@@ -3,7 +3,7 @@ type: Entrypoint
 title: Main#main
 description: Process entrypoint (MAIN_METHOD) that starts the ArchLens MCP server.
 tags: [archlens, entrypoint]
-resource: src/main/java/dev/dominikbreu/archlens/Main.java
+resource: https://github.com/DerPate/archlens/blob/main/src/main/java/dev/dominikbreu/archlens/Main.java
 status: stable
 generated: { by: claude-code/claude-sonnet-5, at: 2026-09-17T00:00:00Z }
 verified: { by: human:dominik, at: 2026-09-17T00:00:00Z }
