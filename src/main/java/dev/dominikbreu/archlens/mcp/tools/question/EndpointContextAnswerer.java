@@ -131,7 +131,12 @@ public final class EndpointContextAnswerer {
         Answer result = new Answer();
         result.subject(QuestionSupport.nodeMap(component));
         int depth = QuestionSupport.integer(args, "maxDepth", 4);
-        List<GraphNode> impacted = graph.impactedBy(component.id(), depth, QuestionSupport.DEFAULT_LIMIT);
+        // Only entrypoints are reported, so filter before limiting.
+        List<GraphNode> callers = graph.impactedBy(component.id(), depth, GraphQuery.MAX_RESULTS).stream()
+                .filter(EntrypointNode.class::isInstance)
+                .toList();
+        List<GraphNode> impacted = QuestionSupport.bounded(
+                result, "entrypoints", limit -> callers.stream().limit(limit).toList());
         recorder.record(
                 "impactedBy", Map.of("component", component.id().serialize(), "maxDepth", String.valueOf(depth)));
 

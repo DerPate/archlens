@@ -3,6 +3,8 @@ package dev.dominikbreu.archlens.mcp.tools.question;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 class QuestionPlannerTest {
 
@@ -12,6 +14,32 @@ class QuestionPlannerTest {
     void recognizesPersistenceDestinationQuestions() {
         Interpretation result = planner.interpret("Where is the order id ultimately persisted?");
         assertThat(result.intent()).isEqualTo("persistence_destination");
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "Where is order data stored?, order",
+        "Where are customers saved?, customer",
+        "where is the invoice stored, invoice",
+        "Where are status records stored?, status"
+    })
+    void recognizesWhereDataIsStored(String question, String subject) {
+        Interpretation result = planner.interpret(question);
+
+        assertThat(result.intent()).isEqualTo("persistence_destination");
+        assertThat(result.subjectCandidates()).first().satisfies(candidate -> {
+            assertThat(candidate.type()).isEqualTo("topic");
+            assertThat(candidate.ref()).isEqualTo(subject);
+        });
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "Where is field orderStatus stored?, needs-clarification",
+        "Where is the configuration property stored?, configuration_context"
+    })
+    void leavesOtherStoredQuestionsToTheirFamily(String question, String family) {
+        assertThat(planner.interpret(question).intent()).isEqualTo(family);
     }
 
     @Test

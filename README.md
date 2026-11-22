@@ -34,7 +34,7 @@ mode, so the target project does not need to compile first.
   consumers, messaging, configuration, state, schedules, integrations, relationships, and impact
   with explicit evidence and ambiguity reporting.
 - **Visual output** — render Mermaid views and timelines, export LikeC4, generate Markdown
-  architecture documentation, or open a self-contained HTML graph viewer.
+  architecture documentation, or open a single-file HTML graph viewer (its rendering libraries load from CDNs).
 - **Agent workflow pack** — use the bundled
   [`archlens-understand`](skills/archlens-understand) skill to guide an agent through a repeatable
   architecture investigation.
@@ -153,7 +153,7 @@ Every tool is available through both MCP and the terminal dashboard.
 - `export_architecture_docs` — generate Markdown architecture documentation
 - `export_graph_architecture_poc` — generate graph-centric architecture documentation
 - `export_graph_data` — export the graph as JSON
-- `export_graph_viewer` — generate a self-contained interactive HTML graph viewer
+- `export_graph_viewer` — generate a single-file interactive HTML graph viewer (loads its libraries from CDNs)
 - `export_likec4_model` — export a LikeC4 workspace model
 
 See [the tool reference](docs/TOOLS.md) for complete arguments, result shapes, graph labels,

@@ -31,11 +31,12 @@ public final class ConfigurationContextAnswerer {
             return result;
         }
         recorder.record("findNodes", "label", "ConfigProperty");
-        List<ConfigPropertyNode> declarations =
-                graph.findNodes("ConfigProperty", key, Map.of(), QuestionSupport.DEFAULT_LIMIT).stream()
-                        .filter(ConfigPropertyNode.class::isInstance)
-                        .map(ConfigPropertyNode.class::cast)
-                        .toList();
+        List<ConfigPropertyNode> declarations = QuestionSupport.bounded(
+                        result, "declarations", limit -> graph.findNodes("ConfigProperty", key, Map.of(), limit))
+                .stream()
+                .filter(ConfigPropertyNode.class::isInstance)
+                .map(ConfigPropertyNode.class::cast)
+                .toList();
         if (declarations.isEmpty()) {
             result.unresolved.add("config-key-not-declared:" + key);
             result.answer(emptyAnswer());
@@ -49,7 +50,7 @@ public final class ConfigurationContextAnswerer {
         List<Map<String, Object>> usages = new ArrayList<>();
         for (ConfigPropertyNode declaration : declarations) {
             recorder.record("neighborhood", "id", declaration.id().serialize());
-            for (GraphEdge edge : graph.neighborhood(declaration.id(), "in", QuestionSupport.DEFAULT_LIMIT)) {
+            for (GraphEdge edge : graph.neighborhood(declaration.id(), "in", QuestionSupport.ALL_EDGES)) {
                 if (!"CONFIGURED_BY".equals(edge.label())) continue;
                 GraphNode user = graph.node(edge.fromId());
                 if (user != null) usages.add(QuestionSupport.nodeMap(user));

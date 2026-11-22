@@ -48,7 +48,7 @@ public final class TransactionContextAnswerer {
                         Map<String, String> filters =
                                 Map.of("componentId", step.componentId().serialize(), "methodName", step.method());
                         for (GraphNode boundary :
-                                graph.findNodes("TransactionBoundary", null, filters, QuestionSupport.DEFAULT_LIMIT)) {
+                                graph.findNodes("TransactionBoundary", null, filters, QuestionSupport.ALL_NODES)) {
                             policies.add(QuestionSupport.nodeMap(boundary));
                             QuestionSupport.outgoingNodes(graph, boundary.id(), "GOVERNS_OPERATION").stream()
                                     .map(QuestionSupport::nodeMap)
@@ -67,7 +67,7 @@ public final class TransactionContextAnswerer {
                 filters.put("componentId", component.id().serialize());
                 if (method != null) filters.put("methodName", method);
                 for (GraphNode node :
-                        graph.findNodes("TransactionBoundary", null, filters, QuestionSupport.DEFAULT_LIMIT)) {
+                        graph.findNodes("TransactionBoundary", null, filters, QuestionSupport.ALL_NODES)) {
                     policies.add(QuestionSupport.nodeMap(node));
                     QuestionSupport.outgoingNodes(graph, node.id(), "GOVERNS_OPERATION").stream()
                             .map(QuestionSupport::nodeMap)

@@ -61,7 +61,7 @@ public final class ScheduledWorkflowAnswerer {
                                 GraphNode component = graph.component(step.componentId());
                                 if (component == null) continue;
                                 for (GraphEdge edge :
-                                        graph.neighborhood(component.id(), "out", QuestionSupport.DEFAULT_LIMIT)) {
+                                        graph.neighborhood(component.id(), "out", QuestionSupport.ALL_EDGES)) {
                                     if ("READS_STATE".equals(edge.label())) stateReads.add(edge.properties());
                                     if ("WRITES_STATE".equals(edge.label())) stateWrites.add(edge.properties());
                                 }
