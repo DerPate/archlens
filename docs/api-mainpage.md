@@ -11,9 +11,9 @@ contributors and anyone tracing a problem to its source.
 | `dev.dominikbreu.archlens.mcp.tools` | MCP tool handlers — one class per tool, entry point for all client requests |
 | `dev.dominikbreu.archlens.cache` | Architecture graph store, graph queries, projections, and component classification |
 | `dev.dominikbreu.archlens.extractor` | Spoon-based extractors: call graph, data flow, entrypoints, source facts |
-| `dev.dominikbreu.archlens.scanner` | Workspace scanner — drives Spoon over input paths and populates the model |
+| `dev.dominikbreu.archlens.scanner` | Builds Spoon models from the project's source roots |
 | `dev.dominikbreu.archlens.renderer` | Mermaid, LikeC4, Markdown, and HTML output renderers |
-| `dev.dominikbreu.archlens.model` | Immutable domain model: nodes, edges, identifiers, entrypoint types |
+| `dev.dominikbreu.archlens.model` | Extraction-side data model; discarded after projection |
 | `dev.dominikbreu.archlens.view` | Architecture view projections and view kinds |
 | `dev.dominikbreu.archlens.build` | Build system detection (Maven, Gradle) |
 | `dev.dominikbreu.archlens.likec4` | LikeC4 model projection and document structure |
@@ -21,12 +21,13 @@ contributors and anyone tracing a problem to its source.
 | `dev.dominikbreu.archlens.merger` | Deployment metadata merging from Docker Compose and Ansible |
 | `dev.dominikbreu.archlens.dashboard` | Standalone terminal REPL dashboard (runs when the jar is launched interactively) |
 | `dev.dominikbreu.archlens.tracing` | OpenTelemetry span helpers |
+| `dev.dominikbreu.archlens.okf` | Compiles investigation answers into OKF bundles |
+| `dev.dominikbreu.archlens.io` | Atomic writes and project path boundaries |
 
 ## Key entry points
 
-- **`GraphStore`** — singleton graph model; all tools read from here after `index_workspace`
-- **`GraphQuery`** — fluent query API over the TinkerGraph-backed architecture graph
-- **`SpoonScanner`** — drives workspace indexing; called by `IndexWorkspaceTool`
+- **`GraphQuery`** — the only data-access API for tools and renderers
+- **`SpoonScanner`** — builds the Spoon models; called by `ArchitectureExtractor`
 - **`ArchitectureExtractor`** — top-level coordinator for all Spoon-based extraction passes
 
 ## Source
