@@ -5,9 +5,12 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.regex.Pattern;
 
 /**
  * Stores and loads the current workspace as a GraphSON file.
@@ -18,17 +21,19 @@ import java.util.HexFormat;
  */
 public class ModelCache {
 
-    private static final String DEFAULT_CACHE_DIR = ".archlens-cache";
     private static final String GRAPH_FILE = "architecture-graph.v1.graphson";
     private static final String WORKSPACES_DIR = "workspaces";
     private static final String ACTIVE_WORKSPACE_FILE = "active-workspace.txt";
+
+    /** The only shape {@link #workspaceKey} produces: a hash, then one file-name-safe segment. */
+    private static final Pattern WORKSPACE_KEY = Pattern.compile("[0-9a-f]{16}-[A-Za-z0-9._-]+");
 
     private final String cacheDir;
     private final GraphStore store = new GraphStore();
     private ArchitectureModel current;
     private boolean inMemoryOnly = false;
 
-    /** Creates a cache using the default local cache directory. */
+    /** Creates a cache in the user's cache directory for the current working directory. */
     public ModelCache() {
         this(null);
     }
@@ -39,7 +44,9 @@ public class ModelCache {
      * @param externalCachePath cache directory path, or null to use the default
      */
     public ModelCache(String externalCachePath) {
-        this.cacheDir = externalCachePath != null ? externalCachePath : DEFAULT_CACHE_DIR;
+        this.cacheDir = externalCachePath != null
+                ? externalCachePath
+                : CacheLocation.current().toString();
     }
 
     /**
@@ -54,9 +61,7 @@ public class ModelCache {
         store.clear();
         new GraphProjector().project(model, store);
         File dir = workspaceDir(model);
-        if (!dir.exists() && !dir.mkdirs()) {
-            throw new IOException("Failed to create cache directory: " + dir.getAbsolutePath());
-        }
+        createPrivateDirectories(dir.toPath());
         try {
             Files.writeString(new File(dir, GRAPH_FILE).toPath(), store.serializeGraphSON(), StandardCharsets.UTF_8);
         } catch (Exception e) {
@@ -160,10 +165,7 @@ public class ModelCache {
     }
 
     private void writeActiveWorkspace(String key) throws IOException {
-        File dir = new File(cacheDir);
-        if (!dir.exists() && !dir.mkdirs()) {
-            throw new IOException("Failed to create cache directory: " + dir.getAbsolutePath());
-        }
+        createPrivateDirectories(Path.of(cacheDir));
         Files.writeString(activeWorkspaceFile().toPath(), key, StandardCharsets.UTF_8);
     }
 
@@ -173,15 +175,29 @@ public class ModelCache {
             return null;
         }
         String key = Files.readString(active.toPath(), StandardCharsets.UTF_8).trim();
-        if (key.isBlank()) {
-            return null;
-        } else {
-            return key;
-        }
+        return WORKSPACE_KEY.matcher(key).matches() ? key : null;
     }
 
     private File activeWorkspaceFile() {
         return new File(cacheDir, ACTIVE_WORKSPACE_FILE);
+    }
+
+    /** Creates missing directories readable only by the owner, as the cache describes private source code. */
+    private static void createPrivateDirectories(Path directory) throws IOException {
+        if (Files.isDirectory(directory)) return;
+        try {
+            if (directory.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+                Files.createDirectories(
+                        directory, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+            } else {
+                Files.createDirectories(directory);
+            }
+        } catch (IOException error) {
+            throw new IOException(
+                    "Failed to create cache directory " + directory
+                            + " (set ARCHLENS_CACHE_DIR to a writable absolute path)",
+                    error);
+        }
     }
 
     private static String sha256(String value) {
