@@ -176,9 +176,10 @@ These prompts compose the lower-level tools into common architecture investigati
 
 ## Output and Compatibility
 
-Most tools return both readable text and typed `structuredContent`. Stable mode wraps collections
-in named objects such as `components`, `entrypoints`, or `paths`; set
-`ARCHLENS_MCP_EXPERIMENTAL_DRAFT=true` to opt into draft top-level arrays. See
+Upgrading from 2.x? Read [Migrating to 3.0](docs/MIGRATION_3.0.md) first.
+
+Most tools return both readable text and typed `structuredContent`. Collections are wrapped
+in named objects such as `components`, `entrypoints`, or `paths`. See
 [Structured Output](docs/STRUCTURED_OUTPUT.md) for client guidance.
 
 Mermaid rendering uses broadly compatible flowcharts by default. Set

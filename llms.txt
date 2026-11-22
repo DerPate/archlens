@@ -20,9 +20,8 @@ The server is designed for consumption by LLM agents and MCP-capable clients
 - Tool responses: every `tools/call` result includes `content[0].text` (unchanged); most tools also
   populate `structuredContent` with JSON matching the tool's `outputSchema` (see `docs/TOOLS.md`)
 - Structured output: prefer `structuredContent` for field access, calculations, and follow-up
-  tool arguments; reserve `content[0].text` for presentation. Stable mode uses named object
-  wrappers for collection results. `ARCHLENS_MCP_EXPERIMENTAL_DRAFT=true` enables draft
-  top-level arrays; inspect `tools/list` rather than assuming either root shape.
+  tool arguments; reserve `content[0].text` for presentation. Collection results always use
+  named object wrappers, so every output root is an object.
   `ARCHLENS_MCP_EXPERIMENTAL_C4=true` switches system/container flowcharts to experimental
   Mermaid C4 output.
 - Cache: per-user, per working directory (GraphSON format); override the root with absolute `ARCHLENS_CACHE_DIR`

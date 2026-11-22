@@ -207,8 +207,7 @@ proc.wait()
 ```
 
 Prefer `structuredContent` for field access, calculations, and follow-up tool arguments;
-use `content[0].text` for human-facing summaries. Stable mode wraps collection arrays in
+use `content[0].text` for human-facing summaries. Collection arrays are wrapped in
 named objects (`entrypoints`, `components`, `dependencies`, `containers`, `paths`, or
-`useCases`). Starting the server with `ARCHLENS_MCP_EXPERIMENTAL_DRAFT=true` opts into draft
-top-level arrays. Always follow the shape declared by `tools/list`; negotiated older clients
+`useCases`). Always follow the shape declared by `tools/list`; negotiated older clients
 may not expose structured output.

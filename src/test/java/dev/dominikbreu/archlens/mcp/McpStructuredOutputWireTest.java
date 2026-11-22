@@ -45,19 +45,6 @@ class McpStructuredOutputWireTest {
     }
 
     @Test
-    void draftMode_emitsArraySchemasAndStructuredErrors(@TempDir Path tempDir) throws Exception {
-        try (ServerProcess server = ServerProcess.start(true, tempDir.resolve("draft-stderr.log"))) {
-            JsonNode tool = server.tool("find_entrypoints");
-            assertThat(tool.path("outputSchema").path("type").asString()).isEqualTo("array");
-
-            JsonNode result = server.callTool("find_entrypoints");
-            assertThat(result.path("isError").asBoolean()).isTrue();
-            assertThat(result.path("content").get(0).path("text").asString()).contains("No workspace indexed yet");
-            assertThat(result.path("structuredContent").isArray()).isTrue();
-        }
-    }
-
-    @Test
     void stableMode_validatesIndexedGraphCollectionActions(@TempDir Path tempDir) throws Exception {
         try (ServerProcess server = ServerProcess.start(false, tempDir.resolve("stable-graph-stderr.log"))) {
             server.indexWorkspace();
@@ -72,27 +59,6 @@ class McpStructuredOutputWireTest {
             JsonNode edges = server.callTool("query_architecture_graph", Map.of("action", "find_edges", "limit", 2));
             assertThat(edges.path("isError").asBoolean()).isFalse();
             assertThat(edges.path("structuredContent").path("edges").isArray()).isTrue();
-
-            JsonNode summary = server.callTool("query_architecture_graph", Map.of("action", "summary"));
-            assertThat(summary.path("isError").asBoolean()).isFalse();
-            assertThat(summary.path("structuredContent").path("action").asString())
-                    .isEqualTo("summary");
-        }
-    }
-
-    @Test
-    void draftMode_validatesIndexedGraphCollectionActions(@TempDir Path tempDir) throws Exception {
-        try (ServerProcess server = ServerProcess.start(true, tempDir.resolve("draft-graph-stderr.log"))) {
-            server.indexWorkspace();
-
-            JsonNode nodes = server.callTool(
-                    "query_architecture_graph", Map.of("action", "find_nodes", "label", "Component", "limit", 2));
-            assertThat(nodes.path("isError").asBoolean()).isFalse();
-            assertThat(nodes.path("structuredContent").isArray()).isTrue();
-
-            JsonNode edges = server.callTool("query_architecture_graph", Map.of("action", "find_edges", "limit", 2));
-            assertThat(edges.path("isError").asBoolean()).isFalse();
-            assertThat(edges.path("structuredContent").isArray()).isTrue();
 
             JsonNode summary = server.callTool("query_architecture_graph", Map.of("action", "summary"));
             assertThat(summary.path("isError").asBoolean()).isFalse();
@@ -158,24 +124,35 @@ class McpStructuredOutputWireTest {
 
     @Test
     void stableMode_listsByteIdenticalToolsAndPromptsInEveryJvm(@TempDir Path tempDir) throws Exception {
-        assertListsIdenticalAcrossJvms(false, tempDir);
-    }
-
-    @Test
-    void draftMode_listsByteIdenticalToolsAndPromptsInEveryJvm(@TempDir Path tempDir) throws Exception {
-        assertListsIdenticalAcrossJvms(true, tempDir);
+        assertListsIdenticalAcrossJvms(tempDir);
     }
 
     /** Map.of iteration order is salted per JVM, so only separate processes can expose it. */
-    private static void assertListsIdenticalAcrossJvms(boolean draft, Path tempDir) throws Exception {
+    private static void assertListsIdenticalAcrossJvms(Path tempDir) throws Exception {
         Set<String> payloads = new HashSet<>();
         for (int run = 0; run < 4; run++) {
-            try (ServerProcess server = ServerProcess.start(draft, tempDir.resolve("run-" + run + ".log"))) {
+            try (ServerProcess server = ServerProcess.start(false, tempDir.resolve("run-" + run + ".log"))) {
                 payloads.add(
                         server.request("tools/list", Map.of()).toString() + server.request("prompts/list", Map.of()));
             }
         }
         assertThat(payloads).as("distinct list payloads across JVMs").hasSize(1);
+    }
+
+    @Test
+    void retiredDraftFlagDoesNotChangeTheOutputShape(@TempDir Path tempDir) throws Exception {
+        try (ServerProcess server = ServerProcess.start(true, tempDir.resolve("flag-stderr.log"))) {
+            for (JsonNode tool : server.request("tools/list", Map.of()).path("tools")) {
+                assertThat(tool.path("outputSchema").path("type").asString())
+                        .as(tool.path("name").asString())
+                        .isEqualTo("object");
+            }
+            assertThat(server.callTool("find_entrypoints")
+                            .path("structuredContent")
+                            .path("entrypoints")
+                            .isArray())
+                    .isTrue();
+        }
     }
 
     private static final class ServerProcess implements Closeable {
@@ -190,7 +167,7 @@ class McpStructuredOutputWireTest {
             output = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
         }
 
-        static ServerProcess start(boolean draft, Path errorLog) throws Exception {
+        static ServerProcess start(boolean retiredDraftFlag, Path errorLog) throws Exception {
             ProcessBuilder builder = new ProcessBuilder(
                             Path.of(System.getProperty("java.home"), "bin", "java")
                                     .toString(),
@@ -199,7 +176,7 @@ class McpStructuredOutputWireTest {
                             "dev.dominikbreu.archlens.Main")
                     .directory(errorLog.getParent().toFile())
                     .redirectError(errorLog.toFile());
-            if (draft) {
+            if (retiredDraftFlag) {
                 builder.environment().put("ARCHLENS_MCP_EXPERIMENTAL_DRAFT", "true");
             } else {
                 builder.environment().remove("ARCHLENS_MCP_EXPERIMENTAL_DRAFT");
