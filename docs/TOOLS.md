@@ -670,8 +670,8 @@ entrypoint is reached from the previous segment via either:
 
 - a `STORE` sink (in-memory shared field) — boundary rendered as a cylinder
   labelled `OwnerComponent.fieldName`, styled as a data store
-- a `MESSAGING` sink with a resolved channel — boundary rendered as a rounded
-  rectangle labelled with the channel name, styled as a message broker
+- a `MESSAGING` sink with a resolved channel — boundary rendered as a stadium
+  labelled with the channel name, styled as a message broker
 - an `EVENT_BUS` sink — boundary rendered as a circle
 
 Per-segment call steps are shaped by the component's architectural role
