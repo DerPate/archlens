@@ -3,7 +3,7 @@ type: Module
 title: Dashboard
 description: Standalone terminal REPL that dispatches the same 24 MCP tool specifications a human types commands for, instead of an MCP client sending JSON-RPC.
 tags: [archlens, module]
-resource: src/main/java/dev/dominikbreu/archlens/dashboard/
+resource: https://github.com/DerPate/archlens/tree/main/src/main/java/dev/dominikbreu/archlens/dashboard
 status: stable
 generated: { by: claude-code/claude-sonnet-5, at: 2026-09-17T00:00:00Z }
 verified: { by: human:dominik, at: 2026-09-17T00:00:00Z }
