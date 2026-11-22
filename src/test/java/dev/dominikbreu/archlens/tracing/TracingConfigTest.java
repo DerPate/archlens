@@ -70,12 +70,10 @@ class TracingConfigTest {
         try {
             Span span = otel.getTracer("test").spanBuilder("my-span").startSpan();
             assertThat(span.getSpanContext().isValid()).isTrue();
-            span.end();
+            // Deliberately not ended: only ended spans are exported. An export to the
+            // absent collector fails on an OkHttp thread after this test has returned,
+            // and shutdown() does not wait for it.
         } finally {
-            // Otherwise the BatchSpanProcessor's OkHttp dispatcher thread keeps
-            // retrying against localhost:4317 (nothing listens there in tests)
-            // and is still alive at JVM shutdown, racing class unloading and
-            // surfacing as a spurious NoClassDefFoundError in the runner logs.
             if (otel instanceof OpenTelemetrySdk sdk) {
                 sdk.getSdkTracerProvider().shutdown();
             }
