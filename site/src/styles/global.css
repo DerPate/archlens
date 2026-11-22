@@ -571,7 +571,7 @@ pre {
   .hero-grid,
   .install-grid,
   .split-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .capability-grid {
@@ -596,27 +596,18 @@ pre {
     align-items: flex-start;
   }
 
-  .nav-menu {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-
   .nav-link {
     min-height: 32px;
     padding: 0 0.55rem;
     font-size: 0.8rem;
   }
 
-  /* The wrapped menu's height varies, so it takes its own space instead of covering the page. */
-  .nav { position: sticky; }
-
-  .hero {
-    min-height: auto;
-    padding-top: 2rem;
-  }
+  .hero { min-height: auto; }
 
   h1 {
-    font-size: 3.25rem;
+    /* 3.25rem, shrinking on screens too narrow for "understanding". */
+    font-size: min(3.25rem, 13vw);
+    overflow-wrap: anywhere;
   }
 
   .capability-grid,
@@ -631,6 +622,25 @@ pre {
     justify-content: center;
     padding: 1.25rem 0;
   }
+}
+
+.install-note {
+  grid-column: 1 / -1;
+  max-width: none;
+  margin: 0;
+}
+
+/* Below this the menu needs more than one row. */
+@media (max-width: 800px) {
+  .nav-menu {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  /* The wrapped menu's height varies, so it takes its own space instead of covering the page. */
+  .nav { position: sticky; }
+
+  .hero { padding-top: 2rem; }
 }
 
 /* ── Quick start ───────────────────────────────────────────── */
@@ -935,7 +945,6 @@ pre {
   }
   .arg-table,
   .arg-table tbody { display: block; }
-  .tool-page { padding-top: 2rem; }
   .tool-page-title,
   .tool-page-intro code { overflow-wrap: anywhere; }
   .arg-table tr {
@@ -943,4 +952,8 @@ pre {
     padding: 0.75rem 0;
     border-bottom: 1px solid var(--border-soft);
   }
+}
+
+@media (max-width: 800px) {
+  .tool-page { padding-top: 2rem; }
 }

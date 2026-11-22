@@ -11,8 +11,8 @@ contributors and anyone tracing a problem to its source.
 | `dev.dominikbreu.archlens.mcp.tools` | MCP tool handlers — one class per tool, entry point for all client requests |
 | `dev.dominikbreu.archlens.cache` | Architecture graph store, graph queries, projections, and component classification |
 | `dev.dominikbreu.archlens.extractor` | Spoon-based extractors: call graph, data flow, entrypoints, source facts |
-| `dev.dominikbreu.archlens.scanner` | Builds Spoon models from the project's source roots |
-| `dev.dominikbreu.archlens.renderer` | Mermaid, LikeC4, Markdown, and HTML output renderers |
+| `dev.dominikbreu.archlens.scanner` | Adds project source roots to Spoon, inside the indexed project boundary |
+| `dev.dominikbreu.archlens.renderer` | Mermaid, LikeC4, and HTML output renderers |
 | `dev.dominikbreu.archlens.model` | Extraction-side data model; discarded after projection |
 | `dev.dominikbreu.archlens.view` | Architecture view projections and view kinds |
 | `dev.dominikbreu.archlens.build` | Build system detection (Maven, Gradle) |
@@ -27,7 +27,7 @@ contributors and anyone tracing a problem to its source.
 ## Key entry points
 
 - **`GraphQuery`** — the only data-access API for tools and renderers
-- **`SpoonScanner`** — builds the Spoon models; called by `ArchitectureExtractor`
+- **`SpoonScanner`** — adds source roots to the Spoon models that `ArchitectureExtractor` builds
 - **`ArchitectureExtractor`** — top-level coordinator for all Spoon-based extraction passes
 
 ## Source

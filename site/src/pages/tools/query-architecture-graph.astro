@@ -15,7 +15,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
       <p class="tool-page-intro">
         The graph query interface for the indexed model. Use it to summarise the full graph,
-        find nodes by label and property filters, traverse neighborhoods, trace shortest paths
+        find nodes by label and property filters, traverse neighborhoods, trace paths
         between components, and compute change-impact slices. The graph includes applications,
         components, entrypoints, interfaces, containers, runtime flows, data-flow paths, sinks,
         and their typed edges. Start with <code>action: "summary"</code> to orient yourself,
@@ -50,7 +50,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
             <td>filters</td>
             <td>object</td>
             <td>—</td>
-            <td>Property filters. Supports exact match, partial text, and numeric comparisons like <code>{`{"confidence":"<=0.6"}`}</code>.</td>
+            <td>Property filters. Text is a case-insensitive substring match; numbers also take comparisons like <code>{`{"confidence":"<=0.6"}`}</code>.</td>
           </tr>
           <tr>
             <td>nodeId</td>
@@ -68,19 +68,19 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
             <td>direction</td>
             <td>string</td>
             <td>—</td>
-            <td><code>in</code>, <code>out</code>, or <code>both</code>.</td>
+            <td>For <code>neighborhood</code>: <code>in</code>, <code>out</code>, or <code>both</code> (default).</td>
           </tr>
           <tr>
             <td>maxDepth</td>
             <td>integer</td>
             <td>—</td>
-            <td>Traversal depth for <code>paths</code> or <code>impacted_by</code>.</td>
+            <td>Traversal depth for <code>paths</code> (default 5) or <code>impacted_by</code> (default 3); at most 8.</td>
           </tr>
           <tr>
             <td>limit</td>
             <td>integer</td>
             <td>—</td>
-            <td>Cap result set size. Omit to return all matches.</td>
+            <td>Maximum results. Defaults: all for <code>find_nodes</code>, 256 for <code>find_edges</code>. <code>neighborhood</code>, <code>paths</code> and <code>impacted_by</code> return at most 100, which is also their default.</td>
           </tr>
           <tr>
             <td>type / technology / module / packageName / entrypointReachable / workflowRelevant / businessRelevant / infrastructureRole / primaryRole / supportRole / agentCategory / classificationEvidence / isCrossModule / isRuntimeRelevant / isCondensable</td>
@@ -117,9 +117,9 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       <p class="tool-page-intro">
         Depends on <code>action</code>. <code>summary</code> returns counts and top-level
         stats. <code>find_nodes</code> returns matching node records with all properties.
-        <code>neighborhood</code> returns the subgraph around a node. <code>impacted_by</code>
+        <code>neighborhood</code> returns the edges one hop around a node. <code>impacted_by</code>
         returns the nodes that reach the given node over incoming edges (default depth 3, at
-        most 8): what may be affected if it changes. <code>structuredContent</code> is always
+        most 8): what may be affected if it changes. A list of exactly 100 may be truncated. <code>structuredContent</code> is always
         an object, for example <code>{`{action, nodes}`}</code> for <code>find_nodes</code>.
       </p>
 

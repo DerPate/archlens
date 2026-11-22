@@ -110,3 +110,58 @@ test("install offers the release and the migration guide", async ({ page }) => {
   await expect(page.locator('meta[property="og:image"]'))
     .toHaveAttribute("content", "https://archlens.dominikbreu.dev/og-image.png");
 });
+
+test("tool pages describe the implemented behavior", async ({ page }) => {
+  const main = page.locator("main");
+
+  await page.goto("/tools/query-architecture-graph");
+  await expect(main).toContainText("at most 100");
+  await expect(main).toContainText("case-insensitive substring");
+  await expect(main).toContainText("edges one hop around");
+  await expect(main).not.toContainText("shortest");
+  await expect(main).not.toContainText("Omit to return all matches");
+
+  await page.goto("/tools/render-pipeline");
+  await expect(main).toContainText("currently has no effect");
+  await expect(main.locator("pre")).not.toContainText("maxDepth");
+
+  await page.goto("/tools/trace-data-flow");
+  await expect(main).not.toContainText("linkedPathIds");
+  await expect(main).not.toContainText("parameter renames");
+
+  await page.goto("/");
+  await expect(main).not.toContainText("captured graph traversals");
+});
+
+test("release users get a command that works", async ({ page }) => {
+  await page.goto("/");
+
+  const install = page.locator("#install");
+  await expect(install).toContainText("java -jar /path/to/archlens-<version>.jar");
+  await expect(install).toContainText("not -sources or -javadoc");
+  await expect(install).toContainText("# from a source checkout");
+});
+
+test("2.x users see the migration guide above the install commands", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+
+  const note = await page.locator("#install").getByRole("link", { name: "migration guide" }).boundingBox();
+  const command = await page.locator("#install pre").first().boundingBox();
+  expect(note.y + note.height).toBeLessThanOrEqual(command.y);
+});
+
+for (const width of [320, 360, 681, 720, 780, 801, 981]) {
+  test(`landing page and menu fit ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/");
+    const clipped = await page.evaluate(() =>
+      [...document.querySelectorAll("main h1, main h2, .hero-subtitle, .hero-panel, .section-copy, .code-stack, .nav-link")]
+        .filter((element) => element.getBoundingClientRect().right > document.documentElement.clientWidth + 1 || element.getBoundingClientRect().left < -1)
+        .map((element) => `${element.tagName}: ${element.textContent.trim().slice(0, 50)}`));
+    expect(clipped).toEqual([]);
+    const nav = await page.locator("nav.nav").boundingBox();
+    const hero = await page.locator(".hero-wordmark").boundingBox();
+    expect(hero.y).toBeGreaterThanOrEqual(nav.y + nav.height);
+  });
+}
