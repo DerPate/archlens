@@ -6,8 +6,30 @@ package dev.dominikbreu.archlens.mcp.tools;
  * @param text the human-readable response text
  * @param structured the structured result payload, or {@code null}
  * @param error {@code true} if this result represents an error
+ * @param truncated {@code true} if a limit left out part of the result
  */
-public record ToolResult(String text, Object structured, boolean error) {
+public record ToolResult(String text, Object structured, boolean error, boolean truncated) {
+    /**
+     * Creates a result that nothing was left out of.
+     *
+     * @param text the response text
+     * @param structured the structured payload, or {@code null}
+     * @param error {@code true} if this result represents an error
+     */
+    public ToolResult(String text, Object structured, boolean error) {
+        this(text, structured, error, false);
+    }
+
+    /**
+     * Returns this result marked as cut by a limit.
+     *
+     * @param note sentence telling the reader what was left out
+     * @return the marked result
+     */
+    public ToolResult asTruncated(String note) {
+        return new ToolResult(text + "\n" + note + "\n", structured, error, true);
+    }
+
     /**
      * Convenience constructor for a non-error result.
      *

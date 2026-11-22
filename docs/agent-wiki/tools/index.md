@@ -35,5 +35,5 @@ The 24 tools ArchLens's [MCP server](../modules/mcp-server.md) exposes through `
 - [export_architecture_docs](export-architecture-docs.md) - Markdown docs with Mermaid diagrams
 - [export_graph_architecture_poc](export-graph-architecture-poc.md) - graph-centric architecture POC doc
 - [export_graph_data](export-graph-data.md) - graph export JSON for external viewers
-- [export_graph_viewer](export-graph-viewer.md) - self-contained HTML graph viewer
+- [export_graph_viewer](export-graph-viewer.md) - single-file HTML graph viewer
 - [export_likec4_model](export-likec4-model.md) - LikeC4-style text projection

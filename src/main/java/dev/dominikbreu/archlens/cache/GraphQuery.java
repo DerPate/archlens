@@ -47,6 +47,12 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
  */
 public class GraphQuery {
 
+    /**
+     * Most results one query returns. One more than callers may ask for, so that they can ask for
+     * one extra result to learn whether theirs was cut.
+     */
+    public static final int MAX_RESULTS = 50_001;
+
     private static final Comparator<GraphNode> NODE_ORDER =
             Comparator.comparing(GraphNode::label).thenComparing(n -> n.id().serialize());
 
@@ -1273,7 +1279,7 @@ public class GraphQuery {
      *
      * @param label edge label to match, or blank for any label
      * @param filters property predicates applied to edges (supports comparison prefixes)
-     * @param limit maximum edges returned; non-positive falls back to 25, capped at 50,000
+     * @param limit maximum edges returned; non-positive falls back to 25, capped at {@link #MAX_RESULTS}
      *     (matching {@link #findNodes} semantics)
      * @return matching edges, at most {@code limit}
      */
@@ -1926,27 +1932,27 @@ public class GraphQuery {
         return StringUtils.isBlank(value) ? null : value.trim();
     }
 
-    /** Clamps a caller-supplied limit to [1, 100], defaulting non-positive values to 25. */
+    /** Clamps a traversal limit to [1, {@link #MAX_RESULTS}], defaulting non-positive values to 25. */
     private static int normalizeLimit(int limit) {
-        return Math.clamp(limit <= 0 ? 25 : limit, 1, 100);
+        return Math.clamp(limit <= 0 ? 25 : limit, 1, MAX_RESULTS);
     }
 
     /**
-     * Clamps a caller-supplied limit for {@link #findNodes} to [1, 50000], treating
+     * Clamps a caller-supplied limit for {@link #findNodes} to [1, {@link #MAX_RESULTS}], treating
      * non-positive values as "unlimited" ({@code Long.MAX_VALUE}).
      */
     private static long normalizeFindNodesLimit(int limit) {
-        return limit <= 0 ? Long.MAX_VALUE : Math.clamp(limit, 1, 50_000);
+        return limit <= 0 ? Long.MAX_VALUE : Math.clamp(limit, 1, MAX_RESULTS);
     }
 
     /**
      * Normalizes the caller-supplied limit for {@link #findEdges}. Mirrors
-     * {@link #normalizeFindNodesLimit} with a hard cap of 50,000 so exhaustive edge queries
+     * {@link #normalizeFindNodesLimit} with a hard cap of {@link #MAX_RESULTS} so exhaustive edge queries
      * (e.g. MCP {@code find_edges}, {@link #dependencyEdges}) are not silently truncated at the
      * small traversal cap; keeps the historical default of 25 for non-positive limits.
      */
     private static int normalizeFindEdgesLimit(int limit) {
-        return Math.clamp(limit <= 0 ? 25 : limit, 1, 50_000);
+        return Math.clamp(limit <= 0 ? 25 : limit, 1, MAX_RESULTS);
     }
 
     /**

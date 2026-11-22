@@ -10,7 +10,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** MCP tool that writes a self-contained visual architecture graph debugger. */
+/** MCP tool that writes a single-file visual architecture graph debugger. */
 public class ExportGraphViewerTool {
 
     private static final Path DEFAULT_OUTPUT = Path.of("docs", "GRAPH_VIEWER.html");

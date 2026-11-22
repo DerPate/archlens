@@ -112,7 +112,7 @@ that rather than presenting a truncated chart as the whole picture.
   dependency diagram.
 - `render_architecture_view(app?, view?, maxNodes?)`: Projection-first architecture view from the
   graph. Use before hand-authoring C4-style diagrams.
-- `export_graph_viewer(outputPath?, limit?)`: Self-contained HTML graph viewer.
+- `export_graph_viewer(outputPath?, limit?)`: Single-file HTML graph viewer; needs internet access for its libraries.
 - `export_graph_data(outputPath?, limit?)`: JSON for standalone graph UIs.
 - `export_architecture_docs(outputPath?, focusComponent?)`: Markdown architecture docs.
 - `export_graph_architecture_poc(outputPath?, focusComponent?)`: Graph-centric docs and query

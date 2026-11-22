@@ -32,7 +32,8 @@ public final class ImpactAnswerer {
         }
         result.subject(QuestionSupport.nodeMap(target));
         int depth = QuestionSupport.integer(args, "maxDepth", 4);
-        List<GraphNode> impacted = graph.impactedBy(target.id(), depth, QuestionSupport.DEFAULT_LIMIT);
+        List<GraphNode> impacted =
+                QuestionSupport.bounded(result, "impacted", limit -> graph.impactedBy(target.id(), depth, limit));
         Map<String, List<Map<String, Object>>> groups = new LinkedHashMap<>();
         groups.put("entrypoints", new ArrayList<>());
         groups.put("workflows", new ArrayList<>());

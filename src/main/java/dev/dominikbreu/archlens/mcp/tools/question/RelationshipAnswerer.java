@@ -41,8 +41,8 @@ public final class RelationshipAnswerer {
 
         int depth = QuestionSupport.integer(args, "maxDepth", 2);
         recorder.record("reachable", "id", subjectId.serialize());
-        List<GraphNode> neighborhoodNodes =
-                graph.reachable(subjectId, "both", null, depth, QuestionSupport.DEFAULT_LIMIT);
+        List<GraphNode> neighborhoodNodes = QuestionSupport.bounded(
+                result, "reachable", limit -> graph.reachable(subjectId, "both", null, depth, limit));
         Map<String, List<Map<String, Object>>> grouped = new LinkedHashMap<>();
         for (GraphNode node : neighborhoodNodes) {
             grouped.computeIfAbsent(node.label(), k -> new ArrayList<>()).add(QuestionSupport.nodeMap(node));
@@ -54,9 +54,12 @@ public final class RelationshipAnswerer {
             GraphNodeId targetId = resolve(graph, targetRef, result);
             if (targetId != null) {
                 recorder.record("paths", Map.of("from", subjectId.serialize(), "to", targetId.serialize()));
-                paths = graph.paths(subjectId, targetId, depth, QuestionSupport.DEFAULT_LIMIT).stream()
-                        .map(QuestionSupport::pathMap)
-                        .toList();
+                paths =
+                        QuestionSupport.bounded(
+                                        result, "paths", limit -> graph.paths(subjectId, targetId, depth, limit))
+                                .stream()
+                                .map(QuestionSupport::pathMap)
+                                .toList();
             }
         }
         if (neighborhoodNodes.isEmpty()) result.unresolved.add("no-neighborhood-found");

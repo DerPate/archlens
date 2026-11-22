@@ -1,6 +1,6 @@
 package dev.dominikbreu.archlens.renderer;
 
-/** Renders a self-contained visual debugger for the architecture graph. */
+/** Renders a single-file visual debugger for the architecture graph; its libraries come from CDNs. */
 public class GraphViewerHtmlRenderer {
 
     /** Creates a renderer with default settings. */
@@ -10,7 +10,7 @@ public class GraphViewerHtmlRenderer {
      * Renders a complete HTML document with a serialized graph export payload.
      *
      * @param graphJson JSON payload produced by the graph export tool path
-     * @return self-contained HTML document
+     * @return single-file HTML document
      */
     public String render(String graphJson) {
         return template().replace("__GRAPH_JSON__", escapeScriptString(graphJson));

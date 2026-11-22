@@ -45,7 +45,12 @@ public final class QuestionPlanner {
         table.put(
                 "persistence_destination",
                 List.of(
-                        Trigger.regex("\\bpersist(ed|ence)?\\b", 3),
+                        // "Where is X stored" asks for persistence as clearly as "persisted" does, unless it
+                        // names something another family owns.
+                        Trigger.regex(
+                                "\\bpersist(ed|ence)?\\b"
+                                        + "|^(?!.*\\b(field|config(uration)?|propert(y|ies))\\b).*\\bwhere\\b.*\\b(stored|saved)\\b",
+                                3),
                         Trigger.regex("\\b(stored|saved?)\\b", 2),
                         Trigger.regex("\\b(database|entity|repository)\\b", 2),
                         Trigger.regex("field.*flow|flow.*field", 2)));
@@ -126,6 +131,10 @@ public final class QuestionPlanner {
     private static final Pattern QUALIFIED_NAME =
             Pattern.compile("\\b([a-z][a-zA-Z0-9]*(?:\\.[A-Za-z][a-zA-Z0-9]*)+)\\b");
     private static final Pattern CAPITALIZED_WORD = Pattern.compile("\\b([A-Z][A-Za-z0-9]*)\\b");
+    private static final Pattern STORED_SUBJECT = Pattern.compile(
+            "\\bwhere\\s+(?:is|are|do|does)\\s+(?:the\\s+)?([a-z][a-z0-9]+)(?:\\s+(?:data|records?|entities))?"
+                    + "\\s+(?:get\\s+)?(?:stored|saved|persisted)\\b",
+            Pattern.CASE_INSENSITIVE);
     private static final Set<String> LEADING_QUESTION_WORDS = Set.of(
             "What", "Which", "Who", "Where", "When", "How", "Why", "Does", "Do", "Is", "Are", "Will", "Would", "Should",
             "Can", "Could");
@@ -199,7 +208,20 @@ public final class QuestionPlanner {
             if (LEADING_QUESTION_WORDS.contains(word)) continue;
             fuzzy.add(new Interpretation.SubjectCandidate("component", word, 0.5));
         }
+        if (fuzzy.isEmpty()) {
+            var stored = STORED_SUBJECT.matcher(question);
+            if (stored.find()) {
+                fuzzy.add(new Interpretation.SubjectCandidate("topic", searchTerm(stored.group(1)), 0.5));
+            }
+        }
         return fuzzy;
+    }
+
+    /** Turns a plain noun into a term that substring search finds in singular type names. */
+    private static String searchTerm(String noun) {
+        String word = noun.toLowerCase(Locale.ROOT);
+        boolean plural = word.length() > 3 && word.endsWith("s") && !word.matches(".*(ss|us|is)");
+        return plural ? word.substring(0, word.length() - 1) : word;
     }
 
     /**

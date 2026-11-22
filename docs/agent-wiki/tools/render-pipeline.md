@@ -4,8 +4,8 @@ title: render_pipeline
 description: Render an end-to-end Mermaid flowchart TD for a multi-phase pipeline by stitching multiple DataFlowPaths across entrypoint boundaries.
 tags: [archlens, mcp-tool]
 resource: https://github.com/DerPate/archlens/blob/main/src/main/java/dev/dominikbreu/archlens/mcp/tools/RenderPipelineTool.java
-status: stable
-generated: { by: claude-code/claude-sonnet-5, at: 2026-09-17T00:00:00Z }
+status: draft
+generated: { by: claude-code/claude-opus-5-5, at: 2026-11-22T15:17:13Z }
 verified: { by: human:dominik, at: 2026-09-17T00:00:00Z }
 sources:
   - id: tools-md
@@ -17,7 +17,7 @@ sources:
 
 Render an end-to-end Mermaid flowchart TD for a multi-phase pipeline by stitching multiple DataFlowPaths across entrypoint boundaries.
 
-**Arguments**: `entrypointName`, `channel` (substring filter), `maxDepth` (default 8), `maxChains` (default 5).
+**Arguments**: `entrypointName`, `channel` (substring filter), `maxDepth` (segments shown; default all, up to the 32 that indexing records), `maxChains` (default 5).
 
 Follows `DataFlowSink.linkedPathIds` through the [workflow](../modules/workflow.md) linker. A pipeline chain's segments connect via a `STORE` sink (cylinder), a `MESSAGING` sink with resolved channel (rounded rectangle), or an `EVENT_BUS` sink (circle). Spring stitching additionally supports `MESSAGING`, `STATE_HANDOFF`, and `PERSISTENCE_HANDOFF` link kinds. When no chains render, the tool returns diagnostic counts instead of an empty diagram.
 
