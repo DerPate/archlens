@@ -7,41 +7,41 @@ All notable changes to this project are documented in this file.
 
 ### Bug Fixes
 
-* **mcp:** speed up path search, understand "affected", report cut evidence ([8c6c56b](https://github.com/DerPate/archlens/commit/8c6c56b3989cabbc28b90e6fc8841667ef309862))
-* **mcp:** speed up path search, understand "affected", report cut evidence ([97e3903](https://github.com/DerPate/archlens/commit/97e3903a3365fc5a99965a48216ff44c9c44cc32))
+* **mcp:** speed up path search, understand "affected", report cut evidence ([42a8fea](https://github.com/DerPate/archlens/commit/42a8fea8961b28bb2db94463eb6414b0b7f19af0))
+* **mcp:** speed up path search, understand "affected", report cut evidence ([3556a0d](https://github.com/DerPate/archlens/commit/3556a0d0826827bf75df836319bc5ba22f599f6d))
 
 
 ### Documentation
 
-* **wiki:** record the render_pipeline review ([eaa5009](https://github.com/DerPate/archlens/commit/eaa5009aaff19d1554481bacf9a9052c792ac974))
-* **wiki:** record the render_pipeline review ([31c5cb8](https://github.com/DerPate/archlens/commit/31c5cb89078c75cd3d32b462634658f76124a341))
-* **wiki:** record the review and correct render_pipeline shapes ([417a9f3](https://github.com/DerPate/archlens/commit/417a9f3acea8e655f458cacadaecd4ecd378571f))
-* **wiki:** record the review and correct render_pipeline shapes ([0f990fe](https://github.com/DerPate/archlens/commit/0f990fe95da1b588d4b9a65e93b73b21500eb954))
+* **wiki:** record the render_pipeline review ([c9c0fd6](https://github.com/DerPate/archlens/commit/c9c0fd6806089d2ed429e71c59511a383d924228))
+* **wiki:** record the render_pipeline review ([887f1db](https://github.com/DerPate/archlens/commit/887f1db349670b26481ff0960e38346dea2b042f))
+* **wiki:** record the review and correct render_pipeline shapes ([c511e0a](https://github.com/DerPate/archlens/commit/c511e0ac6be56acfa4e6fa5cef89d5e45f739c1b))
+* **wiki:** record the review and correct render_pipeline shapes ([fcd2945](https://github.com/DerPate/archlens/commit/fcd2945ac828af903c5195eea47a137ec25a9ccb))
 
 ## [3.0.1](https://github.com/DerPate/archlens/compare/archlens-3.0.0...archlens-3.0.1) (2026-11-22)
 
 
 ### Bug Fixes
 
-* **index:** keep indexing inside the indexed projects ([b693171](https://github.com/DerPate/archlens/commit/b693171946fa327c851645dc720663947f5efa29))
-* **index:** keep indexing inside the indexed projects ([d968caf](https://github.com/DerPate/archlens/commit/d968cafcef0dace179ee0f9023c8eed9f2ab966d))
-* **mcp:** stop truncating results silently and honor documented arguments ([a24e05a](https://github.com/DerPate/archlens/commit/a24e05a74171bbfbf7b0e6752a67eb913821dff1))
-* **mcp:** stop truncating results silently and honor documented arguments ([83ca0cc](https://github.com/DerPate/archlens/commit/83ca0ccffc2515347c55fc53a353883d2fc21843))
-* **merger:** read Ansible inventory directories ([9f0adc1](https://github.com/DerPate/archlens/commit/9f0adc18fcd2929ce35118941d99bdeaa493262a))
-* **merger:** read Ansible inventory directories ([c8fa328](https://github.com/DerPate/archlens/commit/c8fa328fa48bb9067e562bdb79f19c04d5c14f15))
-* **site:** correct landing page claims ([ca8b0f0](https://github.com/DerPate/archlens/commit/ca8b0f018c5f9f886c745ffa5f7936a60437c88a))
-* **site:** correct tool behavior, install steps and narrow layouts ([ba5c401](https://github.com/DerPate/archlens/commit/ba5c40131911be09d3bed0aa9ae7643426b9cba1))
-* **site:** document the 3.0 tool arguments and results ([28e7cdc](https://github.com/DerPate/archlens/commit/28e7cdcdf7e6daaa0c466a6740e9c00b91542a18))
-* **site:** never deploy without a fresh API reference ([6017413](https://github.com/DerPate/archlens/commit/6017413273b0dc3b12b95d71bbaa43e69b1b6f0e))
-* **site:** update the website for 3.0 and make deploys safe ([85eb6b8](https://github.com/DerPate/archlens/commit/85eb6b891b0f8d5cf88fa0161e000fecfecb05fb))
+* **index:** keep indexing inside the indexed projects ([c4827e7](https://github.com/DerPate/archlens/commit/c4827e715105bed61570e0ca4531d3a0f721867b))
+* **index:** keep indexing inside the indexed projects ([7c6bf75](https://github.com/DerPate/archlens/commit/7c6bf754f18a84194c32b657f1bf7c4860d62dd1))
+* **mcp:** stop truncating results silently and honor documented arguments ([5057447](https://github.com/DerPate/archlens/commit/50574473150a174d6d63c850bad1eb5b6233e133))
+* **mcp:** stop truncating results silently and honor documented arguments ([4a078e2](https://github.com/DerPate/archlens/commit/4a078e212ddbcd3eaa3705a4047395b28b7b00c6))
+* **merger:** read Ansible inventory directories ([d3e9112](https://github.com/DerPate/archlens/commit/d3e91123659a86324c153dea17e76bd2b078d564))
+* **merger:** read Ansible inventory directories ([626ca25](https://github.com/DerPate/archlens/commit/626ca25cc2c90543eeb411fc35d5532a4cf4ed08))
+* **site:** correct landing page claims ([4756c64](https://github.com/DerPate/archlens/commit/4756c64ce09972428ceee96a3660e2fc90e9b72c))
+* **site:** correct tool behavior, install steps and narrow layouts ([0eab3ac](https://github.com/DerPate/archlens/commit/0eab3acf5a3447f718d2a24268d0023c74f4d493))
+* **site:** document the 3.0 tool arguments and results ([be22003](https://github.com/DerPate/archlens/commit/be220033809bee6a95386eb28ef163b77c66ecc5))
+* **site:** never deploy without a fresh API reference ([aa2e09e](https://github.com/DerPate/archlens/commit/aa2e09e01e7549d060f5d80e21668512cd9ce3f8))
+* **site:** update the website for 3.0 and make deploys safe ([469a677](https://github.com/DerPate/archlens/commit/469a6778f624dcee4cff468e43091b780b366a9e))
 
 
 ### Documentation
 
-* **api:** describe the current package boundaries ([a8f6f9a](https://github.com/DerPate/archlens/commit/a8f6f9a6a209a9e9869c00800b4ba7284d15ed9b))
-* **site:** link releases and the 3.0 migration guide ([64454ce](https://github.com/DerPate/archlens/commit/64454cee7190c5c9e8ac4865ac4d5b866dcb5c2d))
-* **wiki:** record the review of the MCP server concept ([09e685f](https://github.com/DerPate/archlens/commit/09e685faf84c3d6c12d2e89f69b8255326369029))
-* **wiki:** record the review of the MCP server concept ([3bd2ad1](https://github.com/DerPate/archlens/commit/3bd2ad1476ca49c2d4610a224bb230ad4dfa8964))
+* **api:** describe the current package boundaries ([23b4d1e](https://github.com/DerPate/archlens/commit/23b4d1e7392a06cf77985c87d1cdbbf52cac01d5))
+* **site:** link releases and the 3.0 migration guide ([54cfb60](https://github.com/DerPate/archlens/commit/54cfb60f27dcdc12e5609da927e7054ad373ad62))
+* **wiki:** record the review of the MCP server concept ([69d495f](https://github.com/DerPate/archlens/commit/69d495f85c7018ce5bf07ad231ddc6b71a20e63e))
+* **wiki:** record the review of the MCP server concept ([e72e5be](https://github.com/DerPate/archlens/commit/e72e5bee79d4f34c3769403cbadf087c09b67a69))
 
 ## [3.0.0](https://github.com/DerPate/archlens/compare/archlens-2.3.0...archlens-3.0.0) (2026-11-22)
 
@@ -54,133 +54,133 @@ All notable changes to this project are documented in this file.
 
 ### Features
 
-* **mcp:** remove the experimental draft output mode ([0e97d83](https://github.com/DerPate/archlens/commit/0e97d83725a67ac519d3a22806204da3fac78303))
-* **mcp:** select a workspace by explicit id ([4921d57](https://github.com/DerPate/archlens/commit/4921d57690a61e28fae98d2287a70f6ae58297de))
-* **okf:** migrate to OKF v0.3 ([22e2742](https://github.com/DerPate/archlens/commit/22e274291e2373049c8a60d1b62fe9e6ef4da35a))
-* **okf:** write x-archlens frontmatter keys ([0f8664e](https://github.com/DerPate/archlens/commit/0f8664e5ee3be6cae9687f73b72b2f18d83f3aaf))
+* **mcp:** remove the experimental draft output mode ([3cc8a51](https://github.com/DerPate/archlens/commit/3cc8a51da381e2d6ac9af5761c5ba03b27b2de6f))
+* **mcp:** select a workspace by explicit id ([836bb05](https://github.com/DerPate/archlens/commit/836bb0531088ded3d5c53e7b36b80de62897d087))
+* **okf:** migrate to OKF v0.3 ([e8374d8](https://github.com/DerPate/archlens/commit/e8374d8ea6179684950beff8a6c667f367936510))
+* **okf:** write x-archlens frontmatter keys ([4a7faae](https://github.com/DerPate/archlens/commit/4a7faae4170a6df97815a04a333e81675ce5adff))
 
 
 ### Bug Fixes
 
-* **cache:** move the cache to the per-user cache directory ([1eddee0](https://github.com/DerPate/archlens/commit/1eddee0a319348d14e94d63a35011db0fa98c08e))
-* **deps:** patch advisories and remove Jackson 2 ([90b9862](https://github.com/DerPate/archlens/commit/90b986269e4669a34dd4675137df4f223b37573d))
-* **deps:** patch advisories and remove Jackson 2 ([d5eceb6](https://github.com/DerPate/archlens/commit/d5eceb6570aa96e153fe65f085de26351b6f117d))
-* **export:** keep generated files inside the project ([3ab598b](https://github.com/DerPate/archlens/commit/3ab598b59e21e992a8d4ddd384ca9e37855c8742))
-* **export:** keep generated files inside the project ([1cd3af2](https://github.com/DerPate/archlens/commit/1cd3af2b71aa3fb8a6c1e6d69177c2114174f40c))
-* **extractor:** bind project calls when a library type is unresolved ([45e98a4](https://github.com/DerPate/archlens/commit/45e98a46a654271df262444222501dc412edaeef))
-* **mcp:** emit tool schemas in deterministic order ([e6bb960](https://github.com/DerPate/archlens/commit/e6bb96055d68b4be227eb2823e7ab0420ef52fdb))
-* **mcp:** emit tool schemas in the same order in every JVM ([b93e779](https://github.com/DerPate/archlens/commit/b93e779a724ce7dee2d88d92b51d61dd2abc10ff))
-* **mcp:** run tool calls in arrival order ([13c38cd](https://github.com/DerPate/archlens/commit/13c38cd6f4437fce881197ff64b528bb25ce8a02))
-* **mcp:** run tool calls in arrival order ([5e5c450](https://github.com/DerPate/archlens/commit/5e5c450bf2e4f4ebcdcbdb2d190f1913a0bc688d))
-* **okf:** preserve human review on refresh ([6fb98ab](https://github.com/DerPate/archlens/commit/6fb98ab8e9fa3ab4acd0aaaa2fb7e4d5a870ee26))
-* **okf:** preserve human review on refresh and repair log and link writing ([1457f27](https://github.com/DerPate/archlens/commit/1457f27af4a0d7177d7710c53b33ff7259d2fa72))
-* **test:** repair broken checks on main ([d9c3fe7](https://github.com/DerPate/archlens/commit/d9c3fe7687bd034f3da36c73db668d2ff10f0210))
-* **test:** repair broken self-tests, smoke tests and test isolation ([9219cb6](https://github.com/DerPate/archlens/commit/9219cb62f2a0a45b37e70b1f6bad8fa3a6f52b2f))
+* **cache:** move the cache to the per-user cache directory ([a8f2b53](https://github.com/DerPate/archlens/commit/a8f2b5362ec6fa2f02fcb1da67b1ad16959979e2))
+* **deps:** patch advisories and remove Jackson 2 ([3f25198](https://github.com/DerPate/archlens/commit/3f251980e7f60ff2df1c02b8771871fc1ea01b10))
+* **deps:** patch advisories and remove Jackson 2 ([d3c5ad5](https://github.com/DerPate/archlens/commit/d3c5ad54d42fbe3ea11aa274739aeef2987a07ee))
+* **export:** keep generated files inside the project ([83a84c1](https://github.com/DerPate/archlens/commit/83a84c1628b4e2cc3a676db88d31bf3a222286e7))
+* **export:** keep generated files inside the project ([8421002](https://github.com/DerPate/archlens/commit/842100260a0eedf4011ba76bcf387c6171547867))
+* **extractor:** bind project calls when a library type is unresolved ([c86d1e6](https://github.com/DerPate/archlens/commit/c86d1e64421b9f25731f63c1f9841b9474f55d8b))
+* **mcp:** emit tool schemas in deterministic order ([57bb0eb](https://github.com/DerPate/archlens/commit/57bb0ebd1d8d80ae591b20a544502ef89653c48e))
+* **mcp:** emit tool schemas in the same order in every JVM ([ebff3b8](https://github.com/DerPate/archlens/commit/ebff3b86aef32e00ef149b1fdc597fbd5198adbe))
+* **mcp:** run tool calls in arrival order ([b37391d](https://github.com/DerPate/archlens/commit/b37391d17156d64a3347c031c602ef2a749dd923))
+* **mcp:** run tool calls in arrival order ([4e01302](https://github.com/DerPate/archlens/commit/4e01302a83c9f0d218c912502e0e82bd8d926996))
+* **okf:** preserve human review on refresh ([845c797](https://github.com/DerPate/archlens/commit/845c7976760b15778d5059b387c6086173bf9c17))
+* **okf:** preserve human review on refresh and repair log and link writing ([cd27aa7](https://github.com/DerPate/archlens/commit/cd27aa74b9e588c4728d2a4d2ca80391e5c7f306))
+* **test:** repair broken checks on main ([e589e80](https://github.com/DerPate/archlens/commit/e589e80dc8be56af0e03e332bba5aa8011415393))
+* **test:** repair broken self-tests, smoke tests and test isolation ([f263527](https://github.com/DerPate/archlens/commit/f263527ae56ed23254ec534f4fa8f725da7d9724))
 
 
 ### Documentation
 
-* **mcp:** propose dual-era protocol support ([50422e0](https://github.com/DerPate/archlens/commit/50422e005787e3d80febb50724a3a98601011112))
-* **mcp:** propose dual-era protocol support ([f0a2a62](https://github.com/DerPate/archlens/commit/f0a2a621b7c14996906482c71b8a5ca661e22d0f))
+* **mcp:** propose dual-era protocol support ([c414394](https://github.com/DerPate/archlens/commit/c414394e91e10d8301bc6115a2ced9831675aba9))
+* **mcp:** propose dual-era protocol support ([e14d095](https://github.com/DerPate/archlens/commit/e14d09514a27280f2c9fc991811d7d33378254ff))
 
 ## [2.3.0](https://github.com/DerPate/archlens/compare/archlens-2.2.0...archlens-2.3.0) (2026-09-20)
 
 
 ### Features
 
-* add cyclonedx-maven-plugin and GitHub dependency graph submission ([782356e](https://github.com/DerPate/archlens/commit/782356ef9da566649ac4cbaf21a8270eca59e0a3))
-* add cyclonedx-maven-plugin and GitHub dependency graph submission ([5057d46](https://github.com/DerPate/archlens/commit/5057d4676d4f5179539cb5dd60754476cfe7e179))
+* add cyclonedx-maven-plugin and GitHub dependency graph submission ([2d560f2](https://github.com/DerPate/archlens/commit/2d560f22d513f5c7de479e014fcaa0aaf009ed4d))
+* add cyclonedx-maven-plugin and GitHub dependency graph submission ([cd1fc1a](https://github.com/DerPate/archlens/commit/cd1fc1a1a880f8208b2a68e39f7712c727ac9c50))
 
 
 ### Bug Fixes
 
-* **ci:** set explicit build-mode for CodeQL Java analysis ([1a0298d](https://github.com/DerPate/archlens/commit/1a0298de3d9c1a276c47823faf79103711c78dad))
-* **ci:** set explicit build-mode for CodeQL Java analysis ([231d004](https://github.com/DerPate/archlens/commit/231d00476531b564fe4acc0d48a68d85939caafc))
-* **ci:** stop OWASP scan from re-downloading the NVD DB on every push ([cbe503d](https://github.com/DerPate/archlens/commit/cbe503d855300e25bb5451318456eacfd795e532))
-* **ci:** stop OWASP scan from re-downloading the NVD DB on every push ([3aacc07](https://github.com/DerPate/archlens/commit/3aacc07c41e9d1fed5294a0886b1d12cb2e05899))
-* **deps:** bump devalue to patch DoS vulnerability ([845ba02](https://github.com/DerPate/archlens/commit/845ba0239459f67b5b1750922c18e2a29cc0ee26))
-* **deps:** bump devalue to patch DoS vulnerability ([89d25f9](https://github.com/DerPate/archlens/commit/89d25f9f4f047ac900cdddca854f48b6599b3555))
-* **test:** shut down OTel SDK in otlpModeProducesValidSpans ([beb52c1](https://github.com/DerPate/archlens/commit/beb52c1e627b45c49ff3581685fccdce6bd6eb65))
+* **ci:** set explicit build-mode for CodeQL Java analysis ([ff3961d](https://github.com/DerPate/archlens/commit/ff3961d58b9ccbbd295395648ba4e3dbe706180a))
+* **ci:** set explicit build-mode for CodeQL Java analysis ([90ce5b8](https://github.com/DerPate/archlens/commit/90ce5b889f6c9e30439f2dd3ae7421a6c6d343f4))
+* **ci:** stop OWASP scan from re-downloading the NVD DB on every push ([004abdf](https://github.com/DerPate/archlens/commit/004abdf5e80062d8b61ebdec2f55f628449b4f59))
+* **ci:** stop OWASP scan from re-downloading the NVD DB on every push ([5e58e1c](https://github.com/DerPate/archlens/commit/5e58e1cad5e79727633226c94b459f69f10dc908))
+* **deps:** bump devalue to patch DoS vulnerability ([bdbbad7](https://github.com/DerPate/archlens/commit/bdbbad785d6ffde5eccf1f4fe8b81ac4e12543a6))
+* **deps:** bump devalue to patch DoS vulnerability ([43d4ba4](https://github.com/DerPate/archlens/commit/43d4ba48bc8cfb185ba0ec23816754c6c0af2e06))
+* **test:** shut down OTel SDK in otlpModeProducesValidSpans ([fcfc032](https://github.com/DerPate/archlens/commit/fcfc032c026cfd50f396901f1dc40acf54a88b71))
 
 ## [2.2.0](https://github.com/DerPate/archlens/compare/archlens-2.1.0...archlens-2.2.0) (2026-09-17)
 
 
 ### Features
 
-* check changed public API javadoc ([7a11dad](https://github.com/DerPate/archlens/commit/7a11dadfee7e3199f3834332b601ee94a5b91c6e))
-* **site:** self-host fonts, add workflow-pack section, fix nav hash links ([057aa28](https://github.com/DerPate/archlens/commit/057aa2898b4054f973f69a3360271743678164cc))
+* check changed public API javadoc ([5b11cde](https://github.com/DerPate/archlens/commit/5b11cde68c73c337b68cb1ff412d981ba6b8ffe6))
+* **site:** self-host fonts, add workflow-pack section, fix nav hash links ([a7d8be1](https://github.com/DerPate/archlens/commit/a7d8be146acc9211599ab1f8625431cbd9e20e3f))
 
 
 ### Bug Fixes
 
-* address final review findings in public javadoc checker ([d761f2c](https://github.com/DerPate/archlens/commit/d761f2cb6e27d361507364cc34dd9ea05fef9f86))
-* refresh npm lockfiles to resolve dependabot alerts ([b93ba42](https://github.com/DerPate/archlens/commit/b93ba42fcac606121c31ede6d63ebce9c659db68))
+* address final review findings in public javadoc checker ([b74eb76](https://github.com/DerPate/archlens/commit/b74eb76bfb3fbdb965b92c72bd908f852c68f69e))
+* refresh npm lockfiles to resolve dependabot alerts ([202ac5b](https://github.com/DerPate/archlens/commit/202ac5b13c33704753bf4ff41ebd6fda000da999))
 
 
 ### Documentation
 
-* add javadoc to ArchitectureExtractor ([025a687](https://github.com/DerPate/archlens/commit/025a68737fb56a0921eecac2d88e14bbc5327ab8))
-* add javadoc to ArchitectureRelevanceScorer ([8245703](https://github.com/DerPate/archlens/commit/824570309b679c354f1aa88fa6aa9017c615670f))
-* add javadoc to build detectors, tracing, and DataFlowSink ([d9b83c5](https://github.com/DerPate/archlens/commit/d9b83c5ca55bc0d5795a995d0b7a36845c36558e))
-* add javadoc to DataFlowTracer ([d1071f7](https://github.com/DerPate/archlens/commit/d1071f719fa1fdb6901dda7b7656d5c17f9a0726))
-* add javadoc to ExportGraphArchitecturePocTool ([ff82270](https://github.com/DerPate/archlens/commit/ff82270ad56bf909d479420daf29ca08363651f3))
-* add javadoc to GraphDataProjection ([06bd83b](https://github.com/DerPate/archlens/commit/06bd83bf2e61e6932f38e58befac0368b163c693))
-* add javadoc to GraphQuery public API ([91486f4](https://github.com/DerPate/archlens/commit/91486f4132e58cac5eec438dc03a3a9fefac6b74))
-* add javadoc to JavaEEExtractor ([bf1242b](https://github.com/DerPate/archlens/commit/bf1242b46a0cf74981e7fb33656c0c4b8c30d4b3))
-* add javadoc to LikeC4WorkspaceProjector ([e02b5d6](https://github.com/DerPate/archlens/commit/e02b5d620b00b27146145ff25aa82eaed98f130d))
-* add javadoc to McpServer ([545e104](https://github.com/DerPate/archlens/commit/545e104c08b43d04aa4363054893548741a571d5))
-* add javadoc to MermaidDocument ([b086a3b](https://github.com/DerPate/archlens/commit/b086a3b68627a282d27fc62cf5d4e0323cc43291))
-* add javadoc to MermaidFlowchartRenderer ([69f9c5f](https://github.com/DerPate/archlens/commit/69f9c5f1f261cc4e29ed5fcf0714ff5874622af2))
-* add javadoc to MermaidPipelineRenderer ([30ba4c6](https://github.com/DerPate/archlens/commit/30ba4c61f100a4a6ae5a6b49f6018094536ccb42))
-* add javadoc to MessagingCallSiteResolver ([059ddf6](https://github.com/DerPate/archlens/commit/059ddf66ebb947768e6462043bade05ba0d7fdaa))
-* add javadoc to ObjectFlowIndexBuilder ([1fa47a9](https://github.com/DerPate/archlens/commit/1fa47a96c94c3174444b3e84b6b8e9ab1d4a9af0))
-* add javadoc to OkfBundleWriter ([b12ec3d](https://github.com/DerPate/archlens/commit/b12ec3de3d356dc1d21afd6f4c04e8052f649633))
-* add javadoc to QuarkusExtractor ([3813f14](https://github.com/DerPate/archlens/commit/3813f148328844dade1483132247a2c6e09af736))
-* add javadoc to QuestionOkfRenderer ([7354f6f](https://github.com/DerPate/archlens/commit/7354f6f705cafe0f80ee98af638ccf11f84391e4))
-* add javadoc to remaining public API gaps ([23b10c1](https://github.com/DerPate/archlens/commit/23b10c1ef2e4998bb807cfdc60f1dab9113e18f2))
-* add javadoc to SourceFactIndexBuilder ([0290001](https://github.com/DerPate/archlens/commit/0290001af6707c0ddb5773c6323c1deb33f6181c))
-* add javadoc to ToolArgs ([034d3fd](https://github.com/DerPate/archlens/commit/034d3fdc9030b799e3605e1f13297322e97b2dc3))
-* add javadoc to TraceDataFlowTool ([b96f1c7](https://github.com/DerPate/archlens/commit/b96f1c76168a4d446481cc092592424f90fb202a))
-* add javadoc to TransactionPolicyExtractor ([ebc172c](https://github.com/DerPate/archlens/commit/ebc172cb011d7ad6f0c2a65ce40954a8c852bfc9))
-* add javadoc to TransactionXmlPolicyResolver ([902778f](https://github.com/DerPate/archlens/commit/902778f5f52e10e0bcd95bf847c66d9bc6509a24))
-* add javadoc to undocumented members in largest cache/extractor classes ([3573d8b](https://github.com/DerPate/archlens/commit/3573d8b38392525579ecebee74882020eeff4ef2))
-* add javadoc to WorkflowTraversalPolicy and ToolArgs ([e787eb7](https://github.com/DerPate/archlens/commit/e787eb74f4dddaf9c1ac69f35c773a7478b3cb59))
-* add OKF architecture-knowledge bundle for ArchLens itself ([0e0a328](https://github.com/DerPate/archlens/commit/0e0a32845191539a87f15c667e01b3637fee6944))
-* add OKF architecture-knowledge bundle for ArchLens itself ([2a4b1d2](https://github.com/DerPate/archlens/commit/2a4b1d2d449f762ecb6babd95a64cb322cf1da8e))
-* block-comment trivial constant groups, document SpringExtractor gaps missed in batch 1 ([9a733ba](https://github.com/DerPate/archlens/commit/9a733ba6c8357106805049f441f1d05ce84099bd))
-* design Tamboui dashboard migration ([e4a1e84](https://github.com/DerPate/archlens/commit/e4a1e843e8979650800eac4b887f45e46712b314))
-* fix boundaryRole javadoc accuracy ([28b40b0](https://github.com/DerPate/archlens/commit/28b40b047a70957a2f182c3b580b7c18e4a291c1))
-* fix CONFIGURATION/LOGGING/MAPPER javadoc accuracy ([86994d2](https://github.com/DerPate/archlens/commit/86994d277f0b01f72e8e1f914e0a6e78423ccad8))
-* fix entrypointLabel javadoc accuracy ([4ab9d85](https://github.com/DerPate/archlens/commit/4ab9d85017ff2bb6e02ccdca95b87554afe8fb62))
-* fix pipelineProjection javadoc accuracy ([86c790e](https://github.com/DerPate/archlens/commit/86c790ead450bb533fa85103c6fee8dae8e79cdd))
-* fix receiverFieldName javadoc accuracy ([c2db4d9](https://github.com/DerPate/archlens/commit/c2db4d900b6b8e1f4cfd4140821fc05e91f44d7d))
-* fix remaining constant javadoc gaps found in final review ([8ed0e60](https://github.com/DerPate/archlens/commit/8ed0e60d51eb76b54dabf11b23e27933d8681fec))
-* make dashboard javadocs explicit in plan ([454cf2b](https://github.com/DerPate/archlens/commit/454cf2b24a63114359657d22928e46e8a5c07c57))
-* pin released Tamboui version ([3bcc9da](https://github.com/DerPate/archlens/commit/3bcc9da9b1e97cd7f0ea1ee8a4045b2726fde532))
-* plan Tamboui dashboard migration ([20668c5](https://github.com/DerPate/archlens/commit/20668c5d80ee5dfe1da5edc34b0339526b3be4b9))
-* require public javadoc regression check ([8d9a0ca](https://github.com/DerPate/archlens/commit/8d9a0ca5ac1c2a5a1a0bea25620ac1df1574c847))
-* sweep multi-line-signature methods missed in the first documentation pass ([e31aad0](https://github.com/DerPate/archlens/commit/e31aad04a76b5579105ccee14daddcee57f1ef1b))
+* add javadoc to ArchitectureExtractor ([205b542](https://github.com/DerPate/archlens/commit/205b542f71a9f8061d665e9dd372ea19893e5067))
+* add javadoc to ArchitectureRelevanceScorer ([40dc3bf](https://github.com/DerPate/archlens/commit/40dc3bfe718384ed218176c1eca9cccc450ea2ea))
+* add javadoc to build detectors, tracing, and DataFlowSink ([16717e4](https://github.com/DerPate/archlens/commit/16717e481e9e265b1a7742611c1d9e776be2ad20))
+* add javadoc to DataFlowTracer ([1d1fb72](https://github.com/DerPate/archlens/commit/1d1fb72a8ea893802ff43dcaeaf95091d7e4f8ee))
+* add javadoc to ExportGraphArchitecturePocTool ([6be438c](https://github.com/DerPate/archlens/commit/6be438c7fc2b17c21283d2a89f2e836c937f67a8))
+* add javadoc to GraphDataProjection ([42ac7c4](https://github.com/DerPate/archlens/commit/42ac7c4c8244ec7bf132a002197a52a503c8b678))
+* add javadoc to GraphQuery public API ([9dc9611](https://github.com/DerPate/archlens/commit/9dc96117d2197f32ecaf3e15e1d456f03c3d82eb))
+* add javadoc to JavaEEExtractor ([8fdf259](https://github.com/DerPate/archlens/commit/8fdf2590e8aa8f24e7552c06792a463e19f37543))
+* add javadoc to LikeC4WorkspaceProjector ([9a0b03d](https://github.com/DerPate/archlens/commit/9a0b03da7a758acd2c32dd05cc13481f0c232996))
+* add javadoc to McpServer ([70cc234](https://github.com/DerPate/archlens/commit/70cc234722b6133c1ec965763ae16013474ecc49))
+* add javadoc to MermaidDocument ([73f638a](https://github.com/DerPate/archlens/commit/73f638adb1665ad905e13a17581995c1139284b1))
+* add javadoc to MermaidFlowchartRenderer ([65d3e07](https://github.com/DerPate/archlens/commit/65d3e078a9772ec5a07668249db2136af19d0013))
+* add javadoc to MermaidPipelineRenderer ([3348bf1](https://github.com/DerPate/archlens/commit/3348bf15d2dc89c614b33f137c3d7ccca8db8999))
+* add javadoc to MessagingCallSiteResolver ([740c71d](https://github.com/DerPate/archlens/commit/740c71de52102baed9feb2b90d3d325b93c9dce0))
+* add javadoc to ObjectFlowIndexBuilder ([15bc3f2](https://github.com/DerPate/archlens/commit/15bc3f21af1e7285a63df1eb57ac43fee1806fe9))
+* add javadoc to OkfBundleWriter ([4b8c5cd](https://github.com/DerPate/archlens/commit/4b8c5cdcad646485046ce065592d7470c7e32101))
+* add javadoc to QuarkusExtractor ([cae5bae](https://github.com/DerPate/archlens/commit/cae5baedd6d8f03e56538c64a9fda8fc6d0fb6fb))
+* add javadoc to QuestionOkfRenderer ([2b87cf1](https://github.com/DerPate/archlens/commit/2b87cf122fc2ae09300f0f120d75fcfcd8a70f9a))
+* add javadoc to remaining public API gaps ([acd9208](https://github.com/DerPate/archlens/commit/acd920860cb9e600bb21e656fe4cdbd27f4b8b07))
+* add javadoc to SourceFactIndexBuilder ([3eda658](https://github.com/DerPate/archlens/commit/3eda65840aaac4dc993644c62b77d2482e59036d))
+* add javadoc to ToolArgs ([f48f638](https://github.com/DerPate/archlens/commit/f48f638b5428df0ab89b2496220d881dd718a932))
+* add javadoc to TraceDataFlowTool ([bb64712](https://github.com/DerPate/archlens/commit/bb6471260ae73a00e36799565f3e8f953e076cdd))
+* add javadoc to TransactionPolicyExtractor ([8ff0b9d](https://github.com/DerPate/archlens/commit/8ff0b9d776cb4c4a21ad20ce35e5f5fb3d2ac291))
+* add javadoc to TransactionXmlPolicyResolver ([c6ddb7c](https://github.com/DerPate/archlens/commit/c6ddb7cf68b10b8c35b7ac4e957a2e34f5f6a883))
+* add javadoc to undocumented members in largest cache/extractor classes ([3f419b7](https://github.com/DerPate/archlens/commit/3f419b7a64b2f069df8fbc41a3c77d8d0335f3d7))
+* add javadoc to WorkflowTraversalPolicy and ToolArgs ([0ccf9ce](https://github.com/DerPate/archlens/commit/0ccf9cefd8dba07e04438e4fd78c6325484579e9))
+* add OKF architecture-knowledge bundle for ArchLens itself ([578ba09](https://github.com/DerPate/archlens/commit/578ba0943c3522372bd8f6a957095a6ae54d0b47))
+* add OKF architecture-knowledge bundle for ArchLens itself ([5c9d0aa](https://github.com/DerPate/archlens/commit/5c9d0aa52cce44950e665468155bdedb37faa731))
+* block-comment trivial constant groups, document SpringExtractor gaps missed in batch 1 ([f773877](https://github.com/DerPate/archlens/commit/f773877e514e1609b26120cfa4785a2c04dbf6e5))
+* design Tamboui dashboard migration ([8d968de](https://github.com/DerPate/archlens/commit/8d968de7c62f493e48bbe61e06fd48543c808e22))
+* fix boundaryRole javadoc accuracy ([eec51a0](https://github.com/DerPate/archlens/commit/eec51a04c182709e1c75c210e5c449c5fd03e094))
+* fix CONFIGURATION/LOGGING/MAPPER javadoc accuracy ([2e00281](https://github.com/DerPate/archlens/commit/2e0028179638690507b9085be874013fce83eaad))
+* fix entrypointLabel javadoc accuracy ([d64a189](https://github.com/DerPate/archlens/commit/d64a189fc7c0c5c0db3e4fc63b6e7c6b2c5a4bea))
+* fix pipelineProjection javadoc accuracy ([ba6952c](https://github.com/DerPate/archlens/commit/ba6952cc820f97326caf2f54fcf21bc53d07eb7f))
+* fix receiverFieldName javadoc accuracy ([8dbd10a](https://github.com/DerPate/archlens/commit/8dbd10af3d6d0faf360e4272f3330429b81e8bd6))
+* fix remaining constant javadoc gaps found in final review ([bac80c1](https://github.com/DerPate/archlens/commit/bac80c1d2f03fe9e740fb5d4584504382d380970))
+* make dashboard javadocs explicit in plan ([743b8c6](https://github.com/DerPate/archlens/commit/743b8c647c2c472124b8f5a02edbdb936aba7139))
+* pin released Tamboui version ([9f97794](https://github.com/DerPate/archlens/commit/9f97794c31e90ace0eebbc7f6e07b6a5b5a101dc))
+* plan Tamboui dashboard migration ([a6dbd33](https://github.com/DerPate/archlens/commit/a6dbd3349df0764439dcabb0f553da745c80d7d3))
+* require public javadoc regression check ([8e03484](https://github.com/DerPate/archlens/commit/8e03484f920980c0e2306e022f953dae8fa17ec5))
+* sweep multi-line-signature methods missed in the first documentation pass ([905218c](https://github.com/DerPate/archlens/commit/905218c83fdcd6486fbd415d781daca940fe0168))
 
 ## [2.1.0](https://github.com/DerPate/archlens/compare/archlens-2.0.0...archlens-2.1.0) (2026-09-15)
 
 
 ### Features
 
-* **okf:** backfill okf_version declaration on index.md ([6375b4d](https://github.com/DerPate/archlens/commit/6375b4d6cb5e60236047ef6f622a13a6cf172a9a))
-* **okf:** upgrade generated concepts to OKF v0.2 frontmatter ([c3b16b7](https://github.com/DerPate/archlens/commit/c3b16b71c0d3d1905d90dd4cbcd43d77071db1f9))
+* **okf:** backfill okf_version declaration on index.md ([82244a0](https://github.com/DerPate/archlens/commit/82244a08e2b50ce2d4cd6ff303f2da621713279a))
+* **okf:** upgrade generated concepts to OKF v0.2 frontmatter ([6708b4f](https://github.com/DerPate/archlens/commit/6708b4fd84bfacb6d50bb6a1c7cd9937f78103df))
 
 
 ### Bug Fixes
 
-* emit valid Mermaid subgraph syntax ([6688500](https://github.com/DerPate/archlens/commit/6688500ca6366ab38296fb9f817e17c609acf8a0))
-* rebuild renderer before generating architecture docs ([4c03959](https://github.com/DerPate/archlens/commit/4c0395991717eb6b826c9aee350146d820627d8b))
-* scope Mermaid C4-keyword escaping to avoid id/label collisions ([cfd67d2](https://github.com/DerPate/archlens/commit/cfd67d2dc8b024d829718021b93a6ddc977ab3dd))
+* emit valid Mermaid subgraph syntax ([628c1e5](https://github.com/DerPate/archlens/commit/628c1e547fda660416a421df2df9541d590845f1))
+* rebuild renderer before generating architecture docs ([3d8525a](https://github.com/DerPate/archlens/commit/3d8525a203962f125afa9eecaab979a668e91bad))
+* scope Mermaid C4-keyword escaping to avoid id/label collisions ([be6ba24](https://github.com/DerPate/archlens/commit/be6ba24d67771d6be3c720e4786db3ebef88fb81))
 
 
 ### Documentation
 
-* confirm renderer comparison holds after C4-keyword scoping fix ([2caf375](https://github.com/DerPate/archlens/commit/2caf37564ef020259c70dccf5bf63d6ccf4ab13f))
-* partition oversized generated flowcharts in self-doc output ([2bf9dea](https://github.com/DerPate/archlens/commit/2bf9dea93ac9285d7c69e8db45503bb208702d6c))
+* confirm renderer comparison holds after C4-keyword scoping fix ([64152da](https://github.com/DerPate/archlens/commit/64152daf76d21c28964b169de781290268f5fa2e))
+* partition oversized generated flowcharts in self-doc output ([b6c4a47](https://github.com/DerPate/archlens/commit/b6c4a4744b95be619806d5dc29e920a65aa5a2fd))
 
 ## [2.0.0](https://github.com/DerPate/archlens/compare/archlens-1.5.0...archlens-2.0.0) (2026-09-14)
 
@@ -194,70 +194,70 @@ All notable changes to this project are documented in this file.
 
 ### Features
 
-* attach direct EntityManager invocation sinks to persistence data flows ([6674744](https://github.com/DerPate/archlens/commit/6674744bb769d8218766ed3e93eaea4b5a3a82bb))
-* **extractor:** widen plain-Java service-name classification ([8d8f931](https://github.com/DerPate/archlens/commit/8d8f931194d2a0212e5e466d117fb83ec4e24a95))
-* **mcp:** ARCHLENS_MCP_EXPERIMENTAL_C4 opt-in and renderer docs ([cc92bf2](https://github.com/DerPate/archlens/commit/cc92bf2702a2c6aef91497c705529dc13f303677))
-* **renderer:** add shared MermaidStyle theme, role palette, and legend ([06d6c6b](https://github.com/DerPate/archlens/commit/06d6c6b00f7d1df493b3fe78214f591b092a6ebf))
-* **renderer:** drop legend subgraph from diagrams ([d00012b](https://github.com/DerPate/archlens/commit/d00012bcea5106ee23213cdde2be3f8a962e1f9c))
-* **renderer:** opt-in C4 dialect for system and container levels ([3302de0](https://github.com/DerPate/archlens/commit/3302de0f86ab21ea5cbf25986bb3699ab32e3e4a))
-* **renderer:** pipeline diagrams use shared role palette ([40d92de](https://github.com/DerPate/archlens/commit/40d92de03db6c2af28b7a514c0c1584d7dbefe7f))
-* **renderer:** render call flows as sequence diagrams ([cdba8c8](https://github.com/DerPate/archlens/commit/cdba8c887926bf8fa9581dc4fea85503f7dbb438))
-* **renderer:** render the use-case timeline as a flowchart chain ([a7587a0](https://github.com/DerPate/archlens/commit/a7587a0b39fac5356d1dd0e7ec7ee81de51c7b53))
-* **renderer:** shared role styling for dependency map and slice diagrams ([de9226d](https://github.com/DerPate/archlens/commit/de9226d10652e0952bcbd15cbc5c7338a4db774d))
-* **renderer:** shared styling for source overview, architecture view, timeline ([88e957b](https://github.com/DerPate/archlens/commit/88e957b5e52688ee740270db6cc26c6c9437e488))
-* **renderer:** show entities only where they cross a boundary ([e2d0b49](https://github.com/DerPate/archlens/commit/e2d0b49db0fbabd149ea4d7ce4ab95c205d43e6f))
-* **renderer:** themed roles, dashed async edges, and legends in flowchart levels ([a374092](https://github.com/DerPate/archlens/commit/a374092439260482f9a254c8a228a82801653558))
+* attach direct EntityManager invocation sinks to persistence data flows ([b7307e9](https://github.com/DerPate/archlens/commit/b7307e9f962e39a4116ea76238bcc1eb2d6397b1))
+* **extractor:** widen plain-Java service-name classification ([b061b28](https://github.com/DerPate/archlens/commit/b061b28c9bb2c1962796c8ee5d360af36dd529e9))
+* **mcp:** ARCHLENS_MCP_EXPERIMENTAL_C4 opt-in and renderer docs ([722fddc](https://github.com/DerPate/archlens/commit/722fddcd166758f9021b654abbe91a23821cca48))
+* **renderer:** add shared MermaidStyle theme, role palette, and legend ([23c96a7](https://github.com/DerPate/archlens/commit/23c96a78c266e003703d2ff1d799de799697fa3f))
+* **renderer:** drop legend subgraph from diagrams ([aac05b7](https://github.com/DerPate/archlens/commit/aac05b7c78269d8a399e260fe023cc4061587562))
+* **renderer:** opt-in C4 dialect for system and container levels ([c306101](https://github.com/DerPate/archlens/commit/c30610136ac6f99b9fa7292cc14138d2e3e2ede3))
+* **renderer:** pipeline diagrams use shared role palette ([69fe932](https://github.com/DerPate/archlens/commit/69fe9320b0d94270b40be1c0e03f47f69160be61))
+* **renderer:** render call flows as sequence diagrams ([5aa22e1](https://github.com/DerPate/archlens/commit/5aa22e18bef67315611d84a077839bdc0bfdc4cb))
+* **renderer:** render the use-case timeline as a flowchart chain ([0a1f87a](https://github.com/DerPate/archlens/commit/0a1f87aaaadef0483afbb7660dd84d5a6f7110c5))
+* **renderer:** shared role styling for dependency map and slice diagrams ([aa45531](https://github.com/DerPate/archlens/commit/aa45531dac5d896487a64396126d12680a56c035))
+* **renderer:** shared styling for source overview, architecture view, timeline ([49289f5](https://github.com/DerPate/archlens/commit/49289f5de04de2a46c2d40215f80687ec6d1a1dd))
+* **renderer:** show entities only where they cross a boundary ([791eb16](https://github.com/DerPate/archlens/commit/791eb166268678edc8e1b22319aef2a1d74fd174))
+* **renderer:** themed roles, dashed async edges, and legends in flowchart levels ([a655c8e](https://github.com/DerPate/archlens/commit/a655c8e4625be1130818478ea6368ece7c84b46a))
 
 
 ### Bug Fixes
 
-* **extractor:** detect entities structurally and stop attributing container calls to elements ([77f515a](https://github.com/DerPate/archlens/commit/77f515a2370c872bd65c363cedbc3cf4c1d7f36c))
-* **extractor:** give every entrypoint its own runtime flow ([0602c38](https://github.com/DerPate/archlens/commit/0602c3814633b781dfe9bd90ec4c2827bfa700d9))
-* **extractor:** give every entrypoint its own runtime flow ([c57cdcb](https://github.com/DerPate/archlens/commit/c57cdcbc84dfa14a25a2f9072645418dad554bba))
-* **extractor:** guard source positions that have no file ([eaa3ac2](https://github.com/DerPate/archlens/commit/eaa3ac269ef89d29d3aabdd23e7d9943e6209dd3))
-* **extractor:** stop swallowing named path/value fallback on mapping annotations ([842a7cc](https://github.com/DerPate/archlens/commit/842a7cca263456cc1fa3439c1411f929b23324d9))
-* **extractor:** stop swallowing named path/value fallback on mapping annotations ([7583871](https://github.com/DerPate/archlens/commit/75838714fec892db26d566c4df0fbce3a4939f5e))
-* **mcp:** make unfiltered use-case timeline readable and deterministic ([fcaf113](https://github.com/DerPate/archlens/commit/fcaf1137a5d9ab2a3d0fbac87de2a1d37c9aa25f))
-* **mcp:** unbreak detect_use_cases and suppress remaining Optional/Stream calls ([fc8f706](https://github.com/DerPate/archlens/commit/fc8f706f3b5c5bd65292573637811b724f81241f))
-* **renderer:** deterministic call-edge order for duplicate component pairs ([49e3499](https://github.com/DerPate/archlens/commit/49e34993074d8c18160977af636d30118c15921d))
-* **renderer:** emit valid gantt spans and raise condition cap to 255 ([58961d6](https://github.com/DerPate/archlens/commit/58961d668b90a00e06e24a46c0d71915141884d2))
-* **renderer:** guard null kind in architecture view label; correct pipeline shape doc ([5c1baa2](https://github.com/DerPate/archlens/commit/5c1baa2d1c305ef5195e72ed671463567e8f1d87))
-* **renderer:** un-hollow pipeline dedup assertion, refresh shape javadoc ([438cb95](https://github.com/DerPate/archlens/commit/438cb9581f763c1efa3f49da982f13a4d0b19704))
+* **extractor:** detect entities structurally and stop attributing container calls to elements ([94f217a](https://github.com/DerPate/archlens/commit/94f217a7704997e74411bf1b6dea703e8f77ac61))
+* **extractor:** give every entrypoint its own runtime flow ([f353638](https://github.com/DerPate/archlens/commit/f35363860652a6c9bd1945318ecade1d96752527))
+* **extractor:** give every entrypoint its own runtime flow ([f26c7ac](https://github.com/DerPate/archlens/commit/f26c7accd9b9ba23e810f6af0a95cac52336e2ac))
+* **extractor:** guard source positions that have no file ([806448e](https://github.com/DerPate/archlens/commit/806448e7fa2f9c9d410b0c0cd882ff43db605ac6))
+* **extractor:** stop swallowing named path/value fallback on mapping annotations ([b49d7e1](https://github.com/DerPate/archlens/commit/b49d7e1c6f2fa6dee30bf3d531b6f0b5b6141bcb))
+* **extractor:** stop swallowing named path/value fallback on mapping annotations ([e78cfa0](https://github.com/DerPate/archlens/commit/e78cfa07f0a78319c5ecb8c4a252ad23e1f1be91))
+* **mcp:** make unfiltered use-case timeline readable and deterministic ([2cf25a0](https://github.com/DerPate/archlens/commit/2cf25a0d1cda973f7c4c0c519683b70c2028ed4a))
+* **mcp:** unbreak detect_use_cases and suppress remaining Optional/Stream calls ([a78ff7f](https://github.com/DerPate/archlens/commit/a78ff7f3ad451a96c041d57b04e5c63acb58cb85))
+* **renderer:** deterministic call-edge order for duplicate component pairs ([63463f2](https://github.com/DerPate/archlens/commit/63463f22fb37a9a93557ad4d29676bbf17895efa))
+* **renderer:** emit valid gantt spans and raise condition cap to 255 ([1a87e8c](https://github.com/DerPate/archlens/commit/1a87e8cafff002684ee5468997c7a64ad952046c))
+* **renderer:** guard null kind in architecture view label; correct pipeline shape doc ([ed5622c](https://github.com/DerPate/archlens/commit/ed5622cdfedcc3945c9651e8b35241ff9c296467))
+* **renderer:** un-hollow pipeline dedup assertion, refresh shape javadoc ([79b688f](https://github.com/DerPate/archlens/commit/79b688f2e86f2d8e28e5f0193dc24aa705c4ede9))
 
 
 ### Documentation
 
-* **skill:** restore the tool map and record the diagram conventions ([ff5b322](https://github.com/DerPate/archlens/commit/ff5b32202f03e4bde86277d8bbe699776f222643))
-* **tools:** correct the use-case timeline sample and its defaults ([a24235f](https://github.com/DerPate/archlens/commit/a24235fd43310c0691230d797fba05b921cd93e3))
-* **workflow-graphs:** regenerate against the current tree ([78f8457](https://github.com/DerPate/archlens/commit/78f84574e246defa2311bc039f02a1445829bc79))
+* **skill:** restore the tool map and record the diagram conventions ([7bb7f16](https://github.com/DerPate/archlens/commit/7bb7f16b100d2965e563f4c57b32b32205bdc787))
+* **tools:** correct the use-case timeline sample and its defaults ([0966a1c](https://github.com/DerPate/archlens/commit/0966a1cb572fd54209f9274d2b2cd78c4a5c9015))
+* **workflow-graphs:** regenerate against the current tree ([73a5e2c](https://github.com/DerPate/archlens/commit/73a5e2c45ab464f588ffb06a72a976390436ffdd))
 
 
 ### Code Refactoring
 
-* **skill:** rename spoon-understand to archlens-understand ([e7b7e4f](https://github.com/DerPate/archlens/commit/e7b7e4f442921217ce777fc775f151d520a7a4fe))
-* **tracing:** rename spoon.traces to archlens.traces ([47c137b](https://github.com/DerPate/archlens/commit/47c137bb71b76374f057aaa65d03d3da4981e60e))
+* **skill:** rename spoon-understand to archlens-understand ([d44ac89](https://github.com/DerPate/archlens/commit/d44ac8946502b0cae12bb4413a6e1deda7d38e60))
+* **tracing:** rename spoon.traces to archlens.traces ([ad29589](https://github.com/DerPate/archlens/commit/ad295899cf2da35225e383e6549e5721fdc0d654))
 
 ## [1.5.0](https://github.com/DerPate/archlens/compare/archlens-1.4.2...archlens-1.5.0) (2026-07-20)
 
 
 ### Features
 
-* add canonical architecture question requests ([a7a4ab2](https://github.com/DerPate/archlens/commit/a7a4ab22b2b0ed4a657788626c8b942984a73053))
-* confine OKF output paths to indexed projects ([57ba336](https://github.com/DerPate/archlens/commit/57ba33694303cab821de9cfa1b63b42c23627548))
-* expose architecture question OKF compiler ([d05522d](https://github.com/DerPate/archlens/commit/d05522d608efa3cf6da07b608f30f181feb243f0))
-* render and validate question OKF concepts ([377b1d7](https://github.com/DerPate/archlens/commit/377b1d7c3aa021dff6f5e69b2a2ced306fd2e7fb))
-* safely create and refresh OKF bundles ([b929691](https://github.com/DerPate/archlens/commit/b92969113ff460ad14f1ec7aefbd2fe74784f4af))
-* validate and identify OKF investigations ([2dd9a57](https://github.com/DerPate/archlens/commit/2dd9a57a90b6b0792bb5da4c6f1d18371dd282d9))
+* add canonical architecture question requests ([545a280](https://github.com/DerPate/archlens/commit/545a2806c85c462fbb328c56724fd2daa2a1724a))
+* confine OKF output paths to indexed projects ([1718d56](https://github.com/DerPate/archlens/commit/1718d56078f7bc45971b2e93e580954b1a7f6943))
+* expose architecture question OKF compiler ([2400840](https://github.com/DerPate/archlens/commit/2400840c69ab90f397cbc602105aae1a7dcacb07))
+* render and validate question OKF concepts ([9c53348](https://github.com/DerPate/archlens/commit/9c533487fdccd1b828bf293f0a4854a998c65a7f))
+* safely create and refresh OKF bundles ([03e7e4b](https://github.com/DerPate/archlens/commit/03e7e4be3df10b9879f28475bd598592feb89bf4))
+* validate and identify OKF investigations ([9ca1e7c](https://github.com/DerPate/archlens/commit/9ca1e7c3143269a139f68123844d76691e2314c7))
 
 
 ### Bug Fixes
 
-* preserve null values in question OKF compilation ([951a4ac](https://github.com/DerPate/archlens/commit/951a4ac2133eb60907e6526acfaf18c7fe55a93c))
+* preserve null values in question OKF compilation ([6bb1689](https://github.com/DerPate/archlens/commit/6bb168999402b470ce91d7a2025e5c237b27410b))
 
 
 ### Documentation
 
-* document architecture question OKF compilation ([38fab2c](https://github.com/DerPate/archlens/commit/38fab2cadf06a9a9945f84bba62dbe15871dab22))
+* document architecture question OKF compilation ([3912ced](https://github.com/DerPate/archlens/commit/3912ceda17c38773936cea69f48d500843257adc))
 
 ## [archlens-1.4.2]
 
