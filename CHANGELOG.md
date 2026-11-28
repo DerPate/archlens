@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [3.0.2](https://github.com/DerPate/archlens/compare/archlens-3.0.1...archlens-3.0.2) (2026-11-28)
+
+
+### Bug Fixes
+
+* **mcp:** speed up path search, understand "affected", report cut evidence ([8c6c56b](https://github.com/DerPate/archlens/commit/8c6c56b3989cabbc28b90e6fc8841667ef309862))
+* **mcp:** speed up path search, understand "affected", report cut evidence ([97e3903](https://github.com/DerPate/archlens/commit/97e3903a3365fc5a99965a48216ff44c9c44cc32))
+
+
+### Documentation
+
+* **wiki:** record the render_pipeline review ([eaa5009](https://github.com/DerPate/archlens/commit/eaa5009aaff19d1554481bacf9a9052c792ac974))
+* **wiki:** record the render_pipeline review ([31c5cb8](https://github.com/DerPate/archlens/commit/31c5cb89078c75cd3d32b462634658f76124a341))
+* **wiki:** record the review and correct render_pipeline shapes ([417a9f3](https://github.com/DerPate/archlens/commit/417a9f3acea8e655f458cacadaecd4ecd378571f))
+* **wiki:** record the review and correct render_pipeline shapes ([0f990fe](https://github.com/DerPate/archlens/commit/0f990fe95da1b588d4b9a65e93b73b21500eb954))
+
 ## [3.0.1](https://github.com/DerPate/archlens/compare/archlens-3.0.0...archlens-3.0.1) (2026-11-22)
 
 

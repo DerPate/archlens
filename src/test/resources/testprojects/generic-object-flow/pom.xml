@@ -2,7 +2,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.example</groupId>
     <artifactId>generic-object-flow</artifactId>
-    <version>3.0.1</version>
+    <version>3.0.2</version>
     <packaging>jar</packaging>
 
     <build>
