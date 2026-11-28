@@ -58,6 +58,8 @@ class PersistenceEntityTypesTest {
         Launcher launcher = new Launcher();
         launcher.getEnvironment().setNoClasspath(true);
         launcher.getEnvironment().setAutoImports(true);
+        // Spoon otherwise uses the running JVM's version, which its Eclipse compiler may not know yet.
+        launcher.getEnvironment().setComplianceLevel(21);
         launcher.addInputResource(new spoon.support.compiler.VirtualFile(source));
         launcher.buildModel();
         return launcher.getModel().getAllTypes().iterator().next();
