@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [3.0.3](https://github.com/DerPate/archlens/compare/archlens-3.0.2...archlens-3.0.3) (2026-11-28)
+
+
+### Bug Fixes
+
+* **test:** pin the Spoon language level in PersistenceEntityTypesTest ([6513f05](https://github.com/DerPate/archlens/commit/6513f05cc8bbbda4f9a906ad3bfba154716f3270))
+* **test:** pin the Spoon language level in PersistenceEntityTypesTest ([bf8eda9](https://github.com/DerPate/archlens/commit/bf8eda9ac987ee5fa2f5a7ea2a479122b6b4de64))
+
 ## [3.0.2](https://github.com/DerPate/archlens/compare/archlens-3.0.1...archlens-3.0.2) (2026-11-28)
 
 
