@@ -1,6 +1,8 @@
 # Update Log
 
 ## 2026-11-22
+- **Verification**: `human:dominik` approved the two corrections to
+  [render_pipeline](tools/render-pipeline.md), which is `stable` again.
 - **Verification**: `human:dominik` approved the corrected
   [export_graph_viewer](tools/export-graph-viewer.md), which is `stable` again.
 - **Update**: `human:dominik` approved the `maxDepth` wording of
